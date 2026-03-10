@@ -7,7 +7,6 @@ import (
 	"cosmossdk.io/core/address"
 	corestore "cosmossdk.io/core/store"
 	"github.com/cosmos/cosmos-sdk/codec"
-
 	"github.com/node101-io/pulsar-chain/x/pulsar/types"
 )
 
@@ -44,7 +43,6 @@ func NewKeeper(
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
 	}
-
 	schema, err := sb.Build()
 	if err != nil {
 		panic(err)

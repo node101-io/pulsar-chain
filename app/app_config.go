@@ -1,9 +1,12 @@
 package app
 
 import (
+	"time"
+
+	_ "github.com/node101-io/pulsar-chain/x/keyregistry/module"
+	keyregistrymoduletypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	_ "github.com/node101-io/pulsar-chain/x/pulsar/module"
 	pulsarmoduletypes "github.com/node101-io/pulsar-chain/x/pulsar/types"
-	"time"
 
 	runtimev1alpha1 "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"
@@ -126,6 +129,7 @@ var (
 						ibcexported.ModuleName,
 						// chain modules
 						pulsarmoduletypes.ModuleName,
+						keyregistrymoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/beginBlockers
 					},
 					EndBlockers: []string{
@@ -135,6 +139,7 @@ var (
 						group.ModuleName,
 						// chain modules
 						pulsarmoduletypes.ModuleName,
+						keyregistrymoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/endBlockers
 					},
 					// The following is mostly only needed when ModuleName != StoreKey name.
@@ -172,6 +177,7 @@ var (
 						icatypes.ModuleName,
 						// chain modules
 						pulsarmoduletypes.ModuleName,
+						keyregistrymoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/initGenesis
 					},
 				}),
@@ -271,6 +277,10 @@ var (
 			{
 				Name:   pulsarmoduletypes.ModuleName,
 				Config: appconfig.WrapAny(&pulsarmoduletypes.Module{}),
+			},
+			{
+				Name:   keyregistrymoduletypes.ModuleName,
+				Config: appconfig.WrapAny(&keyregistrymoduletypes.Module{}),
 			},
 			// this line is used by starport scaffolding # stargate/app/moduleConfig
 		},

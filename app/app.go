@@ -46,6 +46,7 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
 	"github.com/node101-io/pulsar-chain/docs"
+	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
 )
 
@@ -99,8 +100,9 @@ type App struct {
 	TransferKeeper      ibctransferkeeper.Keeper
 
 	// simulation manager
-	sm           *module.SimulationManager
-	PulsarKeeper pulsarmodulekeeper.Keeper
+	sm                *module.SimulationManager
+	PulsarKeeper      pulsarmodulekeeper.Keeper
+	KeyregistryKeeper keyregistrymodulekeeper.Keeper
 }
 
 func init() {
@@ -181,6 +183,7 @@ func New(
 		&app.CircuitBreakerKeeper,
 		&app.ParamsKeeper,
 		&app.PulsarKeeper,
+		&app.KeyregistryKeeper,
 	); err != nil {
 		panic(err)
 	}

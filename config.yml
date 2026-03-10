@@ -25,3 +25,11 @@ validators:
   bonded: 200000000pmina
 - name: validator2
   bonded: 100000000pmina
+
+genesis:
+  app_state:
+    keyregistry:
+      params: {}
+      key_pairs:
+        - mina_key: ""
+          cosmos_key: ""
