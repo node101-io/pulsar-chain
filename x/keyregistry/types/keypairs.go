@@ -13,16 +13,18 @@ func DefaultKeyPairs() []*KeyPair {
 	return NewKeyPairs()
 }
 
-// Validate validates the set of params.
-func (p KeyPair) Validate() error {
-
-	if len(p.CosmosKey) != secp256k1.PubKeySize {
+func ValidateKeyPair(k KeyPair) error {
+	if len(k.CosmosKey) != secp256k1.PubKeySize {
 		return errors.Wrap(ErrInvalidPublicKey, "cosmos public key must be compressed (33 bytes)")
 	}
 
-	if len(p.MinaKey) != keys.PublicKeyTotalByteSize {
+	if len(k.MinaKey) != keys.PublicKeyTotalByteSize {
 		return errors.Wrap(ErrInvalidPublicKey, "mina public key must be compressed (33 bytes)")
 	}
-
 	return nil
+}
+
+// Validate validates the set of params.
+func (k KeyPair) Validate() error {
+	return ValidateKeyPair(k)
 }
