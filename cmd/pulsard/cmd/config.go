@@ -23,8 +23,11 @@ func initAppConfig() (string, interface{}) {
 	// The following code snippet is just for reference.
 	type CustomAppConfig struct {
 		serverconfig.Config `mapstructure:",squash"`
-	}
 
+		VoteExtension struct {
+			PrivKey string `mapstructure:"priv_key"`
+		} `mapstructure:"vote_extension"`
+	}
 	// Optionally allow the chain developer to overwrite the SDK's default
 	// server config.
 	srvCfg := serverconfig.DefaultConfig()

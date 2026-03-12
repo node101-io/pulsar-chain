@@ -21,6 +21,9 @@ faucet:
 validators:
 - name: alice
   bonded: 100000000pmina
+  app:
+      vote_extension:
+        priv_key: ""
 - name: validator1
   bonded: 200000000pmina
 - name: validator2
