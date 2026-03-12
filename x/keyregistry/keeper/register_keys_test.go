@@ -176,5 +176,5 @@ func TestInsertSecondaryKeysFail(t *testing.T) {
 		MinaPublicKey:   MinaPubKey,
 	})
 
-	require.ErrorIs(t, err, types.ErrSecondaryKeyExists)
+	require.ErrorIs(t, err, types.ErrUserSecondaryKeyExists)
 }

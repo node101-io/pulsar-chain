@@ -8,9 +8,10 @@ import (
 
 // x/keyregistry module sentinel errors
 var (
-	ErrInvalidSigner        = errors.Register(ModuleName, 1100, "expected gov account as only signer for proposal message")
-	ErrInvalidSignature     = errors.Register(ModuleName, 1101, "invalid signature")
-	ErrSecondaryKeyExists   = errors.Register(ModuleName, 1102, "secondary key already exists")
-	ErrInvalidCreatorAddres = errors.Register(ModuleName, 1103, "invalid creator address")
-	ErrInvalidPublicKey     = errors.Register(ModuleName, 1104, "invalid public key")
+	ErrInvalidSigner               = errors.Register(ModuleName, 1100, "expected gov account as only signer for proposal message")
+	ErrInvalidSignature            = errors.Register(ModuleName, 1101, "invalid signature")
+	ErrUserSecondaryKeyExists      = errors.Register(ModuleName, 1102, "user's secondary key already exists")
+	ErrValidatorSecondaryKeyExists = errors.Register(ModuleName, 1103, "validator's secondary key already exists")
+	ErrInvalidCreatorAddres        = errors.Register(ModuleName, 1104, "invalid creator address")
+	ErrInvalidPublicKey            = errors.Register(ModuleName, 1105, "invalid public key")
 )

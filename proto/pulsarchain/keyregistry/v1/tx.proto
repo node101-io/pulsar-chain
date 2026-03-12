@@ -51,6 +51,7 @@ message MsgRegisterKeys {
   string mina_signature = 3;
   bytes cosmos_public_key = 4;
   bytes mina_public_key = 5;
+  bool is_user = 6;
 }
 
 // MsgRegisterKeysResponse defines the MsgRegisterKeysResponse message.
