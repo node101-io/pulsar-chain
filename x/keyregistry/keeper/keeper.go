@@ -27,6 +27,9 @@ type Keeper struct {
 
 	cosmosToMina collections.Map[[]byte, []byte] // Cosmos PubKey --> Mina PubKey
 	minaToCosmos collections.Map[[]byte, []byte] // Mina PubKey --> Cosmos PubKey
+
+	validatorCosmosToMina collections.Map[[]byte, []byte] // Validator Cosmos PubKey --> Validator Mina PubKey
+	validatorMinaToCosmos collections.Map[[]byte, []byte] // Validator Mina PubKey --> Validator Cosmos PubKey
 }
 
 func NewKeeper(
@@ -89,4 +92,28 @@ func (k Keeper) CosmosToMinaHas(ctx context.Context, cosmosPublicKey []byte) (bo
 
 func (k Keeper) MinaToCosmosHas(ctx context.Context, minaPublicKey []byte) (bool, error) {
 	return k.minaToCosmos.Has(ctx, minaPublicKey)
+}
+
+func (k Keeper) ValidatorSetCosmosToMina(ctx context.Context, cosmosPublicKey, minaPublicKey []byte) error {
+	return k.validatorCosmosToMina.Set(ctx, cosmosPublicKey, minaPublicKey)
+}
+
+func (k Keeper) ValidatorGetCosmosToMina(ctx context.Context, cosmosPublicKey []byte) ([]byte, error) {
+	return k.validatorCosmosToMina.Get(ctx, cosmosPublicKey)
+}
+
+func (k Keeper) ValidatorSetMinaToCosmos(ctx context.Context, minaPublicKey, cosmosPublicKey []byte) error {
+	return k.validatorMinaToCosmos.Set(ctx, minaPublicKey, cosmosPublicKey)
+}
+
+func (k Keeper) ValidatorGetMinaToCosmos(ctx context.Context, minaPublicKey []byte) ([]byte, error) {
+	return k.validatorMinaToCosmos.Get(ctx, minaPublicKey)
+}
+
+func (k Keeper) ValidatorCosmosToMinaHas(ctx context.Context, cosmosPublicKey []byte) (bool, error) {
+	return k.validatorCosmosToMina.Has(ctx, cosmosPublicKey)
+}
+
+func (k Keeper) ValidatorMinaToCosmosHas(ctx context.Context, minaPublicKey []byte) (bool, error) {
+	return k.validatorMinaToCosmos.Has(ctx, minaPublicKey)
 }
