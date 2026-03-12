@@ -48,7 +48,7 @@ func TestUserCosmosMapSuccess(t *testing.T) {
 	}
 	require.NoError(t, err)
 
-	err = f.keeper.SetCosmosToMina(f.ctx, cosmosPubKey.Bytes(), minaPubKey)
+	err = f.keeper.UserSetCosmosToMina(f.ctx, cosmosPubKey.Bytes(), minaPubKey)
 	require.NoError(t, err)
 
 	resp, err := qs.GetUserMinaPubKey(f.ctx, &types.QueryGetUserMinaPubKeyRequest{
@@ -80,7 +80,7 @@ func TestUserMinaMapSuccess(t *testing.T) {
 	}
 	require.NoError(t, err)
 
-	err = f.keeper.SetMinaToCosmos(f.ctx, minaPubKey, cosmosPubKey.Bytes())
+	err = f.keeper.UserSetMinaToCosmos(f.ctx, minaPubKey, cosmosPubKey.Bytes())
 	require.NoError(t, err)
 
 	resp, err := qs.GetUserCosmosPubKey(f.ctx, &types.QueryGetUserCosmosPubKeyRequest{

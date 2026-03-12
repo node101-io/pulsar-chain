@@ -62,13 +62,13 @@ var MinaPubKey = []byte("mina")
 
 // TestCosmosToMina verifies that a cosmos public key can be stored in the
 // CosmosToMina map and correctly retrieved using the same cosmos public key.
-func TestCosmosToMina(t *testing.T) {
+func TestUserCosmosToMina(t *testing.T) {
 	f := initFixture(t)
 
-	err := f.keeper.SetCosmosToMina(f.ctx, CosmosPubKey, MinaPubKey)
+	err := f.keeper.UserSetCosmosToMina(f.ctx, CosmosPubKey, MinaPubKey)
 	require.NoError(t, err)
 
-	pubKey, err := f.keeper.GetCosmosToMina(f.ctx, CosmosPubKey)
+	pubKey, err := f.keeper.UserGetCosmosToMina(f.ctx, CosmosPubKey)
 	require.NoError(t, err)
 
 	require.Equal(t, MinaPubKey, pubKey)
@@ -76,13 +76,13 @@ func TestCosmosToMina(t *testing.T) {
 
 // TestMinaToCosmos verifies that a mina public key can be stored in the
 // MinaToCosmos map and correctly retrieved using the same mina public key.
-func TestMinaToCosmos(t *testing.T) {
+func TestUserMinaToCosmos(t *testing.T) {
 	f := initFixture(t)
 
-	err := f.keeper.SetMinaToCosmos(f.ctx, MinaPubKey, CosmosPubKey)
+	err := f.keeper.UserSetMinaToCosmos(f.ctx, MinaPubKey, CosmosPubKey)
 	require.NoError(t, err)
 
-	pubKey, err := f.keeper.GetMinaToCosmos(f.ctx, MinaPubKey)
+	pubKey, err := f.keeper.UserGetMinaToCosmos(f.ctx, MinaPubKey)
 	require.NoError(t, err)
 
 	require.Equal(t, CosmosPubKey, pubKey)
