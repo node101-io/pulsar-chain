@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// TestCosmosMapInvalidArgumentFail verifies that GetCosmosPubKey returns
+// TestUserCosmosMapInvalidArgumentFail verifies that GetCosmosPubKey returns
 // an InvalidArgument error when called with a nil request.
 func TestUserCosmosMapInvalidArgumentFail(t *testing.T) {
 	f := initFixture(t)
@@ -29,7 +29,7 @@ func TestUserCosmosMapInvalidArgumentFail(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, st.Code())
 }
 
-// TestCosmosMapSuccess verifies that a mina public key can be retrieved
+// TestUserCosmosMapSuccess verifies that a mina public key can be retrieved
 // by its associated cosmos public key after being stored in the CosmosToMina map.
 func TestUserCosmosMapSuccess(t *testing.T) {
 	f := initFixture(t)
@@ -61,7 +61,7 @@ func TestUserCosmosMapSuccess(t *testing.T) {
 	require.Equal(t, resp.UserMinaPubKey, []byte(minaPubKey))
 }
 
-// TestMinaMapSuccess verifies that a cosmos public key can be retrieved
+// TestUserMinaMapSuccess verifies that a cosmos public key can be retrieved
 // by its associated mina public key after being stored in the MinaToCosmos map.
 func TestUserMinaMapSuccess(t *testing.T) {
 	f := initFixture(t)
@@ -93,7 +93,7 @@ func TestUserMinaMapSuccess(t *testing.T) {
 	require.Equal(t, resp.UserCosmosPubKey, cosmosPubKey.Bytes())
 }
 
-// TestMinaMapInvalidArgumentFail verifies that GetMinaPubKey returns
+// TestUserMinaMapInvalidArgumentFail verifies that GetMinaPubKey returns
 // an InvalidArgument error when called with a nil request.
 func TestUserMinaMapInvalidArgumentFail(t *testing.T) {
 	f := initFixture(t)
@@ -109,7 +109,7 @@ func TestUserMinaMapInvalidArgumentFail(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, st.Code())
 }
 
-// TestCosmosMapPubkeyNotFound verifies that GetCosmosPubKey returns
+// TestUserCosmosMapPubkeyNotFound verifies that GetCosmosPubKey returns
 // a NotFound error when the provided mina public key has no associated cosmos key.
 func TestUserCosmosMapPubkeyNotFound(t *testing.T) {
 	f := initFixture(t)
@@ -131,7 +131,7 @@ func TestUserCosmosMapPubkeyNotFound(t *testing.T) {
 	require.Equal(t, codes.NotFound, st.Code())
 }
 
-// TestMinaMapPubkeyNotFound verifies that GetMinaPubKey returns
+// TestUserMinaMapPubkeyNotFound verifies that GetMinaPubKey returns
 // a NotFound error when the provided cosmos public key has no associated mina key.
 func TestUserMinaMapPubkeyNotFound(t *testing.T) {
 	f := initFixture(t)

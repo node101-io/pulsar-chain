@@ -9,6 +9,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// GetMinaPubKey returns the validator's mina public key associated with the given cosmos public key.
+// Returns NotFound if no mapping exists for the provided cosmos public key.
 func (q queryServer) GetValidatorMinaPubKey(ctx context.Context, req *types.QueryGetValidatorMinaPubKeyRequest) (*types.QueryGetValidatorMinaPubKeyResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")

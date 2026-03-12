@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// GetMinaPubKey returns the mina public key associated with the given cosmos public key.
+// GetMinaPubKey returns the user's mina public key associated with the given cosmos public key.
 // Returns NotFound if no mapping exists for the provided cosmos public key.
 func (q queryServer) GetUserMinaPubKey(ctx context.Context, req *types.QueryGetUserMinaPubKeyRequest) (*types.QueryGetUserMinaPubKeyResponse, error) {
 	if req == nil {

@@ -31,7 +31,7 @@ func generatePublicKeys() (crypto.PubKey, []byte, error) {
 	return cosmosPubKey, minaPublicKey, err
 }
 
-// TestRegisterKeysFail verifies that RegisterKeys fails with ErrInvalidPublicKey
+// TestUserRegisterKeysFail verifies that RegisterKeys fails with ErrInvalidPublicKey
 // when the provided cosmos public key is not a valid compressed secp256k1 key (33 bytes).
 func TestUserRegisterKeysFail(t *testing.T) {
 
@@ -50,7 +50,7 @@ func TestUserRegisterKeysFail(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
 }
 
-// TestRegisterKeysSuccess verifies that RegisterKeys succeeds with valid inputs
+// TestUserRegisterKeysSuccess verifies that RegisterKeys succeeds with valid inputs
 // and ensures that both CosmosToMina and MinaToCosmos mappings are correctly stored.
 func TestUserRegisterKeysSuccess(t *testing.T) {
 
@@ -83,7 +83,7 @@ func TestUserRegisterKeysSuccess(t *testing.T) {
 
 }
 
-// TestInvalidCreatorAddress verifies that RegisterKeys fails with ErrInvalidCreatorAddres
+// TestUserInvalidCreatorAddress verifies that RegisterKeys fails with ErrInvalidCreatorAddres
 // when the creator field is not a valid bech32 address.
 func TestUserInvalidCreatorAddress(t *testing.T) {
 
@@ -104,7 +104,7 @@ func TestUserInvalidCreatorAddress(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
 }
 
-// TestInvalidSigner verifies that RegisterKeys fails with ErrInvalidSigner
+// TestUserInvalidSigner verifies that RegisterKeys fails with ErrInvalidSigner
 // when the creator address does not match the address derived from the provided cosmos public key.
 func TestUserInvalidSigner(t *testing.T) {
 
@@ -134,7 +134,7 @@ func TestUserInvalidSigner(t *testing.T) {
 }
 
 // TODO: Update require.NoError to require.ErrorIs once the VerifyCosmosSig and VerifyMinaSig is implemented
-// TestInvalidSignature currently expects no error since signature verification is not yet implemented.
+// TestUserInvalidSignature currently expects no error since signature verification is not yet implemented.
 func TestUserInvalidSignature(t *testing.T) {
 
 	cosmosPubKey, minaPubKey, err := generatePublicKeys()
@@ -160,7 +160,7 @@ func TestUserInvalidSignature(t *testing.T) {
 
 }
 
-// TestInsertSecondaryKeysFail verifies that registering the same key pair twice
+// TestUserInsertSecondaryKeysFail verifies that registering the same key pair twice
 // fails with ErrSecondaryKeyExists on the second attempt.
 func TestUserInsertSecondaryKeysFail(t *testing.T) {
 	f := initFixture(t)

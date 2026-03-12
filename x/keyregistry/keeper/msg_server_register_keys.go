@@ -42,8 +42,9 @@ func deriveAddressFromPubkey(cosmosPublicKey []byte, isUser bool) string {
 	return addr.String()
 }
 
+// Manage Validator's key registry
 func ValidatorKeyRegister(k msgServer, ctx context.Context, msg *types.MsgRegisterKeys) error {
-	// Check if either key is already registered to prevent duplicate registrations.
+	// Check if validator's keys already registered to prevent duplicate registrations.
 	cosmosKeyExists, err := k.Keeper.validatorCosmosToMina.Has(ctx, msg.CosmosPublicKey)
 	if err != nil {
 		return err
@@ -56,7 +57,7 @@ func ValidatorKeyRegister(k msgServer, ctx context.Context, msg *types.MsgRegist
 		return errorsmod.Wrap(types.ErrValidatorSecondaryKeyExists, "")
 	}
 
-	// Verify that the mina key signed the cosmos public key and vice versa.
+	// Verify that the validator's mina key signed the cosmos public key and vice versa.
 	// This proves ownership of both keys.
 	minaSigValidity := VerifyValidatorMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey)
 	cosmosSigValidity := VerifyValidatorCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
@@ -65,7 +66,7 @@ func ValidatorKeyRegister(k msgServer, ctx context.Context, msg *types.MsgRegist
 		return errorsmod.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
 	}
 
-	// Store the key pair in both directions to allow lookups by either key.
+	// Store the validator's key pair in both directions to allow lookups by either key.
 	err = k.Keeper.validatorCosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)
 	if err != nil {
 		return err
@@ -125,7 +126,7 @@ func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys)
 		}
 	}
 
-	// Check if either key is already registered to prevent duplicate registrations.
+	// Check if user's keys are already registered to prevent duplicate registrations.
 	cosmosKeyExists, err := k.Keeper.userCosmosToMina.Has(ctx, msg.CosmosPublicKey)
 	if err != nil {
 		return nil, err
@@ -138,7 +139,7 @@ func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys)
 		return nil, errorsmod.Wrap(types.ErrUserSecondaryKeyExists, "")
 	}
 
-	// Verify that the mina key signed the cosmos public key and vice versa.
+	// Verify that the user's mina key signed the cosmos public key and vice versa.
 	// This proves ownership of both keys.
 	minaSigValidity := VerifyUserMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey)
 	cosmosSigValidity := VerifyUserCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
@@ -147,7 +148,7 @@ func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys)
 		return nil, errorsmod.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
 	}
 
-	// Store the key pair in both directions to allow lookups by either key.
+	// Store the user's key pair in both directions to allow lookups by either key.
 	err = k.Keeper.userCosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)
 	if err != nil {
 		return nil, err
