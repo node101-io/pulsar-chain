@@ -51,8 +51,8 @@ func local_request_Query_Params_0(ctx context.Context, marshaler runtime.Marshal
 
 }
 
-func request_Query_GetMinaPubKey_0(ctx context.Context, marshaler runtime.Marshaler, client QueryClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq QueryGetMinaPubKeyRequest
+func request_Query_GetUserMinaPubKey_0(ctx context.Context, marshaler runtime.Marshaler, client QueryClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq QueryGetUserMinaPubKeyRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -62,24 +62,24 @@ func request_Query_GetMinaPubKey_0(ctx context.Context, marshaler runtime.Marsha
 		_   = err
 	)
 
-	val, ok = pathParams["cosmos_pub_key"]
+	val, ok = pathParams["user_cosmos_pub_key"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "cosmos_pub_key")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "user_cosmos_pub_key")
 	}
 
-	protoReq.CosmosPubKey, err = runtime.Bytes(val)
+	protoReq.UserCosmosPubKey, err = runtime.Bytes(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "cosmos_pub_key", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "user_cosmos_pub_key", err)
 	}
 
-	msg, err := client.GetMinaPubKey(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetUserMinaPubKey(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_Query_GetMinaPubKey_0(ctx context.Context, marshaler runtime.Marshaler, server QueryServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq QueryGetMinaPubKeyRequest
+func local_request_Query_GetUserMinaPubKey_0(ctx context.Context, marshaler runtime.Marshaler, server QueryServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq QueryGetUserMinaPubKeyRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -89,24 +89,24 @@ func local_request_Query_GetMinaPubKey_0(ctx context.Context, marshaler runtime.
 		_   = err
 	)
 
-	val, ok = pathParams["cosmos_pub_key"]
+	val, ok = pathParams["user_cosmos_pub_key"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "cosmos_pub_key")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "user_cosmos_pub_key")
 	}
 
-	protoReq.CosmosPubKey, err = runtime.Bytes(val)
+	protoReq.UserCosmosPubKey, err = runtime.Bytes(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "cosmos_pub_key", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "user_cosmos_pub_key", err)
 	}
 
-	msg, err := server.GetMinaPubKey(ctx, &protoReq)
+	msg, err := server.GetUserMinaPubKey(ctx, &protoReq)
 	return msg, metadata, err
 
 }
 
-func request_Query_GetCosmosPubKey_0(ctx context.Context, marshaler runtime.Marshaler, client QueryClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq QueryGetCosmosPubKeyRequest
+func request_Query_GetUserCosmosPubKey_0(ctx context.Context, marshaler runtime.Marshaler, client QueryClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq QueryGetUserCosmosPubKeyRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -116,24 +116,24 @@ func request_Query_GetCosmosPubKey_0(ctx context.Context, marshaler runtime.Mars
 		_   = err
 	)
 
-	val, ok = pathParams["mina_pub_key"]
+	val, ok = pathParams["user_mina_pub_key"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "mina_pub_key")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "user_mina_pub_key")
 	}
 
-	protoReq.MinaPubKey, err = runtime.Bytes(val)
+	protoReq.UserMinaPubKey, err = runtime.Bytes(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "mina_pub_key", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "user_mina_pub_key", err)
 	}
 
-	msg, err := client.GetCosmosPubKey(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetUserCosmosPubKey(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_Query_GetCosmosPubKey_0(ctx context.Context, marshaler runtime.Marshaler, server QueryServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq QueryGetCosmosPubKeyRequest
+func local_request_Query_GetUserCosmosPubKey_0(ctx context.Context, marshaler runtime.Marshaler, server QueryServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq QueryGetUserCosmosPubKeyRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -143,18 +143,18 @@ func local_request_Query_GetCosmosPubKey_0(ctx context.Context, marshaler runtim
 		_   = err
 	)
 
-	val, ok = pathParams["mina_pub_key"]
+	val, ok = pathParams["user_mina_pub_key"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "mina_pub_key")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "user_mina_pub_key")
 	}
 
-	protoReq.MinaPubKey, err = runtime.Bytes(val)
+	protoReq.UserMinaPubKey, err = runtime.Bytes(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "mina_pub_key", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "user_mina_pub_key", err)
 	}
 
-	msg, err := server.GetCosmosPubKey(ctx, &protoReq)
+	msg, err := server.GetUserCosmosPubKey(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -188,7 +188,7 @@ func RegisterQueryHandlerServer(ctx context.Context, mux *runtime.ServeMux, serv
 
 	})
 
-	mux.Handle("GET", pattern_Query_GetMinaPubKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Query_GetUserMinaPubKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -199,7 +199,7 @@ func RegisterQueryHandlerServer(ctx context.Context, mux *runtime.ServeMux, serv
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Query_GetMinaPubKey_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Query_GetUserMinaPubKey_0(rctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -207,11 +207,11 @@ func RegisterQueryHandlerServer(ctx context.Context, mux *runtime.ServeMux, serv
 			return
 		}
 
-		forward_Query_GetMinaPubKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Query_GetUserMinaPubKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("GET", pattern_Query_GetCosmosPubKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Query_GetUserCosmosPubKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -222,7 +222,7 @@ func RegisterQueryHandlerServer(ctx context.Context, mux *runtime.ServeMux, serv
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Query_GetCosmosPubKey_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Query_GetUserCosmosPubKey_0(rctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -230,7 +230,7 @@ func RegisterQueryHandlerServer(ctx context.Context, mux *runtime.ServeMux, serv
 			return
 		}
 
-		forward_Query_GetCosmosPubKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Query_GetUserCosmosPubKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -295,7 +295,7 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 
 	})
 
-	mux.Handle("GET", pattern_Query_GetMinaPubKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Query_GetUserMinaPubKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -304,18 +304,18 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Query_GetMinaPubKey_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Query_GetUserMinaPubKey_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_Query_GetMinaPubKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Query_GetUserMinaPubKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("GET", pattern_Query_GetCosmosPubKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Query_GetUserCosmosPubKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -324,14 +324,14 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Query_GetCosmosPubKey_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Query_GetUserCosmosPubKey_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_Query_GetCosmosPubKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Query_GetUserCosmosPubKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -341,15 +341,15 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 var (
 	pattern_Query_Params_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"node101-io", "pulsar-chain", "keyregistry", "v1", "params"}, "", runtime.AssumeColonVerbOpt(false)))
 
-	pattern_Query_GetMinaPubKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"node101-io", "pulsar-chain", "keyregistry", "v1", "get_mina_pub_key", "cosmos_pub_key"}, "", runtime.AssumeColonVerbOpt(false)))
+	pattern_Query_GetUserMinaPubKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"node101-io", "pulsar-chain", "keyregistry", "v1", "get_user_mina_pub_key", "user_cosmos_pub_key"}, "", runtime.AssumeColonVerbOpt(false)))
 
-	pattern_Query_GetCosmosPubKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"node101-io", "pulsar-chain", "keyregistry", "v1", "get_cosmos_pub_key", "mina_pub_key"}, "", runtime.AssumeColonVerbOpt(false)))
+	pattern_Query_GetUserCosmosPubKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"node101-io", "pulsar-chain", "keyregistry", "v1", "get_user_cosmos_pub_key", "user_mina_pub_key"}, "", runtime.AssumeColonVerbOpt(false)))
 )
 
 var (
 	forward_Query_Params_0 = runtime.ForwardResponseMessage
 
-	forward_Query_GetMinaPubKey_0 = runtime.ForwardResponseMessage
+	forward_Query_GetUserMinaPubKey_0 = runtime.ForwardResponseMessage
 
-	forward_Query_GetCosmosPubKey_0 = runtime.ForwardResponseMessage
+	forward_Query_GetUserCosmosPubKey_0 = runtime.ForwardResponseMessage
 )

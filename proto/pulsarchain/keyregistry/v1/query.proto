@@ -18,13 +18,13 @@ service Query {
   }
 
   // GetMinaPubKey Queries a list of GetMinaPubKey items.
-  rpc GetMinaPubKey(QueryGetMinaPubKeyRequest) returns (QueryGetMinaPubKeyResponse) {
-    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_mina_pub_key/{cosmos_pub_key}";
+  rpc GetUserMinaPubKey(QueryGetUserMinaPubKeyRequest) returns (QueryGetUserMinaPubKeyResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_mina_pub_key/{user_cosmos_pub_key}";
   }
 
   // GetCosmosPubKey Queries a list of GetCosmosPubKey items.
-  rpc GetCosmosPubKey(QueryGetCosmosPubKeyRequest) returns (QueryGetCosmosPubKeyResponse) {
-    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_cosmos_pub_key/{mina_pub_key}";
+  rpc GetUserCosmosPubKey(QueryGetUserCosmosPubKeyRequest) returns (QueryGetUserCosmosPubKeyResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_cosmos_pub_key/{user_mina_pub_key}";
   }
 }
 
@@ -40,22 +40,22 @@ message QueryParamsResponse {
   ];
 }
 
-// QueryGetMinaPubKeyRequest defines the QueryGetMinaPubKeyRequest message.
-message QueryGetMinaPubKeyRequest {
-  bytes cosmos_pub_key = 1;
+// QueryGetUserMinaPubKeyRequest defines the QueryGetMinaPubKeyRequest message.
+message QueryGetUserMinaPubKeyRequest {
+  bytes user_cosmos_pub_key = 1;
 }
 
-// QueryGetMinaPubKeyResponse defines the QueryGetMinaPubKeyResponse message.
-message QueryGetMinaPubKeyResponse {
-  bytes mina_pub_key = 1;
+// QueryGetUserMinaPubKeyResponse defines the QueryGetMinaPubKeyResponse message.
+message QueryGetUserMinaPubKeyResponse {
+  bytes user_mina_pub_key = 1;
 }
 
-// QueryGetCosmosPubKeyRequest defines the QueryGetCosmosPubKeyRequest message.
-message QueryGetCosmosPubKeyRequest {
-  bytes mina_pub_key = 1;
+// QueryGetUserCosmosPubKeyRequest defines the QueryGetCosmosPubKeyRequest message.
+message QueryGetUserCosmosPubKeyRequest {
+  bytes user_mina_pub_key = 1;
 }
 
-// QueryGetCosmosPubKeyResponse defines the QueryGetCosmosPubKeyResponse message.
-message QueryGetCosmosPubKeyResponse {
-  bytes cosmos_pub_key = 1;
+// QueryGetUserCosmosPubKeyResponse defines the QueryGetCosmosPubKeyResponse message.
+message QueryGetUserCosmosPubKeyResponse {
+  bytes user_cosmos_pub_key = 1;
 }
