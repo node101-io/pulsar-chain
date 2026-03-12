@@ -43,13 +43,13 @@ func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys)
 		return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
 	}
 
-	// Ensure the cosmos and mina public keys are compressed.
+	// Ensure the cosmos and mina public keys are valid.
 	err := types.ValidateKeyPair(types.KeyPair{
 		MinaKey:   msg.MinaPublicKey,
 		CosmosKey: msg.CosmosPublicKey,
 	})
 	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidPublicKey, "pubkeys must be compressed")
+		return nil, errorsmod.Wrap(types.ErrInvalidPublicKey, "pubkeys must be valid")
 	}
 
 	// Ensure the creator address matches the provided cosmos public key

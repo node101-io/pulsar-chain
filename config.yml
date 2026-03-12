@@ -31,5 +31,5 @@ genesis:
     keyregistry:
       params: {}
       key_pairs:
-        - mina_key: ""
-          cosmos_key: ""
+        # - mina_key: "SC/6aqoZ19ObLka8NIQVMs1qPim+uD6epPLuQS4x2n4Z"
+        #   cosmos_key: "UdDr3CCO+4HVrBtbzqLTM3P2xAMNCIrPeCTeVfb5sw1y"
