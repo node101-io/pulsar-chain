@@ -88,8 +88,17 @@ func ValidatorKeyRegister(k msgServer, ctx context.Context, msg *types.MsgRegist
 // If all checks pass, the key pair is stored in both the CosmosToMina and MinaToCosmos maps.
 func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys) (*types.MsgRegisterKeysResponse, error) {
 	// Validate the creator address.
-	if _, err := k.addressCodec.StringToBytes(msg.Creator); err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
+
+	if msg.IsUser {
+		_, err := k.addressCodec.StringToBytes(msg.Creator)
+		if err != nil {
+			return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
+		}
+	} else {
+		_, err := sdk.ConsAddressFromBech32(msg.Creator)
+		if err != nil {
+			return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
+		}
 	}
 
 	// Ensure the cosmos and mina public keys are valid.
