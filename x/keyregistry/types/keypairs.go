@@ -9,7 +9,11 @@ import (
 func NewKeyPairs() []*KeyPair {
 	return []*KeyPair{}
 }
-func DefaultKeyPairs() []*KeyPair {
+func DefaultUserKeyPairs() []*KeyPair {
+	return NewKeyPairs()
+}
+
+func DefaultValidatorKeyPairs() []*KeyPair {
 	return NewKeyPairs()
 }
 

@@ -15,5 +15,6 @@ message GenesisState {
     (gogoproto.nullable) = false,
     (amino.dont_omitempty) = true
   ];
-  repeated KeyPair key_pairs = 2;
+  repeated KeyPair user_key_pairs = 2;
+  repeated KeyPair validator_key_pairs = 3;
 }

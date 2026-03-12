@@ -43,7 +43,13 @@ func TestInitAndExportGenesis(t *testing.T) {
 
 	genesisState := types.GenesisState{
 		Params: types.DefaultParams(),
-		KeyPairs: []*types.KeyPair{
+		UserKeyPairs: []*types.KeyPair{
+			{
+				MinaKey:   minaPubKey,
+				CosmosKey: cosmosPubKey.Bytes(),
+			},
+		},
+		ValidatorKeyPairs: []*types.KeyPair{
 			{
 				MinaKey:   minaPubKey,
 				CosmosKey: cosmosPubKey.Bytes(),
@@ -57,6 +63,6 @@ func TestInitAndExportGenesis(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 
-	require.EqualExportedValues(t, genesisState.KeyPairs, got.KeyPairs)
+	require.EqualExportedValues(t, genesisState.UserKeyPairs, got.UserKeyPairs)
 
 }
