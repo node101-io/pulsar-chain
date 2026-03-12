@@ -11,8 +11,11 @@ import (
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-const CosmosToMinaMapName string = "cosmos_to_mina"
-const MinaToCosmosMapName string = "mina_to_cosmos"
+const UserCosmosToMinaMapName string = "user_cosmos_to_mina"
+const UserMinaToCosmosMapName string = "user_mina_to_cosmos"
+
+const ValidatorCosmosToMinaMapName string = "validator_cosmos_to_mina"
+const ValidatorMinaToCosmosMapName string = "validator_mina_to_cosmos"
 
 type Keeper struct {
 	storeService corestore.KVStoreService
@@ -53,8 +56,11 @@ func NewKeeper(
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
 
-		cosmosToMina: collections.NewMap(sb, types.CosmosToMinaPrefix, CosmosToMinaMapName, collections.BytesKey, collections.BytesValue),
-		minaToCosmos: collections.NewMap(sb, types.MinaToCosmosPrefix, MinaToCosmosMapName, collections.BytesKey, collections.BytesValue),
+		cosmosToMina: collections.NewMap(sb, types.UserCosmosToMinaPrefix, UserCosmosToMinaMapName, collections.BytesKey, collections.BytesValue),
+		minaToCosmos: collections.NewMap(sb, types.UserMinaToCosmosPrefix, UserMinaToCosmosMapName, collections.BytesKey, collections.BytesValue),
+
+		validatorCosmosToMina: collections.NewMap(sb, types.ValidatorCosmosToMinaPrefix, ValidatorCosmosToMinaMapName, collections.BytesKey, collections.BytesValue),
+		validatorMinaToCosmos: collections.NewMap(sb, types.ValidatorMinaToCosmosPrefix, ValidatorMinaToCosmosMapName, collections.BytesKey, collections.BytesValue),
 	}
 	schema, err := sb.Build()
 	if err != nil {
