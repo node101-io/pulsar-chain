@@ -31,6 +31,20 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_mina_pub_key", Varargs: true}},
 				},
 
+				{
+					RpcMethod:      "GetValidatorMinaPubKey",
+					Use:            "get-validator-mina-pub-key [validator-cosmos-pub-key]",
+					Short:          "Query GetValidatorMinaPubKey",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_cosmos_pub_key", Varargs: true}},
+				},
+
+				{
+					RpcMethod:      "GetValidatorCosmosPubKey",
+					Use:            "get-validator-cosmos-pub-key [validator-mina-pub-key]",
+					Short:          "Query GetValidatorCosmosPubKey",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_mina_pub_key", Varargs: true}},
+				},
+
 				// this line is used by ignite scaffolding # autocli/query
 			},
 		},

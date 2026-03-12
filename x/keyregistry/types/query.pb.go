@@ -6,6 +6,10 @@ package types
 import (
 	context "context"
 	fmt "fmt"
+	io "io"
+	math "math"
+	math_bits "math/bits"
+
 	_ "github.com/cosmos/cosmos-sdk/types/query"
 	_ "github.com/cosmos/cosmos-sdk/types/tx/amino"
 	_ "github.com/cosmos/gogoproto/gogoproto"
@@ -15,9 +19,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	io "io"
-	math "math"
-	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -294,6 +295,186 @@ func (m *QueryGetUserCosmosPubKeyResponse) GetUserCosmosPubKey() []byte {
 	return nil
 }
 
+// QueryGetValidatorMinaPubKeyRequest defines the QueryGetValidatorMinaPubKeyRequest message.
+type QueryGetValidatorMinaPubKeyRequest struct {
+	ValidatorCosmosPubKey []byte `protobuf:"bytes,1,opt,name=validator_cosmos_pub_key,json=validatorCosmosPubKey,proto3" json:"validator_cosmos_pub_key,omitempty"`
+}
+
+func (m *QueryGetValidatorMinaPubKeyRequest) Reset()         { *m = QueryGetValidatorMinaPubKeyRequest{} }
+func (m *QueryGetValidatorMinaPubKeyRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryGetValidatorMinaPubKeyRequest) ProtoMessage()    {}
+func (*QueryGetValidatorMinaPubKeyRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d580bfce910e0ca3, []int{6}
+}
+func (m *QueryGetValidatorMinaPubKeyRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryGetValidatorMinaPubKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryGetValidatorMinaPubKeyRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryGetValidatorMinaPubKeyRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetValidatorMinaPubKeyRequest.Merge(m, src)
+}
+func (m *QueryGetValidatorMinaPubKeyRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryGetValidatorMinaPubKeyRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetValidatorMinaPubKeyRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryGetValidatorMinaPubKeyRequest proto.InternalMessageInfo
+
+func (m *QueryGetValidatorMinaPubKeyRequest) GetValidatorCosmosPubKey() []byte {
+	if m != nil {
+		return m.ValidatorCosmosPubKey
+	}
+	return nil
+}
+
+// QueryGetValidatorMinaPubKeyResponse defines the QueryGetValidatorMinaPubKeyResponse message.
+type QueryGetValidatorMinaPubKeyResponse struct {
+	ValidatorMinaPubKey []byte `protobuf:"bytes,1,opt,name=validator_mina_pub_key,json=validatorMinaPubKey,proto3" json:"validator_mina_pub_key,omitempty"`
+}
+
+func (m *QueryGetValidatorMinaPubKeyResponse) Reset()         { *m = QueryGetValidatorMinaPubKeyResponse{} }
+func (m *QueryGetValidatorMinaPubKeyResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryGetValidatorMinaPubKeyResponse) ProtoMessage()    {}
+func (*QueryGetValidatorMinaPubKeyResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d580bfce910e0ca3, []int{7}
+}
+func (m *QueryGetValidatorMinaPubKeyResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryGetValidatorMinaPubKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryGetValidatorMinaPubKeyResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryGetValidatorMinaPubKeyResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetValidatorMinaPubKeyResponse.Merge(m, src)
+}
+func (m *QueryGetValidatorMinaPubKeyResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryGetValidatorMinaPubKeyResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetValidatorMinaPubKeyResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryGetValidatorMinaPubKeyResponse proto.InternalMessageInfo
+
+func (m *QueryGetValidatorMinaPubKeyResponse) GetValidatorMinaPubKey() []byte {
+	if m != nil {
+		return m.ValidatorMinaPubKey
+	}
+	return nil
+}
+
+// QueryGetValidatorCosmosPubKeyRequest defines the QueryGetValidatorCosmosPubKeyRequest message.
+type QueryGetValidatorCosmosPubKeyRequest struct {
+	ValidatorMinaPubKey []byte `protobuf:"bytes,1,opt,name=validator_mina_pub_key,json=validatorMinaPubKey,proto3" json:"validator_mina_pub_key,omitempty"`
+}
+
+func (m *QueryGetValidatorCosmosPubKeyRequest) Reset()         { *m = QueryGetValidatorCosmosPubKeyRequest{} }
+func (m *QueryGetValidatorCosmosPubKeyRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryGetValidatorCosmosPubKeyRequest) ProtoMessage()    {}
+func (*QueryGetValidatorCosmosPubKeyRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d580bfce910e0ca3, []int{8}
+}
+func (m *QueryGetValidatorCosmosPubKeyRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryGetValidatorCosmosPubKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryGetValidatorCosmosPubKeyRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryGetValidatorCosmosPubKeyRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetValidatorCosmosPubKeyRequest.Merge(m, src)
+}
+func (m *QueryGetValidatorCosmosPubKeyRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryGetValidatorCosmosPubKeyRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetValidatorCosmosPubKeyRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryGetValidatorCosmosPubKeyRequest proto.InternalMessageInfo
+
+func (m *QueryGetValidatorCosmosPubKeyRequest) GetValidatorMinaPubKey() []byte {
+	if m != nil {
+		return m.ValidatorMinaPubKey
+	}
+	return nil
+}
+
+// QueryGetValidatorCosmosPubKeyResponse defines the QueryGetValidatorCosmosPubKeyResponse message.
+type QueryGetValidatorCosmosPubKeyResponse struct {
+	ValidatorCosmosPubKey []byte `protobuf:"bytes,1,opt,name=validator_cosmos_pub_key,json=validatorCosmosPubKey,proto3" json:"validator_cosmos_pub_key,omitempty"`
+}
+
+func (m *QueryGetValidatorCosmosPubKeyResponse) Reset()         { *m = QueryGetValidatorCosmosPubKeyResponse{} }
+func (m *QueryGetValidatorCosmosPubKeyResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryGetValidatorCosmosPubKeyResponse) ProtoMessage()    {}
+func (*QueryGetValidatorCosmosPubKeyResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d580bfce910e0ca3, []int{9}
+}
+func (m *QueryGetValidatorCosmosPubKeyResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryGetValidatorCosmosPubKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryGetValidatorCosmosPubKeyResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryGetValidatorCosmosPubKeyResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetValidatorCosmosPubKeyResponse.Merge(m, src)
+}
+func (m *QueryGetValidatorCosmosPubKeyResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryGetValidatorCosmosPubKeyResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetValidatorCosmosPubKeyResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryGetValidatorCosmosPubKeyResponse proto.InternalMessageInfo
+
+func (m *QueryGetValidatorCosmosPubKeyResponse) GetValidatorCosmosPubKey() []byte {
+	if m != nil {
+		return m.ValidatorCosmosPubKey
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*QueryParamsRequest)(nil), "pulsarchain.keyregistry.v1.QueryParamsRequest")
 	proto.RegisterType((*QueryParamsResponse)(nil), "pulsarchain.keyregistry.v1.QueryParamsResponse")
@@ -301,6 +482,10 @@ func init() {
 	proto.RegisterType((*QueryGetUserMinaPubKeyResponse)(nil), "pulsarchain.keyregistry.v1.QueryGetUserMinaPubKeyResponse")
 	proto.RegisterType((*QueryGetUserCosmosPubKeyRequest)(nil), "pulsarchain.keyregistry.v1.QueryGetUserCosmosPubKeyRequest")
 	proto.RegisterType((*QueryGetUserCosmosPubKeyResponse)(nil), "pulsarchain.keyregistry.v1.QueryGetUserCosmosPubKeyResponse")
+	proto.RegisterType((*QueryGetValidatorMinaPubKeyRequest)(nil), "pulsarchain.keyregistry.v1.QueryGetValidatorMinaPubKeyRequest")
+	proto.RegisterType((*QueryGetValidatorMinaPubKeyResponse)(nil), "pulsarchain.keyregistry.v1.QueryGetValidatorMinaPubKeyResponse")
+	proto.RegisterType((*QueryGetValidatorCosmosPubKeyRequest)(nil), "pulsarchain.keyregistry.v1.QueryGetValidatorCosmosPubKeyRequest")
+	proto.RegisterType((*QueryGetValidatorCosmosPubKeyResponse)(nil), "pulsarchain.keyregistry.v1.QueryGetValidatorCosmosPubKeyResponse")
 }
 
 func init() {
@@ -308,39 +493,48 @@ func init() {
 }
 
 var fileDescriptor_d580bfce910e0ca3 = []byte{
-	// 509 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x54, 0x4d, 0x6b, 0x13, 0x41,
-	0x18, 0xce, 0x0a, 0x0d, 0x38, 0x8a, 0x98, 0x49, 0x0f, 0xb2, 0xe8, 0xb6, 0xec, 0xc1, 0x8f, 0x42,
-	0x76, 0xba, 0x15, 0x0a, 0x7e, 0x9c, 0x2a, 0xe2, 0xa1, 0x2a, 0x69, 0xa4, 0x17, 0x15, 0xc2, 0x6c,
-	0x7c, 0xd9, 0x0e, 0xed, 0xce, 0x6c, 0x77, 0x66, 0x83, 0x8b, 0xf4, 0x22, 0x78, 0x17, 0xfc, 0x05,
-	0xde, 0x3c, 0xfa, 0x33, 0x7a, 0x2c, 0x78, 0xf1, 0x24, 0x92, 0x08, 0x3d, 0xf9, 0x1f, 0x24, 0x33,
-	0x23, 0x6c, 0x4c, 0x36, 0xa6, 0xe9, 0x65, 0x19, 0x66, 0xde, 0xe7, 0x6b, 0x9e, 0x61, 0xd1, 0xcd,
-	0x34, 0x3f, 0x90, 0x34, 0xeb, 0xed, 0x51, 0xc6, 0xc9, 0x3e, 0x14, 0x19, 0xc4, 0x4c, 0xaa, 0xac,
-	0x20, 0xfd, 0x90, 0x1c, 0xe6, 0x90, 0x15, 0x41, 0x9a, 0x09, 0x25, 0xb0, 0x5b, 0x9a, 0x0b, 0x4a,
-	0x73, 0x41, 0x3f, 0x74, 0x1b, 0x34, 0x61, 0x5c, 0x10, 0xfd, 0x35, 0xe3, 0xee, 0x5a, 0x4f, 0xc8,
-	0x44, 0x48, 0x12, 0x51, 0x09, 0x86, 0x87, 0xf4, 0xc3, 0x08, 0x14, 0x0d, 0x49, 0x4a, 0x63, 0xc6,
-	0xa9, 0x62, 0x82, 0xdb, 0xd9, 0xe5, 0x58, 0xc4, 0x42, 0x2f, 0xc9, 0x68, 0x65, 0x77, 0xaf, 0xc7,
-	0x42, 0xc4, 0x07, 0x40, 0x68, 0xca, 0x08, 0xe5, 0x5c, 0x28, 0x0d, 0x91, 0xf6, 0xf4, 0xd6, 0x0c,
-	0xdb, 0x29, 0xcd, 0x68, 0x62, 0x07, 0xfd, 0x65, 0x84, 0x77, 0x46, 0xf2, 0x6d, 0xbd, 0xd9, 0x81,
-	0xc3, 0x1c, 0xa4, 0xf2, 0x5f, 0xa3, 0xe6, 0xd8, 0xae, 0x4c, 0x05, 0x97, 0x80, 0x1f, 0xa3, 0xba,
-	0x01, 0x5f, 0x73, 0x56, 0x9d, 0xdb, 0x97, 0x36, 0xfc, 0xa0, 0x3a, 0x75, 0x60, 0xb0, 0x5b, 0x17,
-	0x8f, 0x7f, 0xac, 0xd4, 0xbe, 0x9c, 0x7e, 0x5d, 0x73, 0x3a, 0x16, 0xec, 0x3f, 0x47, 0x37, 0x34,
-	0xfb, 0x13, 0x50, 0xbb, 0x12, 0xb2, 0x67, 0x8c, 0xd3, 0x76, 0x1e, 0x6d, 0x43, 0x61, 0xe5, 0x71,
-	0x0b, 0x35, 0x73, 0x09, 0x59, 0xd7, 0x5c, 0x52, 0x37, 0xcd, 0xa3, 0xee, 0x3e, 0x14, 0x5a, 0xf4,
-	0x72, 0xe7, 0xea, 0xe8, 0xe8, 0x91, 0x3e, 0x31, 0x28, 0x7f, 0x1b, 0x79, 0x55, 0x7c, 0xd6, 0xf8,
-	0x1d, 0xd4, 0xd0, 0x84, 0x09, 0xe3, 0xf4, 0x1f, 0xba, 0x2b, 0xf9, 0x18, 0xc4, 0x7f, 0x8a, 0x56,
-	0xca, 0x64, 0x65, 0xa1, 0xbf, 0xf6, 0xce, 0xc0, 0xb6, 0x83, 0x56, 0xab, 0xd9, 0xac, 0xb9, 0xb3,
-	0xa5, 0xdd, 0xf8, 0xb0, 0x84, 0x96, 0x34, 0x27, 0xfe, 0xec, 0xa0, 0xba, 0xb9, 0x65, 0x1c, 0xcc,
-	0x6a, 0x62, 0xb2, 0x60, 0x97, 0xcc, 0x3d, 0x6f, 0x4c, 0xfa, 0x9b, 0xef, 0xbf, 0xfd, 0xfa, 0x74,
-	0x61, 0x1d, 0x07, 0x84, 0x8b, 0x37, 0x10, 0xae, 0x87, 0x2d, 0x26, 0x88, 0xe1, 0x68, 0xcd, 0x78,
-	0x65, 0xf8, 0xd4, 0x41, 0x8d, 0x89, 0x5e, 0xf0, 0xbd, 0xff, 0xca, 0x57, 0xbd, 0x0d, 0xf7, 0xfe,
-	0x22, 0x50, 0x1b, 0xe2, 0x95, 0x0e, 0xb1, 0x8b, 0x5f, 0xcc, 0x1b, 0x22, 0x06, 0xd5, 0x9d, 0xa8,
-	0x9a, 0xbc, 0x9b, 0x52, 0xd7, 0x11, 0xfe, 0xed, 0xa0, 0xe6, 0x94, 0x9a, 0xf1, 0x83, 0x79, 0x0d,
-	0x4f, 0x79, 0x6a, 0xee, 0xc3, 0xc5, 0xc0, 0xe7, 0xce, 0x3b, 0x1e, 0xce, 0x26, 0x2e, 0x5f, 0xc2,
-	0xd1, 0x56, 0xfb, 0x78, 0xe0, 0x39, 0x27, 0x03, 0xcf, 0xf9, 0x39, 0xf0, 0x9c, 0x8f, 0x43, 0xaf,
-	0x76, 0x32, 0xf4, 0x6a, 0xdf, 0x87, 0x5e, 0xed, 0xe5, 0x66, 0xcc, 0xd4, 0x5e, 0x1e, 0x05, 0x3d,
-	0x91, 0x54, 0x0a, 0xbf, 0x1d, 0x93, 0x56, 0x45, 0x0a, 0x32, 0xaa, 0xeb, 0x5f, 0xd2, 0xdd, 0x3f,
-	0x01, 0x00, 0x00, 0xff, 0xff, 0xa6, 0x6d, 0xb2, 0xfc, 0x74, 0x05, 0x00, 0x00,
+	// 641 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0x4d, 0x6b, 0x13, 0x41,
+	0x18, 0xce, 0x16, 0x2c, 0xf4, 0x55, 0xc4, 0x4e, 0x6a, 0x09, 0x8b, 0x6e, 0xcb, 0xfa, 0x5d, 0xc8,
+	0x4e, 0xb7, 0x85, 0x8a, 0x1f, 0xf8, 0x51, 0x11, 0x0f, 0x55, 0x49, 0x23, 0xf5, 0xd0, 0x5a, 0xe2,
+	0x6c, 0x3a, 0x6c, 0x97, 0x26, 0x3b, 0xdb, 0x9d, 0xdd, 0xe0, 0x52, 0x02, 0xe2, 0xc1, 0xb3, 0xe2,
+	0x2f, 0xf0, 0xe6, 0xd1, 0x9f, 0xd1, 0x63, 0xc1, 0x8b, 0x27, 0x91, 0x44, 0xe8, 0xc9, 0xff, 0x20,
+	0x99, 0x9d, 0x68, 0xd2, 0xec, 0xa6, 0x49, 0xea, 0x25, 0x0c, 0xf3, 0xbe, 0xcf, 0xf3, 0x3e, 0xcf,
+	0x9b, 0x79, 0x42, 0xe0, 0xaa, 0x17, 0x56, 0x38, 0xf1, 0xcb, 0xdb, 0xc4, 0x71, 0xf1, 0x0e, 0x8d,
+	0x7c, 0x6a, 0x3b, 0x3c, 0xf0, 0x23, 0x5c, 0x33, 0xf1, 0x6e, 0x48, 0xfd, 0xc8, 0xf0, 0x7c, 0x16,
+	0x30, 0xa4, 0x76, 0xf4, 0x19, 0x1d, 0x7d, 0x46, 0xcd, 0x54, 0x27, 0x49, 0xd5, 0x71, 0x19, 0x16,
+	0x9f, 0x71, 0xbb, 0x3a, 0x57, 0x66, 0xbc, 0xca, 0x38, 0xb6, 0x08, 0xa7, 0x31, 0x0f, 0xae, 0x99,
+	0x16, 0x0d, 0x88, 0x89, 0x3d, 0x62, 0x3b, 0x2e, 0x09, 0x1c, 0xe6, 0xca, 0xde, 0x29, 0x9b, 0xd9,
+	0x4c, 0x1c, 0x71, 0xeb, 0x24, 0x6f, 0x2f, 0xd8, 0x8c, 0xd9, 0x15, 0x8a, 0x89, 0xe7, 0x60, 0xe2,
+	0xba, 0x2c, 0x10, 0x10, 0x2e, 0xab, 0xd7, 0xfa, 0xc8, 0xf6, 0x88, 0x4f, 0xaa, 0xb2, 0x51, 0x9f,
+	0x02, 0xb4, 0xda, 0x1a, 0x5f, 0x10, 0x97, 0x45, 0xba, 0x1b, 0x52, 0x1e, 0xe8, 0xaf, 0x20, 0xdb,
+	0x75, 0xcb, 0x3d, 0xe6, 0x72, 0x8a, 0x1e, 0xc3, 0x78, 0x0c, 0xce, 0x29, 0xb3, 0xca, 0xf5, 0xd3,
+	0x0b, 0xba, 0x91, 0xee, 0xda, 0x88, 0xb1, 0xcb, 0x13, 0xfb, 0x3f, 0x66, 0x32, 0x5f, 0x0e, 0xbf,
+	0xce, 0x29, 0x45, 0x09, 0xd6, 0x9f, 0xc3, 0x45, 0xc1, 0xfe, 0x84, 0x06, 0x6b, 0x9c, 0xfa, 0xcf,
+	0x1c, 0x97, 0x14, 0x42, 0x6b, 0x85, 0x46, 0x72, 0x3c, 0xca, 0x43, 0x36, 0xe4, 0xd4, 0x2f, 0xc5,
+	0x4b, 0x2a, 0x79, 0xa1, 0x55, 0xda, 0xa1, 0x91, 0x18, 0x7a, 0xa6, 0x78, 0xae, 0x55, 0x7a, 0x24,
+	0x2a, 0x31, 0x4a, 0x5f, 0x01, 0x2d, 0x8d, 0x4f, 0x0a, 0xbf, 0x01, 0x93, 0x82, 0xb0, 0xea, 0xb8,
+	0xe4, 0x08, 0xdd, 0xd9, 0xb0, 0x0b, 0xa2, 0x3f, 0x85, 0x99, 0x4e, 0xb2, 0xce, 0x41, 0x6d, 0x79,
+	0x43, 0xb0, 0xad, 0xc2, 0x6c, 0x3a, 0x9b, 0x14, 0x37, 0xa4, 0xdb, 0x4d, 0xd0, 0xdb, 0x94, 0x2f,
+	0x49, 0xc5, 0xd9, 0x22, 0x01, 0x4b, 0x58, 0xe1, 0x4d, 0xc8, 0xd5, 0xda, 0xd5, 0x64, 0xe6, 0xf3,
+	0x7f, 0xeb, 0x5d, 0xf4, 0xeb, 0x70, 0xa9, 0x2f, 0xbd, 0x14, 0xbd, 0x08, 0xd3, 0xff, 0xf8, 0x13,
+	0x16, 0x91, 0xad, 0xf5, 0x82, 0xf5, 0x0d, 0xb8, 0xdc, 0xc3, 0x9d, 0xb4, 0xe0, 0x91, 0xc8, 0x5f,
+	0xc3, 0x95, 0x63, 0xc8, 0xa5, 0xf4, 0x51, 0x57, 0xb3, 0xf0, 0x71, 0x02, 0x4e, 0x89, 0x11, 0xe8,
+	0xb3, 0x02, 0xe3, 0xf1, 0xfb, 0x46, 0x46, 0xbf, 0x0c, 0xf4, 0x46, 0x4b, 0xc5, 0x03, 0xf7, 0xc7,
+	0x72, 0xf5, 0xa5, 0x77, 0xdf, 0x7e, 0x7d, 0x1a, 0x9b, 0x47, 0x06, 0x76, 0xd9, 0x16, 0x35, 0xe7,
+	0xcd, 0xbc, 0xc3, 0x70, 0xcc, 0x91, 0xef, 0x93, 0x6f, 0x74, 0xa8, 0xc0, 0x64, 0x4f, 0x22, 0xd0,
+	0xad, 0x63, 0xc7, 0xa7, 0xa5, 0x52, 0xbd, 0x3d, 0x0a, 0x54, 0x9a, 0xd8, 0x10, 0x26, 0xd6, 0xd0,
+	0x8b, 0x41, 0x4d, 0xd8, 0x34, 0x28, 0xf5, 0x84, 0x0c, 0xef, 0x25, 0x04, 0xa5, 0x8e, 0x7e, 0x2b,
+	0x90, 0x4d, 0x08, 0x18, 0xba, 0x33, 0xa8, 0xe0, 0x84, 0x37, 0xa8, 0xde, 0x1d, 0x0d, 0x7c, 0x62,
+	0xbf, 0xdd, 0xe6, 0xa4, 0xe3, 0xce, 0x25, 0xd4, 0xd1, 0xdb, 0x31, 0x98, 0x4e, 0x8e, 0x27, 0xba,
+	0x37, 0x88, 0xea, 0xf4, 0x9f, 0x0d, 0xf5, 0xfe, 0xc8, 0x78, 0x69, 0x9c, 0x0a, 0xe3, 0x25, 0xb4,
+	0x39, 0x8c, 0xf1, 0xe4, 0xb0, 0xe3, 0xbd, 0xb4, 0x98, 0xd6, 0xd1, 0xfb, 0x31, 0xc8, 0xa5, 0x05,
+	0x1d, 0x3d, 0x18, 0xca, 0x44, 0xd2, 0x97, 0xff, 0xf0, 0x04, 0x0c, 0xff, 0x67, 0x11, 0x47, 0x9f,
+	0x41, 0xf2, 0x8a, 0xea, 0xcb, 0x85, 0xfd, 0x86, 0xa6, 0x1c, 0x34, 0x34, 0xe5, 0x67, 0x43, 0x53,
+	0x3e, 0x34, 0xb5, 0xcc, 0x41, 0x53, 0xcb, 0x7c, 0x6f, 0x6a, 0x99, 0xf5, 0x25, 0xdb, 0x09, 0xb6,
+	0x43, 0xcb, 0x28, 0xb3, 0x6a, 0xaa, 0x84, 0x37, 0x5d, 0x22, 0x82, 0xc8, 0xa3, 0xdc, 0x1a, 0x17,
+	0x7f, 0x0c, 0x16, 0xff, 0x04, 0x00, 0x00, 0xff, 0xff, 0xd7, 0x7f, 0xdf, 0xf5, 0xfa, 0x08, 0x00,
+	0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -361,6 +555,10 @@ type QueryClient interface {
 	GetUserMinaPubKey(ctx context.Context, in *QueryGetUserMinaPubKeyRequest, opts ...grpc.CallOption) (*QueryGetUserMinaPubKeyResponse, error)
 	// GetCosmosPubKey Queries a list of GetCosmosPubKey items.
 	GetUserCosmosPubKey(ctx context.Context, in *QueryGetUserCosmosPubKeyRequest, opts ...grpc.CallOption) (*QueryGetUserCosmosPubKeyResponse, error)
+	// GetValidatorMinaPubKey Queries a list of GetValidatorMinaPubKey items.
+	GetValidatorMinaPubKey(ctx context.Context, in *QueryGetValidatorMinaPubKeyRequest, opts ...grpc.CallOption) (*QueryGetValidatorMinaPubKeyResponse, error)
+	// GetValidatorCosmosPubKey Queries a list of GetValidatorCosmosPubKey items.
+	GetValidatorCosmosPubKey(ctx context.Context, in *QueryGetValidatorCosmosPubKeyRequest, opts ...grpc.CallOption) (*QueryGetValidatorCosmosPubKeyResponse, error)
 }
 
 type queryClient struct {
@@ -398,6 +596,24 @@ func (c *queryClient) GetUserCosmosPubKey(ctx context.Context, in *QueryGetUserC
 	return out, nil
 }
 
+func (c *queryClient) GetValidatorMinaPubKey(ctx context.Context, in *QueryGetValidatorMinaPubKeyRequest, opts ...grpc.CallOption) (*QueryGetValidatorMinaPubKeyResponse, error) {
+	out := new(QueryGetValidatorMinaPubKeyResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Query/GetValidatorMinaPubKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) GetValidatorCosmosPubKey(ctx context.Context, in *QueryGetValidatorCosmosPubKeyRequest, opts ...grpc.CallOption) (*QueryGetValidatorCosmosPubKeyResponse, error) {
+	out := new(QueryGetValidatorCosmosPubKeyResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Query/GetValidatorCosmosPubKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Parameters queries the parameters of the module.
@@ -406,6 +622,10 @@ type QueryServer interface {
 	GetUserMinaPubKey(context.Context, *QueryGetUserMinaPubKeyRequest) (*QueryGetUserMinaPubKeyResponse, error)
 	// GetCosmosPubKey Queries a list of GetCosmosPubKey items.
 	GetUserCosmosPubKey(context.Context, *QueryGetUserCosmosPubKeyRequest) (*QueryGetUserCosmosPubKeyResponse, error)
+	// GetValidatorMinaPubKey Queries a list of GetValidatorMinaPubKey items.
+	GetValidatorMinaPubKey(context.Context, *QueryGetValidatorMinaPubKeyRequest) (*QueryGetValidatorMinaPubKeyResponse, error)
+	// GetValidatorCosmosPubKey Queries a list of GetValidatorCosmosPubKey items.
+	GetValidatorCosmosPubKey(context.Context, *QueryGetValidatorCosmosPubKeyRequest) (*QueryGetValidatorCosmosPubKeyResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -420,6 +640,12 @@ func (*UnimplementedQueryServer) GetUserMinaPubKey(ctx context.Context, req *Que
 }
 func (*UnimplementedQueryServer) GetUserCosmosPubKey(ctx context.Context, req *QueryGetUserCosmosPubKeyRequest) (*QueryGetUserCosmosPubKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserCosmosPubKey not implemented")
+}
+func (*UnimplementedQueryServer) GetValidatorMinaPubKey(ctx context.Context, req *QueryGetValidatorMinaPubKeyRequest) (*QueryGetValidatorMinaPubKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetValidatorMinaPubKey not implemented")
+}
+func (*UnimplementedQueryServer) GetValidatorCosmosPubKey(ctx context.Context, req *QueryGetValidatorCosmosPubKeyRequest) (*QueryGetValidatorCosmosPubKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetValidatorCosmosPubKey not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -480,6 +706,42 @@ func _Query_GetUserCosmosPubKey_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_GetValidatorMinaPubKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryGetValidatorMinaPubKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).GetValidatorMinaPubKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.keyregistry.v1.Query/GetValidatorMinaPubKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).GetValidatorMinaPubKey(ctx, req.(*QueryGetValidatorMinaPubKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_GetValidatorCosmosPubKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryGetValidatorCosmosPubKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).GetValidatorCosmosPubKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.keyregistry.v1.Query/GetValidatorCosmosPubKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).GetValidatorCosmosPubKey(ctx, req.(*QueryGetValidatorCosmosPubKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pulsarchain.keyregistry.v1.Query",
@@ -496,6 +758,14 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserCosmosPubKey",
 			Handler:    _Query_GetUserCosmosPubKey_Handler,
+		},
+		{
+			MethodName: "GetValidatorMinaPubKey",
+			Handler:    _Query_GetValidatorMinaPubKey_Handler,
+		},
+		{
+			MethodName: "GetValidatorCosmosPubKey",
+			Handler:    _Query_GetValidatorCosmosPubKey_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -678,6 +948,126 @@ func (m *QueryGetUserCosmosPubKeyResponse) MarshalToSizedBuffer(dAtA []byte) (in
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryGetValidatorMinaPubKeyRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryGetValidatorMinaPubKeyRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryGetValidatorMinaPubKeyRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ValidatorCosmosPubKey) > 0 {
+		i -= len(m.ValidatorCosmosPubKey)
+		copy(dAtA[i:], m.ValidatorCosmosPubKey)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ValidatorCosmosPubKey)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryGetValidatorMinaPubKeyResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryGetValidatorMinaPubKeyResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryGetValidatorMinaPubKeyResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ValidatorMinaPubKey) > 0 {
+		i -= len(m.ValidatorMinaPubKey)
+		copy(dAtA[i:], m.ValidatorMinaPubKey)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ValidatorMinaPubKey)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryGetValidatorCosmosPubKeyRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryGetValidatorCosmosPubKeyRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryGetValidatorCosmosPubKeyRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ValidatorMinaPubKey) > 0 {
+		i -= len(m.ValidatorMinaPubKey)
+		copy(dAtA[i:], m.ValidatorMinaPubKey)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ValidatorMinaPubKey)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryGetValidatorCosmosPubKeyResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryGetValidatorCosmosPubKeyResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryGetValidatorCosmosPubKeyResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ValidatorCosmosPubKey) > 0 {
+		i -= len(m.ValidatorCosmosPubKey)
+		copy(dAtA[i:], m.ValidatorCosmosPubKey)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ValidatorCosmosPubKey)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -755,6 +1145,58 @@ func (m *QueryGetUserCosmosPubKeyResponse) Size() (n int) {
 	var l int
 	_ = l
 	l = len(m.UserCosmosPubKey)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryGetValidatorMinaPubKeyRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ValidatorCosmosPubKey)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryGetValidatorMinaPubKeyResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ValidatorMinaPubKey)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryGetValidatorCosmosPubKeyRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ValidatorMinaPubKey)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryGetValidatorCosmosPubKeyResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ValidatorCosmosPubKey)
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
 	}
@@ -1213,6 +1655,342 @@ func (m *QueryGetUserCosmosPubKeyResponse) Unmarshal(dAtA []byte) error {
 			m.UserCosmosPubKey = append(m.UserCosmosPubKey[:0], dAtA[iNdEx:postIndex]...)
 			if m.UserCosmosPubKey == nil {
 				m.UserCosmosPubKey = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryGetValidatorMinaPubKeyRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryGetValidatorMinaPubKeyRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryGetValidatorMinaPubKeyRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorCosmosPubKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorCosmosPubKey = append(m.ValidatorCosmosPubKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorCosmosPubKey == nil {
+				m.ValidatorCosmosPubKey = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryGetValidatorMinaPubKeyResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryGetValidatorMinaPubKeyResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryGetValidatorMinaPubKeyResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorMinaPubKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorMinaPubKey = append(m.ValidatorMinaPubKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorMinaPubKey == nil {
+				m.ValidatorMinaPubKey = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryGetValidatorCosmosPubKeyRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryGetValidatorCosmosPubKeyRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryGetValidatorCosmosPubKeyRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorMinaPubKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorMinaPubKey = append(m.ValidatorMinaPubKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorMinaPubKey == nil {
+				m.ValidatorMinaPubKey = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryGetValidatorCosmosPubKeyResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryGetValidatorCosmosPubKeyResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryGetValidatorCosmosPubKeyResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorCosmosPubKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorCosmosPubKey = append(m.ValidatorCosmosPubKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorCosmosPubKey == nil {
+				m.ValidatorCosmosPubKey = []byte{}
 			}
 			iNdEx = postIndex
 		default:

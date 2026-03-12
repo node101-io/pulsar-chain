@@ -1,11 +1,8 @@
 package keeper_test
 
 import (
-	"crypto/ed25519"
-	"crypto/rand"
 	"testing"
 
-	"github.com/cometbft/cometbft/crypto/secp256k1"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
@@ -15,14 +12,14 @@ import (
 
 // TestCosmosMapInvalidArgumentFail verifies that GetCosmosPubKey returns
 // an InvalidArgument error when called with a nil request.
-func TestUserCosmosMapInvalidArgumentFail(t *testing.T) {
+func TestValidatorCosmosMapInvalidArgumentFail(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	_, err := qs.GetUserCosmosPubKey(f.ctx, nil)
+	_, err := qs.GetValidatorCosmosPubKey(f.ctx, nil)
 	require.Error(t, err)
 
 	st, _ := status.FromError(err)
@@ -31,78 +28,63 @@ func TestUserCosmosMapInvalidArgumentFail(t *testing.T) {
 
 // TestCosmosMapSuccess verifies that a mina public key can be retrieved
 // by its associated cosmos public key after being stored in the CosmosToMina map.
-func TestUserCosmosMapSuccess(t *testing.T) {
+func TestValidatorCosmosMapSuccess(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	cosmosPriv := secp256k1.GenPrivKey()
-
-	cosmosPubKey := cosmosPriv.PubKey()
-
-	minaPubKey, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
+	cosmosPubKey, minaPubKey, err := generatePublicKeys()
 	require.NoError(t, err)
 
-	err = f.keeper.SetCosmosToMina(f.ctx, cosmosPubKey.Bytes(), minaPubKey)
+	err = f.keeper.ValidatorSetCosmosToMina(f.ctx, cosmosPubKey.Bytes(), minaPubKey)
 	require.NoError(t, err)
 
-	resp, err := qs.GetUserMinaPubKey(f.ctx, &types.QueryGetUserMinaPubKeyRequest{
-		UserCosmosPubKey: cosmosPubKey.Bytes(),
+	resp, err := qs.GetValidatorMinaPubKey(f.ctx, &types.QueryGetValidatorMinaPubKeyRequest{
+		ValidatorCosmosPubKey: cosmosPubKey.Bytes(),
 	})
 
 	require.NotNil(t, resp)
 	require.NoError(t, err)
 
-	require.Equal(t, resp.UserMinaPubKey, []byte(minaPubKey))
+	require.Equal(t, resp.ValidatorMinaPubKey, minaPubKey)
 }
 
 // TestMinaMapSuccess verifies that a cosmos public key can be retrieved
 // by its associated mina public key after being stored in the MinaToCosmos map.
-func TestUserMinaMapSuccess(t *testing.T) {
+func TestValidatorMinaMapSuccess(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	cosmosPriv := secp256k1.GenPrivKey()
-
-	cosmosPubKey := cosmosPriv.PubKey()
-
-	minaPubKey, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
+	cosmosPubKey, minaPubKey, err := generatePublicKeys()
 	require.NoError(t, err)
 
-	err = f.keeper.SetMinaToCosmos(f.ctx, minaPubKey, cosmosPubKey.Bytes())
+	err = f.keeper.ValidatorSetMinaToCosmos(f.ctx, minaPubKey, cosmosPubKey.Bytes())
 	require.NoError(t, err)
 
-	resp, err := qs.GetUserCosmosPubKey(f.ctx, &types.QueryGetUserCosmosPubKeyRequest{
-		UserMinaPubKey: minaPubKey,
+	resp, err := qs.GetValidatorCosmosPubKey(f.ctx, &types.QueryGetValidatorCosmosPubKeyRequest{
+		ValidatorMinaPubKey: minaPubKey,
 	})
-
 	require.NotNil(t, resp)
 	require.NoError(t, err)
 
-	require.Equal(t, resp.UserCosmosPubKey, cosmosPubKey.Bytes())
+	require.Equal(t, resp.ValidatorCosmosPubKey, cosmosPubKey.Bytes())
 }
 
 // TestMinaMapInvalidArgumentFail verifies that GetMinaPubKey returns
 // an InvalidArgument error when called with a nil request.
-func TestUserMinaMapInvalidArgumentFail(t *testing.T) {
+func TestValidatorMinaMapInvalidArgumentFail(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	_, err := qs.GetUserMinaPubKey(f.ctx, nil)
+	_, err := qs.GetValidatorMinaPubKey(f.ctx, nil)
 	require.Error(t, err)
 
 	st, _ := status.FromError(err)
@@ -111,20 +93,19 @@ func TestUserMinaMapInvalidArgumentFail(t *testing.T) {
 
 // TestCosmosMapPubkeyNotFound verifies that GetCosmosPubKey returns
 // a NotFound error when the provided mina public key has no associated cosmos key.
-func TestUserCosmosMapPubkeyNotFound(t *testing.T) {
+func TestValidatorCosmosMapPubkeyNotFound(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	pub, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
+	_, minaPubKey, err := generatePublicKeys()
+	require.NotNil(t, minaPubKey)
+	require.NoError(t, err)
 
-	_, err = qs.GetUserCosmosPubKey(f.ctx, &types.QueryGetUserCosmosPubKeyRequest{
-		UserMinaPubKey: pub,
+	_, err = qs.GetValidatorCosmosPubKey(f.ctx, &types.QueryGetValidatorCosmosPubKeyRequest{
+		ValidatorMinaPubKey: minaPubKey,
 	})
 
 	st, _ := status.FromError(err)
@@ -133,19 +114,20 @@ func TestUserCosmosMapPubkeyNotFound(t *testing.T) {
 
 // TestMinaMapPubkeyNotFound verifies that GetMinaPubKey returns
 // a NotFound error when the provided cosmos public key has no associated mina key.
-func TestUserMinaMapPubkeyNotFound(t *testing.T) {
+func TestValidatorMinaMapPubkeyNotFound(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	priv := secp256k1.GenPrivKey()
+	cosmosPubKey, minaPubKey, err := generatePublicKeys()
+	require.NotNil(t, cosmosPubKey)
+	require.NotNil(t, minaPubKey)
+	require.NoError(t, err)
 
-	pub := priv.PubKey()
-
-	_, err := qs.GetUserMinaPubKey(f.ctx, &types.QueryGetUserMinaPubKeyRequest{
-		UserCosmosPubKey: pub.Bytes(),
+	_, err = qs.GetValidatorMinaPubKey(f.ctx, &types.QueryGetValidatorMinaPubKeyRequest{
+		ValidatorCosmosPubKey: CosmosPubKey,
 	})
 
 	st, _ := status.FromError(err)
