@@ -17,3 +17,7 @@ const (
 
 // ParamsKey is the prefix to retrieve all Params
 var ParamsKey = collections.NewPrefix("p_voteexthandler")
+
+func KeyPrefix(p string) []byte {
+	return []byte(p)
+}
