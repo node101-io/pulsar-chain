@@ -20,28 +20,7 @@ import (
 	voteextkeeper "github.com/node101-io/pulsar-chain/x/voteexthandler/keeper"
 	"github.com/node101-io/pulsar-chain/x/voteexthandler/types"
 	voteexthandler "github.com/node101-io/pulsar-chain/x/voteexthandler/types"
-	"github.com/spf13/viper"
 )
-
-func GetSecondaryKey() *types.SecondaryKey {
-	privKeyString := viper.GetString("vote_extension.priv_key")
-
-	prv, ok := new(big.Int).SetString(privKeyString, 10)
-	if !ok {
-		return nil
-	}
-	privkey := &keys.PrivateKey{
-		Value: prv,
-	}
-
-	publicKey := privkey.ToPublicKey()
-
-	return &types.SecondaryKey{
-		SecretKey: privkey,
-		PublicKey: &publicKey,
-	}
-
-}
 
 const (
 	GenesisStateRoot = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
@@ -57,25 +36,24 @@ type VoteExtHandler struct {
 	keyregistryKeeper keyregistrykeeper.Keeper
 	voteextKeeper     voteextkeeper.Keeper
 
-	stakingKeeper stakingkeeper.Keeper
-	stateRoots    map[int64][]byte
-	mu            sync.RWMutex
-	votes         map[uint64]map[string][]byte // height -> consAddr -> extension bytes
+	MinaPrivateKey *types.SecondaryKey
+	stakingKeeper  stakingkeeper.Keeper
+	stateRoots     map[int64][]byte
+	mu             sync.RWMutex
+	votes          map[uint64]map[string][]byte // height -> consAddr -> extension bytes
 }
 
-func NewVoteExtHandler(keyregistryKeeper keyregistrykeeper.Keeper, voteextKeeper voteextkeeper.Keeper) *VoteExtHandler {
+func NewVoteExtHandler(keyregistryKeeper keyregistrykeeper.Keeper,
+	voteextKeeper voteextkeeper.Keeper,
+	minaPrivateKey *types.SecondaryKey) *VoteExtHandler {
 	return &VoteExtHandler{
 		keyregistryKeeper: keyregistryKeeper,
 		voteextKeeper:     voteextKeeper,
+		MinaPrivateKey:    minaPrivateKey,
 		stateRoots:        make(map[int64][]byte),
 		mu:                sync.RWMutex{},
 		votes:             make(map[uint64]map[string][]byte),
 	}
-}
-
-// TODO: Implement this once we switch to consumer chain
-func GetValidatorUpdates() bool {
-	return false
 }
 
 // ValidatorInfo represents a validator in the set
@@ -306,9 +284,8 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 		extBodyHashInput := extBody.GetPoseidonHashInput(ctx, poseidonHash)
 
 		// Sign the vote extension body
-		secondaryKey := GetSecondaryKey()
 
-		signature, err := secondaryKey.SecretKey.Sign(extBodyHashInput, types.DevnetNetworkID)
+		signature, err := h.MinaPrivateKey.SecretKey.Sign(extBodyHashInput, types.DevnetNetworkID)
 		ctx.Logger().Info("Signed block hash with secondary private key", "signature", signature)
 		if err != nil {
 			return nil, fmt.Errorf("failed to sign message: %w", err)
@@ -319,7 +296,7 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return nil, fmt.Errorf("failed to marshal signature: %w", err)
 		}
 
-		addr, err := secondaryKey.PublicKey.ToAddress()
+		addr, err := h.MinaPrivateKey.PublicKey.ToAddress()
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert public key to address: %w", err)
 		}
@@ -384,9 +361,7 @@ func (h *VoteExtHandler) getVoteExtBody(height uint64) (types.VoteExtBody, error
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	secondaryKey := GetSecondaryKey()
-
-	addr, err := secondaryKey.PublicKey.ToAddress()
+	addr, err := h.MinaPrivateKey.PublicKey.ToAddress()
 	if err != nil {
 		return types.VoteExtBody{}, fmt.Errorf("failed to convert node's own secondary public key to address: %w", err)
 	}

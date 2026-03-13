@@ -67,9 +67,8 @@ func (h *VoteExtHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			h.storeVote(uint64(req.GetHeight()), ve.MinaAddress, voteBytes)
 		}
 
-		secondaryKey := GetSecondaryKey()
 		// Create our address from our local Mina public key.
-		myAddr, err := secondaryKey.PublicKey.ToAddress()
+		myAddr, err := h.MinaPrivateKey.PublicKey.ToAddress()
 		if err != nil {
 			ctx.Logger().Info("Failed to convert public key to address", "error", err)
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("failed to convert public key to address: %w", err)
@@ -100,7 +99,7 @@ func (h *VoteExtHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("invalid signature encoding: %w", err)
 		}
 
-		pubKey := secondaryKey.PublicKey
+		pubKey := h.MinaPrivateKey.PublicKey
 		if !pubKey.Verify(sig, extBodyHashInput, types.DevnetNetworkID) {
 			ctx.Logger().Info("Signature verification failed", "error", err)
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("signature verification failed: %w", err)
