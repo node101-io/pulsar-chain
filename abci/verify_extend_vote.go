@@ -1,10 +1,11 @@
-package abci
+package vote_ext
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 
+	"cosmossdk.io/errors"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/constants"
@@ -35,30 +36,30 @@ func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHan
 
 		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
 		if err != nil {
-
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("internal error")
 		}
-		//keyStore, found := h.Keeper.GetKeyStore(ctx, consAddrStr)
+
+		// unknown validator – ignore the vote.
 		if !exists {
-			ctx.Logger().Info("unknown validator in our local map", "validator", consAddr.String())
-			// unknown validator in our local map – ignore the vote.
+			ctx.Logger().Info("unknown validator", consAddr.String())
 			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("unknown validator address %s", consAddr.String())
 		}
 
 		minaPublicKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
 		if err != nil {
-
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("internal error")
 		}
 
 		pubKey, err := new(keys.PublicKey).FromAddress(string(minaPublicKey))
 		if err != nil {
 			ctx.Logger().Info("failed to unmarshal mina public key for validator", "validator", consAddr.String(), "error", err)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("failed to unmarshal mina public key for validator %s: %w", consAddr.String(), err)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrFailedToUnmarshal, consAddr.String())
 		}
 
 		sig := new(signature.Signature)
 		if err := sig.UnmarshalBytes(voteExt.Signature); err != nil {
 			ctx.Logger().Info("invalid signature encoding", "error", err)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("invalid signature encoding: %w", err)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrInvalidSigEncoding, "")
 		}
 
 		// Check if the address is correct.
@@ -70,7 +71,7 @@ func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHan
 
 		if voteExt.MinaAddress != pubKeyAddr {
 			ctx.Logger().Info("validator address mismatch", "ext", voteExt.MinaAddress, "expected", pubKeyAddr)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("validator address mismatch: ext %s expected %s", voteExt.MinaAddress, pubKeyAddr)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrAddressMismatch, "validator"+voteExt.MinaAddress+pubKeyAddr)
 		}
 
 		// Initialize poseidon hash
@@ -87,37 +88,37 @@ func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHan
 		extBody, err := h.getVoteExtBody(uint64(req.GetHeight()))
 		if err != nil {
 			ctx.Logger().Info("failed to get vote extension body", "error", err)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("failed to get vote extension body: %w", err)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrFailedToGetVoteExtBody, "")
 		}
 
 		if !bytes.Equal(extBody.InitialValidatorSetRoot, voteExt.VoteExtBody.InitialValidatorSetRoot) {
 			ctx.Logger().Info("initial validator set root mismatch", "ext", voteExt.VoteExtBody.InitialValidatorSetRoot, "expected", extBody.InitialValidatorSetRoot)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("initial validator set root mismatch: ext %s expected %s", voteExt.VoteExtBody.InitialValidatorSetRoot, extBody.InitialValidatorSetRoot)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrValidatorSetRootMismatch, "")
 		}
 
 		if extBody.InitialBlockHeight != voteExt.VoteExtBody.InitialBlockHeight {
 			ctx.Logger().Info("initial block height mismatch", "ext", voteExt.VoteExtBody.InitialBlockHeight, "expected", extBody.InitialBlockHeight)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("initial block height mismatch: ext %d expected %d", voteExt.VoteExtBody.InitialBlockHeight, extBody.InitialBlockHeight)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrBlockHeightMismatch, "")
 		}
 
 		if !bytes.Equal(extBody.NewValidatorSetRoot, voteExt.VoteExtBody.NewValidatorSetRoot) {
 			ctx.Logger().Info("new validator set root mismatch", "ext", voteExt.VoteExtBody.NewValidatorSetRoot, "expected", extBody.NewValidatorSetRoot)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("new validator set root mismatch: ext %s expected %s", voteExt.VoteExtBody.NewValidatorSetRoot, extBody.NewValidatorSetRoot)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrValidatorSetRootMismatch, "")
 		}
 
 		if extBody.NewBlockHeight != voteExt.VoteExtBody.NewBlockHeight {
 			ctx.Logger().Info("new block height mismatch", "ext", voteExt.VoteExtBody.NewBlockHeight, "expected", extBody.NewBlockHeight)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("new block height mismatch: ext %d expected %d", voteExt.VoteExtBody.NewBlockHeight, extBody.NewBlockHeight)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrBlockHeightMismatch, "")
 		}
 
 		if !bytes.Equal(extBody.InitialStateRoot, voteExt.VoteExtBody.InitialStateRoot) {
 			ctx.Logger().Info("initial state root mismatch", "ext", voteExt.VoteExtBody.InitialStateRoot, "expected", extBody.InitialStateRoot)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("initial state root mismatch: ext %s expected %s", voteExt.VoteExtBody.InitialStateRoot, extBody.InitialStateRoot)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrStateRootMismatch, "initial")
 		}
 
 		if !bytes.Equal(extBody.NewStateRoot, voteExt.VoteExtBody.NewStateRoot) {
 			ctx.Logger().Info("new state root mismatch", "ext", voteExt.VoteExtBody.NewStateRoot, "expected", extBody.NewStateRoot)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("new state root mismatch: ext %s expected %s", voteExt.VoteExtBody.NewStateRoot, extBody.NewStateRoot)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrStateRootMismatch, "new")
 		}
 
 		ctx.Logger().Info("vote extension verified", "validator", voteExt.MinaAddress)

@@ -1,4 +1,4 @@
-package abci
+package vote_ext
 
 import (
 	"encoding/json"

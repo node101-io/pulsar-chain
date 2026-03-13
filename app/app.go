@@ -45,6 +45,7 @@ import (
 	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
+	vote_ext "github.com/node101-io/pulsar-chain/abci"
 	"github.com/node101-io/pulsar-chain/docs"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
@@ -105,6 +106,7 @@ type App struct {
 	PulsarKeeper         pulsarmodulekeeper.Keeper
 	KeyregistryKeeper    keyregistrymodulekeeper.Keeper
 	VoteexthandlerKeeper voteexthandlermodulekeeper.Keeper
+	VoteExtHandler       *vote_ext.VoteExtHandler
 }
 
 func init() {
@@ -191,12 +193,26 @@ func New(
 		panic(err)
 	}
 
+	secondaryKey := vote_ext.GetSecondaryKeys(appOpts)
+
+	app.VoteExtHandler = vote_ext.NewVoteExtHandler(
+		app.KeyregistryKeeper,
+		app.VoteexthandlerKeeper,
+		&secondaryKey,
+	)
+
 	// add to default baseapp options
 	// enable optimistic execution
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 
 	// build app
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+
+	app.SetExtendVoteHandler(app.VoteExtHandler.ExtendVoteHandler())
+	app.SetVerifyVoteExtensionHandler(app.VoteExtHandler.VerifyVoteExtensionHandler())
+	app.SetPrepareProposal(app.VoteExtHandler.PrepareProposalHandler())
+	app.SetProcessProposal(app.VoteExtHandler.ProcessProposalHandler())
+	app.SetPreBlocker(app.VoteExtHandler.PreBlocker())
 
 	// register legacy modules
 	if err := app.registerIBCModules(appOpts); err != nil {

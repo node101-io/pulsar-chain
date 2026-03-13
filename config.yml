@@ -23,12 +23,16 @@ validators:
   bonded: 100000000pmina
   app:
       vote_extension:
-        priv_key: ""
+        priv_key: "w1/WzsUBljaEJVxCfoJpPO8tHk00onkidzsFOBglSAeD+S6D1Px+CjzOQBtcFDgbQIQGXJs7o8sDTyXpvt8Vpg=="
 - name: validator1
   bonded: 200000000pmina
 - name: validator2
   bonded: 100000000pmina
 
+consensus:
+  params:
+    abci:
+      vote_extensions_enable_height: "2"
 genesis:
   app_state:
     keyregistry:
