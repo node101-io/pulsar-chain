@@ -9,6 +9,7 @@ import (
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
+	feegrantkeeper "cosmossdk.io/x/feegrant/keeper"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -45,6 +46,8 @@ import (
 	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
+	appante "github.com/node101-io/pulsar-chain/app/ante"
 	"github.com/node101-io/pulsar-chain/docs"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
@@ -91,6 +94,7 @@ type App struct {
 	AuthzKeeper           authzkeeper.Keeper
 	ConsensusParamsKeeper consensuskeeper.Keeper
 	CircuitBreakerKeeper  circuitkeeper.Keeper
+	FeeGrantKeeper        feegrantkeeper.Keeper
 	ParamsKeeper          paramskeeper.Keeper
 
 	// ibc keepers
@@ -181,6 +185,7 @@ func New(
 		&app.AuthzKeeper,
 		&app.ConsensusParamsKeeper,
 		&app.CircuitBreakerKeeper,
+		&app.FeeGrantKeeper,
 		&app.ParamsKeeper,
 		&app.PulsarKeeper,
 		&app.KeyregistryKeeper,
@@ -188,9 +193,31 @@ func New(
 		panic(err)
 	}
 
+	appante.RegisterInterfaces(app.interfaceRegistry)
+
 	// add to default baseapp options
 	// enable optimistic execution
-	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
+	baseAppOptions = append(
+		baseAppOptions,
+		baseapp.SetOptimisticExecution(),
+		func(bApp *baseapp.BaseApp) {
+			anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
+				AccountKeeper:       app.AuthKeeper,
+				BankKeeper:          app.BankKeeper,
+				FeegrantKeeper:      app.FeeGrantKeeper,
+				SignModeHandler:     app.txConfig.SignModeHandler(),
+				SigGasConsumer:      authante.DefaultSigVerificationGasConsumer,
+				MinaAddressResolver: app.KeyregistryKeeper,
+				MinaNetworkID:       appante.DefaultMinaNetworkID,
+				Logger:              logger,
+			})
+			if err != nil {
+				panic(err)
+			}
+
+			bApp.SetAnteHandler(anteHandler)
+		},
+	)
 
 	// build app
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
