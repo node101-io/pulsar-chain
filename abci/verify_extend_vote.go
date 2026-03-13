@@ -33,7 +33,7 @@ func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHan
 		// Log incoming vote-extension for visibility
 		ctx.Logger().Info("VerifyVoteExtension", "height", req.GetHeight(), "validator", consAddr.String())
 
-		exists, err := h.Keeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
+		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
 		if err != nil {
 
 		}
@@ -44,7 +44,7 @@ func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHan
 			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("unknown validator address %s", consAddr.String())
 		}
 
-		minaPublicKey, err := h.Keeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
+		minaPublicKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
 		if err != nil {
 
 		}

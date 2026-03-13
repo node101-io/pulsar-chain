@@ -16,7 +16,8 @@ import (
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/mina-signer-go/poseidon"
-	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
+	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
+	voteextkeeper "github.com/node101-io/pulsar-chain/x/voteexthandler/keeper"
 	"github.com/node101-io/pulsar-chain/x/voteexthandler/types"
 	voteexthandler "github.com/node101-io/pulsar-chain/x/voteexthandler/types"
 	"github.com/spf13/viper"
@@ -53,7 +54,8 @@ type MinaSignatureVoteExt struct {
 }
 
 type VoteExtHandler struct {
-	Keeper keeper.Keeper
+	keyregistryKeeper keyregistrykeeper.Keeper
+	voteextKeeper     voteextkeeper.Keeper
 
 	stakingKeeper stakingkeeper.Keeper
 	stateRoots    map[int64][]byte
@@ -61,12 +63,13 @@ type VoteExtHandler struct {
 	votes         map[uint64]map[string][]byte // height -> consAddr -> extension bytes
 }
 
-func NewVoteExtHandler(keeper keeper.Keeper) *VoteExtHandler {
+func NewVoteExtHandler(keyregistryKeeper keyregistrykeeper.Keeper, voteextKeeper voteextkeeper.Keeper) *VoteExtHandler {
 	return &VoteExtHandler{
-		Keeper:     keeper,
-		stateRoots: make(map[int64][]byte),
-		mu:         sync.RWMutex{},
-		votes:      make(map[uint64]map[string][]byte),
+		keyregistryKeeper: keyregistryKeeper,
+		voteextKeeper:     voteextKeeper,
+		stateRoots:        make(map[int64][]byte),
+		mu:                sync.RWMutex{},
+		votes:             make(map[uint64]map[string][]byte),
 	}
 }
 
@@ -132,12 +135,12 @@ func (h *VoteExtHandler) applyValidatorUpdates(ctx sdk.Context, initialValidator
 		// Use pubkey bytes as address (same logic as in initial validator set)
 		consAddr := sdk.ConsAddress(pubKey.Address())
 
-		exists, err := h.Keeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
+		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
 		if !exists {
 			return nil, fmt.Errorf("ExtendVoteHandler: failed to get key store for validator: %s", consAddr.String())
 		}
 
-		minaPubKey, err := h.Keeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
+		minaPubKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
 		if err != nil {
 			return nil, fmt.Errorf("ExtendVoteHandler: failed to get key store for validator: %s", consAddr.String())
 		}
@@ -229,12 +232,12 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 		for _, validator := range validators {
 			consAddr := sdk.ConsAddress(validator.OperatorAddress)
 
-			exists, err := h.Keeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
+			exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
 			if !exists {
 				return nil, fmt.Errorf("ExtendVoteHandler: failed to get key store for validator: %s", consAddr.String())
 			}
 
-			minaPubKey, err := h.Keeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
+			minaPubKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
 			if err != nil {
 				return nil, fmt.Errorf("ExtendVoteHandler: failed to get key store for validator: %s", consAddr.String())
 			}
