@@ -8,7 +8,7 @@ import (
 	"github.com/node101-io/mina-signer-go/poseidonbigint"
 )
 
-func (b *VoteExtBody) GetPoseidonHashInput(ctx sdk.Context, poseidonHash *poseidon.Poseidon) poseidonbigint.HashInput {
+func (b *Body) GetPoseidonHashInput(ctx sdk.Context, poseidonHash *poseidon.Poseidon) poseidonbigint.HashInput {
 	// Initialize the input array
 	input := []*big.Int{}
 

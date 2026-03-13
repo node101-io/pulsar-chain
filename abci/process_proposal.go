@@ -2,8 +2,8 @@ package vote_ext
 
 import (
 	"encoding/json"
-	"fmt"
 
+	"cosmossdk.io/errors"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/constants"
@@ -42,20 +42,19 @@ func (h *VoteExtHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
 		}
 
-		marker := []byte("VOTEEXT:")
 		txs := req.GetTxs()
 
 		// If the special transaction is missing, immediately reject.
-		if len(txs) == 0 || len(txs[0]) <= len(marker) || string(txs[0][:len(marker)]) != string(marker) {
+		if len(txs) == 0 || len(txs[0]) <= len(types.VoteExtMarker) || string(txs[0][:len(types.VoteExtMarker)]) != string(types.VoteExtMarker) {
 			ctx.Logger().Info("Proposal missing VOTEEXT transaction", "looking for height", targetHeight, "proposal height", req.GetHeight())
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("proposal missing VOTEEXT transaction")
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, errors.Wrap(types.ErrMissingVoteExt, "")
 		}
 
 		// Decode the payload containing vote-extensions.
 		var data payload
-		if err := json.Unmarshal(txs[0][len(marker):], &data); err != nil {
+		if err := json.Unmarshal(txs[0][len(types.VoteExtMarker):], &data); err != nil {
 			ctx.Logger().Info("Malformed VOTEEXT payload", "error", err)
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("malformed VOTEEXT payload: %w", err)
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, errors.Wrap(types.ErrMalformedVoteExtPayload, "")
 		}
 
 		// Set the votes in the payload if we don't have them in our map
@@ -71,20 +70,20 @@ func (h *VoteExtHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 		myAddr, err := h.MinaPrivateKey.PublicKey.ToAddress()
 		if err != nil {
 			ctx.Logger().Info("Failed to convert public key to address", "error", err)
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("failed to convert public key to address: %w", err)
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, errors.Wrap(types.ErrFailedToConvertPubKeyToAddr, "")
 		}
 
 		// Find our address in the map.
 		extBz, ok := data.Votes[myAddr]
 		if !ok {
 			ctx.Logger().Info("Validator's vote extension missing from proposal", "validator", myAddr)
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("validator's vote extension missing from proposal")
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, errors.Wrap(types.ErrValidatorVoteExtMissing, "")
 		}
 
 		var ve MinaSignatureVoteExt
 		if err := json.Unmarshal(extBz, &ve); err != nil {
 			ctx.Logger().Info("Malformed vote extension entry", "error", err)
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("malformed vote extension entry: %w", err)
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, errors.Wrap(types.ErrMalformedVoteExtEntry, "")
 		}
 
 		// Initialize poseidon hash
@@ -96,13 +95,13 @@ func (h *VoteExtHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 		sig := new(signature.Signature)
 		if err := sig.UnmarshalBytes(ve.Signature); err != nil {
 			ctx.Logger().Info("Invalid signature encoding", "error", err)
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("invalid signature encoding: %w", err)
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, errors.Wrap(types.ErrInvalidSigEncoding, "")
 		}
 
 		pubKey := h.MinaPrivateKey.PublicKey
 		if !pubKey.Verify(sig, extBodyHashInput, types.DevnetNetworkID) {
 			ctx.Logger().Info("Signature verification failed", "error", err)
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("signature verification failed: %w", err)
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, errors.Wrap(types.ErrSigVerificationFailed, "")
 		}
 
 		// Vote extension successfully verified

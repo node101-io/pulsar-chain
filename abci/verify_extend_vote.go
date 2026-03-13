@@ -3,7 +3,6 @@ package vote_ext
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 
 	"cosmossdk.io/errors"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -22,7 +21,7 @@ func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHan
 		// Unmarshal the extension payload
 		var voteExt MinaSignatureVoteExt
 		if err := json.Unmarshal(req.VoteExtension, &voteExt); err != nil {
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("invalid vote extension payload: %w", err)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrMalformedVoteExtPayload, "")
 		}
 
 		// Log incoming vote extension for visibility
@@ -36,18 +35,18 @@ func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHan
 
 		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
 		if err != nil {
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("internal error")
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrInternal, "")
 		}
 
 		// unknown validator – ignore the vote.
 		if !exists {
 			ctx.Logger().Info("unknown validator", consAddr.String())
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("unknown validator address %s", consAddr.String())
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrUnknownValidator, consAddr.String())
 		}
 
 		minaPublicKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
 		if err != nil {
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("internal error")
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrInternal, "")
 		}
 
 		pubKey, err := new(keys.PublicKey).FromAddress(string(minaPublicKey))
@@ -66,7 +65,7 @@ func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHan
 		pubKeyAddr, err := pubKey.ToAddress()
 		if err != nil {
 			ctx.Logger().Info("failed to convert public key to address", "validator", consAddr.String(), "error", err)
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("failed to convert public key to address for validator %s: %w", consAddr.String(), err)
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrFailedToConvertPubKeyToAddr, consAddr.String())
 		}
 
 		if voteExt.MinaAddress != pubKeyAddr {

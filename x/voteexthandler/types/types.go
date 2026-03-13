@@ -23,6 +23,8 @@ const (
 	VoteExtIndexKeyPrefix = "VoteExtIndex/value/"
 )
 
+var VoteExtMarker = []byte("VOTEEXT:")
+
 // VoteExtKey returns the store key to retrieve a VoteExt from the index fields
 func VoteExtKey(
 	index string,

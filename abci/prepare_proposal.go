@@ -3,10 +3,11 @@ package vote_ext
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 
+	"cosmossdk.io/errors"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/node101-io/pulsar-chain/x/voteexthandler/types"
 )
 
 // PrepareProposalHandler injects the collected vote-extensions (for height-1)
@@ -23,22 +24,6 @@ func (h *VoteExtHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 		ctx.Logger().Info("PrepareProposalHandler:start", "height", req.GetHeight())
 		ctx.Logger().Info("App hash in prepare proposal", "appHash", hex.EncodeToString(ctx.BlockHeader().AppHash))
 
-		// If height is 1, we won't have any votes thus skip the proposal
-		if req.GetHeight() == 1 {
-			ctx.Logger().Info("Height is 1, skipping proposal", "height", req.GetHeight())
-			h.stateRoots[0] = make([]byte, 32)
-			genesisStateRoot, err := hex.DecodeString(GenesisStateRoot)
-			if err != nil {
-				ctx.Logger().Info("Failed to decode genesis state root", "error", err)
-				return nil, fmt.Errorf("failed to decode genesis state root: %w", err)
-			}
-			// Set the state root to the genesis state root
-			h.stateRoots[req.GetHeight()] = genesisStateRoot
-			ctx.Logger().Info("PrepareProposalHandler: State root has been set", "stateRoot", hex.EncodeToString(h.stateRoots[0]), "height", 0)
-
-			return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
-		}
-
 		// vote-extensions for previous height (H-1)
 		targetHeight := uint64(req.GetHeight() - 1)
 		votes := h.fetchVotes(targetHeight)
@@ -54,12 +39,11 @@ func (h *VoteExtHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 		bz, err := json.Marshal(pl)
 		if err != nil {
 			ctx.Logger().Info("Failed to marshal payload", "error", err)
-			return nil, fmt.Errorf("marshal payload: %w", err)
+			return nil, errors.Wrap(types.ErrFailedToMarshal, "")
 		}
 
 		// prefix makes it easier to identify the vote extension
-		marker := []byte("VOTEEXT:")
-		extTx := append(marker, bz...)
+		extTx := append(types.VoteExtMarker, bz...)
 
 		// prepend to existing txs
 		txs := make([][]byte, 0, len(req.Txs)+1)
