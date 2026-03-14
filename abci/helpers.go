@@ -158,14 +158,12 @@ func (h *VoteExtHandler) applyValidatorUpdates(ctx sdk.Context, initialValidator
 		if update.Power == 0 {
 			// Remove validator if power is 0
 			delete(validatorMap, key)
-			ctx.Logger().Info("Removed validator from set", "consensus address", consAddr.String(), "mina address", minaPubKey)
 		} else {
 			// Add or update validator
 			validatorMap[key] = &ValidatorInfo{
 				MinaAddress: string(minaPubKey),
 				Power:       update.Power,
 			}
-			ctx.Logger().Info("Added/Updated validator in set", "consensus address", consAddr.String(), "mina address", minaPubKey)
 		}
 	}
 

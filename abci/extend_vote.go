@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 
 	"cosmossdk.io/errors"
-	"cosmossdk.io/math"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/node101-io/mina-signer-go/constants"
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
@@ -21,39 +21,50 @@ type ValidatorInfo struct {
 }
 
 func (h *VoteExtHandler) wrapValidatorInfo(ctx sdk.Context) ([]ValidatorInfo, error) {
-	// Get all Cross-chain validators
-	validators, err := h.stakingKeeper.GetAllValidators(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// Convert CCValidators to ValidatorInfo format
-	initialValidators := make([]ValidatorInfo, 0, len(validators))
-	for _, validator := range validators {
-		consAddr := sdk.ConsAddress(validator.OperatorAddress)
+	var initialValidators []ValidatorInfo
+	var callbackErr error
 
-		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
-		if !exists {
-			return nil, errors.Wrap(types.ErrFailedToGetKeystore, consAddr.String())
+	err := h.stakingKeeper.IterateLastValidators(ctx, func(index int64, validator stakingtypes.ValidatorI) (stop bool) {
+		consAddr, err := validator.GetConsAddr()
+		if err != nil {
+			callbackErr = errors.Wrap(types.ErrInternal, err.Error())
+			return true
 		}
 
-		minaPubKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
+		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, consAddr)
 		if err != nil {
-			return nil, errors.Wrap(types.ErrInternal, err.Error())
+			callbackErr = errors.Wrap(types.ErrInternal, err.Error())
+			return true
+		}
+		if !exists {
+			callbackErr = errors.Wrap(types.ErrFailedToGetKeystore, "")
+			return true
+		}
+
+		minaPubKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, consAddr)
+		if err != nil {
+			callbackErr = errors.Wrap(types.ErrInternal, err.Error())
+			return true
 		}
 
 		initialValidators = append(initialValidators, ValidatorInfo{
 			MinaAddress: string(minaPubKey),
-			Power:       validator.GetConsensusPower(math.Int{}), // ??
+			Power:       validator.GetConsensusPower(h.stakingKeeper.PowerReduction(ctx)),
 		})
+		return false
+	})
+	if err != nil {
+		return nil, err
+	}
+	if callbackErr != nil {
+		return nil, callbackErr
 	}
 
-	ctx.Logger().Info("Successfully got all cc validators", "ccValidators", initialValidators)
-
 	initialValidators = h.sortValidators(initialValidators)
-
 	return initialValidators, nil
 }
 
+// TODO: Update this method when switching to consumer chain
 func (h *VoteExtHandler) constructMinaSignatureVoteExt(extBody voteexthandler.Body, ctx sdk.Context, hash *poseidon.Poseidon) (MinaSignatureVoteExt, error) {
 
 	// Hash the vote extension body
@@ -61,14 +72,13 @@ func (h *VoteExtHandler) constructMinaSignatureVoteExt(extBody voteexthandler.Bo
 
 	// Sign the vote extension body
 	signature, err := h.MinaPrivateKey.SecretKey.Sign(extBodyHashInput, types.DevnetNetworkID)
-	ctx.Logger().Info("Signed block hash with secondary private key", "signature", signature)
 	if err != nil {
 		return MinaSignatureVoteExt{}, errors.Wrap(types.ErrFailedToSign, err.Error())
 	}
 
 	sigBytes, err := signature.MarshalBytes()
 	if err != nil {
-		return MinaSignatureVoteExt{}, errors.Wrap(types.ErrFailedToMarshal, "signature")
+		return MinaSignatureVoteExt{}, errors.Wrap(types.ErrFailedToMarshal, err.Error())
 	}
 
 	addr, err := h.MinaPrivateKey.PublicKey.ToAddress()
@@ -81,14 +91,12 @@ func (h *VoteExtHandler) constructMinaSignatureVoteExt(extBody voteexthandler.Bo
 		Signature:   sigBytes,
 		VoteExtBody: extBody,
 	}
-	ctx.Logger().Info("Vote extension for block", "voteExt", voteExt)
 
-	return MinaSignatureVoteExt{}, nil
+	return voteExt, nil
 }
 
 func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.RequestExtendVote, hash poseidon.Poseidon) (voteexthandler.Body, error) {
 
-	// Get validator updates from the pending changes
 	validatorUpdates, err := h.stakingKeeper.GetValidatorUpdates(ctx)
 	if err != nil {
 		return voteexthandler.Body{}, err
@@ -98,20 +106,17 @@ func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.Request
 	if err != nil {
 		return voteexthandler.Body{}, err
 	}
-	ctx.Logger().Info("Successfully got all cc validators", "ccValidators", initialValidators)
 
 	initValSetRoot, err := h.computeValidatorSetMerkleRoot(initialValidators, &hash)
 	if err != nil {
 		return voteexthandler.Body{}, errors.Wrap(types.ErrFailedToComputeInitialValidatorSetRoot, err.Error())
 	}
-	ctx.Logger().Info("Successfully got initial validator set root", "initValSetRoot", initValSetRoot)
 
 	prevStateRoot := h.stateRoots[req.GetHeight()-1]
 	initStateRoot := h.stateRoots[req.GetHeight()]
 
 	var extBody voteexthandler.Body
 	if len(validatorUpdates) != 0 {
-		ctx.Logger().Info("Successfully got pending changes", "pendingChanges", validatorUpdates)
 
 		// Apply validator set updates to the initial validator set and create merkle tree from the new validator set
 		newValidatorSet, err := h.applyValidatorUpdates(ctx, initialValidators, validatorUpdates)
@@ -123,7 +128,6 @@ func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.Request
 		if err != nil {
 			return voteexthandler.Body{}, errors.Wrap(types.ErrFailedToComputeNewSetRoot, err.Error())
 		}
-		ctx.Logger().Info("Successfully computed new validator set root", "newValSetRoot", newValSetRoot, "validatorCount", len(newValidatorSet))
 
 		// Construct the vote extension body
 		extBody = voteexthandler.Body{
@@ -149,7 +153,6 @@ func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.Request
 
 func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
-		ctx.Logger().Info("ExtendVoteHandler", "height", req.GetHeight())
 
 		// Initialize poseidon hash
 		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
@@ -169,10 +172,6 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 
 		// Store vote extension in memory
 		h.storeVote(uint64(req.GetHeight()), voteExt.MinaAddress, bz)
-		ctx.Logger().Info("Vote extension stored in memory", "height", req.GetHeight(), "validator", voteExt.MinaAddress)
-		votes := h.fetchVotes(uint64(req.GetHeight()))
-		// Log votes with height and validator address
-		ctx.Logger().Info("Votes", "height", req.GetHeight(), "votes", votes)
 
 		return &abci.ResponseExtendVote{VoteExtension: bz}, nil
 	}
