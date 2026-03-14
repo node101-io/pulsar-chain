@@ -73,6 +73,8 @@ func (stubMinaAddressResolver) UserGetCosmosToMina(context.Context, []byte) ([]b
 	return nil, nil
 }
 
+// A fully populated HandlerOptions should construct a usable ante chain.
+// This is the baseline success case that all of the stricter validation tests compare against.
 func TestNewAnteHandler(t *testing.T) {
 	t.Parallel()
 
@@ -89,6 +91,8 @@ func TestNewAnteHandler(t *testing.T) {
 	require.NotNil(t, anteHandler)
 }
 
+// AccountKeeper is required because the auth ante stack depends on account state almost everywhere.
+// Failing at construction time is safer than letting a partially wired handler reach runtime.
 func TestNewAnteHandlerRequiresAccountKeeper(t *testing.T) {
 	t.Parallel()
 
@@ -104,6 +108,8 @@ func TestNewAnteHandlerRequiresAccountKeeper(t *testing.T) {
 	require.Nil(t, anteHandler)
 }
 
+// BankKeeper is mandatory for fee deduction in the default auth decorators.
+// This test ensures the constructor rejects missing fee-transfer dependencies immediately.
 func TestNewAnteHandlerRequiresBankKeeper(t *testing.T) {
 	t.Parallel()
 
@@ -119,6 +125,8 @@ func TestNewAnteHandlerRequiresBankKeeper(t *testing.T) {
 	require.Nil(t, anteHandler)
 }
 
+// SignModeHandler is needed by both the Cosmos and Mina signature verification paths.
+// Missing it would make sign-byte generation impossible later in the ante chain.
 func TestNewAnteHandlerRequiresSignModeHandler(t *testing.T) {
 	t.Parallel()
 
@@ -134,6 +142,8 @@ func TestNewAnteHandlerRequiresSignModeHandler(t *testing.T) {
 	require.Nil(t, anteHandler)
 }
 
+// MinaAddressResolver is part of the custom verifier contract for Mina-authenticated txs.
+// The constructor should refuse to build an ante handler that can never resolve Mina signers.
 func TestNewAnteHandlerRequiresMinaAddressResolver(t *testing.T) {
 	t.Parallel()
 
@@ -149,6 +159,8 @@ func TestNewAnteHandlerRequiresMinaAddressResolver(t *testing.T) {
 	require.Nil(t, anteHandler)
 }
 
+// Mina network selection affects how Mina signatures are verified on-chain.
+// This test guards against silently constructing a verifier with an empty network ID.
 func TestNewAnteHandlerRequiresMinaNetworkID(t *testing.T) {
 	t.Parallel()
 
@@ -164,6 +176,8 @@ func TestNewAnteHandlerRequiresMinaNetworkID(t *testing.T) {
 	require.Nil(t, anteHandler)
 }
 
+// The custom verifier emits debug information when verification is skipped.
+// Requiring a logger up front avoids nil logger surprises during ante execution.
 func TestNewAnteHandlerRequiresLogger(t *testing.T) {
 	t.Parallel()
 
