@@ -25,6 +25,8 @@ func (tx stubExtensionTx) GetExtensionOptions() []*codectypes.Any {
 	return tx.extensionOptions
 }
 
+// mustTxAuthModeExtensionAny builds the exact Any payload consumed by the resolver.
+// Using real proto bytes keeps these tests close to the on-wire tx representation.
 func mustTxAuthModeExtensionAny(t *testing.T, mode antetypes.TxAuthMode) *codectypes.Any {
 	t.Helper()
 
@@ -37,6 +39,8 @@ func mustTxAuthModeExtensionAny(t *testing.T, mode antetypes.TxAuthMode) *codect
 	}
 }
 
+// Txs without the custom extension should stay on the default Cosmos path.
+// This preserves compatibility with normal SDK transactions.
 func TestResolveTxAuthModeDefaultsToCosmos(t *testing.T) {
 	t.Parallel()
 
@@ -46,6 +50,8 @@ func TestResolveTxAuthModeDefaultsToCosmos(t *testing.T) {
 	require.Equal(t, TxAuthModeCosmos, mode)
 }
 
+// A Mina extension must flip resolution into Mina mode.
+// This is the primary positive branch for custom auth-mode routing.
 func TestResolveTxAuthModeReadsMinaExtension(t *testing.T) {
 	t.Parallel()
 
@@ -59,6 +65,8 @@ func TestResolveTxAuthModeReadsMinaExtension(t *testing.T) {
 	require.Equal(t, TxAuthModeMina, mode)
 }
 
+// Malformed extension bytes should surface a decoding error instead of being ignored.
+// Returning an error here protects the ante chain from ambiguous tx metadata.
 func TestResolveTxAuthModeRejectsMalformedExtension(t *testing.T) {
 	t.Parallel()
 
@@ -72,6 +80,8 @@ func TestResolveTxAuthModeRejectsMalformedExtension(t *testing.T) {
 	require.Equal(t, TxAuthModeCosmos, mode)
 }
 
+// Multiple auth-mode extensions are ambiguous and must be rejected.
+// This prevents a single tx from carrying conflicting auth instructions.
 func TestResolveTxAuthModeRejectsMultipleExtensions(t *testing.T) {
 	t.Parallel()
 
@@ -86,6 +96,8 @@ func TestResolveTxAuthModeRejectsMultipleExtensions(t *testing.T) {
 	require.Equal(t, TxAuthModeCosmos, mode)
 }
 
+// The extension checker must accept our custom type while still delegating all other checks.
+// That keeps the custom wiring composable with any additional extension checkers above it.
 func TestNewTxAuthExtensionOptionCheckerAcceptsCustomType(t *testing.T) {
 	t.Parallel()
 
@@ -101,6 +113,8 @@ func TestNewTxAuthExtensionOptionCheckerAcceptsCustomType(t *testing.T) {
 	require.False(t, checker(&codectypes.Any{TypeUrl: "/other.Extension"}))
 }
 
+// The decorator should resolve auth mode once and store it on the context.
+// Downstream routed decorators rely on this cached value instead of reparsing the tx.
 func TestTxAuthModeDecoratorStoresResolvedMode(t *testing.T) {
 	t.Parallel()
 
@@ -115,6 +129,7 @@ func TestTxAuthModeDecoratorStoresResolvedMode(t *testing.T) {
 	nextCalled := false
 
 	next := func(nextCtx sdk.Context, nextTx sdk.Tx, simulate bool) (sdk.Context, error) {
+		// This is the observable contract of the decorator: downstream handlers can read the mode from context.
 		nextCalled = true
 		mode, ok := GetTxAuthMode(nextCtx)
 		require.True(t, ok)
