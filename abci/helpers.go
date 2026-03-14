@@ -16,6 +16,7 @@ import (
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/mina-signer-go/poseidon"
+	"github.com/node101-io/mina-signer-go/signature"
 	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	voteextkeeper "github.com/node101-io/pulsar-chain/x/voteexthandler/keeper"
 	"github.com/node101-io/pulsar-chain/x/voteexthandler/types"
@@ -76,6 +77,19 @@ func GetSecondaryKeys(appOpts servertypes.AppOptions) types.SecondaryKey {
 	}
 
 	return secondaryKey
+}
+
+func verifySchnorr(voteExt MinaSignatureVoteExt, pubKey keys.PublicKey, ctx sdk.Context, hash poseidon.Poseidon) error {
+	extBodyHashInput := voteExt.VoteExtBody.GetPoseidonHashInput(ctx, &hash)
+	sig := new(signature.Signature)
+	if err := sig.UnmarshalBytes(voteExt.Signature); err != nil {
+		return errors.Wrap(types.ErrInvalidSigEncoding, "")
+	}
+	// Verify signature; if ok, keep the vote in memory.
+	if !pubKey.Verify(sig, extBodyHashInput, types.DevnetNetworkID) {
+		return errors.Wrap(types.ErrInvalidSignature, "")
+	}
+	return nil
 }
 
 func (h *VoteExtHandler) sortValidators(validators []ValidatorInfo) []ValidatorInfo {

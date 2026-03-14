@@ -30,4 +30,5 @@ var (
 	ErrFailedToComputeNewSetRoot              = errors.Register(ModuleName, 1119, "failed to compute new validator set root")
 	ErrFailedToComputeInitialValidatorSetRoot = errors.Register(ModuleName, 1120, "failed to compute initial validator set root")
 	ErrFailedToGetKeystore                    = errors.Register(ModuleName, 1121, "failed to get key store for validator")
+	ErrInvalidSignature                       = errors.Register(ModuleName, 1122, "invalid signature")
 )
