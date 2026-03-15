@@ -18,7 +18,7 @@ type payload struct {
 }
 
 // reconstructs vote extension body for process proposal
-func (h *VoteExtHandler) reconstructVoteExtBody(ctx sdk.Context, req *abci.RequestProcessProposal) (MinaSignatureVoteExt, error) {
+func (h *VoteExtHandler) reconstructVoteExtBody(req *abci.RequestProcessProposal) (MinaSignatureVoteExt, error) {
 
 	txs := req.GetTxs()
 
@@ -80,8 +80,7 @@ func (h *VoteExtHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 		if len(h.fetchVotes(targetHeight)) == 0 {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
 		}
-
-		ve, err := h.reconstructVoteExtBody(ctx, req)
+		ve, err := h.reconstructVoteExtBody(req)
 		if err != nil {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}

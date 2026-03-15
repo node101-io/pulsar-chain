@@ -29,11 +29,11 @@ validators:
 - name: validator2
   bonded: 100000000pmina
 
-consensus:
-  params:
-    abci:
-      vote_extensions_enable_height: "2"
 genesis:
+  consensus:
+    params:
+      abci:
+        vote_extensions_enable_height: "2"
   app_state:
     keyregistry:
       params: {}

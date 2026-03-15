@@ -25,13 +25,13 @@ func (h *VoteExtHandler) wrapValidatorInfo(ctx sdk.Context) ([]ValidatorInfo, er
 	var callbackErr error
 
 	err := h.stakingKeeper.IterateLastValidators(ctx, func(index int64, validator stakingtypes.ValidatorI) (stop bool) {
-		consAddr, err := validator.GetConsAddr()
+		consAddr, err := validator.ConsPubKey()
 		if err != nil {
 			callbackErr = errors.Wrap(types.ErrInternal, err.Error())
 			return true
 		}
 
-		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, consAddr)
+		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, consAddr.Bytes())
 		if err != nil {
 			callbackErr = errors.Wrap(types.ErrInternal, err.Error())
 			return true
@@ -41,7 +41,7 @@ func (h *VoteExtHandler) wrapValidatorInfo(ctx sdk.Context) ([]ValidatorInfo, er
 			return true
 		}
 
-		minaPubKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, consAddr)
+		minaPubKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, consAddr.Bytes())
 		if err != nil {
 			callbackErr = errors.Wrap(types.ErrInternal, err.Error())
 			return true
@@ -148,12 +148,13 @@ func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.Request
 			NewStateRoot:            initStateRoot,
 		}
 	}
-	return extBody, err
+	return extBody, nil
 }
 
 func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
 
+		ctx.Logger().Info("extend vote handler called")
 		// Initialize poseidon hash
 		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
@@ -169,7 +170,7 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 		if err != nil {
 			return nil, errors.Wrap(types.ErrFailedToMarshal, err.Error())
 		}
-
+		ctx.Logger().Info("vote ext body extend vote handler", voteExt.VoteExtBody.NewBlockHeight)
 		// Store vote extension in memory
 		h.storeVote(uint64(req.GetHeight()), voteExt.MinaAddress, bz)
 

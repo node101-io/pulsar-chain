@@ -1,9 +1,7 @@
 package vote_ext
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -11,7 +9,6 @@ import (
 	"cosmossdk.io/errors"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
-	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/node101-io/mina-signer-go/keys"
@@ -42,41 +39,16 @@ type VoteExtHandler struct {
 
 func NewVoteExtHandler(keyregistryKeeper keyregistrykeeper.Keeper,
 	voteextKeeper voteextkeeper.Keeper,
-	minaPrivateKey *types.SecondaryKey) *VoteExtHandler {
+	minaPrivateKey *types.SecondaryKey, stakingKeeper stakingkeeper.Keeper) *VoteExtHandler {
 	return &VoteExtHandler{
 		keyregistryKeeper: keyregistryKeeper,
 		voteextKeeper:     voteextKeeper,
 		MinaPrivateKey:    minaPrivateKey,
+		stakingKeeper:     stakingKeeper,
 		stateRoots:        make(map[int64][]byte),
 		mu:                sync.RWMutex{},
 		votes:             make(map[uint64]map[string][]byte),
 	}
-}
-func GetSecondaryKeys(appOpts servertypes.AppOptions) types.SecondaryKey {
-	minaPrivKey := appOpts.Get("vote_extension.priv_key")
-	keyStr, ok := minaPrivKey.(string)
-	if !ok {
-		panic("vote_extension.priv_key is not a string")
-	}
-
-	// Decode base64 -> bytes
-	keyBytes, err := base64.StdEncoding.DecodeString(keyStr)
-	if err != nil {
-		panic(fmt.Sprintf("failed to decode base64 priv key: %v", err))
-	}
-
-	// Bytes -> big.Int
-	prv := new(big.Int).SetBytes(keyBytes)
-	priv := keys.PrivateKey{
-		Value: prv,
-	}
-	public := priv.ToPublicKey()
-	secondaryKey := types.SecondaryKey{
-		SecretKey: &priv,
-		PublicKey: &public,
-	}
-
-	return secondaryKey
 }
 
 func verifySchnorr(voteExt MinaSignatureVoteExt, pubKey keys.PublicKey, ctx sdk.Context, hash poseidon.Poseidon) error {
