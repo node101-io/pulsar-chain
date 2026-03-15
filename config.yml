@@ -23,7 +23,7 @@ validators:
   bonded: 100000000pmina
   app:
       vote_extension:
-        priv_key: "w1/WzsUBljaEJVxCfoJpPO8tHk00onkidzsFOBglSAeD+S6D1Px+CjzOQBtcFDgbQIQGXJs7o8sDTyXpvt8Vpg=="
+        priv_key: "OhOfQtGMXqcrbfCRPEe4DjLUNHaOcD3RrWuRPBGO82M="
 - name: validator1
   bonded: 200000000pmina
 - name: validator2

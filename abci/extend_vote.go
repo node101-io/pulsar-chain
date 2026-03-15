@@ -6,7 +6,6 @@ import (
 	"cosmossdk.io/errors"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/node101-io/mina-signer-go/constants"
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
@@ -27,6 +26,7 @@ type ValidatorInfo struct {
 	Power       int64
 }
 
+/*
 func (h *VoteExtHandler) wrapValidatorInfo(ctx sdk.Context) ([]ValidatorInfo, error) {
 	var initialValidators []ValidatorInfo
 	var callbackErr error
@@ -69,7 +69,7 @@ func (h *VoteExtHandler) wrapValidatorInfo(ctx sdk.Context) ([]ValidatorInfo, er
 
 	initialValidators = h.sortValidators(initialValidators)
 	return initialValidators, nil
-}
+}*/
 
 // TODO: Update this method when switching to consumer chain
 func (h *VoteExtHandler) constructMinaSignatureVoteExt(extBody voteexthandler.Body, ctx sdk.Context, hash *poseidon.Poseidon) (MinaSignatureVoteExt, error) {
