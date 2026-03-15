@@ -14,6 +14,13 @@ import (
 	voteexthandler "github.com/node101-io/pulsar-chain/x/voteexthandler/types"
 )
 
+var hardcoded = [32]byte{
+	0x7a, 0x13, 0x9f, 0x42, 0xd1, 0x8c, 0x5e, 0xa7,
+	0x2b, 0x6d, 0xf0, 0x91, 0x3c, 0x47, 0xb8, 0x0e,
+	0x55, 0x1a, 0xcd, 0x72, 0x98, 0x04, 0xe6, 0xaf,
+	0x39, 0xb2, 0x7c, 0x5d, 0x11, 0x8e, 0xf3, 0x64,
+}
+
 // ValidatorInfo represents a validator in the set
 type ValidatorInfo struct {
 	MinaAddress string
@@ -97,7 +104,7 @@ func (h *VoteExtHandler) constructMinaSignatureVoteExt(extBody voteexthandler.Bo
 
 func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.RequestExtendVote, hash poseidon.Poseidon) (voteexthandler.Body, error) {
 
-	validatorUpdates, err := h.stakingKeeper.GetValidatorUpdates(ctx)
+	/*validatorUpdates, err := h.stakingKeeper.GetValidatorUpdates(ctx)
 	if err != nil {
 		return voteexthandler.Body{}, err
 	}
@@ -110,13 +117,13 @@ func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.Request
 	initValSetRoot, err := h.computeValidatorSetMerkleRoot(initialValidators, &hash)
 	if err != nil {
 		return voteexthandler.Body{}, errors.Wrap(types.ErrFailedToComputeInitialValidatorSetRoot, err.Error())
-	}
+	}*/
 
 	prevStateRoot := h.stateRoots[req.GetHeight()-1]
 	initStateRoot := h.stateRoots[req.GetHeight()]
 
 	var extBody voteexthandler.Body
-	if len(validatorUpdates) != 0 {
+	/*if len(validatorUpdates) != 0 {
 
 		// Apply validator set updates to the initial validator set and create merkle tree from the new validator set
 		newValidatorSet, err := h.applyValidatorUpdates(ctx, initialValidators, validatorUpdates)
@@ -147,7 +154,17 @@ func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.Request
 			NewBlockHeight:          req.GetHeight(),
 			NewStateRoot:            initStateRoot,
 		}
+	}*/
+
+	extBody = voteexthandler.Body{
+		InitialValidatorSetRoot: hardcoded[:],
+		InitialBlockHeight:      req.GetHeight() - 1,
+		InitialStateRoot:        prevStateRoot,
+		NewValidatorSetRoot:     hardcoded[:],
+		NewBlockHeight:          req.GetHeight(),
+		NewStateRoot:            initStateRoot,
 	}
+
 	return extBody, nil
 }
 
