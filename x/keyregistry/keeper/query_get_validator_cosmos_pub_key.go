@@ -9,9 +9,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// GetCosmosPubKey returns the cosmos public key associated with the given mina public key.
+// GetCosmosPubKey returns the Validator's cosmos public key associated with the given mina public key.
 // Returns NotFound if no mapping exists for the provided mina public key.
-func (q queryServer) GetCosmosPubKey(ctx context.Context, req *types.QueryGetCosmosPubKeyRequest) (*types.QueryGetCosmosPubKeyResponse, error) {
+
+func (q queryServer) GetValidatorCosmosPubKey(ctx context.Context, req *types.QueryGetValidatorCosmosPubKeyRequest) (*types.QueryGetValidatorCosmosPubKeyResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
@@ -19,7 +20,7 @@ func (q queryServer) GetCosmosPubKey(ctx context.Context, req *types.QueryGetCos
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	// Check if the mina key exists in the MinaToCosmos map.
-	exists, err := q.k.minaToCosmos.Has(sdkCtx, req.MinaPubKey)
+	exists, err := q.k.validatorMinaToCosmos.Has(sdkCtx, req.ValidatorMinaPubKey)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
@@ -28,12 +29,12 @@ func (q queryServer) GetCosmosPubKey(ctx context.Context, req *types.QueryGetCos
 		return nil, status.Error(codes.NotFound, "cosmos key not found for given mina key")
 	}
 
-	cosmosKey, err := q.k.minaToCosmos.Get(sdkCtx, req.MinaPubKey)
+	cosmosKey, err := q.k.validatorMinaToCosmos.Get(sdkCtx, req.ValidatorMinaPubKey)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &types.QueryGetCosmosPubKeyResponse{
-		CosmosPubKey: cosmosKey,
+	return &types.QueryGetValidatorCosmosPubKeyResponse{
+		ValidatorCosmosPubKey: cosmosKey,
 	}, nil
 }

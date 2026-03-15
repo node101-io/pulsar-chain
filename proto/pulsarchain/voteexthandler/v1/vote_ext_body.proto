@@ -1,0 +1,14 @@
+syntax = "proto3";
+package pulsarchain.voteexthandler.v1;
+
+option go_package = "github.com/node101-io/pulsar-chain/x/voteexthandler/types";
+
+// Body defines the VoteExtBody message.
+message Body {
+  bytes initial_validator_set_root = 1;
+  bytes initial_state_root = 2;
+  int64 initial_block_height = 3;
+  bytes new_validator_set_root = 4;
+  bytes new_state_root = 5;
+  int64 new_block_height = 6;
+}

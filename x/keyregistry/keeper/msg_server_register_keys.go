@@ -3,27 +3,48 @@ package keeper
 import (
 	"context"
 
-	errorsmod "cosmossdk.io/errors"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-// TODO: Implement Mina signature verification
-func VerifyMinaSig(sig string, msg, minaPublicKey []byte) bool {
+// TODO: Implement Mina signature verification for users
+func VerifyUserMinaSig(sig string, msg, minaAddress []byte) bool {
 	return true
 }
 
-// TODO: Implement Cosmos signature verification
-func VerifyCosmosSig(sig string, msg, cosmosPublicKey []byte) bool {
+// TODO: Implement Cosmos signature verification for users
+func VerifyUserCosmosSig(sig string, msg, mosmosAddress []byte) bool {
 	return true
 }
 
-// deriveAddressFromPubkey derives a bech32 cosmos address from a compressed secp256k1 public key.
-func deriveAddressFromPubkey(cosmosPublicKey []byte) string {
-	pubKey := secp256k1.PubKey{
-		Key: cosmosPublicKey,
+// TODO: Implement Mina signature verification for users
+func VerifyValidatorMinaSig(sig string, msg, minaAddress []byte) bool {
+	return true
+}
+
+// TODO: Implement Cosmos signature verification for users
+func VerifyValidatorCosmosSig(sig string, msg, cosmosAddress []byte) bool {
+	return true
+}
+
+// deriveAddressFromPubkey derives the expected signer address from the provided
+// key material. Users provide secp256k1 account public keys, while validators
+// provide consensus public keys.
+func deriveAddressFromPubkey(cosmosAddress []byte, isUser bool) string {
+	if !isUser {
+		pubKey := ed25519.PubKey{
+			Key: cosmosAddress,
+		}
+		validatorAddr := sdk.ConsAddress(pubKey.Address())
+		return validatorAddr.String()
 	}
+
+	pubKey := secp256k1.PubKey{
+		Key: cosmosAddress,
+	}
+
 	addr := sdk.AccAddress(pubKey.Address())
 	return addr.String()
 }
@@ -38,56 +59,14 @@ func deriveAddressFromPubkey(cosmosPublicKey []byte) string {
 //
 // If all checks pass, the key pair is stored in both the CosmosToMina and MinaToCosmos maps.
 func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys) (*types.MsgRegisterKeysResponse, error) {
-	// Validate the creator address.
-	if _, err := k.addressCodec.StringToBytes(msg.Creator); err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
-	}
 
-	// Ensure the cosmos and mina public keys are valid.
-	err := types.ValidateKeyPair(types.KeyPair{
-		MinaKey:   msg.MinaPublicKey,
-		CosmosKey: msg.CosmosPublicKey,
-	})
-	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidPublicKey, "pubkeys must be valid")
-	}
+	var err error
 
-	// Ensure the creator address matches the provided cosmos public key
-	// to prevent someone from registering a key pair on behalf of another address.
-	derivedAddress := deriveAddressFromPubkey(msg.CosmosPublicKey)
-
-	if derivedAddress != msg.Creator {
-		return nil, errorsmod.Wrap(types.ErrInvalidSigner, "creator does not match provided cosmos public key")
+	if msg.IsUser {
+		err = k.handleUserRegistration(ctx, msg)
+	} else {
+		err = k.handleValidatorRegistration(ctx, msg)
 	}
-
-	// Check if either key is already registered to prevent duplicate registrations.
-	cosmosKeyExists, err := k.Keeper.cosmosToMina.Has(ctx, msg.CosmosPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	minaKeyExists, err := k.Keeper.minaToCosmos.Has(ctx, msg.MinaPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	if cosmosKeyExists || minaKeyExists {
-		return nil, errorsmod.Wrap(types.ErrSecondaryKeyExists, "")
-	}
-
-	// Verify that the mina key signed the cosmos public key and vice versa.
-	// This proves ownership of both keys.
-	minaSigValidity := VerifyMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey)
-	cosmosSigValidity := VerifyCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
-
-	if !minaSigValidity || !cosmosSigValidity {
-		return nil, errorsmod.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
-	}
-
-	// Store the key pair in both directions to allow lookups by either key.
-	err = k.Keeper.cosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	err = k.Keeper.minaToCosmos.Set(ctx, msg.MinaPublicKey, msg.CosmosPublicKey)
 	if err != nil {
 		return nil, err
 	}

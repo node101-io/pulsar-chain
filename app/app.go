@@ -1,7 +1,10 @@
 package app
 
 import (
+	"encoding/base64"
+	"fmt"
 	"io"
+	"math/big"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 	"cosmossdk.io/core/appmodule"
@@ -45,9 +48,13 @@ import (
 	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
+	"github.com/node101-io/mina-signer-go/keys"
+	vote_ext "github.com/node101-io/pulsar-chain/abci"
 	"github.com/node101-io/pulsar-chain/docs"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
+	voteexthandlermodulekeeper "github.com/node101-io/pulsar-chain/x/voteexthandler/keeper"
+	"github.com/node101-io/pulsar-chain/x/voteexthandler/types"
 )
 
 const (
@@ -100,9 +107,11 @@ type App struct {
 	TransferKeeper      ibctransferkeeper.Keeper
 
 	// simulation manager
-	sm                *module.SimulationManager
-	PulsarKeeper      pulsarmodulekeeper.Keeper
-	KeyregistryKeeper keyregistrymodulekeeper.Keeper
+	sm                   *module.SimulationManager
+	PulsarKeeper         pulsarmodulekeeper.Keeper
+	KeyregistryKeeper    keyregistrymodulekeeper.Keeper
+	VoteexthandlerKeeper voteexthandlermodulekeeper.Keeper
+	VoteExtHandler       *vote_ext.VoteExtHandler
 }
 
 func init() {
@@ -184,9 +193,40 @@ func New(
 		&app.ParamsKeeper,
 		&app.PulsarKeeper,
 		&app.KeyregistryKeeper,
+		&app.VoteexthandlerKeeper,
 	); err != nil {
 		panic(err)
 	}
+
+	minaPrivKey := appOpts.Get("vote_extension.priv_key")
+	keyStr, ok := minaPrivKey.(string)
+	if !ok {
+		panic("vote_extension.priv_key is not a string")
+	}
+
+	// Decode base64 -> bytes
+	keyBytes, err := base64.StdEncoding.DecodeString(keyStr)
+	if err != nil {
+		panic(fmt.Sprintf("failed to decode base64 priv key: %v", err))
+	}
+
+	// Bytes -> big.Int
+	prv := new(big.Int).SetBytes(keyBytes)
+	priv := keys.PrivateKey{
+		Value: prv,
+	}
+	public := priv.ToPublicKey()
+	secondaryKey := types.SecondaryKey{
+		SecretKey: &priv,
+		PublicKey: &public,
+	}
+
+	app.VoteExtHandler = vote_ext.NewVoteExtHandler(
+		app.KeyregistryKeeper,
+		app.VoteexthandlerKeeper,
+		&secondaryKey,
+		*app.StakingKeeper,
+	)
 
 	// add to default baseapp options
 	// enable optimistic execution
@@ -194,6 +234,12 @@ func New(
 
 	// build app
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+
+	app.SetExtendVoteHandler(app.VoteExtHandler.ExtendVoteHandler())
+	app.SetVerifyVoteExtensionHandler(app.VoteExtHandler.VerifyVoteExtensionHandler())
+	app.SetPrepareProposal(app.VoteExtHandler.PrepareProposalHandler())
+	app.SetProcessProposal(app.VoteExtHandler.ProcessProposalHandler())
+	app.SetPreBlocker(app.VoteExtHandler.PreBlocker())
 
 	// register legacy modules
 	if err := app.registerIBCModules(appOpts); err != nil {

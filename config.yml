@@ -21,15 +21,25 @@ faucet:
 validators:
 - name: alice
   bonded: 100000000pmina
+  app:
+      vote_extension:
+        priv_key: "OhOfQtGMXqcrbfCRPEe4DjLUNHaOcD3RrWuRPBGO82M="
 - name: validator1
   bonded: 200000000pmina
 - name: validator2
   bonded: 100000000pmina
 
 genesis:
+  consensus:
+    params:
+      abci:
+        vote_extensions_enable_height: "2"
   app_state:
     keyregistry:
       params: {}
-      key_pairs:
-        # - mina_key: "SC/6aqoZ19ObLka8NIQVMs1qPim+uD6epPLuQS4x2n4Z"
-        #   cosmos_key: "UdDr3CCO+4HVrBtbzqLTM3P2xAMNCIrPeCTeVfb5sw1y"
+      user_key_pairs:
+       # - mina_key: "SC/6aqoZ19ObLka8NIQVMs1qPim+uD6epPLuQS4x2n4Z"
+        #  cosmos_key: "UdDr3CCO+4HVrBtbzqLTM3P2xAMNCIrPeCTeVfb5sw1y"
+      validator_key_pairs:
+       # - mina_key: "3IvK1eWmmcfdlIb+T04+ck9Q5bjbqHqiT0ucGJITzyY="
+        #  cosmos_key: "A8saw69s1DQWvUjseeOtG8hGavmYiInrQ5M1aOPa4QkP"
