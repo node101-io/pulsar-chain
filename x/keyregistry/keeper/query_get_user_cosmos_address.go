@@ -11,15 +11,15 @@ import (
 
 // GetCosmosPubKey returns the user's cosmos public key associated with the given mina public key.
 // Returns NotFound if no mapping exists for the provided mina public key.
-func (q queryServer) GetUserCosmosPubKey(ctx context.Context, req *types.QueryGetUserCosmosPubKeyRequest) (*types.QueryGetUserCosmosPubKeyResponse, error) {
+func (q queryServer) GetUserCosmosAddress(ctx context.Context, req *types.QueryGetUserCosmosAddressRequest) (*types.QueryGetUserCosmosAddressResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	// Check if the mina key exists in the MinaToCosmos map.
-	exists, err := q.k.userMinaToCosmos.Has(sdkCtx, req.UserMinaPubKey)
+	// Check if the mina address exists in the MinaToCosmos map.
+	exists, err := q.k.userMinaToCosmos.Has(sdkCtx, req.UserMinaAddress)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
@@ -28,12 +28,12 @@ func (q queryServer) GetUserCosmosPubKey(ctx context.Context, req *types.QueryGe
 		return nil, status.Error(codes.NotFound, "cosmos key not found for given mina key")
 	}
 
-	cosmosKey, err := q.k.userMinaToCosmos.Get(sdkCtx, req.UserMinaPubKey)
+	cosmosKey, err := q.k.userMinaToCosmos.Get(sdkCtx, req.UserMinaAddress)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &types.QueryGetUserCosmosPubKeyResponse{
-		UserCosmosPubKey: cosmosKey,
+	return &types.QueryGetUserCosmosAddressResponse{
+		UserCosmosAddress: cosmosKey,
 	}, nil
 }

@@ -14,4 +14,5 @@ var (
 	ErrValidatorSecondaryKeyExists = errors.Register(ModuleName, 1103, "validator's secondary key already exists")
 	ErrInvalidCreatorAddres        = errors.Register(ModuleName, 1104, "invalid creator address")
 	ErrInvalidPublicKey            = errors.Register(ModuleName, 1105, "invalid public key")
+	ErrInvalidAddress              = errors.Register(ModuleName, 1106, "invalid address")
 )

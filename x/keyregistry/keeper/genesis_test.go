@@ -43,13 +43,13 @@ func TestInitAndExportGenesis(t *testing.T) {
 
 	genesisState := types.GenesisState{
 		Params: types.DefaultParams(),
-		UserKeyPairs: []*types.KeyPair{
+		UserKeyPairs: []*types.AddressPair{
 			{
-				MinaKey:   minaPubKey,
-				CosmosKey: cosmosPubKey.Bytes(),
+				MinaAddr:   minaPubKey,
+				CosmosAddr: cosmosPubKey.Bytes(),
 			},
 		},
-		ValidatorKeyPairs: []*types.KeyPair{
+		ValidatorKeyPairs: []*types.PublicKeyPair{
 			{
 				MinaKey:   minaPubKey,
 				CosmosKey: cosmosPubKey.Bytes(),

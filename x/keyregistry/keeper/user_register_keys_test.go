@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/cometbft/cometbft/crypto"
@@ -19,16 +20,16 @@ var mockMinaSignature = "minaSig"
 
 var MinaPriv = []byte("7olA5Knafb5E2hJoWFzD+oamtyXIXXUZmYG9+pBMjTGIjqZTVLNGbE7DQ3Zq5YL5NMW31UMMMGgNCeEk+gyzRA==")
 
-func generatePublicKeys() (crypto.PubKey, []byte, error) {
+func generateAddress() (crypto.PubKey, []byte, error) {
 	cosmosPrivKey := secp256k1.GenPrivKey()
 
 	cosmosPubKey := cosmosPrivKey.PubKey()
 
 	minaPrivKey := keys.NewPrivateKeyFromBytes([32]byte(MinaPriv))
 
-	minaPublicKey, err := minaPrivKey.ToPublicKey().Marshal()
+	minaAddress, err := minaPrivKey.ToPublicKey().ToAddress()
 
-	return cosmosPubKey, minaPublicKey, err
+	return cosmosPubKey, []byte(minaAddress), err
 }
 
 // TestUserRegisterKeysFail verifies that RegisterKeys fails with ErrInvalidPublicKey
@@ -43,22 +44,24 @@ func TestUserRegisterKeysFail(t *testing.T) {
 		Creator:         creatorAddr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: CosmosPubKey,
-		MinaPublicKey:   MinaPubKey,
+		CosmosAddress:   CosmosPubKey,
+		MinaAddress:     MinaPubKey,
 		IsUser:          true,
 	})
-	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
+	require.ErrorIs(t, err, types.ErrInvalidAddress)
 }
 
 // TestUserRegisterKeysSuccess verifies that RegisterKeys succeeds with valid inputs
 // and ensures that both CosmosToMina and MinaToCosmos mappings are correctly stored.
 func TestUserRegisterKeysSuccess(t *testing.T) {
 
-	cosmosPubKey, minaPubKey, err := generatePublicKeys()
+	cosmosAddr, minaAddr, err := generateAddress()
 	require.NoError(t, err)
 
-	addr := sdk.AccAddress(cosmosPubKey.Address())
+	addr := sdk.AccAddress(cosmosAddr.Address())
 
+	fmt.Println("addr len", len(addr.Bytes()))
+	fmt.Println("len mina addr", len(minaAddr))
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
@@ -66,18 +69,18 @@ func TestUserRegisterKeysSuccess(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: cosmosPubKey.Bytes(),
-		MinaPublicKey:   minaPubKey,
+		CosmosAddress:   addr.Bytes(),
+		MinaAddress:     minaAddr,
 		IsUser:          true,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	exists, err := f.keeper.UserCosmosToMinaHas(f.ctx, cosmosPubKey.Bytes())
+	exists, err := f.keeper.UserCosmosToMinaHas(f.ctx, cosmosAddr.Bytes())
 	require.NoError(t, err)
 	require.Equal(t, exists, true)
 
-	exists, err = f.keeper.UserMinaToCosmosHas(f.ctx, minaPubKey)
+	exists, err = f.keeper.UserMinaToCosmosHas(f.ctx, minaAddr)
 	require.NoError(t, err)
 	require.Equal(t, exists, true)
 
@@ -97,8 +100,8 @@ func TestUserInvalidCreatorAddress(t *testing.T) {
 		Creator:         "creator",
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: cosmosPubKey.Bytes(),
-		MinaPublicKey:   minaPubKey,
+		CosmosAddress:   cosmosPubKey.Bytes(),
+		MinaAddress:     minaPubKey,
 		IsUser:          true,
 	})
 	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
@@ -124,8 +127,8 @@ func TestUserInvalidSigner(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: cosmosPubKey.Bytes(),
-		MinaPublicKey:   minaPubKey,
+		CosmosAddress:   cosmosPubKey.Bytes(),
+		MinaAddress:     minaPubKey,
 		IsUser:          true,
 	})
 
@@ -151,8 +154,8 @@ func TestUserInvalidSignature(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: invalidSig,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: cosmosPubKey.Bytes(),
-		MinaPublicKey:   minaPubKey,
+		CosmosAddress:   cosmosPubKey.Bytes(),
+		MinaAddress:     minaPubKey,
 		IsUser:          true,
 	})
 
@@ -177,8 +180,8 @@ func TestUserInsertSecondaryKeysFail(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: cosmosPubKey.Bytes(),
-		MinaPublicKey:   minaPubKey,
+		CosmosAddress:   cosmosPubKey.Bytes(),
+		MinaAddress:     minaPubKey,
 		IsUser:          true,
 	})
 	require.NoError(t, err)
@@ -189,8 +192,8 @@ func TestUserInsertSecondaryKeysFail(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: cosmosPubKey.Bytes(),
-		MinaPublicKey:   minaPubKey,
+		CosmosAddress:   cosmosPubKey.Bytes(),
+		MinaAddress:     minaPubKey,
 		IsUser:          true,
 	})
 

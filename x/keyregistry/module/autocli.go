@@ -18,31 +18,31 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Shows the parameters of the module",
 				},
 				{
-					RpcMethod:      "GetUserMinaPubKey",
-					Use:            "get-user-mina-pub-key [user-cosmos-pub-key]",
-					Short:          "Query GetUserMinaPubKey",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_cosmos_pub_key", Varargs: true}},
+					RpcMethod:      "GetUserMinaAddress",
+					Use:            "get-user-mina-address [user-cosmos-address]",
+					Short:          "Query GetUserMinaAddress",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_cosmos_address", Varargs: true}},
 				},
 
 				{
-					RpcMethod:      "GetUserCosmosPubKey",
-					Use:            "get-user-cosmos-pub-key [user-mina-pub-key]",
-					Short:          "Query GetUserCosmosPubKey",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_mina_pub_key", Varargs: true}},
+					RpcMethod:      "GetUserCosmosAddress",
+					Use:            "get-user-cosmos-address [user-mina-address]",
+					Short:          "Query GetUserCosmosAddress",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_mina_address", Varargs: true}},
 				},
 
 				{
-					RpcMethod:      "GetValidatorMinaPubKey",
-					Use:            "get-validator-mina-pub-key [validator-cosmos-pub-key]",
-					Short:          "Query GetValidatorMinaPubKey",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_cosmos_pub_key", Varargs: true}},
+					RpcMethod:      "GetValidatorMinaAddress",
+					Use:            "get-validator-mina-pub-key [validator-cosmos-address]",
+					Short:          "Query GetValidatorMinaAddress",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_cosmos_address", Varargs: true}},
 				},
 
 				{
-					RpcMethod:      "GetValidatorCosmosPubKey",
-					Use:            "get-validator-cosmos-pub-key [validator-mina-pub-key]",
-					Short:          "Query GetValidatorCosmosPubKey",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_mina_pub_key", Varargs: true}},
+					RpcMethod:      "GetValidatorCosmosAddress",
+					Use:            "get-validator-cosmos-address [validator-mina-address]",
+					Short:          "Query GetValidatorCosmosAddress",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_mina_address", Varargs: true}},
 				},
 
 				// this line is used by ignite scaffolding # autocli/query

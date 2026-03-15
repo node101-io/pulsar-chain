@@ -114,23 +114,23 @@ func (m *QueryParamsResponse) GetParams() Params {
 	return Params{}
 }
 
-// QueryGetUserMinaPubKeyRequest defines the QueryGetMinaPubKeyRequest message.
-type QueryGetUserMinaPubKeyRequest struct {
-	UserCosmosPubKey []byte `protobuf:"bytes,1,opt,name=user_cosmos_pub_key,json=userCosmosPubKey,proto3" json:"user_cosmos_pub_key,omitempty"`
+// QueryGetUserMinaAddressRequest defines the QueryGetUserMinaAddressRequest message.
+type QueryGetUserMinaAddressRequest struct {
+	UserCosmosAddress []byte `protobuf:"bytes,1,opt,name=user_cosmos_address,json=userCosmosAddress,proto3" json:"user_cosmos_address,omitempty"`
 }
 
-func (m *QueryGetUserMinaPubKeyRequest) Reset()         { *m = QueryGetUserMinaPubKeyRequest{} }
-func (m *QueryGetUserMinaPubKeyRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryGetUserMinaPubKeyRequest) ProtoMessage()    {}
-func (*QueryGetUserMinaPubKeyRequest) Descriptor() ([]byte, []int) {
+func (m *QueryGetUserMinaAddressRequest) Reset()         { *m = QueryGetUserMinaAddressRequest{} }
+func (m *QueryGetUserMinaAddressRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryGetUserMinaAddressRequest) ProtoMessage()    {}
+func (*QueryGetUserMinaAddressRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_d580bfce910e0ca3, []int{2}
 }
-func (m *QueryGetUserMinaPubKeyRequest) XXX_Unmarshal(b []byte) error {
+func (m *QueryGetUserMinaAddressRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryGetUserMinaPubKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryGetUserMinaAddressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryGetUserMinaPubKeyRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryGetUserMinaAddressRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -140,42 +140,42 @@ func (m *QueryGetUserMinaPubKeyRequest) XXX_Marshal(b []byte, deterministic bool
 		return b[:n], nil
 	}
 }
-func (m *QueryGetUserMinaPubKeyRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryGetUserMinaPubKeyRequest.Merge(m, src)
+func (m *QueryGetUserMinaAddressRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetUserMinaAddressRequest.Merge(m, src)
 }
-func (m *QueryGetUserMinaPubKeyRequest) XXX_Size() int {
+func (m *QueryGetUserMinaAddressRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryGetUserMinaPubKeyRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryGetUserMinaPubKeyRequest.DiscardUnknown(m)
+func (m *QueryGetUserMinaAddressRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetUserMinaAddressRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryGetUserMinaPubKeyRequest proto.InternalMessageInfo
+var xxx_messageInfo_QueryGetUserMinaAddressRequest proto.InternalMessageInfo
 
-func (m *QueryGetUserMinaPubKeyRequest) GetUserCosmosPubKey() []byte {
+func (m *QueryGetUserMinaAddressRequest) GetUserCosmosAddress() []byte {
 	if m != nil {
-		return m.UserCosmosPubKey
+		return m.UserCosmosAddress
 	}
 	return nil
 }
 
-// QueryGetUserMinaPubKeyResponse defines the QueryGetMinaPubKeyResponse message.
-type QueryGetUserMinaPubKeyResponse struct {
-	UserMinaPubKey []byte `protobuf:"bytes,1,opt,name=user_mina_pub_key,json=userMinaPubKey,proto3" json:"user_mina_pub_key,omitempty"`
+// QueryGetUserMinaAddressResponse defines the QueryGetUserMinaAddressResponse message.
+type QueryGetUserMinaAddressResponse struct {
+	UserMinaAddress []byte `protobuf:"bytes,1,opt,name=user_mina_address,json=userMinaAddress,proto3" json:"user_mina_address,omitempty"`
 }
 
-func (m *QueryGetUserMinaPubKeyResponse) Reset()         { *m = QueryGetUserMinaPubKeyResponse{} }
-func (m *QueryGetUserMinaPubKeyResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryGetUserMinaPubKeyResponse) ProtoMessage()    {}
-func (*QueryGetUserMinaPubKeyResponse) Descriptor() ([]byte, []int) {
+func (m *QueryGetUserMinaAddressResponse) Reset()         { *m = QueryGetUserMinaAddressResponse{} }
+func (m *QueryGetUserMinaAddressResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryGetUserMinaAddressResponse) ProtoMessage()    {}
+func (*QueryGetUserMinaAddressResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_d580bfce910e0ca3, []int{3}
 }
-func (m *QueryGetUserMinaPubKeyResponse) XXX_Unmarshal(b []byte) error {
+func (m *QueryGetUserMinaAddressResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryGetUserMinaPubKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryGetUserMinaAddressResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryGetUserMinaPubKeyResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryGetUserMinaAddressResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -185,42 +185,42 @@ func (m *QueryGetUserMinaPubKeyResponse) XXX_Marshal(b []byte, deterministic boo
 		return b[:n], nil
 	}
 }
-func (m *QueryGetUserMinaPubKeyResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryGetUserMinaPubKeyResponse.Merge(m, src)
+func (m *QueryGetUserMinaAddressResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetUserMinaAddressResponse.Merge(m, src)
 }
-func (m *QueryGetUserMinaPubKeyResponse) XXX_Size() int {
+func (m *QueryGetUserMinaAddressResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryGetUserMinaPubKeyResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryGetUserMinaPubKeyResponse.DiscardUnknown(m)
+func (m *QueryGetUserMinaAddressResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetUserMinaAddressResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryGetUserMinaPubKeyResponse proto.InternalMessageInfo
+var xxx_messageInfo_QueryGetUserMinaAddressResponse proto.InternalMessageInfo
 
-func (m *QueryGetUserMinaPubKeyResponse) GetUserMinaPubKey() []byte {
+func (m *QueryGetUserMinaAddressResponse) GetUserMinaAddress() []byte {
 	if m != nil {
-		return m.UserMinaPubKey
+		return m.UserMinaAddress
 	}
 	return nil
 }
 
-// QueryGetUserCosmosPubKeyRequest defines the QueryGetCosmosPubKeyRequest message.
-type QueryGetUserCosmosPubKeyRequest struct {
-	UserMinaPubKey []byte `protobuf:"bytes,1,opt,name=user_mina_pub_key,json=userMinaPubKey,proto3" json:"user_mina_pub_key,omitempty"`
+// QueryGetUserCosmosAddressRequest defines the QueryGetUserCosmosAddressRequest message.
+type QueryGetUserCosmosAddressRequest struct {
+	UserMinaAddress []byte `protobuf:"bytes,1,opt,name=user_mina_address,json=userMinaAddress,proto3" json:"user_mina_address,omitempty"`
 }
 
-func (m *QueryGetUserCosmosPubKeyRequest) Reset()         { *m = QueryGetUserCosmosPubKeyRequest{} }
-func (m *QueryGetUserCosmosPubKeyRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryGetUserCosmosPubKeyRequest) ProtoMessage()    {}
-func (*QueryGetUserCosmosPubKeyRequest) Descriptor() ([]byte, []int) {
+func (m *QueryGetUserCosmosAddressRequest) Reset()         { *m = QueryGetUserCosmosAddressRequest{} }
+func (m *QueryGetUserCosmosAddressRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryGetUserCosmosAddressRequest) ProtoMessage()    {}
+func (*QueryGetUserCosmosAddressRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_d580bfce910e0ca3, []int{4}
 }
-func (m *QueryGetUserCosmosPubKeyRequest) XXX_Unmarshal(b []byte) error {
+func (m *QueryGetUserCosmosAddressRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryGetUserCosmosPubKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryGetUserCosmosAddressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryGetUserCosmosPubKeyRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryGetUserCosmosAddressRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -230,42 +230,42 @@ func (m *QueryGetUserCosmosPubKeyRequest) XXX_Marshal(b []byte, deterministic bo
 		return b[:n], nil
 	}
 }
-func (m *QueryGetUserCosmosPubKeyRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryGetUserCosmosPubKeyRequest.Merge(m, src)
+func (m *QueryGetUserCosmosAddressRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetUserCosmosAddressRequest.Merge(m, src)
 }
-func (m *QueryGetUserCosmosPubKeyRequest) XXX_Size() int {
+func (m *QueryGetUserCosmosAddressRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryGetUserCosmosPubKeyRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryGetUserCosmosPubKeyRequest.DiscardUnknown(m)
+func (m *QueryGetUserCosmosAddressRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetUserCosmosAddressRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryGetUserCosmosPubKeyRequest proto.InternalMessageInfo
+var xxx_messageInfo_QueryGetUserCosmosAddressRequest proto.InternalMessageInfo
 
-func (m *QueryGetUserCosmosPubKeyRequest) GetUserMinaPubKey() []byte {
+func (m *QueryGetUserCosmosAddressRequest) GetUserMinaAddress() []byte {
 	if m != nil {
-		return m.UserMinaPubKey
+		return m.UserMinaAddress
 	}
 	return nil
 }
 
-// QueryGetUserCosmosPubKeyResponse defines the QueryGetCosmosPubKeyResponse message.
-type QueryGetUserCosmosPubKeyResponse struct {
-	UserCosmosPubKey []byte `protobuf:"bytes,1,opt,name=user_cosmos_pub_key,json=userCosmosPubKey,proto3" json:"user_cosmos_pub_key,omitempty"`
+// QueryGetUserCosmosAddressResponse defines the QueryGetUserCosmosAddressResponse message.
+type QueryGetUserCosmosAddressResponse struct {
+	UserCosmosAddress []byte `protobuf:"bytes,1,opt,name=user_cosmos_address,json=userCosmosAddress,proto3" json:"user_cosmos_address,omitempty"`
 }
 
-func (m *QueryGetUserCosmosPubKeyResponse) Reset()         { *m = QueryGetUserCosmosPubKeyResponse{} }
-func (m *QueryGetUserCosmosPubKeyResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryGetUserCosmosPubKeyResponse) ProtoMessage()    {}
-func (*QueryGetUserCosmosPubKeyResponse) Descriptor() ([]byte, []int) {
+func (m *QueryGetUserCosmosAddressResponse) Reset()         { *m = QueryGetUserCosmosAddressResponse{} }
+func (m *QueryGetUserCosmosAddressResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryGetUserCosmosAddressResponse) ProtoMessage()    {}
+func (*QueryGetUserCosmosAddressResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_d580bfce910e0ca3, []int{5}
 }
-func (m *QueryGetUserCosmosPubKeyResponse) XXX_Unmarshal(b []byte) error {
+func (m *QueryGetUserCosmosAddressResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryGetUserCosmosPubKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryGetUserCosmosAddressResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryGetUserCosmosPubKeyResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryGetUserCosmosAddressResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -275,26 +275,26 @@ func (m *QueryGetUserCosmosPubKeyResponse) XXX_Marshal(b []byte, deterministic b
 		return b[:n], nil
 	}
 }
-func (m *QueryGetUserCosmosPubKeyResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryGetUserCosmosPubKeyResponse.Merge(m, src)
+func (m *QueryGetUserCosmosAddressResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetUserCosmosAddressResponse.Merge(m, src)
 }
-func (m *QueryGetUserCosmosPubKeyResponse) XXX_Size() int {
+func (m *QueryGetUserCosmosAddressResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryGetUserCosmosPubKeyResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryGetUserCosmosPubKeyResponse.DiscardUnknown(m)
+func (m *QueryGetUserCosmosAddressResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetUserCosmosAddressResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryGetUserCosmosPubKeyResponse proto.InternalMessageInfo
+var xxx_messageInfo_QueryGetUserCosmosAddressResponse proto.InternalMessageInfo
 
-func (m *QueryGetUserCosmosPubKeyResponse) GetUserCosmosPubKey() []byte {
+func (m *QueryGetUserCosmosAddressResponse) GetUserCosmosAddress() []byte {
 	if m != nil {
-		return m.UserCosmosPubKey
+		return m.UserCosmosAddress
 	}
 	return nil
 }
 
-// QueryGetValidatorMinaPubKeyRequest defines the QueryGetValidatorMinaPubKeyRequest message.
+// QueryGetValidatorMinaAddressRequest defines the QueryGetValidatorMinaAddressRequest message.
 type QueryGetValidatorMinaPubKeyRequest struct {
 	ValidatorCosmosPubKey []byte `protobuf:"bytes,1,opt,name=validator_cosmos_pub_key,json=validatorCosmosPubKey,proto3" json:"validator_cosmos_pub_key,omitempty"`
 }
@@ -339,7 +339,7 @@ func (m *QueryGetValidatorMinaPubKeyRequest) GetValidatorCosmosPubKey() []byte {
 	return nil
 }
 
-// QueryGetValidatorMinaPubKeyResponse defines the QueryGetValidatorMinaPubKeyResponse message.
+// QueryGetValidatorMinaAddressResponse defines the QueryGetValidatorMinaAddressResponse message.
 type QueryGetValidatorMinaPubKeyResponse struct {
 	ValidatorMinaPubKey []byte `protobuf:"bytes,1,opt,name=validator_mina_pub_key,json=validatorMinaPubKey,proto3" json:"validator_mina_pub_key,omitempty"`
 }
@@ -384,7 +384,7 @@ func (m *QueryGetValidatorMinaPubKeyResponse) GetValidatorMinaPubKey() []byte {
 	return nil
 }
 
-// QueryGetValidatorCosmosPubKeyRequest defines the QueryGetValidatorCosmosPubKeyRequest message.
+// QueryGetValidatorCosmosAddressRequest defines the QueryGetValidatorCosmosAddressRequest message.
 type QueryGetValidatorCosmosPubKeyRequest struct {
 	ValidatorMinaPubKey []byte `protobuf:"bytes,1,opt,name=validator_mina_pub_key,json=validatorMinaPubKey,proto3" json:"validator_mina_pub_key,omitempty"`
 }
@@ -429,7 +429,7 @@ func (m *QueryGetValidatorCosmosPubKeyRequest) GetValidatorMinaPubKey() []byte {
 	return nil
 }
 
-// QueryGetValidatorCosmosPubKeyResponse defines the QueryGetValidatorCosmosPubKeyResponse message.
+// QueryGetValidatorCosmosAddressResponse defines the QueryGetValidatorCosmosAddressResponse message.
 type QueryGetValidatorCosmosPubKeyResponse struct {
 	ValidatorCosmosPubKey []byte `protobuf:"bytes,1,opt,name=validator_cosmos_pub_key,json=validatorCosmosPubKey,proto3" json:"validator_cosmos_pub_key,omitempty"`
 }
@@ -477,10 +477,10 @@ func (m *QueryGetValidatorCosmosPubKeyResponse) GetValidatorCosmosPubKey() []byt
 func init() {
 	proto.RegisterType((*QueryParamsRequest)(nil), "pulsarchain.keyregistry.v1.QueryParamsRequest")
 	proto.RegisterType((*QueryParamsResponse)(nil), "pulsarchain.keyregistry.v1.QueryParamsResponse")
-	proto.RegisterType((*QueryGetUserMinaPubKeyRequest)(nil), "pulsarchain.keyregistry.v1.QueryGetUserMinaPubKeyRequest")
-	proto.RegisterType((*QueryGetUserMinaPubKeyResponse)(nil), "pulsarchain.keyregistry.v1.QueryGetUserMinaPubKeyResponse")
-	proto.RegisterType((*QueryGetUserCosmosPubKeyRequest)(nil), "pulsarchain.keyregistry.v1.QueryGetUserCosmosPubKeyRequest")
-	proto.RegisterType((*QueryGetUserCosmosPubKeyResponse)(nil), "pulsarchain.keyregistry.v1.QueryGetUserCosmosPubKeyResponse")
+	proto.RegisterType((*QueryGetUserMinaAddressRequest)(nil), "pulsarchain.keyregistry.v1.QueryGetUserMinaAddressRequest")
+	proto.RegisterType((*QueryGetUserMinaAddressResponse)(nil), "pulsarchain.keyregistry.v1.QueryGetUserMinaAddressResponse")
+	proto.RegisterType((*QueryGetUserCosmosAddressRequest)(nil), "pulsarchain.keyregistry.v1.QueryGetUserCosmosAddressRequest")
+	proto.RegisterType((*QueryGetUserCosmosAddressResponse)(nil), "pulsarchain.keyregistry.v1.QueryGetUserCosmosAddressResponse")
 	proto.RegisterType((*QueryGetValidatorMinaPubKeyRequest)(nil), "pulsarchain.keyregistry.v1.QueryGetValidatorMinaPubKeyRequest")
 	proto.RegisterType((*QueryGetValidatorMinaPubKeyResponse)(nil), "pulsarchain.keyregistry.v1.QueryGetValidatorMinaPubKeyResponse")
 	proto.RegisterType((*QueryGetValidatorCosmosPubKeyRequest)(nil), "pulsarchain.keyregistry.v1.QueryGetValidatorCosmosPubKeyRequest")
@@ -492,48 +492,49 @@ func init() {
 }
 
 var fileDescriptor_d580bfce910e0ca3 = []byte{
-	// 641 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0x4d, 0x6b, 0x13, 0x41,
-	0x18, 0xce, 0x16, 0x2c, 0xf4, 0x55, 0xc4, 0x4e, 0x6a, 0x09, 0x8b, 0x6e, 0xcb, 0xfa, 0x5d, 0xc8,
-	0x4e, 0xb7, 0x85, 0x8a, 0x1f, 0xf8, 0x51, 0x11, 0x0f, 0x55, 0x49, 0x23, 0xf5, 0xd0, 0x5a, 0xe2,
-	0x6c, 0x3a, 0x6c, 0x97, 0x26, 0x3b, 0xdb, 0x9d, 0xdd, 0xe0, 0x52, 0x02, 0xe2, 0xc1, 0xb3, 0xe2,
-	0x2f, 0xf0, 0xe6, 0xd1, 0x9f, 0xd1, 0x63, 0xc1, 0x8b, 0x27, 0x91, 0x44, 0xe8, 0xc9, 0xff, 0x20,
-	0x99, 0x9d, 0x68, 0xd2, 0xec, 0xa6, 0x49, 0xea, 0x25, 0x0c, 0xf3, 0xbe, 0xcf, 0xf3, 0x3e, 0xcf,
-	0x9b, 0x79, 0x42, 0xe0, 0xaa, 0x17, 0x56, 0x38, 0xf1, 0xcb, 0xdb, 0xc4, 0x71, 0xf1, 0x0e, 0x8d,
-	0x7c, 0x6a, 0x3b, 0x3c, 0xf0, 0x23, 0x5c, 0x33, 0xf1, 0x6e, 0x48, 0xfd, 0xc8, 0xf0, 0x7c, 0x16,
-	0x30, 0xa4, 0x76, 0xf4, 0x19, 0x1d, 0x7d, 0x46, 0xcd, 0x54, 0x27, 0x49, 0xd5, 0x71, 0x19, 0x16,
-	0x9f, 0x71, 0xbb, 0x3a, 0x57, 0x66, 0xbc, 0xca, 0x38, 0xb6, 0x08, 0xa7, 0x31, 0x0f, 0xae, 0x99,
-	0x16, 0x0d, 0x88, 0x89, 0x3d, 0x62, 0x3b, 0x2e, 0x09, 0x1c, 0xe6, 0xca, 0xde, 0x29, 0x9b, 0xd9,
-	0x4c, 0x1c, 0x71, 0xeb, 0x24, 0x6f, 0x2f, 0xd8, 0x8c, 0xd9, 0x15, 0x8a, 0x89, 0xe7, 0x60, 0xe2,
-	0xba, 0x2c, 0x10, 0x10, 0x2e, 0xab, 0xd7, 0xfa, 0xc8, 0xf6, 0x88, 0x4f, 0xaa, 0xb2, 0x51, 0x9f,
-	0x02, 0xb4, 0xda, 0x1a, 0x5f, 0x10, 0x97, 0x45, 0xba, 0x1b, 0x52, 0x1e, 0xe8, 0xaf, 0x20, 0xdb,
-	0x75, 0xcb, 0x3d, 0xe6, 0x72, 0x8a, 0x1e, 0xc3, 0x78, 0x0c, 0xce, 0x29, 0xb3, 0xca, 0xf5, 0xd3,
-	0x0b, 0xba, 0x91, 0xee, 0xda, 0x88, 0xb1, 0xcb, 0x13, 0xfb, 0x3f, 0x66, 0x32, 0x5f, 0x0e, 0xbf,
-	0xce, 0x29, 0x45, 0x09, 0xd6, 0x9f, 0xc3, 0x45, 0xc1, 0xfe, 0x84, 0x06, 0x6b, 0x9c, 0xfa, 0xcf,
-	0x1c, 0x97, 0x14, 0x42, 0x6b, 0x85, 0x46, 0x72, 0x3c, 0xca, 0x43, 0x36, 0xe4, 0xd4, 0x2f, 0xc5,
-	0x4b, 0x2a, 0x79, 0xa1, 0x55, 0xda, 0xa1, 0x91, 0x18, 0x7a, 0xa6, 0x78, 0xae, 0x55, 0x7a, 0x24,
-	0x2a, 0x31, 0x4a, 0x5f, 0x01, 0x2d, 0x8d, 0x4f, 0x0a, 0xbf, 0x01, 0x93, 0x82, 0xb0, 0xea, 0xb8,
-	0xe4, 0x08, 0xdd, 0xd9, 0xb0, 0x0b, 0xa2, 0x3f, 0x85, 0x99, 0x4e, 0xb2, 0xce, 0x41, 0x6d, 0x79,
-	0x43, 0xb0, 0xad, 0xc2, 0x6c, 0x3a, 0x9b, 0x14, 0x37, 0xa4, 0xdb, 0x4d, 0xd0, 0xdb, 0x94, 0x2f,
-	0x49, 0xc5, 0xd9, 0x22, 0x01, 0x4b, 0x58, 0xe1, 0x4d, 0xc8, 0xd5, 0xda, 0xd5, 0x64, 0xe6, 0xf3,
-	0x7f, 0xeb, 0x5d, 0xf4, 0xeb, 0x70, 0xa9, 0x2f, 0xbd, 0x14, 0xbd, 0x08, 0xd3, 0xff, 0xf8, 0x13,
-	0x16, 0x91, 0xad, 0xf5, 0x82, 0xf5, 0x0d, 0xb8, 0xdc, 0xc3, 0x9d, 0xb4, 0xe0, 0x91, 0xc8, 0x5f,
-	0xc3, 0x95, 0x63, 0xc8, 0xa5, 0xf4, 0x51, 0x57, 0xb3, 0xf0, 0x71, 0x02, 0x4e, 0x89, 0x11, 0xe8,
-	0xb3, 0x02, 0xe3, 0xf1, 0xfb, 0x46, 0x46, 0xbf, 0x0c, 0xf4, 0x46, 0x4b, 0xc5, 0x03, 0xf7, 0xc7,
-	0x72, 0xf5, 0xa5, 0x77, 0xdf, 0x7e, 0x7d, 0x1a, 0x9b, 0x47, 0x06, 0x76, 0xd9, 0x16, 0x35, 0xe7,
-	0xcd, 0xbc, 0xc3, 0x70, 0xcc, 0x91, 0xef, 0x93, 0x6f, 0x74, 0xa8, 0xc0, 0x64, 0x4f, 0x22, 0xd0,
-	0xad, 0x63, 0xc7, 0xa7, 0xa5, 0x52, 0xbd, 0x3d, 0x0a, 0x54, 0x9a, 0xd8, 0x10, 0x26, 0xd6, 0xd0,
-	0x8b, 0x41, 0x4d, 0xd8, 0x34, 0x28, 0xf5, 0x84, 0x0c, 0xef, 0x25, 0x04, 0xa5, 0x8e, 0x7e, 0x2b,
-	0x90, 0x4d, 0x08, 0x18, 0xba, 0x33, 0xa8, 0xe0, 0x84, 0x37, 0xa8, 0xde, 0x1d, 0x0d, 0x7c, 0x62,
-	0xbf, 0xdd, 0xe6, 0xa4, 0xe3, 0xce, 0x25, 0xd4, 0xd1, 0xdb, 0x31, 0x98, 0x4e, 0x8e, 0x27, 0xba,
-	0x37, 0x88, 0xea, 0xf4, 0x9f, 0x0d, 0xf5, 0xfe, 0xc8, 0x78, 0x69, 0x9c, 0x0a, 0xe3, 0x25, 0xb4,
-	0x39, 0x8c, 0xf1, 0xe4, 0xb0, 0xe3, 0xbd, 0xb4, 0x98, 0xd6, 0xd1, 0xfb, 0x31, 0xc8, 0xa5, 0x05,
-	0x1d, 0x3d, 0x18, 0xca, 0x44, 0xd2, 0x97, 0xff, 0xf0, 0x04, 0x0c, 0xff, 0x67, 0x11, 0x47, 0x9f,
-	0x41, 0xf2, 0x8a, 0xea, 0xcb, 0x85, 0xfd, 0x86, 0xa6, 0x1c, 0x34, 0x34, 0xe5, 0x67, 0x43, 0x53,
-	0x3e, 0x34, 0xb5, 0xcc, 0x41, 0x53, 0xcb, 0x7c, 0x6f, 0x6a, 0x99, 0xf5, 0x25, 0xdb, 0x09, 0xb6,
-	0x43, 0xcb, 0x28, 0xb3, 0x6a, 0xaa, 0x84, 0x37, 0x5d, 0x22, 0x82, 0xc8, 0xa3, 0xdc, 0x1a, 0x17,
-	0x7f, 0x0c, 0x16, 0xff, 0x04, 0x00, 0x00, 0xff, 0xff, 0xd7, 0x7f, 0xdf, 0xf5, 0xfa, 0x08, 0x00,
-	0x00,
+	// 659 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0x4f, 0x6b, 0x13, 0x4f,
+	0x18, 0xce, 0x16, 0x7e, 0x85, 0xce, 0x4f, 0x90, 0x4e, 0x62, 0x09, 0x8b, 0x6c, 0xeb, 0xfa, 0x97,
+	0x40, 0x77, 0xba, 0x2d, 0x54, 0xf0, 0x7f, 0x2b, 0xe2, 0x41, 0x2a, 0x31, 0xa5, 0x1e, 0x5a, 0xcb,
+	0x3a, 0x9b, 0x0c, 0xdb, 0xa5, 0xc9, 0xce, 0x76, 0x67, 0x37, 0xb8, 0x94, 0x80, 0x78, 0xf0, 0x2c,
+	0x78, 0xf0, 0xec, 0xcd, 0xa3, 0x1f, 0xa3, 0xc7, 0x82, 0x17, 0x4f, 0x22, 0x89, 0x20, 0x78, 0xf2,
+	0x23, 0x48, 0x66, 0x67, 0x75, 0xd7, 0xec, 0xa6, 0x49, 0xea, 0x25, 0x0c, 0xf3, 0xbe, 0xcf, 0xf3,
+	0x3e, 0xcf, 0x4b, 0x9e, 0x61, 0xc1, 0x15, 0x37, 0x68, 0x32, 0xec, 0xd5, 0xf7, 0xb0, 0xed, 0xa0,
+	0x7d, 0x12, 0x7a, 0xc4, 0xb2, 0x99, 0xef, 0x85, 0xa8, 0xad, 0xa3, 0x83, 0x80, 0x78, 0xa1, 0xe6,
+	0x7a, 0xd4, 0xa7, 0x50, 0x4e, 0xf4, 0x69, 0x89, 0x3e, 0xad, 0xad, 0xcb, 0xb3, 0xb8, 0x65, 0x3b,
+	0x14, 0xf1, 0xdf, 0xa8, 0x5d, 0xae, 0xd4, 0x29, 0x6b, 0x51, 0x86, 0x4c, 0xcc, 0x48, 0xc4, 0x83,
+	0xda, 0xba, 0x49, 0x7c, 0xac, 0x23, 0x17, 0x5b, 0xb6, 0x83, 0x7d, 0x9b, 0x3a, 0xa2, 0xb7, 0x64,
+	0x51, 0x8b, 0xf2, 0x23, 0xea, 0x9f, 0xc4, 0xed, 0x79, 0x8b, 0x52, 0xab, 0x49, 0x10, 0x76, 0x6d,
+	0x84, 0x1d, 0x87, 0xfa, 0x1c, 0xc2, 0x44, 0xf5, 0xea, 0x10, 0xd9, 0x2e, 0xf6, 0x70, 0x4b, 0x34,
+	0xaa, 0x25, 0x00, 0x9f, 0xf4, 0xc7, 0x57, 0xf9, 0x65, 0x8d, 0x1c, 0x04, 0x84, 0xf9, 0xea, 0x33,
+	0x50, 0x4c, 0xdd, 0x32, 0x97, 0x3a, 0x8c, 0xc0, 0x07, 0x60, 0x3a, 0x02, 0x97, 0xa5, 0x05, 0xe9,
+	0xda, 0xff, 0xcb, 0xaa, 0x96, 0xef, 0x5a, 0x8b, 0xb0, 0xeb, 0x33, 0x47, 0x5f, 0xe6, 0x0b, 0x1f,
+	0xbe, 0x7f, 0xac, 0x48, 0x35, 0x01, 0x56, 0xab, 0x40, 0xe1, 0xec, 0x0f, 0x89, 0xbf, 0xc5, 0x88,
+	0xb7, 0x61, 0x3b, 0x78, 0xad, 0xd1, 0xf0, 0x08, 0x8b, 0xe7, 0x43, 0x0d, 0x14, 0x03, 0x46, 0x3c,
+	0x23, 0xda, 0x92, 0x81, 0xa3, 0x2a, 0x9f, 0x7a, 0xa6, 0x36, 0xdb, 0x2f, 0xdd, 0xe7, 0x15, 0x01,
+	0x53, 0x37, 0xc0, 0x7c, 0x2e, 0xa3, 0xd0, 0x5e, 0x01, 0x1c, 0x67, 0xb4, 0x6c, 0x07, 0xff, 0x45,
+	0x78, 0x36, 0x48, 0x63, 0xd4, 0xc7, 0x60, 0x21, 0x49, 0x97, 0x9a, 0x15, 0x4b, 0x1c, 0x87, 0x6f,
+	0x13, 0x5c, 0x18, 0xc2, 0x27, 0x04, 0x8e, 0xeb, 0x79, 0x17, 0xa8, 0x31, 0xe9, 0x53, 0xdc, 0xb4,
+	0x1b, 0xd8, 0xa7, 0x7c, 0x68, 0x35, 0x30, 0x1f, 0x91, 0x30, 0x96, 0x79, 0x1d, 0x94, 0xdb, 0x71,
+	0x35, 0xa6, 0x76, 0x03, 0xd3, 0xd8, 0x27, 0xa1, 0xa0, 0x3e, 0xf7, 0xbb, 0x1e, 0xf1, 0x47, 0x78,
+	0x75, 0x1b, 0x5c, 0x1c, 0x4a, 0x2f, 0x54, 0xaf, 0x80, 0xb9, 0x3f, 0xfc, 0x7c, 0x17, 0x69, 0xf6,
+	0x62, 0x7b, 0x10, 0xac, 0xee, 0x80, 0x4b, 0x03, 0xdc, 0xc9, 0xe1, 0xb1, 0xf8, 0x89, 0xc8, 0x9f,
+	0x83, 0xcb, 0x27, 0x90, 0x0b, 0xe9, 0x93, 0xae, 0x66, 0xf9, 0xdd, 0x0c, 0xf8, 0x8f, 0x8f, 0x80,
+	0xef, 0x25, 0x30, 0x1d, 0xfd, 0xcf, 0xa1, 0x36, 0x2c, 0x0b, 0x83, 0x11, 0x93, 0xd1, 0xc8, 0xfd,
+	0x91, 0x5c, 0x75, 0xf5, 0xd5, 0xa7, 0x6f, 0x6f, 0xa7, 0x96, 0xa0, 0x86, 0x1c, 0xda, 0x20, 0xfa,
+	0x92, 0xbe, 0x68, 0x53, 0x14, 0x71, 0x2c, 0x0e, 0xc9, 0x39, 0xfc, 0x21, 0x01, 0x38, 0x98, 0x0b,
+	0x78, 0xe3, 0xc4, 0xf9, 0xb9, 0xf1, 0x94, 0x6f, 0x4e, 0x84, 0x15, 0x3e, 0x76, 0xb8, 0x8f, 0x2d,
+	0xb8, 0x39, 0xaa, 0x0f, 0x8b, 0xf8, 0xc6, 0x40, 0xd4, 0xd0, 0x61, 0x46, 0x58, 0x3a, 0xf0, 0xa7,
+	0x04, 0x4a, 0x59, 0x29, 0x83, 0xb7, 0x46, 0x95, 0x9c, 0x15, 0x76, 0xf9, 0xf6, 0x84, 0xe8, 0x53,
+	0x5b, 0x4e, 0xfb, 0x13, 0xa6, 0x93, 0x7b, 0xe8, 0xc0, 0x97, 0x53, 0x60, 0x2e, 0x3b, 0xa4, 0xf0,
+	0xce, 0x28, 0xb2, 0xf3, 0x1f, 0x0f, 0xf9, 0xee, 0xc4, 0x78, 0x61, 0x9c, 0x70, 0xe3, 0x06, 0xdc,
+	0x1d, 0xc7, 0x78, 0x76, 0xe4, 0xd1, 0x61, 0x5e, 0x58, 0x3b, 0xf0, 0xf5, 0x14, 0x28, 0xe7, 0xc5,
+	0x1d, 0xde, 0x1b, 0xcb, 0x44, 0xc6, 0x33, 0x24, 0xaf, 0x9d, 0x82, 0xe1, 0xdf, 0x2c, 0x22, 0x6d,
+	0x38, 0xb9, 0x8a, 0xe4, 0x8a, 0x3a, 0xeb, 0xd5, 0xa3, 0xae, 0x22, 0x1d, 0x77, 0x15, 0xe9, 0x6b,
+	0x57, 0x91, 0xde, 0xf4, 0x94, 0xc2, 0x71, 0x4f, 0x29, 0x7c, 0xee, 0x29, 0x85, 0xed, 0x55, 0xcb,
+	0xf6, 0xf7, 0x02, 0x53, 0xab, 0xd3, 0x56, 0xae, 0x84, 0x17, 0x29, 0x11, 0x7e, 0xe8, 0x12, 0x66,
+	0x4e, 0xf3, 0xcf, 0x84, 0x95, 0x5f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x7c, 0x80, 0x7a, 0xbc, 0x08,
+	0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -550,13 +551,13 @@ const _ = grpc.SupportPackageIsVersion4
 type QueryClient interface {
 	// Parameters queries the parameters of the module.
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
-	// GetMinaPubKey Queries a list of GetMinaPubKey items.
-	GetUserMinaPubKey(ctx context.Context, in *QueryGetUserMinaPubKeyRequest, opts ...grpc.CallOption) (*QueryGetUserMinaPubKeyResponse, error)
-	// GetCosmosPubKey Queries a list of GetCosmosPubKey items.
-	GetUserCosmosPubKey(ctx context.Context, in *QueryGetUserCosmosPubKeyRequest, opts ...grpc.CallOption) (*QueryGetUserCosmosPubKeyResponse, error)
-	// GetValidatorMinaPubKey Queries a list of GetValidatorMinaPubKey items.
+	// GetUserMinaAddress Queries a list of GetUserMinaAddress items.
+	GetUserMinaAddress(ctx context.Context, in *QueryGetUserMinaAddressRequest, opts ...grpc.CallOption) (*QueryGetUserMinaAddressResponse, error)
+	// GetUserCosmosAddress Queries a list of GetUserCosmosAddress items.
+	GetUserCosmosAddress(ctx context.Context, in *QueryGetUserCosmosAddressRequest, opts ...grpc.CallOption) (*QueryGetUserCosmosAddressResponse, error)
+	// GetValidatorMinaAddress Queries a list of GetValidatorMinaAddress items.
 	GetValidatorMinaPubKey(ctx context.Context, in *QueryGetValidatorMinaPubKeyRequest, opts ...grpc.CallOption) (*QueryGetValidatorMinaPubKeyResponse, error)
-	// GetValidatorCosmosPubKey Queries a list of GetValidatorCosmosPubKey items.
+	// GetValidatorCosmosAddress Queries a list of GetValidatorCosmosAddress items.
 	GetValidatorCosmosPubKey(ctx context.Context, in *QueryGetValidatorCosmosPubKeyRequest, opts ...grpc.CallOption) (*QueryGetValidatorCosmosPubKeyResponse, error)
 }
 
@@ -577,18 +578,18 @@ func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts .
 	return out, nil
 }
 
-func (c *queryClient) GetUserMinaPubKey(ctx context.Context, in *QueryGetUserMinaPubKeyRequest, opts ...grpc.CallOption) (*QueryGetUserMinaPubKeyResponse, error) {
-	out := new(QueryGetUserMinaPubKeyResponse)
-	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Query/GetUserMinaPubKey", in, out, opts...)
+func (c *queryClient) GetUserMinaAddress(ctx context.Context, in *QueryGetUserMinaAddressRequest, opts ...grpc.CallOption) (*QueryGetUserMinaAddressResponse, error) {
+	out := new(QueryGetUserMinaAddressResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Query/GetUserMinaAddress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *queryClient) GetUserCosmosPubKey(ctx context.Context, in *QueryGetUserCosmosPubKeyRequest, opts ...grpc.CallOption) (*QueryGetUserCosmosPubKeyResponse, error) {
-	out := new(QueryGetUserCosmosPubKeyResponse)
-	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Query/GetUserCosmosPubKey", in, out, opts...)
+func (c *queryClient) GetUserCosmosAddress(ctx context.Context, in *QueryGetUserCosmosAddressRequest, opts ...grpc.CallOption) (*QueryGetUserCosmosAddressResponse, error) {
+	out := new(QueryGetUserCosmosAddressResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Query/GetUserCosmosAddress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -617,13 +618,13 @@ func (c *queryClient) GetValidatorCosmosPubKey(ctx context.Context, in *QueryGet
 type QueryServer interface {
 	// Parameters queries the parameters of the module.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
-	// GetMinaPubKey Queries a list of GetMinaPubKey items.
-	GetUserMinaPubKey(context.Context, *QueryGetUserMinaPubKeyRequest) (*QueryGetUserMinaPubKeyResponse, error)
-	// GetCosmosPubKey Queries a list of GetCosmosPubKey items.
-	GetUserCosmosPubKey(context.Context, *QueryGetUserCosmosPubKeyRequest) (*QueryGetUserCosmosPubKeyResponse, error)
-	// GetValidatorMinaPubKey Queries a list of GetValidatorMinaPubKey items.
+	// GetUserMinaAddress Queries a list of GetUserMinaAddress items.
+	GetUserMinaAddress(context.Context, *QueryGetUserMinaAddressRequest) (*QueryGetUserMinaAddressResponse, error)
+	// GetUserCosmosAddress Queries a list of GetUserCosmosAddress items.
+	GetUserCosmosAddress(context.Context, *QueryGetUserCosmosAddressRequest) (*QueryGetUserCosmosAddressResponse, error)
+	// GetValidatorMinaAddress Queries a list of GetValidatorMinaAddress items.
 	GetValidatorMinaPubKey(context.Context, *QueryGetValidatorMinaPubKeyRequest) (*QueryGetValidatorMinaPubKeyResponse, error)
-	// GetValidatorCosmosPubKey Queries a list of GetValidatorCosmosPubKey items.
+	// GetValidatorCosmosAddress Queries a list of GetValidatorCosmosAddress items.
 	GetValidatorCosmosPubKey(context.Context, *QueryGetValidatorCosmosPubKeyRequest) (*QueryGetValidatorCosmosPubKeyResponse, error)
 }
 
@@ -634,11 +635,11 @@ type UnimplementedQueryServer struct {
 func (*UnimplementedQueryServer) Params(ctx context.Context, req *QueryParamsRequest) (*QueryParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
 }
-func (*UnimplementedQueryServer) GetUserMinaPubKey(ctx context.Context, req *QueryGetUserMinaPubKeyRequest) (*QueryGetUserMinaPubKeyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetUserMinaPubKey not implemented")
+func (*UnimplementedQueryServer) GetUserMinaAddress(ctx context.Context, req *QueryGetUserMinaAddressRequest) (*QueryGetUserMinaAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserMinaAddress not implemented")
 }
-func (*UnimplementedQueryServer) GetUserCosmosPubKey(ctx context.Context, req *QueryGetUserCosmosPubKeyRequest) (*QueryGetUserCosmosPubKeyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetUserCosmosPubKey not implemented")
+func (*UnimplementedQueryServer) GetUserCosmosAddress(ctx context.Context, req *QueryGetUserCosmosAddressRequest) (*QueryGetUserCosmosAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserCosmosAddress not implemented")
 }
 func (*UnimplementedQueryServer) GetValidatorMinaPubKey(ctx context.Context, req *QueryGetValidatorMinaPubKeyRequest) (*QueryGetValidatorMinaPubKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetValidatorMinaPubKey not implemented")
@@ -669,38 +670,38 @@ func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Query_GetUserMinaPubKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryGetUserMinaPubKeyRequest)
+func _Query_GetUserMinaAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryGetUserMinaAddressRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueryServer).GetUserMinaPubKey(ctx, in)
+		return srv.(QueryServer).GetUserMinaAddress(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pulsarchain.keyregistry.v1.Query/GetUserMinaPubKey",
+		FullMethod: "/pulsarchain.keyregistry.v1.Query/GetUserMinaAddress",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).GetUserMinaPubKey(ctx, req.(*QueryGetUserMinaPubKeyRequest))
+		return srv.(QueryServer).GetUserMinaAddress(ctx, req.(*QueryGetUserMinaAddressRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Query_GetUserCosmosPubKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryGetUserCosmosPubKeyRequest)
+func _Query_GetUserCosmosAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryGetUserCosmosAddressRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueryServer).GetUserCosmosPubKey(ctx, in)
+		return srv.(QueryServer).GetUserCosmosAddress(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pulsarchain.keyregistry.v1.Query/GetUserCosmosPubKey",
+		FullMethod: "/pulsarchain.keyregistry.v1.Query/GetUserCosmosAddress",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).GetUserCosmosPubKey(ctx, req.(*QueryGetUserCosmosPubKeyRequest))
+		return srv.(QueryServer).GetUserCosmosAddress(ctx, req.(*QueryGetUserCosmosAddressRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -751,12 +752,12 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Query_Params_Handler,
 		},
 		{
-			MethodName: "GetUserMinaPubKey",
-			Handler:    _Query_GetUserMinaPubKey_Handler,
+			MethodName: "GetUserMinaAddress",
+			Handler:    _Query_GetUserMinaAddress_Handler,
 		},
 		{
-			MethodName: "GetUserCosmosPubKey",
-			Handler:    _Query_GetUserCosmosPubKey_Handler,
+			MethodName: "GetUserCosmosAddress",
+			Handler:    _Query_GetUserCosmosAddress_Handler,
 		},
 		{
 			MethodName: "GetValidatorMinaPubKey",
@@ -827,7 +828,7 @@ func (m *QueryParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryGetUserMinaPubKeyRequest) Marshal() (dAtA []byte, err error) {
+func (m *QueryGetUserMinaAddressRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -837,27 +838,27 @@ func (m *QueryGetUserMinaPubKeyRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryGetUserMinaPubKeyRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryGetUserMinaAddressRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryGetUserMinaPubKeyRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryGetUserMinaAddressRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.UserCosmosPubKey) > 0 {
-		i -= len(m.UserCosmosPubKey)
-		copy(dAtA[i:], m.UserCosmosPubKey)
-		i = encodeVarintQuery(dAtA, i, uint64(len(m.UserCosmosPubKey)))
+	if len(m.UserCosmosAddress) > 0 {
+		i -= len(m.UserCosmosAddress)
+		copy(dAtA[i:], m.UserCosmosAddress)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.UserCosmosAddress)))
 		i--
 		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryGetUserMinaPubKeyResponse) Marshal() (dAtA []byte, err error) {
+func (m *QueryGetUserMinaAddressResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -867,27 +868,27 @@ func (m *QueryGetUserMinaPubKeyResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryGetUserMinaPubKeyResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryGetUserMinaAddressResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryGetUserMinaPubKeyResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryGetUserMinaAddressResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.UserMinaPubKey) > 0 {
-		i -= len(m.UserMinaPubKey)
-		copy(dAtA[i:], m.UserMinaPubKey)
-		i = encodeVarintQuery(dAtA, i, uint64(len(m.UserMinaPubKey)))
+	if len(m.UserMinaAddress) > 0 {
+		i -= len(m.UserMinaAddress)
+		copy(dAtA[i:], m.UserMinaAddress)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.UserMinaAddress)))
 		i--
 		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryGetUserCosmosPubKeyRequest) Marshal() (dAtA []byte, err error) {
+func (m *QueryGetUserCosmosAddressRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -897,27 +898,27 @@ func (m *QueryGetUserCosmosPubKeyRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryGetUserCosmosPubKeyRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryGetUserCosmosAddressRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryGetUserCosmosPubKeyRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryGetUserCosmosAddressRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.UserMinaPubKey) > 0 {
-		i -= len(m.UserMinaPubKey)
-		copy(dAtA[i:], m.UserMinaPubKey)
-		i = encodeVarintQuery(dAtA, i, uint64(len(m.UserMinaPubKey)))
+	if len(m.UserMinaAddress) > 0 {
+		i -= len(m.UserMinaAddress)
+		copy(dAtA[i:], m.UserMinaAddress)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.UserMinaAddress)))
 		i--
 		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryGetUserCosmosPubKeyResponse) Marshal() (dAtA []byte, err error) {
+func (m *QueryGetUserCosmosAddressResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -927,20 +928,20 @@ func (m *QueryGetUserCosmosPubKeyResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryGetUserCosmosPubKeyResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryGetUserCosmosAddressResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryGetUserCosmosPubKeyResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryGetUserCosmosAddressResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.UserCosmosPubKey) > 0 {
-		i -= len(m.UserCosmosPubKey)
-		copy(dAtA[i:], m.UserCosmosPubKey)
-		i = encodeVarintQuery(dAtA, i, uint64(len(m.UserCosmosPubKey)))
+	if len(m.UserCosmosAddress) > 0 {
+		i -= len(m.UserCosmosAddress)
+		copy(dAtA[i:], m.UserCosmosAddress)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.UserCosmosAddress)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -1098,52 +1099,52 @@ func (m *QueryParamsResponse) Size() (n int) {
 	return n
 }
 
-func (m *QueryGetUserMinaPubKeyRequest) Size() (n int) {
+func (m *QueryGetUserMinaAddressRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.UserCosmosPubKey)
+	l = len(m.UserCosmosAddress)
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
 	}
 	return n
 }
 
-func (m *QueryGetUserMinaPubKeyResponse) Size() (n int) {
+func (m *QueryGetUserMinaAddressResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.UserMinaPubKey)
+	l = len(m.UserMinaAddress)
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
 	}
 	return n
 }
 
-func (m *QueryGetUserCosmosPubKeyRequest) Size() (n int) {
+func (m *QueryGetUserCosmosAddressRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.UserMinaPubKey)
+	l = len(m.UserMinaAddress)
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
 	}
 	return n
 }
 
-func (m *QueryGetUserCosmosPubKeyResponse) Size() (n int) {
+func (m *QueryGetUserCosmosAddressResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.UserCosmosPubKey)
+	l = len(m.UserCosmosAddress)
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
 	}
@@ -1341,7 +1342,7 @@ func (m *QueryParamsResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryGetUserMinaPubKeyRequest) Unmarshal(dAtA []byte) error {
+func (m *QueryGetUserMinaAddressRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1364,15 +1365,15 @@ func (m *QueryGetUserMinaPubKeyRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryGetUserMinaPubKeyRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryGetUserMinaAddressRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryGetUserMinaPubKeyRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryGetUserMinaAddressRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field UserCosmosPubKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field UserCosmosAddress", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -1399,9 +1400,9 @@ func (m *QueryGetUserMinaPubKeyRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.UserCosmosPubKey = append(m.UserCosmosPubKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.UserCosmosPubKey == nil {
-				m.UserCosmosPubKey = []byte{}
+			m.UserCosmosAddress = append(m.UserCosmosAddress[:0], dAtA[iNdEx:postIndex]...)
+			if m.UserCosmosAddress == nil {
+				m.UserCosmosAddress = []byte{}
 			}
 			iNdEx = postIndex
 		default:
@@ -1425,7 +1426,7 @@ func (m *QueryGetUserMinaPubKeyRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryGetUserMinaPubKeyResponse) Unmarshal(dAtA []byte) error {
+func (m *QueryGetUserMinaAddressResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1448,15 +1449,15 @@ func (m *QueryGetUserMinaPubKeyResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryGetUserMinaPubKeyResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryGetUserMinaAddressResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryGetUserMinaPubKeyResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryGetUserMinaAddressResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field UserMinaPubKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field UserMinaAddress", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -1483,9 +1484,9 @@ func (m *QueryGetUserMinaPubKeyResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.UserMinaPubKey = append(m.UserMinaPubKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.UserMinaPubKey == nil {
-				m.UserMinaPubKey = []byte{}
+			m.UserMinaAddress = append(m.UserMinaAddress[:0], dAtA[iNdEx:postIndex]...)
+			if m.UserMinaAddress == nil {
+				m.UserMinaAddress = []byte{}
 			}
 			iNdEx = postIndex
 		default:
@@ -1509,7 +1510,7 @@ func (m *QueryGetUserMinaPubKeyResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryGetUserCosmosPubKeyRequest) Unmarshal(dAtA []byte) error {
+func (m *QueryGetUserCosmosAddressRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1532,15 +1533,15 @@ func (m *QueryGetUserCosmosPubKeyRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryGetUserCosmosPubKeyRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryGetUserCosmosAddressRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryGetUserCosmosPubKeyRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryGetUserCosmosAddressRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field UserMinaPubKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field UserMinaAddress", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -1567,9 +1568,9 @@ func (m *QueryGetUserCosmosPubKeyRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.UserMinaPubKey = append(m.UserMinaPubKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.UserMinaPubKey == nil {
-				m.UserMinaPubKey = []byte{}
+			m.UserMinaAddress = append(m.UserMinaAddress[:0], dAtA[iNdEx:postIndex]...)
+			if m.UserMinaAddress == nil {
+				m.UserMinaAddress = []byte{}
 			}
 			iNdEx = postIndex
 		default:
@@ -1593,7 +1594,7 @@ func (m *QueryGetUserCosmosPubKeyRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryGetUserCosmosPubKeyResponse) Unmarshal(dAtA []byte) error {
+func (m *QueryGetUserCosmosAddressResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1616,15 +1617,15 @@ func (m *QueryGetUserCosmosPubKeyResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryGetUserCosmosPubKeyResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryGetUserCosmosAddressResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryGetUserCosmosPubKeyResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryGetUserCosmosAddressResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field UserCosmosPubKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field UserCosmosAddress", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -1651,9 +1652,9 @@ func (m *QueryGetUserCosmosPubKeyResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.UserCosmosPubKey = append(m.UserCosmosPubKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.UserCosmosPubKey == nil {
-				m.UserCosmosPubKey = []byte{}
+			m.UserCosmosAddress = append(m.UserCosmosAddress[:0], dAtA[iNdEx:postIndex]...)
+			if m.UserCosmosAddress == nil {
+				m.UserCosmosAddress = []byte{}
 			}
 			iNdEx = postIndex
 		default:

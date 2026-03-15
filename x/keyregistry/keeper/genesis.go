@@ -14,11 +14,11 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 	// Insert genesis key pairs.
 	for _, keyPair := range userKeyPairs {
 
-		err := k.userCosmosToMina.Set(ctx, keyPair.CosmosKey, keyPair.MinaKey)
+		err := k.userCosmosToMina.Set(ctx, keyPair.CosmosAddr, keyPair.MinaAddr)
 		if err != nil {
 			return err
 		}
-		err = k.userMinaToCosmos.Set(ctx, keyPair.MinaKey, keyPair.CosmosKey)
+		err = k.userMinaToCosmos.Set(ctx, keyPair.MinaAddr, keyPair.CosmosAddr)
 		if err != nil {
 			return err
 		}
@@ -52,7 +52,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		return nil, err
 	}
 
-	var userKeyPairs []*types.KeyPair
+	var userKeyPairs []*types.AddressPair
 
 	var userKeypairExistenceMap = make(map[string]bool)
 
@@ -72,9 +72,9 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		if err != nil {
 			return genesis, err
 		}
-		keyPair := &types.KeyPair{
-			MinaKey:   minaKey,
-			CosmosKey: cosmosKey,
+		keyPair := &types.AddressPair{
+			MinaAddr:   minaKey,
+			CosmosAddr: cosmosKey,
 		}
 		userKeyPairs = append(userKeyPairs, keyPair)
 		userKeypairExistenceMap[keyPair.String()] = true
@@ -105,9 +105,9 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		if err != nil {
 			return genesis, err
 		}
-		keyPair := &types.KeyPair{
-			MinaKey:   minaKey,
-			CosmosKey: cosmosKey,
+		keyPair := &types.AddressPair{
+			MinaAddr:   minaKey,
+			CosmosAddr: cosmosKey,
 		}
 		if userKeypairExistenceMap[keyPair.String()] {
 			userMinaIterator.Next()
@@ -119,7 +119,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 
 	genesis.UserKeyPairs = userKeyPairs
 
-	var validatorKeyPairs []*types.KeyPair
+	var validatorKeyPairs []*types.PublicKeyPair
 
 	var validatorKeypairExistenceMap = make(map[string]bool)
 
@@ -139,7 +139,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		if err != nil {
 			return genesis, err
 		}
-		keyPair := &types.KeyPair{
+		keyPair := &types.PublicKeyPair{
 			MinaKey:   minaKey,
 			CosmosKey: cosmosKey,
 		}
@@ -163,7 +163,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		if err != nil {
 			return genesis, err
 		}
-		keyPair := &types.KeyPair{
+		keyPair := &types.PublicKeyPair{
 			MinaKey:   minaKey,
 			CosmosKey: cosmosKey,
 		}

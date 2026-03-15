@@ -28,11 +28,11 @@ type Keeper struct {
 	Schema collections.Schema
 	Params collections.Item[types.Params]
 
-	userCosmosToMina collections.Map[[]byte, []byte] // Cosmos PubKey --> Mina PubKey
-	userMinaToCosmos collections.Map[[]byte, []byte] // Mina PubKey --> Cosmos PubKey
+	userCosmosToMina collections.Map[[]byte, []byte] // Cosmos Address --> Mina Address
+	userMinaToCosmos collections.Map[[]byte, []byte] // Mina Address --> Cosmos Address
 
-	validatorCosmosToMina collections.Map[[]byte, []byte] // Validator Cosmos PubKey --> Validator Mina PubKey
-	validatorMinaToCosmos collections.Map[[]byte, []byte] // Validator Mina PubKey --> Validator Cosmos PubKey
+	validatorCosmosToMina collections.Map[[]byte, []byte] // Validator Cosmos Address --> Validator Mina Address
+	validatorMinaToCosmos collections.Map[[]byte, []byte] // Validator Mina Address --> Validator Cosmos Address
 }
 
 func NewKeeper(
@@ -76,50 +76,50 @@ func (k Keeper) GetAuthority() []byte {
 	return k.authority
 }
 
-func (k Keeper) UserSetCosmosToMina(ctx context.Context, cosmosPublicKey, minaPublicKey []byte) error {
-	return k.userCosmosToMina.Set(ctx, cosmosPublicKey, minaPublicKey)
+func (k Keeper) UserSetCosmosToMina(ctx context.Context, cosmosAddress, minaAddress []byte) error {
+	return k.userCosmosToMina.Set(ctx, cosmosAddress, minaAddress)
 }
 
-func (k Keeper) UserGetCosmosToMina(ctx context.Context, cosmosPublicKey []byte) ([]byte, error) {
-	return k.userCosmosToMina.Get(ctx, cosmosPublicKey)
+func (k Keeper) UserGetCosmosToMina(ctx context.Context, cosmosAddress []byte) ([]byte, error) {
+	return k.userCosmosToMina.Get(ctx, cosmosAddress)
 }
 
-func (k Keeper) UserSetMinaToCosmos(ctx context.Context, minaPublicKey, cosmosPublicKey []byte) error {
-	return k.userMinaToCosmos.Set(ctx, minaPublicKey, cosmosPublicKey)
+func (k Keeper) UserSetMinaToCosmos(ctx context.Context, minaAddress, cosmosAddress []byte) error {
+	return k.userMinaToCosmos.Set(ctx, minaAddress, cosmosAddress)
 }
 
-func (k Keeper) UserGetMinaToCosmos(ctx context.Context, minaPublicKey []byte) ([]byte, error) {
-	return k.userMinaToCosmos.Get(ctx, minaPublicKey)
+func (k Keeper) UserGetMinaToCosmos(ctx context.Context, minaAddress []byte) ([]byte, error) {
+	return k.userMinaToCosmos.Get(ctx, minaAddress)
 }
 
-func (k Keeper) UserCosmosToMinaHas(ctx context.Context, cosmosPublicKey []byte) (bool, error) {
-	return k.userCosmosToMina.Has(ctx, cosmosPublicKey)
+func (k Keeper) UserCosmosToMinaHas(ctx context.Context, cosmosAddress []byte) (bool, error) {
+	return k.userCosmosToMina.Has(ctx, cosmosAddress)
 }
 
-func (k Keeper) UserMinaToCosmosHas(ctx context.Context, minaPublicKey []byte) (bool, error) {
-	return k.userMinaToCosmos.Has(ctx, minaPublicKey)
+func (k Keeper) UserMinaToCosmosHas(ctx context.Context, minaAddress []byte) (bool, error) {
+	return k.userMinaToCosmos.Has(ctx, minaAddress)
 }
 
-func (k Keeper) ValidatorSetCosmosToMina(ctx context.Context, cosmosPublicKey, minaPublicKey []byte) error {
-	return k.validatorCosmosToMina.Set(ctx, cosmosPublicKey, minaPublicKey)
+func (k Keeper) ValidatorSetCosmosToMina(ctx context.Context, cosmosAddress, minaAddress []byte) error {
+	return k.validatorCosmosToMina.Set(ctx, cosmosAddress, minaAddress)
 }
 
-func (k Keeper) ValidatorGetCosmosToMina(ctx context.Context, cosmosPublicKey []byte) ([]byte, error) {
-	return k.validatorCosmosToMina.Get(ctx, cosmosPublicKey)
+func (k Keeper) ValidatorGetCosmosToMina(ctx context.Context, cosmosAddress []byte) ([]byte, error) {
+	return k.validatorCosmosToMina.Get(ctx, cosmosAddress)
 }
 
-func (k Keeper) ValidatorSetMinaToCosmos(ctx context.Context, minaPublicKey, cosmosPublicKey []byte) error {
-	return k.validatorMinaToCosmos.Set(ctx, minaPublicKey, cosmosPublicKey)
+func (k Keeper) ValidatorSetMinaToCosmos(ctx context.Context, minaAddress, cosmosAddress []byte) error {
+	return k.validatorMinaToCosmos.Set(ctx, minaAddress, cosmosAddress)
 }
 
-func (k Keeper) ValidatorGetMinaToCosmos(ctx context.Context, minaPublicKey []byte) ([]byte, error) {
-	return k.validatorMinaToCosmos.Get(ctx, minaPublicKey)
+func (k Keeper) ValidatorGetMinaToCosmos(ctx context.Context, minaAddress []byte) ([]byte, error) {
+	return k.validatorMinaToCosmos.Get(ctx, minaAddress)
 }
 
-func (k Keeper) ValidatorCosmosToMinaHas(ctx context.Context, cosmosPublicKey []byte) (bool, error) {
-	return k.validatorCosmosToMina.Has(ctx, cosmosPublicKey)
+func (k Keeper) ValidatorCosmosToMinaHas(ctx context.Context, cosmosAddress []byte) (bool, error) {
+	return k.validatorCosmosToMina.Has(ctx, cosmosAddress)
 }
 
-func (k Keeper) ValidatorMinaToCosmosHas(ctx context.Context, minaPublicKey []byte) (bool, error) {
-	return k.validatorMinaToCosmos.Has(ctx, minaPublicKey)
+func (k Keeper) ValidatorMinaToCosmosHas(ctx context.Context, minaAddress []byte) (bool, error) {
+	return k.validatorMinaToCosmos.Has(ctx, minaAddress)
 }

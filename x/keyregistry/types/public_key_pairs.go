@@ -6,18 +6,18 @@ import (
 	"github.com/node101-io/mina-signer-go/keys"
 )
 
-func NewKeyPairs() []*KeyPair {
-	return []*KeyPair{}
+func NewPublicKeyPairs() []*PublicKeyPair {
+	return []*PublicKeyPair{}
 }
-func DefaultUserKeyPairs() []*KeyPair {
-	return NewKeyPairs()
-}
-
-func DefaultValidatorKeyPairs() []*KeyPair {
-	return NewKeyPairs()
+func DefaultUserPublicKeyPairs() []*PublicKeyPair {
+	return NewPublicKeyPairs()
 }
 
-func ValidateKeyPair(k KeyPair) error {
+func DefaultPublicKeyPair() []*PublicKeyPair {
+	return NewPublicKeyPairs()
+}
+
+func ValidatePublicKeyPair(k PublicKeyPair) error {
 	if len(k.CosmosKey) != secp256k1.PubKeySize {
 		return errors.Wrap(ErrInvalidPublicKey, "cosmos public key must be compressed (33 bytes)")
 	}
@@ -29,6 +29,6 @@ func ValidateKeyPair(k KeyPair) error {
 }
 
 // Validate validates the set of params.
-func (k KeyPair) Validate() error {
-	return ValidateKeyPair(k)
+func (k PublicKeyPair) Validate() error {
+	return ValidatePublicKeyPair(k)
 }

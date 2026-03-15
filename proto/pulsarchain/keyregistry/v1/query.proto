@@ -17,22 +17,22 @@ service Query {
     option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/params";
   }
 
-  // GetMinaPubKey Queries a list of GetMinaPubKey items.
-  rpc GetUserMinaPubKey(QueryGetUserMinaPubKeyRequest) returns (QueryGetUserMinaPubKeyResponse) {
-    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_mina_pub_key/{user_cosmos_pub_key}";
+  // GetUserMinaAddress Queries a list of GetUserMinaAddress items.
+  rpc GetUserMinaAddress(QueryGetUserMinaAddressRequest) returns (QueryGetUserMinaAddressResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_mina_address/{user_cosmos_address}";
   }
 
-  // GetCosmosPubKey Queries a list of GetCosmosPubKey items.
-  rpc GetUserCosmosPubKey(QueryGetUserCosmosPubKeyRequest) returns (QueryGetUserCosmosPubKeyResponse) {
-    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_cosmos_pub_key/{user_mina_pub_key}";
+  // GetUserCosmosAddress Queries a list of GetUserCosmosAddress items.
+  rpc GetUserCosmosAddress(QueryGetUserCosmosAddressRequest) returns (QueryGetUserCosmosAddressResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_cosmos_address/{user_mina_address}";
   }
 
-  // GetValidatorMinaPubKey Queries a list of GetValidatorMinaPubKey items.
+  // GetValidatorMinaAddress Queries a list of GetValidatorMinaAddress items.
   rpc GetValidatorMinaPubKey(QueryGetValidatorMinaPubKeyRequest) returns (QueryGetValidatorMinaPubKeyResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_validator_mina_pub_key/{validator_cosmos_pub_key}";
   }
 
-  // GetValidatorCosmosPubKey Queries a list of GetValidatorCosmosPubKey items.
+  // GetValidatorCosmosAddress Queries a list of GetValidatorCosmosAddress items.
   rpc GetValidatorCosmosPubKey(QueryGetValidatorCosmosPubKeyRequest) returns (QueryGetValidatorCosmosPubKeyResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_validator_cosmos_pub_key/{validator_mina_pub_key}";
   }
@@ -50,42 +50,42 @@ message QueryParamsResponse {
   ];
 }
 
-// QueryGetUserMinaPubKeyRequest defines the QueryGetMinaPubKeyRequest message.
-message QueryGetUserMinaPubKeyRequest {
-  bytes user_cosmos_pub_key = 1;
+// QueryGetUserMinaAddressRequest defines the QueryGetUserMinaAddressRequest message.
+message QueryGetUserMinaAddressRequest {
+  bytes user_cosmos_address = 1;
 }
 
-// QueryGetUserMinaPubKeyResponse defines the QueryGetMinaPubKeyResponse message.
-message QueryGetUserMinaPubKeyResponse {
-  bytes user_mina_pub_key = 1;
+// QueryGetUserMinaAddressResponse defines the QueryGetUserMinaAddressResponse message.
+message QueryGetUserMinaAddressResponse {
+  bytes user_mina_address = 1;
 }
 
-// QueryGetUserCosmosPubKeyRequest defines the QueryGetCosmosPubKeyRequest message.
-message QueryGetUserCosmosPubKeyRequest {
-  bytes user_mina_pub_key = 1;
+// QueryGetUserCosmosAddressRequest defines the QueryGetUserCosmosAddressRequest message.
+message QueryGetUserCosmosAddressRequest {
+  bytes user_mina_address = 1;
 }
 
-// QueryGetUserCosmosPubKeyResponse defines the QueryGetCosmosPubKeyResponse message.
-message QueryGetUserCosmosPubKeyResponse {
-  bytes user_cosmos_pub_key = 1;
+// QueryGetUserCosmosAddressResponse defines the QueryGetUserCosmosAddressResponse message.
+message QueryGetUserCosmosAddressResponse {
+  bytes user_cosmos_address = 1;
 }
 
-// QueryGetValidatorMinaPubKeyRequest defines the QueryGetValidatorMinaPubKeyRequest message.
+// QueryGetValidatorMinaAddressRequest defines the QueryGetValidatorMinaAddressRequest message.
 message QueryGetValidatorMinaPubKeyRequest {
   bytes validator_cosmos_pub_key = 1;
 }
 
-// QueryGetValidatorMinaPubKeyResponse defines the QueryGetValidatorMinaPubKeyResponse message.
+// QueryGetValidatorMinaAddressResponse defines the QueryGetValidatorMinaAddressResponse message.
 message QueryGetValidatorMinaPubKeyResponse {
-  bytes validator_mina_pub_key = 1;
+  bytes validator_mina_pub_key= 1;
 }
 
-// QueryGetValidatorCosmosPubKeyRequest defines the QueryGetValidatorCosmosPubKeyRequest message.
+// QueryGetValidatorCosmosAddressRequest defines the QueryGetValidatorCosmosAddressRequest message.
 message QueryGetValidatorCosmosPubKeyRequest {
   bytes validator_mina_pub_key = 1;
 }
 
-// QueryGetValidatorCosmosPubKeyResponse defines the QueryGetValidatorCosmosPubKeyResponse message.
+// QueryGetValidatorCosmosAddressResponse defines the QueryGetValidatorCosmosAddressResponse message.
 message QueryGetValidatorCosmosPubKeyResponse {
   bytes validator_cosmos_pub_key = 1;
 }
