@@ -45,8 +45,6 @@ func (h *VoteExtHandler) PreBlocker() sdk.PreBlocker {
 			}
 
 			h.voteextKeeper.SetVoteExt(ctx, record)
-			// Update height-based index mapping
-			h.voteextKeeper.SetVoteExtIndex(ctx, targetHeight, idx)
 		}
 
 		// clear from memory after persisting

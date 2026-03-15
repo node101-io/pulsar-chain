@@ -11,6 +11,8 @@ import (
 	"github.com/node101-io/pulsar-chain/x/voteexthandler/types"
 )
 
+const VoteExtensionMapName string = "vote_exts"
+
 type Keeper struct {
 	storeService corestore.KVStoreService
 	cdc          codec.Codec
@@ -21,6 +23,8 @@ type Keeper struct {
 
 	Schema collections.Schema
 	Params collections.Item[types.Params]
+
+	VoteExts collections.Map[string, types.VoteExt]
 }
 
 func NewKeeper(
@@ -43,6 +47,8 @@ func NewKeeper(
 		authority:    authority,
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
+
+		VoteExts: collections.NewMap(sb, types.VoteExtVectorPrefix, VoteExtensionMapName, collections.StringKey, codec.CollValue[types.VoteExt](cdc)),
 	}
 
 	schema, err := sb.Build()
