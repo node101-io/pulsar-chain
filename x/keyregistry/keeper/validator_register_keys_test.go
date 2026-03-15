@@ -3,8 +3,8 @@ package keeper_test
 import (
 	"testing"
 
-	"github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/secp256k1"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func generatePublicKeys() (crypto.PubKey, []byte, error) {
-	cosmosPrivKey := secp256k1.GenPrivKey()
+func generateValidatorPublicKeys() (cryptotypes.PubKey, []byte, error) {
+	cosmosPrivKey := ed25519.GenPrivKey()
 
 	cosmosPubKey := cosmosPrivKey.PubKey()
 
@@ -25,7 +25,7 @@ func generatePublicKeys() (crypto.PubKey, []byte, error) {
 }
 
 // TestValidatorRegisterKeysFail verifies that RegisterKeys fails with ErrInvalidPublicKey
-// when the provided cosmos public key is not a valid compressed secp256k1 key (33 bytes).
+// when the provided cosmos consensus public key is invalid.
 func TestValidatorRegisterKeysFail(t *testing.T) {
 
 	f := initFixture(t)
@@ -47,7 +47,7 @@ func TestValidatorRegisterKeysFail(t *testing.T) {
 // and ensures that both CosmosToMina and MinaToCosmos mappings are correctly stored.
 func TestValidatorRegisterKeysSuccess(t *testing.T) {
 
-	cosmosPubKey, minaPubKey, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 
 	addr := sdk.ConsAddress(cosmosPubKey.Address())
@@ -79,7 +79,7 @@ func TestValidatorRegisterKeysSuccess(t *testing.T) {
 // when the creator field is not a valid bech32 address.
 func TestValidatorInvalidCreatorAddress(t *testing.T) {
 
-	cosmosPubKey, minaPubKey, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 
 	f := initFixture(t)
@@ -97,13 +97,13 @@ func TestValidatorInvalidCreatorAddress(t *testing.T) {
 }
 
 // TestValidatorInvalidSigner verifies that RegisterKeys fails with ErrInvalidSigner
-// when the creator address does not match the address derived from the provided cosmos public key.
+// when the creator address does not match the address derived from the provided consensus public key.
 func TestValidatorInvalidSigner(t *testing.T) {
 
-	cosmosPubKey, minaPubKey, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 
-	secondaryPriv := secp256k1.GenPrivKey()
+	secondaryPriv := ed25519.GenPrivKey()
 
 	secondaryPublic := secondaryPriv.PubKey()
 
@@ -128,7 +128,7 @@ func TestValidatorInvalidSigner(t *testing.T) {
 // TestValidatorInvalidSignature currently expects no error since signature verification is not yet implemented.
 func TestValidatorInvalidSignature(t *testing.T) {
 
-	cosmosPubKey, minaPubKey, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, err := generateValidatorPublicKeys()
 	addr := sdk.ConsAddress(cosmosPubKey.Address())
 
 	require.NoError(t, err)
@@ -156,7 +156,7 @@ func TestValidatorInvalidSignature(t *testing.T) {
 func TestValidatorInsertSecondaryKeysFail(t *testing.T) {
 	f := initFixture(t)
 
-	cosmosPubKey, minaPubKey, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 
 	addr := sdk.ConsAddress(cosmosPubKey.Address())
