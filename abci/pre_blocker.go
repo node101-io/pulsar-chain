@@ -28,14 +28,14 @@ func (h *VoteExtHandler) PreBlocker() sdk.PreBlocker {
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
-		for consAddr, ext := range votes {
+		for minaAddress, ext := range votes {
 			var ve MinaSignatureVoteExt
 			if err := json.Unmarshal(ext, &ve); err != nil {
 				continue
 			}
 
 			sigHex := hex.EncodeToString(ve.Signature)
-			idx := fmt.Sprintf("%d/%s", targetHeight, consAddr)
+			idx := fmt.Sprintf("%d/%s", targetHeight, minaAddress)
 
 			record := types.VoteExt{
 				Index:         idx,

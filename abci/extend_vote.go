@@ -2,6 +2,7 @@ package vote_ext
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"cosmossdk.io/errors"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -88,13 +89,13 @@ func (h *VoteExtHandler) constructMinaSignatureVoteExt(extBody voteexthandler.Bo
 		return MinaSignatureVoteExt{}, errors.Wrap(types.ErrFailedToMarshal, err.Error())
 	}
 
-	addr, err := h.MinaPrivateKey.PublicKey.ToAddress()
+	minaAddress, err := h.MinaPrivateKey.PublicKey.ToAddress()
 	if err != nil {
 		return MinaSignatureVoteExt{}, errors.Wrap(types.ErrFailedToConvertPubKeyToAddr, err.Error())
 	}
 
 	voteExt := MinaSignatureVoteExt{
-		MinaAddress: addr,
+		MinaAddress: minaAddress,
 		Signature:   sigBytes,
 		VoteExtBody: extBody,
 	}
@@ -171,7 +172,6 @@ func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.Request
 func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
 
-		ctx.Logger().Info("extend vote handler called")
 		// Initialize poseidon hash
 		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
@@ -187,9 +187,11 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 		if err != nil {
 			return nil, errors.Wrap(types.ErrFailedToMarshal, err.Error())
 		}
-		ctx.Logger().Info("vote ext body extend vote handler", voteExt.VoteExtBody.NewBlockHeight)
+
 		// Store vote extension in memory
 		h.storeVote(uint64(req.GetHeight()), voteExt.MinaAddress, bz)
+
+		ctx.Logger().Info(fmt.Sprintf("Constructed vote extension for height %d: %+v", req.GetHeight(), voteExt))
 
 		return &abci.ResponseExtendVote{VoteExtension: bz}, nil
 	}

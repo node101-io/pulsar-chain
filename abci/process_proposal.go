@@ -42,14 +42,14 @@ func (h *VoteExtHandler) reconstructVoteExtBody(req *abci.RequestProcessProposal
 		h.storeVote(uint64(req.GetHeight()), ve.MinaAddress, voteBytes)
 	}
 
-	// Create our address from our local Mina public key.
-	myAddr, err := h.MinaPrivateKey.PublicKey.ToAddress()
+	// Create our Mina address from our local Mina public key.
+	ownMinaAddress, err := h.MinaPrivateKey.PublicKey.ToAddress()
 	if err != nil {
 		return MinaSignatureVoteExt{}, errors.Wrap(types.ErrFailedToConvertPubKeyToAddr, "")
 	}
 
-	// Find our address in the map.
-	extBz, ok := data.Votes[myAddr]
+	// Find our Mina address in the map.
+	extBz, ok := data.Votes[ownMinaAddress]
 	if !ok {
 		return MinaSignatureVoteExt{}, errors.Wrap(types.ErrValidatorVoteExtMissing, "")
 	}

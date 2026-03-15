@@ -2,13 +2,17 @@ package vote_ext
 
 import (
 	"encoding/json"
-	"math/big"
-	"sort"
+	/*
+		"math/big"
+		"sort"
+	*/
 	"sync"
 
 	"cosmossdk.io/errors"
-	abci "github.com/cometbft/cometbft/abci/types"
-	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	/*
+			abci "github.com/cometbft/cometbft/abci/types"
+		   	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	*/
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/node101-io/mina-signer-go/keys"
@@ -34,7 +38,7 @@ type VoteExtHandler struct {
 	stakingKeeper  stakingkeeper.Keeper
 	stateRoots     map[int64][]byte
 	mu             sync.RWMutex
-	votes          map[uint64]map[string][]byte // height -> consAddr -> extension bytes
+	votes          map[uint64]map[string][]byte // height -> minaAddress -> extension bytes
 }
 
 func NewVoteExtHandler(keyregistryKeeper keyregistrykeeper.Keeper,
@@ -64,6 +68,8 @@ func verifySchnorr(voteExt MinaSignatureVoteExt, pubKey keys.PublicKey, ctx sdk.
 	return nil
 }
 
+/*
+
 func (h *VoteExtHandler) sortValidators(validators []ValidatorInfo) []ValidatorInfo {
 	sort.Slice(validators, func(i, j int) bool {
 		pubKeyI, err := new(keys.PublicKey).FromAddress(validators[i].MinaAddress)
@@ -88,6 +94,7 @@ func (h *VoteExtHandler) sortValidators(validators []ValidatorInfo) []ValidatorI
 	// Slice'ın sadece parse edilebilen validatorları içeren kısmını döndür
 	return validators[:lastValidIdx+1]
 }
+
 
 // applyValidatorUpdates applies validator updates to the initial validator set
 // and returns the new validator set sorted by address in ascending order
@@ -186,8 +193,10 @@ func (h *VoteExtHandler) computeValidatorSetMerkleRoot(validators []ValidatorInf
 	return merkleRoot, nil
 }
 
+*/
+
 // storeVote saves the extension in-memory for later proposal processing.
-func (h *VoteExtHandler) storeVote(height uint64, consAddr string, ext []byte) {
+func (h *VoteExtHandler) storeVote(height uint64, minaAddress string, ext []byte) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.votes == nil {
@@ -196,7 +205,7 @@ func (h *VoteExtHandler) storeVote(height uint64, consAddr string, ext []byte) {
 	if _, ok := h.votes[height]; !ok {
 		h.votes[height] = make(map[string][]byte)
 	}
-	h.votes[height][consAddr] = ext
+	h.votes[height][minaAddress] = ext
 }
 
 // fetchVotes returns a COPY of the map for the given height.
@@ -223,17 +232,17 @@ func (h *VoteExtHandler) getVoteExtBody(height uint64) (types.Body, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	addr, err := h.MinaPrivateKey.PublicKey.ToAddress()
+	ownMinaAddress, err := h.MinaPrivateKey.PublicKey.ToAddress()
 	if err != nil {
 		return types.Body{}, errors.Wrap(types.ErrFailedToConvertPubKeyToAddr, "nodes own secondary pubkey")
 	}
 
 	for _, vote := range h.votes[height] {
 		var ve MinaSignatureVoteExt
-		if ve.MinaAddress == addr {
-			if err := json.Unmarshal(vote, &ve); err != nil {
-				continue // skip malformed entry
-			}
+		if err := json.Unmarshal(vote, &ve); err != nil {
+			continue // skip malformed entry
+		}
+		if ve.MinaAddress == ownMinaAddress {
 			return ve.VoteExtBody, nil
 		}
 	}
