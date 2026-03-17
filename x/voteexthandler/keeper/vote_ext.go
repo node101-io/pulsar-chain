@@ -20,6 +20,7 @@ func (k Keeper) GetVoteExt(ctx context.Context, index string) (types.VoteExt, er
 	return k.VoteExts.Get(ctx, index)
 }
 
+// HasVoteExt returs te existence of a voteExt from its index
 func (k Keeper) HasVoteExt(ctx context.Context, index string) (bool, error) {
 	return k.VoteExts.Has(ctx, index)
 }
@@ -29,9 +30,13 @@ func (k Keeper) RemoveVoteExt(ctx context.Context, index string) error {
 	return k.VoteExts.Remove(ctx, index)
 }
 
+// RemoveAllVoteExts removes all vote extensions from collection map
 func (k Keeper) RemoveAllVoteExts(ctx context.Context) error {
 	err := k.VoteExts.Walk(ctx, nil, func(_ string, val types.VoteExt) (stop bool, err error) {
-		k.VoteExts.Remove(ctx, val.Index)
+		err = k.VoteExts.Remove(ctx, val.Index)
+		if err != nil {
+			return true, err
+		}
 		return false, nil
 	})
 	if err != nil {
@@ -53,6 +58,8 @@ func (k Keeper) GetAllVoteExt(ctx context.Context) (list []*types.VoteExt, err e
 
 	return
 }
+
+// GetVoteExtsByHeight returns the vote extensions, given a block height
 func (k Keeper) GetVoteExtsByHeight(ctx context.Context, height uint64) (list []*types.VoteExt) {
 	_ = k.VoteExts.Walk(ctx, nil, func(_ string, val types.VoteExt) (stop bool, err error) {
 		if val.Height == height {
