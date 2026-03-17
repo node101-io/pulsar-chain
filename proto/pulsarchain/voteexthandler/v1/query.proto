@@ -22,6 +22,11 @@ service Query {
   rpc VoteextsByHeight(QueryVoteextsByHeightRequest) returns (QueryVoteextsByHeightResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/voteexthandler/v1/voteexts_by_height/{height}";
   }
+
+  // GetAllVoteExts Queries a list of GetAllVoteExts items.
+  rpc GetAllVoteExts(QueryGetAllVoteExtsRequest) returns (QueryGetAllVoteExtsResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/voteexthandler/v1/get_all_vote_exts";
+  }
 }
 
 // QueryParamsRequest is request type for the Query/Params RPC method.
@@ -43,5 +48,13 @@ message QueryVoteextsByHeightRequest {
 
 // QueryVoteextsByHeightResponse defines the QueryVoteextsByHeightResponse message.
 message QueryVoteextsByHeightResponse {
+  repeated VoteExt vote_exts = 1;
+}
+
+// QueryGetAllVoteExtsRequest defines the QueryGetAllVoteExtsRequest message.
+message QueryGetAllVoteExtsRequest {}
+
+// QueryGetAllVoteExtsResponse defines the QueryGetAllVoteExtsResponse message.
+message QueryGetAllVoteExtsResponse {
   repeated VoteExt vote_exts = 1;
 }
