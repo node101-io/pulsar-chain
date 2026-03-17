@@ -22,6 +22,11 @@ func (h *VoteExtHandler) PreBlocker() sdk.PreBlocker {
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
+		err := h.voteextKeeper.RemoveAllVoteExts(ctx)
+		if err != nil {
+			return nil, err
+		}
+
 		targetHeight := uint64(req.GetHeight() - 1)
 		votes := h.fetchVotes(targetHeight)
 		if len(votes) == 0 {

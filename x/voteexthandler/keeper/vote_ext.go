@@ -29,6 +29,18 @@ func (k Keeper) RemoveVoteExt(ctx context.Context, index string) error {
 	return k.VoteExts.Remove(ctx, index)
 }
 
+func (k Keeper) RemoveAllVoteExts(ctx context.Context) error {
+	err := k.VoteExts.Walk(ctx, nil, func(_ string, val types.VoteExt) (stop bool, err error) {
+		k.VoteExts.Remove(ctx, val.Index)
+		return false, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetAllVoteExt returns all voteExt
 func (k Keeper) GetAllVoteExt(ctx context.Context) (list []*types.VoteExt, err error) {
 	err = k.VoteExts.Walk(ctx, nil, func(_ string, val types.VoteExt) (stop bool, err error) {
