@@ -48,7 +48,7 @@ func NewKeeper(
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
 
-		VoteExts: collections.NewMap(sb, types.VoteExtVectorPrefix, VoteExtensionMapName, collections.StringKey, codec.CollValue[types.VoteExt](cdc)),
+		VoteExts: collections.NewMap(sb, types.VoteExtMapPrefix, VoteExtensionMapName, collections.StringKey, codec.CollValue[types.VoteExt](cdc)),
 	}
 
 	schema, err := sb.Build()

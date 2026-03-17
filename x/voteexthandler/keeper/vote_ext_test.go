@@ -75,7 +75,8 @@ func TestGetAllVoteExt(t *testing.T) {
 		_ = k.SetVoteExt(ctx, v)
 	}
 
-	all := k.GetAllVoteExt(ctx)
+	all, err := k.GetAllVoteExt(ctx)
+	require.NoError(t, err)
 	require.Len(t, all, 3)
 
 	for _, v := range votes {

@@ -44,7 +44,10 @@ func (h *VoteExtHandler) PreBlocker() sdk.PreBlocker {
 				Signature:     sigHex,
 			}
 
-			h.voteextKeeper.SetVoteExt(ctx, record)
+			err := h.voteextKeeper.SetVoteExt(ctx, record)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// clear from memory after persisting

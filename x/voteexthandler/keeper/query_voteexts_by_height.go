@@ -13,16 +13,7 @@ func (q queryServer) VoteextsByHeight(ctx context.Context, req *types.QueryVotee
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
 
-	var voteExtList []*types.VoteExt
+	voteExtensions := q.k.GetVoteExtsByHeight(ctx, req.Height)
 
-	voteExtensions := q.k.GetAllVoteExt(ctx)
-
-	for _, voteExt := range voteExtensions {
-		if voteExt.Height != req.Height {
-			continue
-		}
-		voteExtList = append(voteExtList, &voteExt)
-	}
-
-	return &types.QueryVoteextsByHeightResponse{VoteExts: voteExtList}, nil
+	return &types.QueryVoteextsByHeightResponse{VoteExts: voteExtensions}, nil
 }

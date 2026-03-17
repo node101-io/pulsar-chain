@@ -17,7 +17,7 @@ const (
 
 // ParamsKey is the prefix to retrieve all Params
 var ParamsKey = collections.NewPrefix("p_voteexthandler")
-var VoteExtVectorPrefix = collections.NewPrefix("vote_ext_handler")
+var VoteExtMapPrefix = collections.NewPrefix("vote_ext_handler")
 
 func KeyPrefix(p string) []byte {
 	return []byte(p)
