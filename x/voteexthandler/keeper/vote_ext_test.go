@@ -117,3 +117,38 @@ func TestGetVoteExtsByHeight(t *testing.T) {
 	h999 := k.GetVoteExtsByHeight(ctx, 999)
 	require.Len(t, h999, 0)
 }
+
+// TestRemoveAllVoteExts verifies that RemoveAllVoteExts deletes all stored VoteExts.
+func TestRemoveAllVoteExts(t *testing.T) {
+	f := initFixture(t)
+	ctx := f.ctx
+	k := f.keeper
+
+	votes := []types.VoteExt{
+		{Index: "v1", Height: 100},
+		{Index: "v2", Height: 101},
+		{Index: "v3", Height: 102},
+	}
+
+	for _, v := range votes {
+		err := k.SetVoteExt(ctx, v)
+		require.NoError(t, err)
+
+		existence, err := k.HasVoteExt(ctx, v.Index)
+		require.NoError(t, err)
+		require.True(t, existence)
+	}
+
+	err := k.RemoveAllVoteExts(ctx)
+	require.NoError(t, err)
+
+	all, err := k.GetAllVoteExt(ctx)
+	require.NoError(t, err)
+	require.Len(t, all, 0)
+
+	for _, v := range votes {
+		found, err := k.HasVoteExt(ctx, v.Index)
+		require.NoError(t, err)
+		require.False(t, found)
+	}
+}
