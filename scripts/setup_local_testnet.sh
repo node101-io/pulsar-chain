@@ -7,6 +7,7 @@ NODE2_HOME="$HOME/.pulsar-node2"
 DENOM="pmina"
 NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
 NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
+MIN_GAS_PRICE="0.0001pmina"
 
 echo "==> Cleaning up old data..."
 rm -rf $NODE1_HOME $NODE2_HOME
@@ -93,8 +94,8 @@ sed -i.bak 's|allow_duplicate_ip = false|allow_duplicate_ip = true|' $NODE2_HOME
 sed -i.bak 's|address = "tcp://localhost:1317"|address = "tcp://localhost:1318"|' $NODE2_HOME/config/app.toml
 sed -i.bak 's|address = "localhost:9090"|address = "localhost:9091"|' $NODE2_HOME/config/app.toml
 
-sed -i.bak 's|minimum-gas-prices = ""|minimum-gas-prices = "0pmina"|' $NODE1_HOME/config/app.toml
-sed -i.bak 's|minimum-gas-prices = ""|minimum-gas-prices = "0pmina"|' $NODE2_HOME/config/app.toml
+sed -i.bak "s|minimum-gas-prices = \"\"|minimum-gas-prices = \"$MIN_GAS_PRICE\"|" $NODE1_HOME/config/app.toml
+sed -i.bak "s|minimum-gas-prices = \"\"|minimum-gas-prices = \"$MIN_GAS_PRICE\"|" $NODE2_HOME/config/app.toml
 
 cat >> ~/.pulsar-node1/config/app.toml << EOF
 
