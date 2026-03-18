@@ -22,6 +22,11 @@ func (h *VoteExtHandler) PreBlocker() sdk.PreBlocker {
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
+		err := h.voteextKeeper.RemoveAllVoteExts(ctx)
+		if err != nil {
+			return nil, err
+		}
+
 		targetHeight := uint64(req.GetHeight() - 1)
 		votes := h.fetchVotes(targetHeight)
 		if len(votes) == 0 {
@@ -44,9 +49,10 @@ func (h *VoteExtHandler) PreBlocker() sdk.PreBlocker {
 				Signature:     sigHex,
 			}
 
-			h.voteextKeeper.SetVoteExt(ctx, record)
-			// Update height-based index mapping
-			h.voteextKeeper.SetVoteExtIndex(ctx, targetHeight, idx)
+			err := h.voteextKeeper.SetVoteExt(ctx, record)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// clear from memory after persisting

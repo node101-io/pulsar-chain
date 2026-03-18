@@ -17,6 +17,20 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Use:       "params",
 					Short:     "Shows the parameters of the module",
 				},
+				{
+					RpcMethod:      "VoteextsByHeight",
+					Use:            "voteexts-by-height [height]",
+					Short:          "Query voteexts-by-height",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "height"}},
+				},
+
+				{
+					RpcMethod:      "GetAllVoteExts",
+					Use:            "get-all-vote-exts ",
+					Short:          "Query get-all-vote-exts",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
+				},
+
 				// this line is used by ignite scaffolding # autocli/query
 			},
 		},

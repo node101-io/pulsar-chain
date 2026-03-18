@@ -77,7 +77,7 @@ message QueryGetValidatorMinaPubKeyRequest {
 
 // QueryGetValidatorMinaAddressResponse defines the QueryGetValidatorMinaAddressResponse message.
 message QueryGetValidatorMinaPubKeyResponse {
-  bytes validator_mina_pub_key= 1;
+  bytes validator_mina_pub_key = 1;
 }
 
 // QueryGetValidatorCosmosAddressRequest defines the QueryGetValidatorCosmosAddressRequest message.

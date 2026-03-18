@@ -1,4 +1,5 @@
 syntax = "proto3";
+
 package pulsarchain.voteexthandler.v1;
 
 import "amino/amino.proto";
@@ -6,6 +7,7 @@ import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "pulsarchain/voteexthandler/v1/params.proto";
+import "pulsarchain/voteexthandler/v1/vote_ext.proto";
 
 option go_package = "github.com/node101-io/pulsar-chain/x/voteexthandler/types";
 
@@ -14,6 +16,16 @@ service Query {
   // Parameters queries the parameters of the module.
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/voteexthandler/v1/params";
+  }
+
+  // VoteextsByHeight Queries a list of VoteextsByHeight items.
+  rpc VoteextsByHeight(QueryVoteextsByHeightRequest) returns (QueryVoteextsByHeightResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/voteexthandler/v1/voteexts_by_height/{height}";
+  }
+
+  // GetAllVoteExts Queries a list of GetAllVoteExts items.
+  rpc GetAllVoteExts(QueryGetAllVoteExtsRequest) returns (QueryGetAllVoteExtsResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/voteexthandler/v1/get_all_vote_exts";
   }
 }
 
@@ -27,4 +39,22 @@ message QueryParamsResponse {
     (gogoproto.nullable) = false,
     (amino.dont_omitempty) = true
   ];
+}
+
+// QueryVoteextsByHeightRequest defines the QueryVoteextsByHeightRequest message.
+message QueryVoteextsByHeightRequest {
+  uint64 height = 1;
+}
+
+// QueryVoteextsByHeightResponse defines the QueryVoteextsByHeightResponse message.
+message QueryVoteextsByHeightResponse {
+  repeated VoteExt vote_exts = 1;
+}
+
+// QueryGetAllVoteExtsRequest defines the QueryGetAllVoteExtsRequest message.
+message QueryGetAllVoteExtsRequest {}
+
+// QueryGetAllVoteExtsResponse defines the QueryGetAllVoteExtsResponse message.
+message QueryGetAllVoteExtsResponse {
+  repeated VoteExt vote_exts = 1;
 }
