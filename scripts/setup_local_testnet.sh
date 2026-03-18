@@ -5,6 +5,8 @@ CHAIN_ID="mytestnet"
 NODE1_HOME="$HOME/.pulsar-node1"
 NODE2_HOME="$HOME/.pulsar-node2"
 DENOM="pmina"
+NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
+NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
 
 echo "==> Cleaning up old data..."
 rm -rf $NODE1_HOME $NODE2_HOME
@@ -94,16 +96,16 @@ sed -i.bak 's|address = "localhost:9090"|address = "localhost:9091"|' $NODE2_HOM
 sed -i.bak 's|minimum-gas-prices = ""|minimum-gas-prices = "0pmina"|' $NODE1_HOME/config/app.toml
 sed -i.bak 's|minimum-gas-prices = ""|minimum-gas-prices = "0pmina"|' $NODE2_HOME/config/app.toml
 
-cat >> ~/.pulsar-node1/config/app.toml << 'EOF'
+cat >> ~/.pulsar-node1/config/app.toml << EOF
 
 [vote_extension]
-priv_key = "ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
+priv_key = "$NODE1_MINA_PRIV_KEY"
 EOF
 
-cat >> ~/.pulsar-node2/config/app.toml << 'EOF'
+cat >> ~/.pulsar-node2/config/app.toml << EOF
 
 [vote_extension]
-priv_key = "PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
+priv_key = "$NODE2_MINA_PRIV_KEY"
 EOF
 
 echo ""
