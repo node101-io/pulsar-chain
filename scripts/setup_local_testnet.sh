@@ -8,6 +8,8 @@ DENOM="pmina"
 NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
 NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
 MIN_GAS_PRICE="0.0001pmina"
+VOTE_EXT_ENABLE_HEIGHT="2"
+
 
 echo "==> Cleaning up old data..."
 rm -rf $NODE1_HOME $NODE2_HOME
@@ -21,7 +23,7 @@ python3 -c "
 import json
 with open('$NODE1_HOME/config/genesis.json') as f:
     g = json.load(f)
-g['consensus']['params']['abci']['vote_extensions_enable_height'] = '2'
+g['consensus']['params']['abci']['vote_extensions_enable_height'] = '$VOTE_EXT_ENABLE_HEIGHT'
 with open('$NODE1_HOME/config/genesis.json', 'w') as f:
     json.dump(g, f, indent=2)
 "
