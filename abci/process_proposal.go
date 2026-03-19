@@ -39,7 +39,7 @@ func (h *VoteExtHandler) reconstructVoteExtBody(req *abci.RequestProcessProposal
 		if err := json.Unmarshal(voteBytes, &ve); err != nil {
 			continue // skip malformed entry
 		}
-		h.storeVote(uint64(req.GetHeight()), ve.MinaAddress, voteBytes)
+		h.storeVote(data.Height, ve.MinaAddress, voteBytes)
 	}
 
 	// Create our Mina address from our local Mina public key.
@@ -67,9 +67,15 @@ func (h *VoteExtHandler) reconstructVoteExtBody(req *abci.RequestProcessProposal
 // is rejected. This shifts the ≥⅔ voting-power requirement to CometBFT itself:
 // a block that does not include ≥⅔ of the network's vote-extensions will be
 // rejected automatically because fewer than ⅔ of validators will `ACCEPT` it.
+// It also seeds the state-root cache with committed root(H-1) before the vote
+// extension stage starts for height H.
 func (h *VoteExtHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
+		if req.GetHeight() >= 2 {
+			h.storeStateRoot(req.GetHeight()-1, ctx.BlockHeader().AppHash)
+		}
+
 		// If height is 1, we won't have any votes thus skip the proposal
 		if req.GetHeight() == 1 {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil

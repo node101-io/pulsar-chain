@@ -18,7 +18,6 @@ func (h *VoteExtHandler) PreBlocker() sdk.PreBlocker {
 
 		// If height is 1, we won't have any votes thus skip the proposal
 		if req.GetHeight() == 1 {
-			h.stateRoots[req.GetHeight()] = ctx.BlockHeader().AppHash
 			return &sdk.ResponsePreBlock{}, nil
 		}
 

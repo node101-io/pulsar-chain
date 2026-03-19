@@ -19,6 +19,14 @@ import (
 
 func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandler {
 	return func(ctx sdk.Context, req *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error) {
+		if req.GetHeight() < 3 {
+			if len(req.VoteExtension) == 0 {
+				return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_ACCEPT}, nil
+			}
+
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, errors.Wrap(types.ErrMalformedVoteExtPayload, "vote extensions start at height 3")
+		}
+
 		// Unmarshal the extension payload
 		var voteExt MinaSignatureVoteExt
 		if err := json.Unmarshal(req.VoteExtension, &voteExt); err != nil {
@@ -34,6 +42,8 @@ func (h *VoteExtHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHan
 		if err != nil {
 			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, err
 		}
+
+		h.storeVote(uint64(req.GetHeight()), voteExt.MinaAddress, req.VoteExtension)
 
 		return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_ACCEPT}, nil
 	}
@@ -97,13 +107,13 @@ func (h *VoteExtHandler) verifyExtensionSig(ctx sdk.Context, req *abci.RequestVe
 		return err
 	}
 
-	h.storeVote(uint64(req.GetHeight()), voteExt.MinaAddress, req.VoteExtension)
 	return nil
 }
 
-// checks the validity of extension body for VerifyVoteExtensionHandler
+// checkValidityOfVoteExtBody reconstructs the expected vote body from the
+// shared committed-root cache instead of reading this node's local vote cache.
 func (h *VoteExtHandler) checkValidityOfVoteExtBody(ctx sdk.Context, req *abci.RequestVerifyVoteExtension, voteExt MinaSignatureVoteExt) error {
-	extBody, err := h.getVoteExtBody(uint64(req.GetHeight()))
+	extBody, err := h.buildExpectedVoteExtBody(req.GetHeight())
 	if err != nil {
 		return errors.Wrap(types.ErrFailedToGetVoteExtBody, "failed to get vote extension body for height "+strconv.FormatUint(uint64(req.GetHeight()), 10))
 	}
