@@ -12,7 +12,8 @@ import (
 // PrepareProposalHandler injects the collected vote-extensions (for height-1)
 // as the very first transaction of the proposal block.
 // A simple JSON payload prefixed by "VOTEEXT:" is used; this is *not* part of
-// consensus state and will be verified by ProcessProposal on peers.
+// consensus state and will be verified by ProcessProposal on peers. The state
+// root cache is seeded in ProcessProposal, not in PrepareProposal.
 func (h *VoteExtHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
@@ -21,8 +22,6 @@ func (h *VoteExtHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 		targetHeight := uint64(req.GetHeight() - 1)
 		votes := h.fetchVotes(targetHeight)
 		if len(votes) == 0 {
-			h.stateRoots[req.GetHeight()] = ctx.BlockHeader().AppHash
-
 			return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
 		}
 
@@ -39,8 +38,6 @@ func (h *VoteExtHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 		txs := make([][]byte, 0, len(req.Txs)+1)
 		txs = append(txs, extTx)
 		txs = append(txs, req.Txs...)
-
-		h.stateRoots[req.GetHeight()] = ctx.BlockHeader().AppHash
 
 		return &abci.ResponsePrepareProposal{Txs: txs}, nil
 	}

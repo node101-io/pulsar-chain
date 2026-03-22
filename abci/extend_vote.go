@@ -120,10 +120,6 @@ func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.Request
 		return voteexthandler.Body{}, errors.Wrap(types.ErrFailedToComputeInitialValidatorSetRoot, err.Error())
 	}*/
 
-	prevStateRoot := h.stateRoots[req.GetHeight()-1]
-	initStateRoot := h.stateRoots[req.GetHeight()]
-
-	var extBody voteexthandler.Body
 	/*if len(validatorUpdates) != 0 {
 
 		// Apply validator set updates to the initial validator set and create merkle tree from the new validator set
@@ -157,20 +153,14 @@ func (h *VoteExtHandler) constructVoteExtBody(ctx sdk.Context, req *abci.Request
 		}
 	}*/
 
-	extBody = voteexthandler.Body{
-		InitialValidatorSetRoot: hardcoded[:],
-		InitialBlockHeight:      req.GetHeight() - 1,
-		InitialStateRoot:        prevStateRoot,
-		NewValidatorSetRoot:     hardcoded[:],
-		NewBlockHeight:          req.GetHeight(),
-		NewStateRoot:            initStateRoot,
-	}
-
-	return extBody, nil
+	return h.buildExpectedVoteExtBody(req.GetHeight())
 }
 
 func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+		if req.GetHeight() < 3 {
+			return &abci.ResponseExtendVote{VoteExtension: []byte{}}, nil
+		}
 
 		// Initialize poseidon hash
 		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)

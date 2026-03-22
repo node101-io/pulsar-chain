@@ -1,11 +1,11 @@
 package vote_ext
 
 import (
-	"encoding/json"
 	/*
 		"math/big"
 		"sort"
 	*/
+	"strconv"
 	"sync"
 
 	"cosmossdk.io/errors"
@@ -61,7 +61,7 @@ func verifySchnorr(voteExt MinaSignatureVoteExt, pubKey keys.PublicKey, ctx sdk.
 	if err := sig.UnmarshalBytes(voteExt.Signature); err != nil {
 		return errors.Wrap(types.ErrInvalidSigEncoding, "")
 	}
-	// Verify signature; if ok, keep the vote in memory.
+	// Verify the vote-extension signature against the reconstructed body hash.
 	if !pubKey.Verify(sig, extBodyHashInput, types.DevnetNetworkID) {
 		return errors.Wrap(types.ErrInvalidSignature, "")
 	}
@@ -195,6 +195,62 @@ func (h *VoteExtHandler) computeValidatorSetMerkleRoot(validators []ValidatorInf
 
 */
 
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+
+	return append([]byte(nil), b...)
+}
+
+func (h *VoteExtHandler) storeStateRoot(height int64, root []byte) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.stateRoots == nil {
+		h.stateRoots = make(map[int64][]byte)
+	}
+
+	h.stateRoots[height] = cloneBytes(root)
+}
+
+func (h *VoteExtHandler) getStateRoot(height int64) ([]byte, bool) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	root, ok := h.stateRoots[height]
+	if !ok {
+		return nil, false
+	}
+
+	return cloneBytes(root), true
+}
+
+func (h *VoteExtHandler) buildExpectedVoteExtBody(height int64) (voteexthandler.Body, error) {
+	if height < 3 {
+		return voteexthandler.Body{}, errors.Wrap(types.ErrFailedToGetVoteExtBody, "vote extensions start at height 3")
+	}
+
+	initialStateRoot, ok := h.getStateRoot(height - 2)
+	if !ok {
+		return voteexthandler.Body{}, errors.Wrap(types.ErrFailedToGetVoteExtBody, "missing state root for committed height "+strconv.FormatInt(height-2, 10))
+	}
+
+	newStateRoot, ok := h.getStateRoot(height - 1)
+	if !ok {
+		return voteexthandler.Body{}, errors.Wrap(types.ErrFailedToGetVoteExtBody, "missing state root for committed height "+strconv.FormatInt(height-1, 10))
+	}
+
+	return voteexthandler.Body{
+		InitialValidatorSetRoot: hardcoded[:],
+		InitialBlockHeight:      height - 2,
+		InitialStateRoot:        initialStateRoot,
+		NewValidatorSetRoot:     hardcoded[:],
+		NewBlockHeight:          height - 1,
+		NewStateRoot:            newStateRoot,
+	}, nil
+}
+
 // storeVote saves the extension in-memory for later proposal processing.
 func (h *VoteExtHandler) storeVote(height uint64, minaAddress string, ext []byte) {
 	h.mu.Lock()
@@ -205,7 +261,7 @@ func (h *VoteExtHandler) storeVote(height uint64, minaAddress string, ext []byte
 	if _, ok := h.votes[height]; !ok {
 		h.votes[height] = make(map[string][]byte)
 	}
-	h.votes[height][minaAddress] = ext
+	h.votes[height][minaAddress] = cloneBytes(ext)
 }
 
 // fetchVotes returns a COPY of the map for the given height.
@@ -215,7 +271,7 @@ func (h *VoteExtHandler) fetchVotes(height uint64) map[string][]byte {
 	res := make(map[string][]byte)
 	if m, ok := h.votes[height]; ok {
 		for k, v := range m {
-			res[k] = v
+			res[k] = cloneBytes(v)
 		}
 	}
 	return res
@@ -226,25 +282,4 @@ func (h *VoteExtHandler) deleteVotes(height uint64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	delete(h.votes, height)
-}
-
-func (h *VoteExtHandler) getVoteExtBody(height uint64) (types.Body, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	ownMinaAddress, err := h.MinaPrivateKey.PublicKey.ToAddress()
-	if err != nil {
-		return types.Body{}, errors.Wrap(types.ErrFailedToConvertPubKeyToAddr, "nodes own secondary pubkey")
-	}
-
-	for _, vote := range h.votes[height] {
-		var ve MinaSignatureVoteExt
-		if err := json.Unmarshal(vote, &ve); err != nil {
-			continue // skip malformed entry
-		}
-		if ve.MinaAddress == ownMinaAddress {
-			return ve.VoteExtBody, nil
-		}
-	}
-	return types.Body{}, errors.Wrap(types.ErrMissingVoteExt, "")
 }
