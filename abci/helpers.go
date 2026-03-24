@@ -242,10 +242,10 @@ func (h *VoteExtHandler) buildExpectedVoteExtBody(height int64) (voteexthandler.
 	}
 
 	return voteexthandler.Body{
-		InitialValidatorSetRoot: hardcoded[:],
+		InitialValidatorSetRoot: voteextkeeper.HardcodedValidatorSetRoot[:],
 		InitialBlockHeight:      height - 2,
 		InitialStateRoot:        initialStateRoot,
-		NewValidatorSetRoot:     hardcoded[:],
+		NewValidatorSetRoot:     voteextkeeper.HardcodedValidatorSetRoot[:],
 		NewBlockHeight:          height - 1,
 		NewStateRoot:            newStateRoot,
 	}, nil
