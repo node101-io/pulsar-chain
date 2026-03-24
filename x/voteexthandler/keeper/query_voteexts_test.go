@@ -15,8 +15,8 @@ func TestVoteextsByHeight_ValidHeight(t *testing.T) {
 	q := keeper.NewQueryServerImpl(f.keeper)
 
 	// Setup votes
-	v1 := types.VoteExt{Index: "v1", Height: 100, ValidatorAddr: "val1", Signature: "sig1"}
-	v2 := types.VoteExt{Index: "v2", Height: 100, ValidatorAddr: "val2", Signature: "sig2"}
+	v1 := types.VoteExt{Index: "v1", Height: 100, ValidatorAddr: "val1", Signature: []byte("sig1")}
+	v2 := types.VoteExt{Index: "v2", Height: 100, ValidatorAddr: "val2", Signature: []byte("sig2")}
 	_ = f.keeper.SetVoteExt(ctx, v1)
 	_ = f.keeper.SetVoteExt(ctx, v2)
 

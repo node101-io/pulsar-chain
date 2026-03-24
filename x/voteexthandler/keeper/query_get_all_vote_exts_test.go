@@ -26,7 +26,7 @@ func TestGetAllVoteExts_SingleVote(t *testing.T) {
 	ctx := f.ctx
 	q := keeper.NewQueryServerImpl(f.keeper)
 
-	v := types.VoteExt{Index: "v1", Height: 100, ValidatorAddr: "val1", Signature: "sig1"}
+	v := types.VoteExt{Index: "v1", Height: 100, ValidatorAddr: "val1", Signature: []byte("sig1")}
 	err := f.keeper.SetVoteExt(ctx, v)
 	require.NoError(t, err)
 
@@ -43,9 +43,9 @@ func TestGetAllVoteExts_MultipleVotes(t *testing.T) {
 	q := keeper.NewQueryServerImpl(f.keeper)
 
 	votes := []types.VoteExt{
-		{Index: "v1", Height: 100, ValidatorAddr: "val1", Signature: "sig1"},
-		{Index: "v2", Height: 101, ValidatorAddr: "val2", Signature: "sig2"},
-		{Index: "v3", Height: 102, ValidatorAddr: "val3", Signature: "sig3"},
+		{Index: "v1", Height: 100, ValidatorAddr: "val1", Signature: []byte("sig1")},
+		{Index: "v2", Height: 101, ValidatorAddr: "val2", Signature: []byte("sig2")},
+		{Index: "v3", Height: 102, ValidatorAddr: "val3", Signature: []byte("sig3")},
 	}
 	for _, v := range votes {
 		err := f.keeper.SetVoteExt(ctx, v)

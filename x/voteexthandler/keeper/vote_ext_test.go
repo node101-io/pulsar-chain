@@ -19,7 +19,7 @@ func TestSetAndGetVoteExt(t *testing.T) {
 		Index:         "vote1",
 		Height:        100,
 		ValidatorAddr: "validator1",
-		Signature:     "sig1",
+		Signature:     []byte("sig1"),
 	}
 
 	err := k.SetVoteExt(ctx, vote)

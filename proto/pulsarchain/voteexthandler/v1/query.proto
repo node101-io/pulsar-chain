@@ -57,5 +57,5 @@ message QueryGetAllVoteExtsRequest {}
 // QueryGetAllVoteExtsResponse defines the QueryGetAllVoteExtsResponse message.
 message QueryGetAllVoteExtsResponse {
   repeated VoteExt vote_exts = 1;
-  string validator_set_root = 2;
+  bytes validator_set_root = 2;
 }

@@ -12,5 +12,5 @@ message VoteExt {
   string index = 1;
   uint64 height = 2;
   string validator_addr = 3;
-  string signature = 4;
+  bytes signature = 4;
 }

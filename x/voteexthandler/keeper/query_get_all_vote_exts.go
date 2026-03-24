@@ -18,5 +18,5 @@ func (q queryServer) GetAllVoteExts(ctx context.Context, req *types.QueryGetAllV
 		return nil, err
 	}
 
-	return &types.QueryGetAllVoteExtsResponse{VoteExts: allVoteExts, ValidatorSetRoot: string(HardcodedValidatorSetRoot[:])}, nil
+	return &types.QueryGetAllVoteExtsResponse{VoteExts: allVoteExts, ValidatorSetRoot: HardcodedValidatorSetRoot[:]}, nil
 }
