@@ -1,7 +1,6 @@
 package vote_ext
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -37,15 +36,13 @@ func (h *VoteExtHandler) PreBlocker() sdk.PreBlocker {
 			if err := json.Unmarshal(ext, &ve); err != nil {
 				continue
 			}
-
-			sigHex := hex.EncodeToString(ve.Signature)
 			idx := fmt.Sprintf("%d/%s", targetHeight, minaAddress)
 
 			record := types.VoteExt{
 				Index:         idx,
 				Height:        targetHeight,
 				ValidatorAddr: ve.MinaAddress,
-				Signature:     sigHex,
+				Signature:     ve.Signature,
 			}
 
 			err := h.voteextKeeper.SetVoteExt(ctx, record)
