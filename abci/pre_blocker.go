@@ -43,6 +43,7 @@ func (h *VoteExtHandler) PreBlocker() sdk.PreBlocker {
 				Height:        targetHeight,
 				ValidatorAddr: ve.MinaAddress,
 				Signature:     ve.Signature,
+				Body:          &ve.VoteExtBody,
 			}
 
 			err := h.voteextKeeper.SetVoteExt(ctx, record)

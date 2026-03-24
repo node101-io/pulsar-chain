@@ -4,6 +4,7 @@ package pulsarchain.voteexthandler.v1;
 import "amino/amino.proto";
 import "gogoproto/gogo.proto";
 import "pulsarchain/voteexthandler/v1/params.proto";
+import "pulsarchain/voteexthandler/v1/vote_ext_body.proto";
 
 option go_package = "github.com/node101-io/pulsar-chain/x/voteexthandler/types";
 
@@ -13,4 +14,5 @@ message VoteExt {
   uint64 height = 2;
   string validator_addr = 3;
   bytes signature = 4;
+  Body body = 5;
 }
