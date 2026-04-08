@@ -18,17 +18,31 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Shows the parameters of the module",
 				},
 				{
-					RpcMethod:      "GetMinaPubKey",
-					Use:            "get-mina-pub-key [cosmos-pub-key]",
-					Short:          "Query GetMinaPubKey",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "cosmos_pub_key", Varargs: true}},
+					RpcMethod:      "GetUserMinaAddress",
+					Use:            "get-user-mina-address [user-cosmos-address]",
+					Short:          "Query GetUserMinaAddress",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_cosmos_address", Varargs: true}},
 				},
 
 				{
-					RpcMethod:      "GetCosmosPubKey",
-					Use:            "get-cosmos-pub-key [mina-pub-key]",
-					Short:          "Query GetCosmosPubKey",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "mina_pub_key", Varargs: true}},
+					RpcMethod:      "GetUserCosmosAddress",
+					Use:            "get-user-cosmos-address [user-mina-address]",
+					Short:          "Query GetUserCosmosAddress",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_mina_address", Varargs: true}},
+				},
+
+				{
+					RpcMethod:      "GetValidatorMinaPubKey",
+					Use:            "get-validator-mina-pub-key [validator-cosmos-address]",
+					Short:          "Query GetValidatorMinaAddress",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_cosmos_pub_key", Varargs: true}},
+				},
+
+				{
+					RpcMethod:      "GetValidatorCosmosPubKey",
+					Use:            "get-validator-cosmos-address [validator-mina-pub-key]",
+					Short:          "Query GetValidatorCosmosAddress",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_mina_pub_key", Varargs: true}},
 				},
 
 				// this line is used by ignite scaffolding # autocli/query
@@ -46,7 +60,7 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod:      "RegisterKeys",
 					Use:            "register-keys [cosmos-signature] [mina-signature] [cosmos-public-key] [mina-public-key]",
 					Short:          "Send a registerKeys tx",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "cosmos_signature"}, {ProtoField: "mina_signature"}, {ProtoField: "cosmos_public_key"}, {ProtoField: "mina_public_key", Varargs: true}},
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "cosmos_signature"}, {ProtoField: "mina_signature"}, {ProtoField: "cosmos_address"}, {ProtoField: "mina_address", Varargs: true}},
 				},
 				// this line is used by ignite scaffolding # autocli/tx
 			},

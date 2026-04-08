@@ -5,6 +5,7 @@ import (
 
 	"github.com/cometbft/cometbft/crypto/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
@@ -15,9 +16,25 @@ import (
 var mockCosmosSignature = "cosmosSig"
 var mockMinaSignature = "minaSig"
 
-// TestRegisterKeysFail verifies that RegisterKeys fails with ErrInvalidPublicKey
+var MinaPriv = []byte("7olA5Knafb5E2hJoWFzD+oamtyXIXXUZmYG9+pBMjTGIjqZTVLNGbE7DQ3Zq5YL5NMW31UMMMGgNCeEk+gyzRA==")
+
+func generateAddress() (sdk.AccAddress, []byte, error) {
+	cosmosPrivKey := secp256k1.GenPrivKey()
+
+	cosmosPubKey := cosmosPrivKey.PubKey()
+
+	cosmosAddr := sdk.AccAddress(cosmosPubKey.Address())
+
+	minaPrivKey := keys.NewPrivateKeyFromBytes([32]byte(MinaPriv))
+
+	minaAddress, err := minaPrivKey.ToPublicKey().ToAddress()
+
+	return cosmosAddr, []byte(minaAddress), err
+}
+
+// TestUserRegisterKeysFail verifies that RegisterKeys fails with ErrInvalidPublicKey
 // when the provided cosmos public key is not a valid compressed secp256k1 key (33 bytes).
-func TestRegisterKeysFail(t *testing.T) {
+func TestUserRegisterKeysFail(t *testing.T) {
 
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
@@ -27,73 +44,71 @@ func TestRegisterKeysFail(t *testing.T) {
 		Creator:         creatorAddr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: CosmosPubKey,
-		MinaPublicKey:   MinaPubKey,
+		CosmosAddress:   CosmosPubKey,
+		MinaAddress:     MinaPubKey,
+		IsUser:          true,
 	})
-	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
+	require.ErrorIs(t, err, types.ErrInvalidAddress)
 }
 
-// TestRegisterKeysSuccess verifies that RegisterKeys succeeds with valid inputs
+// TestUserRegisterKeysSuccess verifies that RegisterKeys succeeds with valid inputs
 // and ensures that both CosmosToMina and MinaToCosmos mappings are correctly stored.
-func TestRegisterKeysSuccess(t *testing.T) {
+func TestUserRegisterKeysSuccess(t *testing.T) {
 
-	priv := secp256k1.GenPrivKey()
-
-	pub := priv.PubKey()
-
-	addr := sdk.AccAddress(pub.Address())
+	cosmosAddr, minaAddr, err := generateAddress()
+	require.NoError(t, err)
 
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         addr.String(),
+		Creator:         cosmosAddr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: pub.Bytes(),
-		MinaPublicKey:   MinaPubKey,
+		CosmosAddress:   cosmosAddr.Bytes(),
+		MinaAddress:     minaAddr,
+		IsUser:          true,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	exists, err := f.keeper.CosmosToMinaHas(f.ctx, pub.Bytes())
+	exists, err := f.keeper.UserCosmosToMinaHas(f.ctx, cosmosAddr.Bytes())
 	require.NoError(t, err)
 	require.Equal(t, exists, true)
 
-	exists, err = f.keeper.MinaToCosmosHas(f.ctx, MinaPubKey)
+	exists, err = f.keeper.UserMinaToCosmosHas(f.ctx, minaAddr)
 	require.NoError(t, err)
 	require.Equal(t, exists, true)
 
 }
 
-// TestInvalidCreatorAddress verifies that RegisterKeys fails with ErrInvalidCreatorAddres
+// TestUserInvalidCreatorAddress verifies that RegisterKeys fails with ErrInvalidCreatorAddres
 // when the creator field is not a valid bech32 address.
-func TestInvalidCreatorAddress(t *testing.T) {
+func TestUserInvalidCreatorAddress(t *testing.T) {
 
-	priv := secp256k1.GenPrivKey()
-
-	pub := priv.PubKey()
+	cosmosAddr, minaAddr, err := generateAddress()
+	require.NoError(t, err)
 
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	_, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         "creator",
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: pub.Bytes(),
-		MinaPublicKey:   MinaPubKey,
+		CosmosAddress:   cosmosAddr.Bytes(),
+		MinaAddress:     minaAddr,
+		IsUser:          true,
 	})
 	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
 }
 
-// TestInvalidSigner verifies that RegisterKeys fails with ErrInvalidSigner
+// TestUserInvalidSigner verifies that RegisterKeys fails with ErrInvalidSigner
 // when the creator address does not match the address derived from the provided cosmos public key.
-func TestInvalidSigner(t *testing.T) {
+func TestUserInvalidSigner(t *testing.T) {
 
-	priv := secp256k1.GenPrivKey()
-
-	pub := priv.PubKey()
+	cosmosAddr, minaAddr, err := generateAddress()
+	require.NoError(t, err)
 
 	secondaryPriv := secp256k1.GenPrivKey()
 
@@ -104,12 +119,13 @@ func TestInvalidSigner(t *testing.T) {
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	_, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         addr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: pub.Bytes(),
-		MinaPublicKey:   MinaPubKey,
+		CosmosAddress:   cosmosAddr.Bytes(),
+		MinaAddress:     minaAddr,
+		IsUser:          true,
 	})
 
 	require.ErrorIs(t, err, types.ErrInvalidSigner)
@@ -117,64 +133,62 @@ func TestInvalidSigner(t *testing.T) {
 }
 
 // TODO: Update require.NoError to require.ErrorIs once the VerifyCosmosSig and VerifyMinaSig is implemented
-// TestInvalidSignature currently expects no error since signature verification is not yet implemented.
-func TestInvalidSignature(t *testing.T) {
+// TestUserInvalidSignature currently expects no error since signature verification is not yet implemented.
+func TestUserInvalidSignature(t *testing.T) {
 
-	priv := secp256k1.GenPrivKey()
+	cosmosAddr, minaAddr, err := generateAddress()
 
-	pub := priv.PubKey()
-
-	addr := sdk.AccAddress(pub.Address())
+	require.NoError(t, err)
 
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	invalidSig := "cosmosSig"
 
-	_, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         addr.String(),
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         cosmosAddr.String(),
 		CosmosSignature: invalidSig,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: pub.Bytes(),
-		MinaPublicKey:   MinaPubKey,
+		CosmosAddress:   cosmosAddr.Bytes(),
+		MinaAddress:     minaAddr,
+		IsUser:          true,
 	})
 
 	require.NoError(t, err)
 
 }
 
-// TestInsertSecondaryKeysFail verifies that registering the same key pair twice
+// TestUserInsertSecondaryKeysFail verifies that registering the same key pair twice
 // fails with ErrSecondaryKeyExists on the second attempt.
-func TestInsertSecondaryKeysFail(t *testing.T) {
+func TestUserInsertSecondaryKeysFail(t *testing.T) {
 	f := initFixture(t)
 
-	priv := secp256k1.GenPrivKey()
-
-	pub := priv.PubKey()
-
-	addr := sdk.AccAddress(pub.Address())
+	cosmosAddr, minaAddr, err := generateAddress()
+	require.NoError(t, err)
 
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	// First registration should succeed.
 	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         addr.String(),
+		Creator:         cosmosAddr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: pub.Bytes(),
-		MinaPublicKey:   MinaPubKey,
+		CosmosAddress:   cosmosAddr.Bytes(),
+		MinaAddress:     minaAddr,
+		IsUser:          true,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	// Second registration with the same keys should fail.
 	resp, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         addr.String(),
+		Creator:         cosmosAddr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: pub.Bytes(),
-		MinaPublicKey:   MinaPubKey,
+		CosmosAddress:   cosmosAddr.Bytes(),
+		MinaAddress:     minaAddr,
+		IsUser:          true,
 	})
 
-	require.ErrorIs(t, err, types.ErrSecondaryKeyExists)
+	require.ErrorIs(t, err, types.ErrUserSecondaryKeyExists)
 }
