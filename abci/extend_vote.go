@@ -23,6 +23,10 @@ func MockSign(voteExtBody VoteExtensionBody) []byte {
 	return []byte{}
 }
 
+func MockSignatureVerify(voteExtBody VoteExtensionBody, minaKey []byte, reducedRoot string) bool {
+	return true
+}
+
 func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]validatorInfo, error) {
 
 	historicalData, err := h.stakingKeeper.GetHistoricalInfo(ctx, currentBlockHeight)
