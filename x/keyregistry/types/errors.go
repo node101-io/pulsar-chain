@@ -15,4 +15,6 @@ var (
 	ErrInvalidCreatorAddres        = errors.Register(ModuleName, 1104, "invalid creator address")
 	ErrInvalidPublicKey            = errors.Register(ModuleName, 1105, "invalid public key")
 	ErrInvalidAddress              = errors.Register(ModuleName, 1106, "invalid address")
+	ErrUserNotRegistered           = errors.Register(ModuleName, 1107, "user has not been registered")
+	ErrValidatorNotRegistered      = errors.Register(ModuleName, 1108, "validator has not been registered")
 )

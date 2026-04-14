@@ -62,6 +62,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:          "Send a registerKeys tx",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "cosmos_signature"}, {ProtoField: "mina_signature"}, {ProtoField: "cosmos_address"}, {ProtoField: "mina_address", Varargs: true}},
 				},
+				{
+					RpcMethod:      "UpdateKeys",
+					Use:            "update-keys ",
+					Short:          "Send a UpdateKeys tx",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
+				},
 				// this line is used by ignite scaffolding # autocli/tx
 			},
 		},

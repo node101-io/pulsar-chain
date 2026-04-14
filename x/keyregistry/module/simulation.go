@@ -44,6 +44,21 @@ func (am AppModule) WeightedOperations(simState module.SimulationState) []simtyp
 		weightMsgRegisterKeys,
 		keyregistrysimulation.SimulateMsgRegisterKeys(am.authKeeper, am.bankKeeper, am.keeper, simState.TxConfig),
 	))
+	const (
+		opWeightMsgUpdateKeys          = "op_weight_msg_keyregistry"
+		defaultWeightMsgUpdateKeys int = 100
+	)
+
+	var weightMsgUpdateKeys int
+	simState.AppParams.GetOrGenerate(opWeightMsgUpdateKeys, &weightMsgUpdateKeys, nil,
+		func(_ *rand.Rand) {
+			weightMsgUpdateKeys = defaultWeightMsgUpdateKeys
+		},
+	)
+	operations = append(operations, simulation.NewWeightedOperation(
+		weightMsgUpdateKeys,
+		keyregistrysimulation.SimulateMsgUpdateKeys(am.authKeeper, am.bankKeeper, am.keeper, simState.TxConfig),
+	))
 
 	return operations
 }
