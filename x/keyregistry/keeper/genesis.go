@@ -81,7 +81,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		userCosmosIterator.Next()
 	}
 
-	// Iterate over inaToCosmos map and collect any key pairs that are not
+	// Iterate over MinaToCosmos map and collect any key pairs that are not
 	// already present in the CosmosToMina map. Although both maps are expected
 	// to be in sync, this ensures no key pairs are lost in case of any inconsistency
 	// between the two maps during export.

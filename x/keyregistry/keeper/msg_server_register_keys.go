@@ -15,7 +15,7 @@ func VerifyUserMinaSig(sig string, msg, minaAddress []byte) bool {
 }
 
 // TODO: Implement Cosmos signature verification for users
-func VerifyUserCosmosSig(sig string, msg, mosmosAddress []byte) bool {
+func VerifyUserCosmosSig(sig string, msg, cosmosAddress []byte) bool {
 	return true
 }
 
@@ -62,9 +62,10 @@ func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys)
 
 	var err error
 
-	if msg.IsUser {
+	switch msg.ActorType {
+	case types.ActorType_USER:
 		err = k.handleUserRegistration(ctx, msg)
-	} else {
+	case types.ActorType_VALIDATOR:
 		err = k.handleValidatorRegistration(ctx, msg)
 	}
 	if err != nil {

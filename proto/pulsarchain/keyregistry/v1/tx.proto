@@ -55,7 +55,7 @@ message MsgRegisterKeys {
   string mina_signature = 3;
   bytes cosmos_address = 4;
   bytes mina_address = 5;
-  bool is_user = 6;
+  ActorType actor_type = 6;
 }
 
 // MsgRegisterKeysResponse defines the MsgRegisterKeysResponse message.
@@ -69,7 +69,7 @@ message MsgUpdateKeys {
   bytes new_mina_public_key = 3;
   bytes cosmos_signature = 4;
   bytes new_mina_signature = 5;
-  KeyUpdateType update_type = 6;
+  ActorType actor_type = 6;
 }
 
 // MsgUpdateKeysResponse defines the MsgUpdateKeysResponse message.

@@ -46,7 +46,7 @@ func TestUserRegisterKeysFail(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   CosmosPubKey,
 		MinaAddress:     MinaPubKey,
-		IsUser:          true,
+		ActorType:       types.ActorType_USER,
 	})
 	require.ErrorIs(t, err, types.ErrInvalidAddress)
 }
@@ -67,7 +67,7 @@ func TestUserRegisterKeysSuccess(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosAddr.Bytes(),
 		MinaAddress:     minaAddr,
-		IsUser:          true,
+		ActorType:       types.ActorType_USER,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -98,7 +98,7 @@ func TestUserInvalidCreatorAddress(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosAddr.Bytes(),
 		MinaAddress:     minaAddr,
-		IsUser:          true,
+		ActorType:       types.ActorType_USER,
 	})
 	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
 }
@@ -125,7 +125,7 @@ func TestUserInvalidSigner(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosAddr.Bytes(),
 		MinaAddress:     minaAddr,
-		IsUser:          true,
+		ActorType:       types.ActorType_USER,
 	})
 
 	require.ErrorIs(t, err, types.ErrInvalidSigner)
@@ -151,7 +151,7 @@ func TestUserInvalidSignature(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosAddr.Bytes(),
 		MinaAddress:     minaAddr,
-		IsUser:          true,
+		ActorType:       types.ActorType_USER,
 	})
 
 	require.NoError(t, err)
@@ -175,7 +175,7 @@ func TestUserInsertSecondaryKeysFail(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosAddr.Bytes(),
 		MinaAddress:     minaAddr,
-		IsUser:          true,
+		ActorType:       types.ActorType_USER,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -187,7 +187,7 @@ func TestUserInsertSecondaryKeysFail(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosAddr.Bytes(),
 		MinaAddress:     minaAddr,
-		IsUser:          true,
+		ActorType:       types.ActorType_USER,
 	})
 
 	require.ErrorIs(t, err, types.ErrUserSecondaryKeyExists)

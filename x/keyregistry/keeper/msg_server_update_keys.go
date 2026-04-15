@@ -12,7 +12,7 @@ func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*t
 		return nil, errorsmod.Wrap(err, "invalid authority address")
 	}
 
-	if msg.UpdateType == types.KeyUpdateType_USER {
+	if msg.ActorType == types.ActorType_USER {
 
 		exists, err := k.UserCosmosToMinaHas(ctx, []byte(msg.Creator))
 		if err != nil {
@@ -27,6 +27,10 @@ func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*t
 		}
 		if !exists {
 			return nil, types.ErrUserNotRegistered
+		}
+
+		if !VerifyUserCosmosSig(string(msg.CosmosSignature), msg.NewMinaPublicKey, []byte(msg.Creator)) {
+			return nil, types.ErrInvalidSignature
 		}
 
 		if !VerifyUserMinaSig(string(msg.NewMinaSignature), []byte(msg.Creator), msg.NewMinaPublicKey) {
@@ -52,7 +56,7 @@ func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*t
 		}
 	}
 
-	if msg.UpdateType == types.KeyUpdateType_VALIDATOR {
+	if msg.ActorType == types.ActorType_VALIDATOR {
 
 		exists, err := k.ValidatorCosmosToMinaHas(ctx, []byte(msg.Creator))
 		if err != nil {
@@ -68,6 +72,10 @@ func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*t
 		}
 		if !exists {
 			return nil, types.ErrValidatorNotRegistered
+		}
+
+		if !VerifyUserCosmosSig(string(msg.CosmosSignature), msg.NewMinaPublicKey, []byte(msg.Creator)) {
+			return nil, types.ErrInvalidSignature
 		}
 
 		if !VerifyValidatorMinaSig(string(msg.NewMinaSignature), []byte(msg.Creator), msg.NewMinaPublicKey) {

@@ -38,7 +38,7 @@ func TestValidatorRegisterKeysFail(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   CosmosPubKey,
 		MinaAddress:     MinaPubKey,
-		IsUser:          false,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
 }
@@ -61,7 +61,7 @@ func TestValidatorRegisterKeysSuccess(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosPubKey.Bytes(),
 		MinaAddress:     minaPubKey,
-		IsUser:          false,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -91,7 +91,7 @@ func TestValidatorInvalidCreatorAddress(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosPubKey.Bytes(),
 		MinaAddress:     minaPubKey,
-		IsUser:          false,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
 }
@@ -118,7 +118,7 @@ func TestValidatorInvalidSigner(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosPubKey.Bytes(),
 		MinaAddress:     minaPubKey,
-		IsUser:          false,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
 
 	require.ErrorIs(t, err, types.ErrInvalidSigner)
@@ -144,7 +144,7 @@ func TestValidatorInvalidSignature(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosPubKey.Bytes(),
 		MinaAddress:     minaPubKey,
-		IsUser:          false,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
 
 	require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestValidatorInsertSecondaryKeysFail(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosPubKey.Bytes(),
 		MinaAddress:     minaPubKey,
-		IsUser:          false,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -182,7 +182,7 @@ func TestValidatorInsertSecondaryKeysFail(t *testing.T) {
 		MinaSignature:   mockMinaSignature,
 		CosmosAddress:   cosmosPubKey.Bytes(),
 		MinaAddress:     minaPubKey,
-		IsUser:          false,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
 
 	require.ErrorIs(t, err, types.ErrValidatorSecondaryKeyExists)
