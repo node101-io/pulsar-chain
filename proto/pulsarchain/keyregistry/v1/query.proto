@@ -18,13 +18,13 @@ service Query {
   }
 
   // GetUserMinaAddress Queries a list of GetUserMinaAddress items.
-  rpc GetUserMinaAddress(QueryGetUserMinaAddressRequest) returns (QueryGetUserMinaAddressResponse) {
-    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_mina_address/{user_cosmos_address}";
+  rpc GetUserMinaPublicKey(QueryGetUserMinaPublicKeyRequest) returns (QueryGetUserMinaPublicKeyResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_mina_public_key/{user_cosmos_public_key}";
   }
 
   // GetUserCosmosAddress Queries a list of GetUserCosmosAddress items.
-  rpc GetUserCosmosAddress(QueryGetUserCosmosAddressRequest) returns (QueryGetUserCosmosAddressResponse) {
-    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_cosmos_address/{user_mina_address}";
+  rpc GetUserCosmosPublicKey(QueryGetUserCosmosPublicKeyRequest) returns (QueryGetUserCosmosPublicKeyResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_user_cosmos_public_key/{user_mina_public_key}";
   }
 
   // GetValidatorMinaAddress Queries a list of GetValidatorMinaAddress items.
@@ -51,23 +51,23 @@ message QueryParamsResponse {
 }
 
 // QueryGetUserMinaAddressRequest defines the QueryGetUserMinaAddressRequest message.
-message QueryGetUserMinaAddressRequest {
-  bytes user_cosmos_address = 1;
+message QueryGetUserMinaPublicKeyRequest {
+  bytes user_cosmos_public_key = 1;
 }
 
 // QueryGetUserMinaAddressResponse defines the QueryGetUserMinaAddressResponse message.
-message QueryGetUserMinaAddressResponse {
-  bytes user_mina_address = 1;
+message QueryGetUserMinaPublicKeyResponse {
+  bytes user_mina_public_key = 1;
 }
 
 // QueryGetUserCosmosAddressRequest defines the QueryGetUserCosmosAddressRequest message.
-message QueryGetUserCosmosAddressRequest {
-  bytes user_mina_address = 1;
+message QueryGetUserCosmosPublicKeyRequest {
+  bytes user_mina_public_key = 1;
 }
 
 // QueryGetUserCosmosAddressResponse defines the QueryGetUserCosmosAddressResponse message.
-message QueryGetUserCosmosAddressResponse {
-  bytes user_cosmos_address = 1;
+message QueryGetUserCosmosPublicKeyResponse {
+  bytes user_cosmos_public_key = 1;
 }
 
 // QueryGetValidatorMinaAddressRequest defines the QueryGetValidatorMinaAddressRequest message.

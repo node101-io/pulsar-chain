@@ -22,7 +22,7 @@ func TestUserCosmosMapInvalidArgumentFail(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	_, err := qs.GetUserCosmosAddress(f.ctx, nil)
+	_, err := qs.GetUserCosmosPublicKey(f.ctx, nil)
 	require.Error(t, err)
 
 	st, _ := status.FromError(err)
@@ -51,14 +51,14 @@ func TestUserCosmosMapSuccess(t *testing.T) {
 	err = f.keeper.UserSetCosmosToMina(f.ctx, cosmosPubKey.Bytes(), minaPubKey)
 	require.NoError(t, err)
 
-	resp, err := qs.GetUserMinaAddress(f.ctx, &types.QueryGetUserMinaAddressRequest{
-		UserCosmosAddress: cosmosPubKey.Bytes(),
+	resp, err := qs.GetUserMinaPublicKey(f.ctx, &types.QueryGetUserMinaPublicKeyRequest{
+		UserCosmosPublicKey: cosmosPubKey.Bytes(),
 	})
 
 	require.NotNil(t, resp)
 	require.NoError(t, err)
 
-	require.Equal(t, resp.UserMinaAddress, []byte(minaPubKey))
+	require.Equal(t, resp.UserMinaPublicKey, []byte(minaPubKey))
 }
 
 // TestUserMinaMapSuccess verifies that a cosmos public key can be retrieved
@@ -83,14 +83,14 @@ func TestUserMinaMapSuccess(t *testing.T) {
 	err = f.keeper.UserSetMinaToCosmos(f.ctx, minaPubKey, cosmosPubKey.Bytes())
 	require.NoError(t, err)
 
-	resp, err := qs.GetUserCosmosAddress(f.ctx, &types.QueryGetUserCosmosAddressRequest{
-		UserMinaAddress: minaPubKey,
+	resp, err := qs.GetUserCosmosPublicKey(f.ctx, &types.QueryGetUserCosmosPublicKeyRequest{
+		UserMinaPublicKey: minaPubKey,
 	})
 
 	require.NotNil(t, resp)
 	require.NoError(t, err)
 
-	require.Equal(t, resp.UserCosmosAddress, cosmosPubKey.Bytes())
+	require.Equal(t, resp.UserCosmosPublicKey, cosmosPubKey.Bytes())
 }
 
 // TestUserMinaMapInvalidArgumentFail verifies that GetMinaPubKey returns
@@ -102,7 +102,7 @@ func TestUserMinaMapInvalidArgumentFail(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	_, err := qs.GetUserMinaAddress(f.ctx, nil)
+	_, err := qs.GetUserMinaPublicKey(f.ctx, nil)
 	require.Error(t, err)
 
 	st, _ := status.FromError(err)
@@ -123,8 +123,8 @@ func TestUserCosmosMapPubkeyNotFound(t *testing.T) {
 		panic(err)
 	}
 
-	_, err = qs.GetUserCosmosAddress(f.ctx, &types.QueryGetUserCosmosAddressRequest{
-		UserMinaAddress: pub,
+	_, err = qs.GetUserCosmosPublicKey(f.ctx, &types.QueryGetUserCosmosPublicKeyRequest{
+		UserMinaPublicKey: pub,
 	})
 
 	st, _ := status.FromError(err)
@@ -144,8 +144,8 @@ func TestUserMinaMapPubkeyNotFound(t *testing.T) {
 
 	pub := priv.PubKey()
 
-	_, err := qs.GetUserMinaAddress(f.ctx, &types.QueryGetUserMinaAddressRequest{
-		UserCosmosAddress: pub.Bytes(),
+	_, err := qs.GetUserMinaPublicKey(f.ctx, &types.QueryGetUserMinaPublicKeyRequest{
+		UserCosmosPublicKey: pub.Bytes(),
 	})
 
 	st, _ := status.FromError(err)
