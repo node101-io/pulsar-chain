@@ -18,17 +18,17 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Shows the parameters of the module",
 				},
 				{
-					RpcMethod:      "GetUserMinaAddress",
-					Use:            "get-user-mina-address [user-cosmos-address]",
-					Short:          "Query GetUserMinaAddress",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_cosmos_address", Varargs: true}},
+					RpcMethod:      "GetUserMinaPublicKey",
+					Use:            "get-user-mina-public-key [user-cosmos-public-key]",
+					Short:          "Query GetUserMinaPublicKey",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_cosmos_public_key", Varargs: true}},
 				},
 
 				{
-					RpcMethod:      "GetUserCosmosAddress",
-					Use:            "get-user-cosmos-address [user-mina-address]",
-					Short:          "Query GetUserCosmosAddress",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_mina_address", Varargs: true}},
+					RpcMethod:      "GetUserCosmosPublicKey",
+					Use:            "get-user-cosmos-public-key [user-mina-public-key]",
+					Short:          "Query GetUserCosmosPublicKey",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "user_mina_public_key", Varargs: true}},
 				},
 
 				{
@@ -60,7 +60,7 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod:      "RegisterKeys",
 					Use:            "register-keys [cosmos-signature] [mina-signature] [cosmos-public-key] [mina-public-key]",
 					Short:          "Send a registerKeys tx",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "cosmos_signature"}, {ProtoField: "mina_signature"}, {ProtoField: "cosmos_address"}, {ProtoField: "mina_address", Varargs: true}},
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "cosmos_signature"}, {ProtoField: "mina_signature"}, {ProtoField: "cosmos_public_key"}, {ProtoField: "mina_public_key", Varargs: true}},
 				},
 				{
 					RpcMethod:      "UpdateKeys",

@@ -53,8 +53,8 @@ message MsgRegisterKeys {
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   string cosmos_signature = 2;
   string mina_signature = 3;
-  bytes cosmos_address = 4;
-  bytes mina_address = 5;
+  bytes cosmos_public_key = 4;
+  bytes mina_public_key = 5;
   ActorType actor_type = 6;
 }
 

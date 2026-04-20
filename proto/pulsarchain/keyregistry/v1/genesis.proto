@@ -3,7 +3,6 @@ package pulsarchain.keyregistry.v1;
 
 import "amino/amino.proto";
 import "gogoproto/gogo.proto";
-import "pulsarchain/keyregistry/v1/address_pair.proto";
 import "pulsarchain/keyregistry/v1/params.proto";
 import "pulsarchain/keyregistry/v1/public_key_pair.proto";
 
@@ -16,6 +15,6 @@ message GenesisState {
     (gogoproto.nullable) = false,
     (amino.dont_omitempty) = true
   ];
-  repeated AddressPair user_key_pairs = 2;
+  repeated PublicKeyPair user_key_pairs = 2;
   repeated PublicKeyPair validator_key_pairs = 3;
 }

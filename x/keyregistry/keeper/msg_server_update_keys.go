@@ -39,15 +39,15 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 		return types.ErrUserNotRegistered
 	}
 
-	cosmosAddress, err := k.UserGetMinaToCosmos(ctx, msg.PrevMinaPublicKey)
+	cosmosPublicKey, err := k.UserGetMinaToCosmos(ctx, msg.PrevMinaPublicKey)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(creatorAddress, cosmosAddress) {
+	if !bytes.Equal(creatorAddress, cosmosPublicKey) {
 		return errorsmod.Wrap(types.ErrInvalidSigner, "")
 	}
 
-	exists, err = k.UserCosmosToMinaHas(ctx, cosmosAddress)
+	exists, err = k.UserCosmosToMinaHas(ctx, cosmosPublicKey)
 	if err != nil {
 		return err
 	}
@@ -55,11 +55,11 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 		return types.ErrUserNotRegistered
 	}
 
-	currentMinaAddress, err := k.UserGetCosmosToMina(ctx, cosmosAddress)
+	currentMinaPublicKey, err := k.UserGetCosmosToMina(ctx, cosmosPublicKey)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(currentMinaAddress, msg.PrevMinaPublicKey) {
+	if !bytes.Equal(currentMinaPublicKey, msg.PrevMinaPublicKey) {
 		return types.ErrUserNotRegistered
 	}
 
@@ -71,10 +71,10 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 		return types.ErrUserSecondaryKeyExists
 	}
 
-	if !VerifyUserCosmosSig(string(msg.CosmosSignature), msg.NewMinaPublicKey, cosmosAddress) {
+	if !VerifyUserCosmosSig(string(msg.CosmosSignature), msg.NewMinaPublicKey, cosmosPublicKey) {
 		return types.ErrInvalidSignature
 	}
-	if !VerifyUserMinaSig(string(msg.NewMinaSignature), cosmosAddress, msg.NewMinaPublicKey) {
+	if !VerifyUserMinaSig(string(msg.NewMinaSignature), cosmosPublicKey, msg.NewMinaPublicKey) {
 		return types.ErrInvalidSignature
 	}
 
@@ -82,12 +82,12 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 	if err != nil {
 		return err
 	}
-	err = k.userCosmosToMina.Set(ctx, cosmosAddress, msg.NewMinaPublicKey)
+	err = k.userCosmosToMina.Set(ctx, cosmosPublicKey, msg.NewMinaPublicKey)
 	if err != nil {
 		return err
 	}
 
-	return k.userMinaToCosmos.Set(ctx, msg.NewMinaPublicKey, cosmosAddress)
+	return k.userMinaToCosmos.Set(ctx, msg.NewMinaPublicKey, cosmosPublicKey)
 }
 
 func (k msgServer) updateValidatorKeys(ctx context.Context, msg *types.MsgUpdateKeys) error {

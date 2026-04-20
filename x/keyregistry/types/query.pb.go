@@ -114,7 +114,7 @@ func (m *QueryParamsResponse) GetParams() Params {
 	return Params{}
 }
 
-// QueryGetUserMinaAddressRequest defines the QueryGetUserMinaAddressRequest message.
+// QueryGetUserMinaPublicKeyRequest defines the QueryGetUserMinaPublicKeyRequest message.
 type QueryGetUserMinaPublicKeyRequest struct {
 	UserCosmosPublicKey []byte `protobuf:"bytes,1,opt,name=user_cosmos_public_key,json=userCosmosPublicKey,proto3" json:"user_cosmos_public_key,omitempty"`
 }
@@ -159,7 +159,7 @@ func (m *QueryGetUserMinaPublicKeyRequest) GetUserCosmosPublicKey() []byte {
 	return nil
 }
 
-// QueryGetUserMinaAddressResponse defines the QueryGetUserMinaAddressResponse message.
+// QueryGetUserMinaPublicKeyResponse defines the QueryGetUserMinaPublicKeyResponse message.
 type QueryGetUserMinaPublicKeyResponse struct {
 	UserMinaPublicKey []byte `protobuf:"bytes,1,opt,name=user_mina_public_key,json=userMinaPublicKey,proto3" json:"user_mina_public_key,omitempty"`
 }
@@ -204,7 +204,7 @@ func (m *QueryGetUserMinaPublicKeyResponse) GetUserMinaPublicKey() []byte {
 	return nil
 }
 
-// QueryGetUserCosmosAddressRequest defines the QueryGetUserCosmosAddressRequest message.
+// QueryGetUserCosmosPublicKeyRequest defines the QueryGetUserCosmosPublicKeyRequest message.
 type QueryGetUserCosmosPublicKeyRequest struct {
 	UserMinaPublicKey []byte `protobuf:"bytes,1,opt,name=user_mina_public_key,json=userMinaPublicKey,proto3" json:"user_mina_public_key,omitempty"`
 }
@@ -249,7 +249,7 @@ func (m *QueryGetUserCosmosPublicKeyRequest) GetUserMinaPublicKey() []byte {
 	return nil
 }
 
-// QueryGetUserCosmosAddressResponse defines the QueryGetUserCosmosAddressResponse message.
+// QueryGetUserCosmosPublicKeyResponse defines the QueryGetUserCosmosPublicKeyResponse message.
 type QueryGetUserCosmosPublicKeyResponse struct {
 	UserCosmosPublicKey []byte `protobuf:"bytes,1,opt,name=user_cosmos_public_key,json=userCosmosPublicKey,proto3" json:"user_cosmos_public_key,omitempty"`
 }
@@ -294,7 +294,7 @@ func (m *QueryGetUserCosmosPublicKeyResponse) GetUserCosmosPublicKey() []byte {
 	return nil
 }
 
-// QueryGetValidatorMinaAddressRequest defines the QueryGetValidatorMinaAddressRequest message.
+// QueryGetValidatorMinaPubKeyRequest defines the QueryGetValidatorMinaPubKeyRequest message.
 type QueryGetValidatorMinaPubKeyRequest struct {
 	ValidatorCosmosPubKey []byte `protobuf:"bytes,1,opt,name=validator_cosmos_pub_key,json=validatorCosmosPubKey,proto3" json:"validator_cosmos_pub_key,omitempty"`
 }
@@ -339,7 +339,7 @@ func (m *QueryGetValidatorMinaPubKeyRequest) GetValidatorCosmosPubKey() []byte {
 	return nil
 }
 
-// QueryGetValidatorMinaAddressResponse defines the QueryGetValidatorMinaAddressResponse message.
+// QueryGetValidatorMinaPubKeyResponse defines the QueryGetValidatorMinaPubKeyResponse message.
 type QueryGetValidatorMinaPubKeyResponse struct {
 	ValidatorMinaPubKey []byte `protobuf:"bytes,1,opt,name=validator_mina_pub_key,json=validatorMinaPubKey,proto3" json:"validator_mina_pub_key,omitempty"`
 }
@@ -384,7 +384,7 @@ func (m *QueryGetValidatorMinaPubKeyResponse) GetValidatorMinaPubKey() []byte {
 	return nil
 }
 
-// QueryGetValidatorCosmosAddressRequest defines the QueryGetValidatorCosmosAddressRequest message.
+// QueryGetValidatorCosmosPubKeyRequest defines the QueryGetValidatorCosmosPubKeyRequest message.
 type QueryGetValidatorCosmosPubKeyRequest struct {
 	ValidatorMinaPubKey []byte `protobuf:"bytes,1,opt,name=validator_mina_pub_key,json=validatorMinaPubKey,proto3" json:"validator_mina_pub_key,omitempty"`
 }
@@ -429,7 +429,7 @@ func (m *QueryGetValidatorCosmosPubKeyRequest) GetValidatorMinaPubKey() []byte {
 	return nil
 }
 
-// QueryGetValidatorCosmosAddressResponse defines the QueryGetValidatorCosmosAddressResponse message.
+// QueryGetValidatorCosmosPubKeyResponse defines the QueryGetValidatorCosmosPubKeyResponse message.
 type QueryGetValidatorCosmosPubKeyResponse struct {
 	ValidatorCosmosPubKey []byte `protobuf:"bytes,1,opt,name=validator_cosmos_pub_key,json=validatorCosmosPubKey,proto3" json:"validator_cosmos_pub_key,omitempty"`
 }
@@ -550,13 +550,13 @@ const _ = grpc.SupportPackageIsVersion4
 type QueryClient interface {
 	// Parameters queries the parameters of the module.
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
-	// GetUserMinaAddress Queries a list of GetUserMinaAddress items.
+	// GetUserMinaPublicKey Queries a list of GetUserMinaPublicKey items.
 	GetUserMinaPublicKey(ctx context.Context, in *QueryGetUserMinaPublicKeyRequest, opts ...grpc.CallOption) (*QueryGetUserMinaPublicKeyResponse, error)
-	// GetUserCosmosAddress Queries a list of GetUserCosmosAddress items.
+	// GetUserCosmosPublicKey Queries a list of GetUserCosmosPublicKey items.
 	GetUserCosmosPublicKey(ctx context.Context, in *QueryGetUserCosmosPublicKeyRequest, opts ...grpc.CallOption) (*QueryGetUserCosmosPublicKeyResponse, error)
-	// GetValidatorMinaAddress Queries a list of GetValidatorMinaAddress items.
+	// GetValidatorMinaPubKey Queries a list of GetValidatorMinaPubKey items.
 	GetValidatorMinaPubKey(ctx context.Context, in *QueryGetValidatorMinaPubKeyRequest, opts ...grpc.CallOption) (*QueryGetValidatorMinaPubKeyResponse, error)
-	// GetValidatorCosmosAddress Queries a list of GetValidatorCosmosAddress items.
+	// GetValidatorCosmosPubKey Queries a list of GetValidatorCosmosPubKey items.
 	GetValidatorCosmosPubKey(ctx context.Context, in *QueryGetValidatorCosmosPubKeyRequest, opts ...grpc.CallOption) (*QueryGetValidatorCosmosPubKeyResponse, error)
 }
 
@@ -617,13 +617,13 @@ func (c *queryClient) GetValidatorCosmosPubKey(ctx context.Context, in *QueryGet
 type QueryServer interface {
 	// Parameters queries the parameters of the module.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
-	// GetUserMinaAddress Queries a list of GetUserMinaAddress items.
+	// GetUserMinaPublicKey Queries a list of GetUserMinaPublicKey items.
 	GetUserMinaPublicKey(context.Context, *QueryGetUserMinaPublicKeyRequest) (*QueryGetUserMinaPublicKeyResponse, error)
-	// GetUserCosmosAddress Queries a list of GetUserCosmosAddress items.
+	// GetUserCosmosPublicKey Queries a list of GetUserCosmosPublicKey items.
 	GetUserCosmosPublicKey(context.Context, *QueryGetUserCosmosPublicKeyRequest) (*QueryGetUserCosmosPublicKeyResponse, error)
-	// GetValidatorMinaAddress Queries a list of GetValidatorMinaAddress items.
+	// GetValidatorMinaPubKey Queries a list of GetValidatorMinaPubKey items.
 	GetValidatorMinaPubKey(context.Context, *QueryGetValidatorMinaPubKeyRequest) (*QueryGetValidatorMinaPubKeyResponse, error)
-	// GetValidatorCosmosAddress Queries a list of GetValidatorCosmosAddress items.
+	// GetValidatorCosmosPubKey Queries a list of GetValidatorCosmosPubKey items.
 	GetValidatorCosmosPubKey(context.Context, *QueryGetValidatorCosmosPubKeyRequest) (*QueryGetValidatorCosmosPubKeyResponse, error)
 }
 

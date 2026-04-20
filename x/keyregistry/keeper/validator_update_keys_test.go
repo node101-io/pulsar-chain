@@ -40,8 +40,8 @@ func registerValidatorKeysForUpdateTest(t *testing.T, f *fixture, ms types.MsgSe
 		Creator:         creator,
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosAddress:   cosmosPubKey,
-		MinaAddress:     minaPubKey,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.NoError(t, err)

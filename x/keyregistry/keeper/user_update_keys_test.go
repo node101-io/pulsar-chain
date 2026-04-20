@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/cometbft/cometbft/crypto/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
@@ -13,21 +12,24 @@ import (
 )
 
 func generateUserAddressPair() (sdk.AccAddress, []byte, error) {
-	cosmosPrivKey := secp256k1.GenPrivKey()
-	cosmosAddr := sdk.AccAddress(cosmosPrivKey.PubKey().Address())
+	cosmosAddr := make(sdk.AccAddress, 32)
+	_, err := rand.Read(cosmosAddr)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	var minaSeed [32]byte
-	_, err := rand.Read(minaSeed[:])
+	_, err = rand.Read(minaSeed[:])
 	if err != nil {
 		return nil, nil, err
 	}
 
-	minaAddress, err := keys.NewPrivateKeyFromBytes(minaSeed).ToPublicKey().ToAddress()
+	minaPublicKey, err := keys.NewPrivateKeyFromBytes(minaSeed).ToPublicKey().Marshal()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return cosmosAddr, []byte(minaAddress), nil
+	return cosmosAddr, minaPublicKey, nil
 }
 
 func registerUserKeysForUpdateTest(t *testing.T, f *fixture, ms types.MsgServer) (sdk.AccAddress, []byte) {
@@ -40,8 +42,8 @@ func registerUserKeysForUpdateTest(t *testing.T, f *fixture, ms types.MsgServer)
 		Creator:         cosmosAddr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosAddress:   cosmosAddr.Bytes(),
-		MinaAddress:     minaAddr,
+		CosmosPublicKey: cosmosAddr.Bytes(),
+		MinaPublicKey:   minaAddr,
 		ActorType:       types.ActorType_USER,
 	})
 	require.NoError(t, err)

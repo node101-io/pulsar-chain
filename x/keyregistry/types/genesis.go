@@ -4,7 +4,7 @@ package types
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		Params:            DefaultParams(),
-		UserKeyPairs:      DefaultUserAddressPairs(),
+		UserKeyPairs:      DefaultPublicKeyPair(),
 		ValidatorKeyPairs: DefaultPublicKeyPair(),
 	}
 }
@@ -14,7 +14,7 @@ func DefaultGenesis() *GenesisState {
 func (gs GenesisState) Validate() error {
 
 	for _, keyPair := range gs.UserKeyPairs {
-		err := ValidateAddressPair(*keyPair)
+		err := ValidatePublicKeyPair(*keyPair)
 		if err != nil {
 			return err
 		}

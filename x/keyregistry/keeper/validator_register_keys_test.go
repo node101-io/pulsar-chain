@@ -19,9 +19,9 @@ func generateValidatorPublicKeys() (cryptotypes.PubKey, []byte, error) {
 
 	minaPrivKey := keys.NewPrivateKeyFromBytes([32]byte(MinaPriv))
 
-	minaAddress, err := minaPrivKey.ToPublicKey().Marshal()
+	MinaPublicKey, err := minaPrivKey.ToPublicKey().Marshal()
 
-	return cosmosPubKey, minaAddress, err
+	return cosmosPubKey, MinaPublicKey, err
 }
 
 // TestValidatorRegisterKeysFail verifies that RegisterKeys fails with ErrInvalidPublicKey
@@ -36,8 +36,8 @@ func TestValidatorRegisterKeysFail(t *testing.T) {
 		Creator:         creatorAddr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosAddress:   CosmosPubKey,
-		MinaAddress:     MinaPubKey,
+		CosmosPublicKey: CosmosPubKey,
+		MinaPublicKey:   MinaPubKey,
 		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
@@ -59,8 +59,8 @@ func TestValidatorRegisterKeysSuccess(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosAddress:   cosmosPubKey.Bytes(),
-		MinaAddress:     minaPubKey,
+		CosmosPublicKey: cosmosPubKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.NoError(t, err)
@@ -89,8 +89,8 @@ func TestValidatorInvalidCreatorAddress(t *testing.T) {
 		Creator:         "creator",
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosAddress:   cosmosPubKey.Bytes(),
-		MinaAddress:     minaPubKey,
+		CosmosPublicKey: cosmosPubKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
@@ -116,8 +116,8 @@ func TestValidatorInvalidSigner(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosAddress:   cosmosPubKey.Bytes(),
-		MinaAddress:     minaPubKey,
+		CosmosPublicKey: cosmosPubKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_VALIDATOR,
 	})
 
@@ -142,8 +142,8 @@ func TestValidatorInvalidSignature(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: invalidSig,
 		MinaSignature:   mockMinaSignature,
-		CosmosAddress:   cosmosPubKey.Bytes(),
-		MinaAddress:     minaPubKey,
+		CosmosPublicKey: cosmosPubKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_VALIDATOR,
 	})
 
@@ -168,8 +168,8 @@ func TestValidatorInsertSecondaryKeysFail(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosAddress:   cosmosPubKey.Bytes(),
-		MinaAddress:     minaPubKey,
+		CosmosPublicKey: cosmosPubKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.NoError(t, err)
@@ -180,8 +180,8 @@ func TestValidatorInsertSecondaryKeysFail(t *testing.T) {
 		Creator:         addr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
-		CosmosAddress:   cosmosPubKey.Bytes(),
-		MinaAddress:     minaPubKey,
+		CosmosPublicKey: cosmosPubKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_VALIDATOR,
 	})
 

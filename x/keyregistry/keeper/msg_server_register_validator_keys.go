@@ -17,14 +17,14 @@ func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.M
 	}
 
 	err = types.ValidatePublicKeyPair(types.PublicKeyPair{
-		MinaKey:   msg.MinaAddress,
-		CosmosKey: msg.CosmosAddress,
+		MinaKey:   msg.MinaPublicKey,
+		CosmosKey: msg.CosmosPublicKey,
 	})
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvalidPublicKey, "pubkeys must be valid")
 	}
 
-	derivedAddress := deriveAddressFromPubkey(msg.CosmosAddress, false)
+	derivedAddress := deriveAddressFromPubkey(msg.CosmosPublicKey, false)
 	if derivedAddress != msg.Creator {
 		return errorsmod.Wrap(types.ErrInvalidSigner, "creator does not match provided cosmos consensus public key")
 	}
@@ -33,11 +33,11 @@ func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.M
 }
 
 func (k msgServer) persistValidatorRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
-	cosmosKeyExists, err := k.Keeper.validatorCosmosToMina.Has(ctx, msg.CosmosAddress)
+	cosmosKeyExists, err := k.Keeper.validatorCosmosToMina.Has(ctx, msg.CosmosPublicKey)
 	if err != nil {
 		return err
 	}
-	minaKeyExists, err := k.Keeper.validatorMinaToCosmos.Has(ctx, msg.MinaAddress)
+	minaKeyExists, err := k.Keeper.validatorMinaToCosmos.Has(ctx, msg.MinaPublicKey)
 	if err != nil {
 		return err
 	}
@@ -45,17 +45,17 @@ func (k msgServer) persistValidatorRegistration(ctx context.Context, msg *types.
 		return errorsmod.Wrap(types.ErrValidatorSecondaryKeyExists, "")
 	}
 
-	minaSigValidity := VerifyValidatorMinaSig(msg.MinaSignature, msg.CosmosAddress, msg.MinaAddress)
-	cosmosSigValidity := VerifyValidatorCosmosSig(msg.CosmosSignature, msg.MinaAddress, msg.CosmosAddress)
+	minaSigValidity := VerifyValidatorMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey)
+	cosmosSigValidity := VerifyValidatorCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
 	if !minaSigValidity || !cosmosSigValidity {
 		return errorsmod.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
 	}
 
-	err = k.Keeper.validatorCosmosToMina.Set(ctx, msg.CosmosAddress, msg.MinaAddress)
+	err = k.Keeper.validatorCosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)
 	if err != nil {
 		return err
 	}
-	err = k.Keeper.validatorMinaToCosmos.Set(ctx, msg.MinaAddress, msg.CosmosAddress)
+	err = k.Keeper.validatorMinaToCosmos.Set(ctx, msg.MinaPublicKey, msg.CosmosPublicKey)
 	if err != nil {
 		return err
 	}
