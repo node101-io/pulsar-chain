@@ -1,16 +1,14 @@
 package keeper
 
 import (
-	"bytes"
 	"context"
 
 	errorsmod "cosmossdk.io/errors"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
 func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
-	creatorAddress, err := k.addressCodec.StringToBytes(msg.Creator)
+	_, err := k.addressCodec.StringToBytes(msg.Creator)
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
 	}
@@ -23,9 +21,9 @@ func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgReg
 		return errorsmod.Wrap(types.ErrInvalidPublicKey, "")
 	}
 
-	cosmosAddr := sdk.AccAddress(msg.CosmosPublicKey)
+	cosmosAddr := deriveAddressFromPubkey(msg.CosmosPublicKey)
 
-	if !bytes.Equal(creatorAddress, cosmosAddr.Bytes()) {
+	if msg.Creator != cosmosAddr {
 		return errorsmod.Wrap(types.ErrInvalidSigner, "")
 	}
 

@@ -4,19 +4,27 @@ import (
 	"bytes"
 	"context"
 
+	"cosmossdk.io/errors"
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
 func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*types.MsgUpdateKeysResponse, error) {
 	var err error
 
+	if len(msg.NewMinaPublicKey) != keys.PublicKeyTotalByteSize {
+		return nil, errors.Wrap(types.ErrInvalidPublicKey, "")
+	}
+
 	switch msg.ActorType {
 	case types.ActorType_USER:
 		err = k.updateUserKeys(ctx, msg)
 	case types.ActorType_VALIDATOR:
 		err = k.updateValidatorKeys(ctx, msg)
+	default:
+		return nil, types.ErrInvalidActorType
 	}
 	if err != nil {
 		return nil, err
@@ -26,7 +34,7 @@ func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*t
 }
 
 func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys) error {
-	creatorAddress, err := k.addressCodec.StringToBytes(msg.Creator)
+	_, err := k.addressCodec.StringToBytes(msg.Creator)
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
 	}
@@ -43,7 +51,10 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(creatorAddress, cosmosPublicKey) {
+
+	cosmosAddr := deriveAddressFromPubkey(cosmosPublicKey)
+
+	if msg.Creator != cosmosAddr {
 		return errorsmod.Wrap(types.ErrInvalidSigner, "")
 	}
 
@@ -91,7 +102,7 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 }
 
 func (k msgServer) updateValidatorKeys(ctx context.Context, msg *types.MsgUpdateKeys) error {
-	if _, err := sdk.ConsAddressFromBech32(msg.Creator); err != nil {
+	if _, err := sdk.AccAddressFromBech32(msg.Creator); err != nil {
 		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
 	}
 
@@ -107,7 +118,8 @@ func (k msgServer) updateValidatorKeys(ctx context.Context, msg *types.MsgUpdate
 	if err != nil {
 		return err
 	}
-	if deriveAddressFromPubkey(cosmosPublicKey, false) != msg.Creator {
+
+	if deriveAddressFromPubkey(cosmosPublicKey) != msg.Creator {
 		return errorsmod.Wrap(types.ErrInvalidSigner, "")
 	}
 

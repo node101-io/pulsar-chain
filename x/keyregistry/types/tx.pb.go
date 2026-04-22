@@ -206,7 +206,7 @@ func (m *MsgRegisterKeys) GetActorType() ActorType {
 	if m != nil {
 		return m.ActorType
 	}
-	return ActorType_USER
+	return ActorType_UNSPECIFIED
 }
 
 // MsgRegisterKeysResponse defines the MsgRegisterKeysResponse message.
@@ -328,7 +328,7 @@ func (m *MsgUpdateKeys) GetActorType() ActorType {
 	if m != nil {
 		return m.ActorType
 	}
-	return ActorType_USER
+	return ActorType_UNSPECIFIED
 }
 
 // MsgUpdateKeysResponse defines the MsgUpdateKeysResponse message.

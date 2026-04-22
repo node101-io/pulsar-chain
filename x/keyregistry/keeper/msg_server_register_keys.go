@@ -3,7 +3,6 @@ package keeper
 import (
 	"context"
 
-	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
@@ -30,16 +29,8 @@ func VerifyValidatorCosmosSig(sig string, msg, cosmosAddress []byte) bool {
 }
 
 // deriveAddressFromPubkey derives the expected signer address from the provided
-// key material. Users provide secp256k1 account public keys, while validators
-// provide consensus public keys.
-func deriveAddressFromPubkey(cosmosAddress []byte, isUser bool) string {
-	if !isUser {
-		pubKey := ed25519.PubKey{
-			Key: cosmosAddress,
-		}
-		validatorAddr := sdk.ConsAddress(pubKey.Address())
-		return validatorAddr.String()
-	}
+// key material.
+func deriveAddressFromPubkey(cosmosAddress []byte) string {
 
 	pubKey := secp256k1.PubKey{
 		Key: cosmosAddress,
@@ -67,6 +58,8 @@ func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys)
 		err = k.handleUserRegistration(ctx, msg)
 	case types.ActorType_VALIDATOR:
 		err = k.handleValidatorRegistration(ctx, msg)
+	default:
+		return nil, types.ErrInvalidActorType
 	}
 	if err != nil {
 		return nil, err

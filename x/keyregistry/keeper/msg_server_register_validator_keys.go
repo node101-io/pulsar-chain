@@ -9,9 +9,9 @@ import (
 )
 
 // handleValidatorRegistration encapsulates the validator registration flow
-// where the Cosmos-side key is the validator consensus public key.
+// where the Cosmos-side key is the validator public key.
 func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
-	_, err := sdk.ConsAddressFromBech32(msg.Creator)
+	_, err := sdk.AccAddressFromBech32(msg.Creator)
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
 	}
@@ -24,9 +24,10 @@ func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.M
 		return errorsmod.Wrap(types.ErrInvalidPublicKey, "pubkeys must be valid")
 	}
 
-	derivedAddress := deriveAddressFromPubkey(msg.CosmosPublicKey, false)
+	derivedAddress := deriveAddressFromPubkey(msg.CosmosPublicKey)
+
 	if derivedAddress != msg.Creator {
-		return errorsmod.Wrap(types.ErrInvalidSigner, "creator does not match provided cosmos consensus public key")
+		return errorsmod.Wrap(types.ErrInvalidSigner, "creator does not match provided cosmos public key")
 	}
 
 	return k.persistValidatorRegistration(ctx, msg)

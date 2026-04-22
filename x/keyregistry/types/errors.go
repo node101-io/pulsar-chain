@@ -16,4 +16,5 @@ var (
 	ErrInvalidPublicKey            = errors.Register(ModuleName, 1105, "invalid public key")
 	ErrUserNotRegistered           = errors.Register(ModuleName, 1106, "user has not been registered")
 	ErrValidatorNotRegistered      = errors.Register(ModuleName, 1107, "validator has not been registered")
+	ErrInvalidActorType            = errors.Register(ModuleName, 1108, "invalid actor type")
 )

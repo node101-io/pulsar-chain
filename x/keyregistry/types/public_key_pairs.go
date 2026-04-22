@@ -2,7 +2,7 @@ package types
 
 import (
 	"cosmossdk.io/errors"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+	"github.com/cometbft/cometbft/crypto/secp256k1"
 	"github.com/node101-io/mina-signer-go/keys"
 )
 
@@ -18,8 +18,9 @@ func DefaultPublicKeyPair() []*PublicKeyPair {
 }
 
 func ValidatePublicKeyPair(k PublicKeyPair) error {
-	if len(k.CosmosKey) != ed25519.PubKeySize {
-		return errors.Wrap(ErrInvalidPublicKey, "cosmos consensus public key must be ed25519 (32 bytes)")
+
+	if len(k.CosmosKey) != secp256k1.PubKeySize {
+		return errors.Wrap(ErrInvalidPublicKey, "cosmos public key must be secp256k1 (33 bytes)")
 	}
 
 	if len(k.MinaKey) != keys.PublicKeyTotalByteSize {
