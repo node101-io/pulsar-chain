@@ -56,22 +56,37 @@ func initFixture(t *testing.T) *fixture {
 	}
 }
 
-// Dummy public keys used in tests.
-var CosmosPubKey = []byte("cosmos")
-var MinaPubKey = []byte("mina")
-
 // TestCosmosToMina verifies that a cosmos public key can be stored in the
 // CosmosToMina map and correctly retrieved using the same cosmos public key.
 func TestUserCosmosToMina(t *testing.T) {
 	f := initFixture(t)
 
-	err := f.keeper.UserSetCosmosToMina(f.ctx, CosmosPubKey, MinaPubKey)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	cosmosPublicKey, minaPubKey, _, err := generateUserPublicKeys()
+	require.NoError(t, err)
+	require.NotNil(t, cosmosPublicKey)
+	require.NotNil(t, minaPubKey)
+
+	creatorAddr := sdk.AccAddress(cosmosPublicKey.Address())
+	require.NotNil(t, creatorAddr)
+
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creatorAddr.String(),
+		CosmosSignature: mockCosmosSignature,
+		MinaSignature:   mockMinaSignature,
+		CosmosPublicKey: cosmosPublicKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_USER,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	pubKey, err := f.keeper.UserGetCosmosToMina(f.ctx, cosmosPublicKey.Bytes())
 	require.NoError(t, err)
 
-	pubKey, err := f.keeper.UserGetCosmosToMina(f.ctx, CosmosPubKey)
-	require.NoError(t, err)
-
-	require.Equal(t, MinaPubKey, pubKey)
+	require.Equal(t, minaPubKey, pubKey)
 }
 
 // TestMinaToCosmos verifies that a mina public key can be stored in the
@@ -79,11 +94,30 @@ func TestUserCosmosToMina(t *testing.T) {
 func TestUserMinaToCosmos(t *testing.T) {
 	f := initFixture(t)
 
-	err := f.keeper.UserSetMinaToCosmos(f.ctx, MinaPubKey, CosmosPubKey)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	cosmosPublicKey, minaPubKey, _, err := generateUserPublicKeys()
+	require.NoError(t, err)
+	require.NotNil(t, cosmosPublicKey)
+	require.NotNil(t, minaPubKey)
+
+	creatorAddr := sdk.AccAddress(cosmosPublicKey.Address())
+	require.NotNil(t, creatorAddr)
+
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creatorAddr.String(),
+		CosmosSignature: mockCosmosSignature,
+		MinaSignature:   mockMinaSignature,
+		CosmosPublicKey: cosmosPublicKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_USER,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	pubKey, err := f.keeper.UserGetMinaToCosmos(f.ctx, minaPubKey)
 	require.NoError(t, err)
 
-	pubKey, err := f.keeper.UserGetMinaToCosmos(f.ctx, MinaPubKey)
-	require.NoError(t, err)
-
-	require.Equal(t, CosmosPubKey, pubKey)
+	require.Equal(t, cosmosPublicKey.Bytes(), pubKey)
 }

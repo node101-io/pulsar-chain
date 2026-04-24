@@ -76,16 +76,8 @@ func (k Keeper) GetAuthority() []byte {
 	return k.authority
 }
 
-func (k Keeper) UserSetCosmosToMina(ctx context.Context, cosmosAddress, minaAddress []byte) error {
-	return k.userCosmosToMina.Set(ctx, cosmosAddress, minaAddress)
-}
-
 func (k Keeper) UserGetCosmosToMina(ctx context.Context, cosmosAddress []byte) ([]byte, error) {
 	return k.userCosmosToMina.Get(ctx, cosmosAddress)
-}
-
-func (k Keeper) UserSetMinaToCosmos(ctx context.Context, minaAddress, cosmosAddress []byte) error {
-	return k.userMinaToCosmos.Set(ctx, minaAddress, cosmosAddress)
 }
 
 func (k Keeper) UserGetMinaToCosmos(ctx context.Context, minaAddress []byte) ([]byte, error) {
@@ -100,16 +92,8 @@ func (k Keeper) UserMinaToCosmosHas(ctx context.Context, minaAddress []byte) (bo
 	return k.userMinaToCosmos.Has(ctx, minaAddress)
 }
 
-func (k Keeper) ValidatorSetCosmosToMina(ctx context.Context, cosmosAddress, minaAddress []byte) error {
-	return k.validatorCosmosToMina.Set(ctx, cosmosAddress, minaAddress)
-}
-
 func (k Keeper) ValidatorGetCosmosToMina(ctx context.Context, cosmosAddress []byte) ([]byte, error) {
 	return k.validatorCosmosToMina.Get(ctx, cosmosAddress)
-}
-
-func (k Keeper) ValidatorSetMinaToCosmos(ctx context.Context, minaAddress, cosmosAddress []byte) error {
-	return k.validatorMinaToCosmos.Set(ctx, minaAddress, cosmosAddress)
 }
 
 func (k Keeper) ValidatorGetMinaToCosmos(ctx context.Context, minaAddress []byte) ([]byte, error) {

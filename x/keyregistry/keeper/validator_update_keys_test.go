@@ -108,9 +108,6 @@ func TestValidatorUpdateKeysMissingCosmosToMinaMapping(t *testing.T) {
 	require.NotNil(t, prevMinaPubKey)
 	require.NotNil(t, newMinaPubKey)
 
-	err = f.keeper.ValidatorSetMinaToCosmos(f.ctx, prevMinaPubKey, cosmosPublicKey.Bytes())
-	require.NoError(t, err)
-
 	creatorAddr := sdk.AccAddress(cosmosPublicKey.Address())
 	require.NotNil(t, creatorAddr)
 

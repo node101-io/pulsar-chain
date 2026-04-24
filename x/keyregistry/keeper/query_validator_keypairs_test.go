@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
@@ -37,18 +38,34 @@ func TestValidatorCosmosMapSuccess(t *testing.T) {
 
 	cosmosPubKey, minaPubKey, _, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
+	require.NotNil(t, cosmosPubKey)
+	require.NotNil(t, minaPubKey)
 
-	err = f.keeper.ValidatorSetCosmosToMina(f.ctx, cosmosPubKey.Bytes(), minaPubKey)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	creatorAddr := sdk.AccAddress(cosmosPubKey.Address())
+	require.NotNil(t, creatorAddr)
+
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creatorAddr.String(),
+		CosmosSignature: mockCosmosSignature,
+		MinaSignature:   mockMinaSignature,
+		CosmosPublicKey: cosmosPubKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_VALIDATOR,
+	})
+
 	require.NoError(t, err)
+	require.NotNil(t, resp)
 
-	resp, err := qs.GetValidatorMinaPubKey(f.ctx, &types.QueryGetValidatorMinaPubKeyRequest{
+	queryResp, err := qs.GetValidatorMinaPubKey(f.ctx, &types.QueryGetValidatorMinaPubKeyRequest{
 		ValidatorCosmosPubKey: cosmosPubKey.Bytes(),
 	})
 
-	require.NotNil(t, resp)
+	require.NotNil(t, queryResp)
 	require.NoError(t, err)
 
-	require.Equal(t, resp.ValidatorMinaPubKey, minaPubKey)
+	require.Equal(t, queryResp.ValidatorMinaPubKey, minaPubKey)
 }
 
 // TestValidatorMinaMapSuccess verifies that a cosmos public key can be retrieved
@@ -62,17 +79,33 @@ func TestValidatorMinaMapSuccess(t *testing.T) {
 
 	cosmosPubKey, minaPubKey, _, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
+	require.NotNil(t, cosmosPubKey)
+	require.NotNil(t, minaPubKey)
 
-	err = f.keeper.ValidatorSetMinaToCosmos(f.ctx, minaPubKey, cosmosPubKey.Bytes())
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	creatorAddr := sdk.AccAddress(cosmosPubKey.Address())
+	require.NotNil(t, creatorAddr)
+
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creatorAddr.String(),
+		CosmosSignature: mockCosmosSignature,
+		MinaSignature:   mockMinaSignature,
+		CosmosPublicKey: cosmosPubKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_VALIDATOR,
+	})
+
 	require.NoError(t, err)
+	require.NotNil(t, resp)
 
-	resp, err := qs.GetValidatorCosmosPubKey(f.ctx, &types.QueryGetValidatorCosmosPubKeyRequest{
+	queryResp, err := qs.GetValidatorCosmosPubKey(f.ctx, &types.QueryGetValidatorCosmosPubKeyRequest{
 		ValidatorMinaPubKey: minaPubKey,
 	})
-	require.NotNil(t, resp)
+	require.NotNil(t, queryResp)
 	require.NoError(t, err)
 
-	require.Equal(t, resp.ValidatorCosmosPubKey, cosmosPubKey.Bytes())
+	require.Equal(t, cosmosPubKey.Bytes(), queryResp.ValidatorCosmosPubKey)
 }
 
 // TestValidatorMinaMapInvalidArgumentFail verifies that GetMinaPubKey returns
@@ -127,7 +160,7 @@ func TestValidatorMinaMapPubkeyNotFound(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = qs.GetValidatorMinaPubKey(f.ctx, &types.QueryGetValidatorMinaPubKeyRequest{
-		ValidatorCosmosPubKey: CosmosPubKey,
+		ValidatorCosmosPubKey: cosmosPubKey.Bytes(),
 	})
 
 	st, _ := status.FromError(err)

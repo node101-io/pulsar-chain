@@ -18,6 +18,8 @@ import (
 // These will be replaced with real signatures once VerifyMinaSig and VerifyCosmosSig are implemented.
 var mockCosmosSignature = []byte("cosmosSig")
 var mockMinaSignature = []byte("minaSig")
+var CosmosPubKey = []byte("cosmos-public-key")
+var MinaPubKey = []byte("mina-public-key")
 
 var MinaPriv = []byte("7olA5Knafb5E2hJoWFzD+oamtyXIXXUZmYG9+pBMjTGIjqZTVLNGbE7DQ3Zq5YL5NMW31UMMMGgNCeEk+gyzRA==")
 

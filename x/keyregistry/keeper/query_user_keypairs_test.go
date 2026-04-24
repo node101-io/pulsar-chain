@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/cometbft/cometbft/crypto/secp256k1"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
@@ -38,27 +39,36 @@ func TestUserCosmosMapSuccess(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	cosmosPriv := secp256k1.GenPrivKey()
+	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	cosmosPubKey := cosmosPriv.PubKey()
-
-	minaPubKey, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
+	cosmosPublicKey, minaPubKey, _, err := generateUserPublicKeys()
 	require.NoError(t, err)
+	require.NotNil(t, cosmosPublicKey)
+	require.NotNil(t, minaPubKey)
 
-	err = f.keeper.UserSetCosmosToMina(f.ctx, cosmosPubKey.Bytes(), minaPubKey)
-	require.NoError(t, err)
+	creatorAddr := sdk.AccAddress(cosmosPublicKey.Address())
+	require.NotNil(t, creatorAddr)
 
-	resp, err := qs.GetUserMinaPublicKey(f.ctx, &types.QueryGetUserMinaPublicKeyRequest{
-		UserCosmosPublicKey: cosmosPubKey.Bytes(),
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creatorAddr.String(),
+		CosmosSignature: mockCosmosSignature,
+		MinaSignature:   mockMinaSignature,
+		CosmosPublicKey: cosmosPublicKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_USER,
 	})
 
+	require.NoError(t, err)
 	require.NotNil(t, resp)
+
+	queryResp, err := qs.GetUserMinaPublicKey(f.ctx, &types.QueryGetUserMinaPublicKeyRequest{
+		UserCosmosPublicKey: cosmosPublicKey.Bytes(),
+	})
+
+	require.NotNil(t, queryResp)
 	require.NoError(t, err)
 
-	require.Equal(t, resp.UserMinaPublicKey, []byte(minaPubKey))
+	require.Equal(t, minaPubKey, queryResp.UserMinaPublicKey)
 }
 
 // TestUserMinaMapSuccess verifies that a cosmos public key can be retrieved
@@ -70,27 +80,36 @@ func TestUserMinaMapSuccess(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	cosmosPriv := secp256k1.GenPrivKey()
+	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	cosmosPubKey := cosmosPriv.PubKey()
-
-	minaPubKey, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
+	cosmosPublicKey, minaPubKey, _, err := generateUserPublicKeys()
 	require.NoError(t, err)
+	require.NotNil(t, cosmosPublicKey)
+	require.NotNil(t, minaPubKey)
 
-	err = f.keeper.UserSetMinaToCosmos(f.ctx, minaPubKey, cosmosPubKey.Bytes())
+	creatorAddr := sdk.AccAddress(cosmosPublicKey.Address())
+	require.NotNil(t, creatorAddr)
+
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creatorAddr.String(),
+		CosmosSignature: mockCosmosSignature,
+		MinaSignature:   mockMinaSignature,
+		CosmosPublicKey: cosmosPublicKey.Bytes(),
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_USER,
+	})
+
 	require.NoError(t, err)
+	require.NotNil(t, resp)
 
-	resp, err := qs.GetUserCosmosPublicKey(f.ctx, &types.QueryGetUserCosmosPublicKeyRequest{
+	queryResp, err := qs.GetUserCosmosPublicKey(f.ctx, &types.QueryGetUserCosmosPublicKeyRequest{
 		UserMinaPublicKey: minaPubKey,
 	})
 
-	require.NotNil(t, resp)
+	require.NotNil(t, queryResp)
 	require.NoError(t, err)
 
-	require.Equal(t, resp.UserCosmosPublicKey, cosmosPubKey.Bytes())
+	require.Equal(t, cosmosPublicKey.Bytes(), queryResp.UserCosmosPublicKey)
 }
 
 // TestUserMinaMapInvalidArgumentFail verifies that GetMinaPubKey returns
