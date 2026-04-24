@@ -28,11 +28,11 @@ type Keeper struct {
 	Schema collections.Schema
 	Params collections.Item[types.Params]
 
-	userCosmosToMina collections.Map[[]byte, []byte] // Cosmos Address --> Mina Address
-	userMinaToCosmos collections.Map[[]byte, []byte] // Mina Address --> Cosmos Address
+	userCosmosToMina collections.Map[[]byte, []byte] // Cosmos Public Key --> Mina Public Key
+	userMinaToCosmos collections.Map[[]byte, []byte] // Mina Public Key --> CosmosPublic Key
 
-	validatorCosmosToMina collections.Map[[]byte, []byte] // Validator Cosmos Address --> Validator Mina Address
-	validatorMinaToCosmos collections.Map[[]byte, []byte] // Validator Mina Address --> Validator Cosmos Address
+	validatorCosmosToMina collections.Map[[]byte, []byte] // Validator Cosmos Public Key  --> Validator Mina Public Key
+	validatorMinaToCosmos collections.Map[[]byte, []byte] // Validator Mina Public Key  --> Validator Cosmos Public Key
 }
 
 func NewKeeper(

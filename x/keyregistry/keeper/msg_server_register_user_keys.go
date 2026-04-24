@@ -13,7 +13,7 @@ func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgReg
 		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
 	}
 
-	err = types.ValidatePublicKeyPair(types.PublicKeyPair{
+	err = types.ValidateUserPublicKeyPair(types.UserPublicKeyPair{
 		MinaKey:   msg.MinaPublicKey,
 		CosmosKey: msg.CosmosPublicKey,
 	})
@@ -21,7 +21,10 @@ func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgReg
 		return errorsmod.Wrap(types.ErrInvalidPublicKey, "")
 	}
 
-	cosmosAddr := deriveAddressFromPubkey(msg.CosmosPublicKey)
+	cosmosAddr, err := deriveAddressFromPubkey(msg.ActorType, msg.CosmosPublicKey)
+	if err != nil {
+		return err
+	}
 
 	if msg.Creator != cosmosAddr {
 		return errorsmod.Wrap(types.ErrInvalidSigner, "")

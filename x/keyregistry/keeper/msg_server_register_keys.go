@@ -30,14 +30,19 @@ func VerifyValidatorCosmosSig(sig string, msg, cosmosAddress []byte) bool {
 
 // deriveAddressFromPubkey derives the expected signer address from the provided
 // key material.
-func deriveAddressFromPubkey(cosmosAddress []byte) string {
+func deriveAddressFromPubkey(actorType types.ActorType, cosmosPublicKey []byte) (string, error) {
+
+	if actorType != types.ActorType_USER {
+		return "", types.ErrInvalidActorType
+	}
 
 	pubKey := secp256k1.PubKey{
-		Key: cosmosAddress,
+		Key: cosmosPublicKey,
 	}
 
 	addr := sdk.AccAddress(pubKey.Address())
-	return addr.String()
+	return addr.String(), nil
+
 }
 
 // RegisterKeys registers a Mina and Cosmos public key pair on chain.

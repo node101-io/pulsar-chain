@@ -35,7 +35,7 @@ func TestValidatorCosmosMapSuccess(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	cosmosPubKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, _, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 
 	err = f.keeper.ValidatorSetCosmosToMina(f.ctx, cosmosPubKey.Bytes(), minaPubKey)
@@ -60,7 +60,7 @@ func TestValidatorMinaMapSuccess(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	cosmosPubKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, _, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 
 	err = f.keeper.ValidatorSetMinaToCosmos(f.ctx, minaPubKey, cosmosPubKey.Bytes())
@@ -100,7 +100,7 @@ func TestValidatorCosmosMapPubkeyNotFound(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	_, minaPubKey, _, err := generatePublicKeys()
+	_, minaPubKey, _, err := generateValidatorPublicKeys()
 	require.NotNil(t, minaPubKey)
 	require.NoError(t, err)
 
@@ -121,7 +121,7 @@ func TestValidatorMinaMapPubkeyNotFound(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	cosmosPubKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, _, err := generateValidatorPublicKeys()
 	require.NotNil(t, cosmosPubKey)
 	require.NotNil(t, minaPubKey)
 	require.NoError(t, err)

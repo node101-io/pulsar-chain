@@ -16,7 +16,7 @@ func TestValidatorRegisterKeysFail(t *testing.T) {
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	cosmosPublicKey, _, _, err := generatePublicKeys()
+	cosmosPublicKey, _, _, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 	require.NotNil(t, cosmosPublicKey)
 
@@ -39,7 +39,7 @@ func TestValidatorRegisterKeysFail(t *testing.T) {
 // and ensures that both CosmosToMina and MinaToCosmos mappings are correctly stored.
 func TestValidatorRegisterKeysSuccess(t *testing.T) {
 
-	cosmosPubKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, _, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 	require.NotNil(t, cosmosPubKey)
 	require.NotNil(t, minaPubKey)
@@ -74,7 +74,7 @@ func TestValidatorRegisterKeysSuccess(t *testing.T) {
 // when the creator field is not a valid bech32 address.
 func TestValidatorInvalidCreatorAddress(t *testing.T) {
 
-	cosmosPubKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, _, err := generateValidatorPublicKeys()
 
 	require.NoError(t, err)
 	require.NotNil(t, cosmosPubKey)
@@ -95,44 +95,11 @@ func TestValidatorInvalidCreatorAddress(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
 }
 
-// TestValidatorInvalidSigner verifies that RegisterKeys fails with ErrInvalidSigner
-// when the creator address does not match the address derived from the provided consensus public key.
-func TestValidatorInvalidSigner(t *testing.T) {
-
-	cosmosPubKey, minaPubKey, _, err := generatePublicKeys()
-
-	require.NoError(t, err)
-	require.NotNil(t, cosmosPubKey)
-	require.NotNil(t, minaPubKey)
-
-	secondaryCosmosPublicKey, _, _, err := generatePublicKeys()
-
-	require.NoError(t, err)
-	require.NotNil(t, secondaryCosmosPublicKey)
-
-	creatorAddr := sdk.AccAddress(secondaryCosmosPublicKey.Address())
-	require.NotNil(t, creatorAddr)
-
-	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         creatorAddr.String(),
-		CosmosSignature: mockCosmosSignature,
-		MinaSignature:   mockMinaSignature,
-		CosmosPublicKey: cosmosPubKey.Bytes(),
-		MinaPublicKey:   minaPubKey,
-		ActorType:       types.ActorType_VALIDATOR,
-	})
-
-	require.ErrorIs(t, err, types.ErrInvalidSigner)
-}
-
 // TODO: Update require.NoError to require.ErrorIs once the VerifyCosmosSig and VerifyMinaSig is implemented
 // TestValidatorInvalidSignature currently expects no error since signature verification is not yet implemented.
 func TestValidatorInvalidSignature(t *testing.T) {
 
-	cosmosPubKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, _, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 
 	require.NotNil(t, cosmosPubKey)
@@ -164,7 +131,7 @@ func TestValidatorInvalidSignature(t *testing.T) {
 func TestValidatorInsertSecondaryKeysFail(t *testing.T) {
 	f := initFixture(t)
 
-	cosmosPubKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPubKey, minaPubKey, _, err := generateValidatorPublicKeys()
 	require.NoError(t, err)
 
 	require.NotNil(t, cosmosPubKey)

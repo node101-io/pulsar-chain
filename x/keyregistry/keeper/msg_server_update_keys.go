@@ -52,7 +52,10 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 		return err
 	}
 
-	cosmosAddr := deriveAddressFromPubkey(cosmosPublicKey)
+	cosmosAddr, err := deriveAddressFromPubkey(msg.ActorType, cosmosPublicKey)
+	if err != nil {
+		return err
+	}
 
 	if msg.Creator != cosmosAddr {
 		return errorsmod.Wrap(types.ErrInvalidSigner, "")
@@ -117,10 +120,6 @@ func (k msgServer) updateValidatorKeys(ctx context.Context, msg *types.MsgUpdate
 	cosmosPublicKey, err := k.ValidatorGetMinaToCosmos(ctx, msg.PrevMinaPublicKey)
 	if err != nil {
 		return err
-	}
-
-	if deriveAddressFromPubkey(cosmosPublicKey) != msg.Creator {
-		return errorsmod.Wrap(types.ErrInvalidSigner, "")
 	}
 
 	exists, err = k.ValidatorCosmosToMinaHas(ctx, cosmosPublicKey)

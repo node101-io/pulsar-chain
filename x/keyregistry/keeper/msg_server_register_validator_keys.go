@@ -16,18 +16,12 @@ func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.M
 		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
 	}
 
-	err = types.ValidatePublicKeyPair(types.PublicKeyPair{
+	err = types.ValidateValidatorPublicKeyPair(types.ValidatorPublicKeyPair{
 		MinaKey:   msg.MinaPublicKey,
 		CosmosKey: msg.CosmosPublicKey,
 	})
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvalidPublicKey, "pubkeys must be valid")
-	}
-
-	derivedAddress := deriveAddressFromPubkey(msg.CosmosPublicKey)
-
-	if derivedAddress != msg.Creator {
-		return errorsmod.Wrap(types.ErrInvalidSigner, "creator does not match provided cosmos public key")
 	}
 
 	return k.persistValidatorRegistration(ctx, msg)

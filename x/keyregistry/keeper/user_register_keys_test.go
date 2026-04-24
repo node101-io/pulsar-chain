@@ -3,6 +3,8 @@ package keeper_test
 import (
 	"testing"
 
+	cometed25519 "github.com/cometbft/cometbft/crypto/ed25519"
+
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -19,9 +21,31 @@ var mockMinaSignature = "minaSig"
 
 var MinaPriv = []byte("7olA5Knafb5E2hJoWFzD+oamtyXIXXUZmYG9+pBMjTGIjqZTVLNGbE7DQ3Zq5YL5NMW31UMMMGgNCeEk+gyzRA==")
 
-func generatePublicKeys() (crypto.PubKey, []byte, []byte, error) {
+func generateUserPublicKeys() (crypto.PubKey, []byte, []byte, error) {
 
 	cosmosPrivKey := secp256k1.GenPrivKey()
+	cosmosPublicKey := cosmosPrivKey.PubKey()
+
+	minaPrivKey := keys.NewPrivateKeyFromBytes([32]byte(MinaPriv))
+
+	minaPublicKey, err := minaPrivKey.ToPublicKey().Marshal()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	minaSecondaryPrivKey := keys.NewPrivateKeyFromBytes([32]byte(MinaSecondaryPriv))
+
+	minaSecondaryPublicKey, err := minaSecondaryPrivKey.ToPublicKey().Marshal()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return cosmosPublicKey, minaPublicKey, minaSecondaryPublicKey, nil
+}
+
+func generateValidatorPublicKeys() (crypto.PubKey, []byte, []byte, error) {
+
+	cosmosPrivKey := cometed25519.GenPrivKey()
 	cosmosPublicKey := cosmosPrivKey.PubKey()
 
 	minaPrivKey := keys.NewPrivateKeyFromBytes([32]byte(MinaPriv))
@@ -65,7 +89,7 @@ func TestUserRegisterKeysFail(t *testing.T) {
 // and ensures that both CosmosToMina and MinaToCosmos mappings are correctly stored.
 func TestUserRegisterKeysSuccess(t *testing.T) {
 
-	cosmosPublicKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPublicKey, minaPubKey, _, err := generateUserPublicKeys()
 	require.NoError(t, err)
 	require.NotNil(t, cosmosPublicKey)
 	require.NotNil(t, minaPubKey)
@@ -102,7 +126,7 @@ func TestUserRegisterKeysSuccess(t *testing.T) {
 // when the creator field is not a valid bech32 address.
 func TestUserInvalidCreatorAddress(t *testing.T) {
 
-	cosmosPublicKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPublicKey, minaPubKey, _, err := generateUserPublicKeys()
 
 	require.NotNil(t, cosmosPublicKey)
 	require.NotNil(t, minaPubKey)
@@ -126,12 +150,12 @@ func TestUserInvalidCreatorAddress(t *testing.T) {
 // when the creator address bytes do not match the provided Cosmos-side value.
 func TestUserInvalidSigner(t *testing.T) {
 
-	cosmosPublicKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPublicKey, minaPubKey, _, err := generateUserPublicKeys()
 	require.NoError(t, err)
 	require.NotNil(t, cosmosPublicKey)
 	require.NotNil(t, minaPubKey)
 
-	secondaryCosmosPublicKey, _, _, err := generatePublicKeys()
+	secondaryCosmosPublicKey, _, _, err := generateUserPublicKeys()
 	require.NoError(t, err)
 	require.NotNil(t, secondaryCosmosPublicKey)
 
@@ -158,7 +182,7 @@ func TestUserInvalidSigner(t *testing.T) {
 // TestUserInvalidSignature currently expects no error since signature verification is not yet implemented.
 func TestUserInvalidSignature(t *testing.T) {
 
-	cosmosPublicKey, minaPubKey, _, err := generatePublicKeys()
+	cosmosPublicKey, minaPubKey, _, err := generateUserPublicKeys()
 
 	require.NoError(t, err)
 	require.NotNil(t, cosmosPublicKey)
@@ -190,7 +214,7 @@ func TestUserInvalidSignature(t *testing.T) {
 func TestUserInsertSecondaryKeysFail(t *testing.T) {
 	f := initFixture(t)
 
-	cosmosPublicKey, minaPubKey, minaSecondaryPublicKey, err := generatePublicKeys()
+	cosmosPublicKey, minaPubKey, minaSecondaryPublicKey, err := generateUserPublicKeys()
 	require.NoError(t, err)
 	require.NotNil(t, cosmosPublicKey)
 	require.NotNil(t, minaPubKey)
