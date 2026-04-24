@@ -85,10 +85,10 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 		return types.ErrUserSecondaryKeyExists
 	}
 
-	if !VerifyUserCosmosSig(string(msg.CosmosSignature), msg.NewMinaPublicKey, cosmosPublicKey) {
+	if !VerifyUserCosmosSig(msg.CosmosSignature, msg.NewMinaPublicKey, cosmosPublicKey) {
 		return types.ErrInvalidSignature
 	}
-	if !VerifyUserMinaSig(string(msg.NewMinaSignature), cosmosPublicKey, msg.NewMinaPublicKey) {
+	if !VerifyUserMinaSig(msg.NewMinaSignature, cosmosPublicKey, msg.NewMinaPublicKey) {
 		return types.ErrInvalidSignature
 	}
 
@@ -146,10 +146,10 @@ func (k msgServer) updateValidatorKeys(ctx context.Context, msg *types.MsgUpdate
 		return types.ErrValidatorSecondaryKeyExists
 	}
 
-	if !VerifyValidatorCosmosSig(string(msg.CosmosSignature), msg.NewMinaPublicKey, cosmosPublicKey) {
+	if !VerifyValidatorCosmosSig(msg.CosmosSignature, msg.NewMinaPublicKey, cosmosPublicKey) {
 		return types.ErrInvalidSignature
 	}
-	if !VerifyValidatorMinaSig(string(msg.NewMinaSignature), cosmosPublicKey, msg.NewMinaPublicKey) {
+	if !VerifyValidatorMinaSig(msg.NewMinaSignature, cosmosPublicKey, msg.NewMinaPublicKey) {
 		return types.ErrInvalidSignature
 	}
 

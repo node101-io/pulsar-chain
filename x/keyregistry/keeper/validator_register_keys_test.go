@@ -111,7 +111,7 @@ func TestValidatorInvalidSignature(t *testing.T) {
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	invalidSig := "cosmosSig"
+	invalidSig := []byte("cosmosSig")
 
 	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         creatorAddr.String(),

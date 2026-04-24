@@ -16,8 +16,8 @@ import (
 
 // Mock signatures used across msg server tests.
 // These will be replaced with real signatures once VerifyMinaSig and VerifyCosmosSig are implemented.
-var mockCosmosSignature = "cosmosSig"
-var mockMinaSignature = "minaSig"
+var mockCosmosSignature = []byte("cosmosSig")
+var mockMinaSignature = []byte("minaSig")
 
 var MinaPriv = []byte("7olA5Knafb5E2hJoWFzD+oamtyXIXXUZmYG9+pBMjTGIjqZTVLNGbE7DQ3Zq5YL5NMW31UMMMGgNCeEk+gyzRA==")
 
@@ -194,7 +194,7 @@ func TestUserInvalidSignature(t *testing.T) {
 	creatorAddr := sdk.AccAddress(cosmosPublicKey.Address())
 	require.NotNil(t, creatorAddr)
 
-	invalidSig := "cosmosSig"
+	invalidSig := []byte("cosmosSig")
 
 	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         creatorAddr.String(),

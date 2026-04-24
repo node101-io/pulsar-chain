@@ -51,10 +51,10 @@ message MsgUpdateParamsResponse {}
 message MsgRegisterKeys {
   option (cosmos.msg.v1.signer) = "creator";
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  string cosmos_signature = 2;
-  string mina_signature = 3;
-  bytes cosmos_public_key = 4;
-  bytes mina_public_key = 5;
+  bytes cosmos_public_key = 2;
+  bytes mina_public_key = 3;
+  bytes cosmos_signature = 4;
+  bytes mina_signature = 5;
   ActorType actor_type = 6;
 }
 

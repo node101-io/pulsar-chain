@@ -9,22 +9,22 @@ import (
 )
 
 // TODO: Implement Mina signature verification for users
-func VerifyUserMinaSig(sig string, msg, minaAddress []byte) bool {
+func VerifyUserMinaSig(sig []byte, msg, minaAddress []byte) bool {
 	return true
 }
 
 // TODO: Implement Cosmos signature verification for users
-func VerifyUserCosmosSig(sig string, msg, cosmosAddress []byte) bool {
+func VerifyUserCosmosSig(sig []byte, msg, cosmosAddress []byte) bool {
 	return true
 }
 
 // TODO: Implement Mina signature verification for users
-func VerifyValidatorMinaSig(sig string, msg, minaAddress []byte) bool {
+func VerifyValidatorMinaSig(sig []byte, msg, minaAddress []byte) bool {
 	return true
 }
 
 // TODO: Implement Cosmos signature verification for users
-func VerifyValidatorCosmosSig(sig string, msg, cosmosAddress []byte) bool {
+func VerifyValidatorCosmosSig(sig []byte, msg, cosmosAddress []byte) bool {
 	return true
 }
 
