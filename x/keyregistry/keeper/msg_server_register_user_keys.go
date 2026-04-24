@@ -10,7 +10,7 @@ import (
 func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
 	_, err := k.addressCodec.StringToBytes(msg.Creator)
 	if err != nil {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
+		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
 	}
 
 	err = types.UserPublicKeyPair{

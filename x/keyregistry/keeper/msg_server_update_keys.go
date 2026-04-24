@@ -36,7 +36,7 @@ func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*t
 func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys) error {
 	_, err := k.addressCodec.StringToBytes(msg.Creator)
 	if err != nil {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
+		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
 	}
 
 	exists, err := k.UserMinaToCosmosHas(ctx, msg.PrevMinaPublicKey)
@@ -106,7 +106,7 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 
 func (k msgServer) updateValidatorKeys(ctx context.Context, msg *types.MsgUpdateKeys) error {
 	if _, err := sdk.AccAddressFromBech32(msg.Creator); err != nil {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
+		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
 	}
 
 	exists, err := k.ValidatorMinaToCosmosHas(ctx, msg.PrevMinaPublicKey)

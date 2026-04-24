@@ -92,7 +92,7 @@ func TestValidatorInvalidCreatorAddress(t *testing.T) {
 		ActorType:       types.ActorType_VALIDATOR,
 	})
 
-	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
+	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
 }
 
 // TODO: Update require.NoError to require.ErrorIs once the VerifyCosmosSig and VerifyMinaSig is implemented

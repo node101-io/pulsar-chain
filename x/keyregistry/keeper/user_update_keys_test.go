@@ -115,7 +115,7 @@ func TestUserUpdateKeysInvalidCreatorAddress(t *testing.T) {
 		ActorType:         types.ActorType_USER,
 	})
 
-	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
+	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
 }
 
 func TestUserUpdateKeysInvalidSigner(t *testing.T) {

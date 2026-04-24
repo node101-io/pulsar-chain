@@ -143,7 +143,7 @@ func TestUserInvalidCreatorAddress(t *testing.T) {
 		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_USER,
 	})
-	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
+	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
 }
 
 // TestUserInvalidSigner verifies that RegisterKeys fails with ErrInvalidSigner

@@ -143,7 +143,7 @@ func TestValidatorUpdateKeysInvalidCreatorAddress(t *testing.T) {
 		NewMinaSignature:  []byte(mockMinaSignature),
 		ActorType:         types.ActorType_VALIDATOR,
 	})
-	require.ErrorIs(t, err, types.ErrInvalidCreatorAddres)
+	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
 }
 
 func TestValidatorUpdateKeysInvalidSignature(t *testing.T) {
