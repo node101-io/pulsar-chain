@@ -30,9 +30,15 @@ genesis:
   app_state:
     keyregistry:
       params: {}
-      user_key_pairs:
+      user_cosmos_to_mina:
        # - mina_key: "SC/6aqoZ19ObLka8NIQVMs1qPim+uD6epPLuQS4x2n4Z"
         #  cosmos_key: "UdDr3CCO+4HVrBtbzqLTM3P2xAMNCIrPeCTeVfb5sw1y"
-      validator_key_pairs:
+      user_mina_to_cosmos:
+       # - mina_key: "3IvK1eWmmcfdlIb+T04+ck9Q5bjbqHqiT0ucGJITzyY="
+        #  cosmos_key: "A8saw69s1DQWvUjseeOtG8hGavmYiInrQ5M1aOPa4QkP"
+      validator_cosmos_to_mina:
+       # - mina_key: "SC/6aqoZ19ObLka8NIQVMs1qPim+uD6epPLuQS4x2n4Z"
+        #  cosmos_key: "UdDr3CCO+4HVrBtbzqLTM3P2xAMNCIrPeCTeVfb5sw1y"
+      validator_mina_to_cosmos:
        # - mina_key: "3IvK1eWmmcfdlIb+T04+ck9Q5bjbqHqiT0ucGJITzyY="
         #  cosmos_key: "A8saw69s1DQWvUjseeOtG8hGavmYiInrQ5M1aOPa4QkP"
