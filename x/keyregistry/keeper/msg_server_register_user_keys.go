@@ -13,10 +13,10 @@ func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgReg
 		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
 	}
 
-	err = types.ValidateUserPublicKeyPair(types.UserPublicKeyPair{
+	err = types.UserPublicKeyPair{
 		MinaKey:   msg.MinaPublicKey,
 		CosmosKey: msg.CosmosPublicKey,
-	})
+	}.Validate()
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvalidPublicKey, "")
 	}

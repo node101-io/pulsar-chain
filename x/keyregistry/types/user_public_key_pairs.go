@@ -14,8 +14,9 @@ func DefaultUserPublicKeyPair() []*UserPublicKeyPair {
 	return NewUserPublicKeyPairs()
 }
 
-func ValidateUserPublicKeyPair(k UserPublicKeyPair) error {
-
+// Validate validates the set of params.
+// TODO: make strict validate once mina-signer-go is complete
+func (k UserPublicKeyPair) Validate() error {
 	if len(k.CosmosKey) != secp256k1.PubKeySize {
 		return errors.Wrap(ErrInvalidPublicKey, "cosmos public key must be secp256k1 (33 bytes)")
 	}
@@ -24,9 +25,4 @@ func ValidateUserPublicKeyPair(k UserPublicKeyPair) error {
 		return errors.Wrap(ErrInvalidPublicKey, "mina public key must be compressed (33 bytes)")
 	}
 	return nil
-}
-
-// Validate validates the set of params.
-func (k UserPublicKeyPair) Validate() error {
-	return ValidateUserPublicKeyPair(k)
 }

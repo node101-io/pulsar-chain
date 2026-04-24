@@ -19,7 +19,8 @@ func (gs GenesisState) Validate() error {
 		if keyPair == nil {
 			return ErrNilKeyPair
 		}
-		err := ValidateUserPublicKeyPair(*keyPair)
+		kp := *keyPair
+		err := kp.Validate()
 		if err != nil {
 			return err
 		}
@@ -29,7 +30,8 @@ func (gs GenesisState) Validate() error {
 		if keyPair == nil {
 			return ErrNilKeyPair
 		}
-		err := ValidateUserPublicKeyPair(*keyPair)
+		kp := *keyPair
+		err := kp.Validate()
 		if err != nil {
 			return err
 		}
@@ -39,7 +41,8 @@ func (gs GenesisState) Validate() error {
 		if keyPair == nil {
 			return ErrNilKeyPair
 		}
-		err := ValidateValidatorPublicKeyPair(*keyPair)
+		kp := *keyPair
+		err := kp.Validate()
 		if err != nil {
 			return err
 		}
@@ -48,7 +51,8 @@ func (gs GenesisState) Validate() error {
 		if keyPair == nil {
 			return ErrNilKeyPair
 		}
-		err := ValidateValidatorPublicKeyPair(*keyPair)
+		kp := *keyPair
+		err := kp.Validate()
 		if err != nil {
 			return err
 		}

@@ -15,8 +15,9 @@ func DefaultValidatorPublicKeyPair() []*ValidatorPublicKeyPair {
 	return NewValidatorPublicKeyPairs()
 }
 
-func ValidateValidatorPublicKeyPair(k ValidatorPublicKeyPair) error {
-
+// Validate validates the set of params.
+// TODO: make strict validate once mina-signer-go is complete
+func (k ValidatorPublicKeyPair) Validate() error {
 	if len(k.CosmosKey) != ed25519.PublicKeySize {
 		return errors.Wrap(ErrInvalidPublicKey, "cosmos public key must be ed25519 (32 bytes)")
 	}
@@ -25,9 +26,4 @@ func ValidateValidatorPublicKeyPair(k ValidatorPublicKeyPair) error {
 		return errors.Wrap(ErrInvalidPublicKey, "mina public key must be compressed (33 bytes)")
 	}
 	return nil
-}
-
-// Validate validates the set of params.
-func (k ValidatorPublicKeyPair) Validate() error {
-	return ValidateValidatorPublicKeyPair(k)
 }

@@ -13,13 +13,13 @@ import (
 func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
 	_, err := sdk.AccAddressFromBech32(msg.Creator)
 	if err != nil {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
+		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
 	}
 
-	err = types.ValidateValidatorPublicKeyPair(types.ValidatorPublicKeyPair{
+	err = types.ValidatorPublicKeyPair{
 		MinaKey:   msg.MinaPublicKey,
 		CosmosKey: msg.CosmosPublicKey,
-	})
+	}.Validate()
 	if err != nil {
 		return errorsmod.Wrap(types.ErrInvalidPublicKey, "pubkeys must be valid")
 	}
