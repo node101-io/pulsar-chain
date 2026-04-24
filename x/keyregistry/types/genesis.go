@@ -3,9 +3,11 @@ package types
 // DefaultGenesis returns the default genesis state
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		Params:            DefaultParams(),
-		UserKeyPairs:      DefaultPublicKeyPair(),
-		ValidatorKeyPairs: DefaultPublicKeyPair(),
+		Params:                DefaultParams(),
+		UserCosmosToMina:      DefaultUserPublicKeyPair(),
+		UserMinaToCosmos:      DefaultUserPublicKeyPair(),
+		ValidatorCosmosToMina: DefaultValidatorPublicKeyPair(),
+		ValidatorMinaToCosmos: DefaultValidatorPublicKeyPair(),
 	}
 }
 
@@ -13,15 +15,40 @@ func DefaultGenesis() *GenesisState {
 // failure.
 func (gs GenesisState) Validate() error {
 
-	for _, keyPair := range gs.UserKeyPairs {
-		err := ValidatePublicKeyPair(*keyPair)
+	for _, keyPair := range gs.UserCosmosToMina {
+		if keyPair == nil {
+			return ErrNilKeyPair
+		}
+		err := ValidateUserPublicKeyPair(*keyPair)
 		if err != nil {
 			return err
 		}
 	}
 
-	for _, keyPair := range gs.ValidatorKeyPairs {
-		err := ValidatePublicKeyPair(*keyPair)
+	for _, keyPair := range gs.UserMinaToCosmos {
+		if keyPair == nil {
+			return ErrNilKeyPair
+		}
+		err := ValidateUserPublicKeyPair(*keyPair)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, keyPair := range gs.ValidatorCosmosToMina {
+		if keyPair == nil {
+			return ErrNilKeyPair
+		}
+		err := ValidateValidatorPublicKeyPair(*keyPair)
+		if err != nil {
+			return err
+		}
+	}
+	for _, keyPair := range gs.ValidatorMinaToCosmos {
+		if keyPair == nil {
+			return ErrNilKeyPair
+		}
+		err := ValidateValidatorPublicKeyPair(*keyPair)
 		if err != nil {
 			return err
 		}

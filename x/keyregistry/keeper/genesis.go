@@ -9,31 +9,27 @@ import (
 // InitGenesis initializes the module's state from a provided genesis state.
 func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) error {
 
-	userKeyPairs := genState.UserKeyPairs
-
 	// Insert genesis key pairs.
-	for _, keyPair := range userKeyPairs {
-
+	for _, keyPair := range genState.UserCosmosToMina {
 		err := k.userCosmosToMina.Set(ctx, keyPair.CosmosKey, keyPair.MinaKey)
 		if err != nil {
 			return err
 		}
-		err = k.userMinaToCosmos.Set(ctx, keyPair.MinaKey, keyPair.CosmosKey)
+	}
+	for _, keyPair := range genState.UserMinaToCosmos {
+		err := k.userMinaToCosmos.Set(ctx, keyPair.MinaKey, keyPair.CosmosKey)
 		if err != nil {
 			return err
 		}
 	}
-
-	validatorKeyPairs := genState.ValidatorKeyPairs
-
-	// Insert genesis key pairs.
-	for _, keyPair := range validatorKeyPairs {
-
+	for _, keyPair := range genState.ValidatorCosmosToMina {
 		err := k.validatorCosmosToMina.Set(ctx, keyPair.CosmosKey, keyPair.MinaKey)
 		if err != nil {
 			return err
 		}
-		err = k.validatorMinaToCosmos.Set(ctx, keyPair.MinaKey, keyPair.CosmosKey)
+	}
+	for _, keyPair := range genState.ValidatorMinaToCosmos {
+		err := k.validatorMinaToCosmos.Set(ctx, keyPair.MinaKey, keyPair.CosmosKey)
 		if err != nil {
 			return err
 		}
@@ -52,130 +48,125 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		return nil, err
 	}
 
-	var userKeyPairs []*types.PublicKeyPair
-
-	var userKeypairExistenceMap = make(map[string]bool)
-
-	// Iterate over CosmosToMina map first and collect all key pairs.
-	userCosmosIterator, err := k.userCosmosToMina.Iterate(ctx, nil)
+	userCosmosToMinaIterator, err := k.userCosmosToMina.Iterate(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer userCosmosIterator.Close()
 
-	for userCosmosIterator.Valid() {
-		cosmosKey, err := userCosmosIterator.Key()
+	defer userCosmosToMinaIterator.Close()
+
+	var userCosmosToMinaSlice []*types.UserPublicKeyPair
+
+	for userCosmosToMinaIterator.Valid() {
+		cosmosKey, err := userCosmosToMinaIterator.Key()
 		if err != nil {
-			return genesis, err
+			return nil, err
 		}
-		minaKey, err := userCosmosIterator.Value()
+		minaKey, err := userCosmosToMinaIterator.Value()
 		if err != nil {
-			return genesis, err
+			return nil, err
 		}
-		keyPair := &types.PublicKeyPair{
+		keyPair := &types.UserPublicKeyPair{
 			MinaKey:   minaKey,
 			CosmosKey: cosmosKey,
 		}
-		userKeyPairs = append(userKeyPairs, keyPair)
-		userKeypairExistenceMap[keyPair.String()] = true
-		userCosmosIterator.Next()
+
+		userCosmosToMinaSlice = append(userCosmosToMinaSlice, keyPair)
+
+		userCosmosToMinaIterator.Next()
 	}
 
-	// Iterate over MinaToCosmos map and collect any key pairs that are not
-	// already present in the CosmosToMina map. Although both maps are expected
-	// to be in sync, this ensures no key pairs are lost in case of any inconsistency
-	// between the two maps during export.
+	genesis.UserCosmosToMina = userCosmosToMinaSlice
 
-	// ExportGenesis intentionally does not enforce consistency between the two maps.
-	// Returning an error here could prevent the state from being exported and lead
-	// to potential state loss. Consistency checks should instead be handled at the
-	// message implementation level where the mappings are created or updated.
-	userMinaIterator, err := k.userMinaToCosmos.Iterate(ctx, nil)
+	userMinaToCosmosIterator, err := k.userMinaToCosmos.Iterate(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer userMinaIterator.Close()
 
-	for userMinaIterator.Valid() {
-		minaKey, err := userMinaIterator.Key()
+	defer userMinaToCosmosIterator.Close()
+
+	var userMinaToCosmosSlice []*types.UserPublicKeyPair
+
+	for userMinaToCosmosIterator.Valid() {
+		minaKey, err := userMinaToCosmosIterator.Key()
 		if err != nil {
-			return genesis, err
+			return nil, err
 		}
-		cosmosKey, err := userMinaIterator.Value()
+		cosmosKey, err := userMinaToCosmosIterator.Value()
 		if err != nil {
-			return genesis, err
+			return nil, err
 		}
-		keyPair := &types.PublicKeyPair{
+		keyPair := &types.UserPublicKeyPair{
 			MinaKey:   minaKey,
 			CosmosKey: cosmosKey,
 		}
-		if userKeypairExistenceMap[keyPair.String()] {
-			userMinaIterator.Next()
-			continue
-		}
-		userKeyPairs = append(userKeyPairs, keyPair)
-		userMinaIterator.Next()
+
+		userMinaToCosmosSlice = append(userMinaToCosmosSlice, keyPair)
+
+		userMinaToCosmosIterator.Next()
 	}
 
-	genesis.UserKeyPairs = userKeyPairs
+	genesis.UserMinaToCosmos = userMinaToCosmosSlice
 
-	var validatorKeyPairs []*types.PublicKeyPair
-
-	var validatorKeypairExistenceMap = make(map[string]bool)
-
-	// Iterate over CosmosToMina map first and collect all key pairs.
-	validatorCosmosIterator, err := k.validatorCosmosToMina.Iterate(ctx, nil)
+	validatorCosmosToMinaIterator, err := k.validatorCosmosToMina.Iterate(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer validatorCosmosIterator.Close()
 
-	for validatorCosmosIterator.Valid() {
-		cosmosKey, err := validatorCosmosIterator.Key()
+	defer validatorCosmosToMinaIterator.Close()
+
+	var validatorCosmosToMinaSlice []*types.ValidatorPublicKeyPair
+
+	for validatorCosmosToMinaIterator.Valid() {
+		cosmosKey, err := validatorCosmosToMinaIterator.Key()
 		if err != nil {
-			return genesis, err
+			return nil, err
 		}
-		minaKey, err := validatorCosmosIterator.Value()
+		minaKey, err := validatorCosmosToMinaIterator.Value()
 		if err != nil {
-			return genesis, err
+			return nil, err
 		}
-		keyPair := &types.PublicKeyPair{
+		keyPair := &types.ValidatorPublicKeyPair{
 			MinaKey:   minaKey,
 			CosmosKey: cosmosKey,
 		}
-		validatorKeyPairs = append(validatorKeyPairs, keyPair)
-		validatorKeypairExistenceMap[keyPair.String()] = true
-		validatorCosmosIterator.Next()
+
+		validatorCosmosToMinaSlice = append(validatorCosmosToMinaSlice, keyPair)
+
+		validatorCosmosToMinaIterator.Next()
 	}
 
-	validatorMinaIterator, err := k.validatorMinaToCosmos.Iterate(ctx, nil)
+	genesis.ValidatorCosmosToMina = validatorCosmosToMinaSlice
+
+	validatorMinaToCosmosIterator, err := k.validatorMinaToCosmos.Iterate(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer validatorMinaIterator.Close()
 
-	for validatorMinaIterator.Valid() {
-		minaKey, err := validatorMinaIterator.Key()
+	defer validatorMinaToCosmosIterator.Close()
+
+	var validatorMinaToCosmosSlice []*types.ValidatorPublicKeyPair
+
+	for validatorMinaToCosmosIterator.Valid() {
+		minaKey, err := validatorMinaToCosmosIterator.Key()
 		if err != nil {
-			return genesis, err
+			return nil, err
 		}
-		cosmosKey, err := validatorMinaIterator.Value()
+		cosmosKey, err := validatorMinaToCosmosIterator.Value()
 		if err != nil {
-			return genesis, err
+			return nil, err
 		}
-		keyPair := &types.PublicKeyPair{
+		keyPair := &types.ValidatorPublicKeyPair{
 			MinaKey:   minaKey,
 			CosmosKey: cosmosKey,
 		}
-		if validatorKeypairExistenceMap[keyPair.String()] {
-			validatorMinaIterator.Next()
-			continue
-		}
-		validatorKeyPairs = append(validatorKeyPairs, keyPair)
-		validatorMinaIterator.Next()
+
+		validatorMinaToCosmosSlice = append(validatorMinaToCosmosSlice, keyPair)
+
+		validatorMinaToCosmosIterator.Next()
 	}
 
-	genesis.ValidatorKeyPairs = validatorKeyPairs
+	genesis.ValidatorMinaToCosmos = validatorMinaToCosmosSlice
 
 	return genesis, nil
 }

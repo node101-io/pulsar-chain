@@ -1,13 +1,11 @@
 package keeper_test
 
 import (
-	"crypto/ed25519"
-	"crypto/rand"
 	"testing"
 
+	cometed25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,37 +30,50 @@ func TestInitAndExportGenesis(t *testing.T) {
 
 	f := initFixture(t)
 
-	cosmosPriv := secp256k1.GenPrivKey()
+	userCosmosPubKey := secp256k1.GenPrivKey().PubKey()
 
-	cosmosPubKey := cosmosPriv.PubKey()
+	validatorPublicKey := cometed25519.GenPrivKey().PubKey()
 
-	minaPubKey, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
+	MinaPriv := secp256k1.GenPrivKey()
+	minaPubKey := MinaPriv.PubKey().Bytes()
 
 	genesisState := types.GenesisState{
 		Params: types.DefaultParams(),
-		UserKeyPairs: []*types.PublicKeyPair{
+		UserCosmosToMina: []*types.UserPublicKeyPair{
 			{
 				MinaKey:   minaPubKey,
-				CosmosKey: cosmosPubKey.Bytes(),
+				CosmosKey: userCosmosPubKey.Bytes(),
 			},
 		},
-		ValidatorKeyPairs: []*types.PublicKeyPair{
+		UserMinaToCosmos: []*types.UserPublicKeyPair{
 			{
 				MinaKey:   minaPubKey,
-				CosmosKey: cosmosPubKey.Bytes(),
+				CosmosKey: userCosmosPubKey.Bytes(),
+			},
+		},
+		ValidatorCosmosToMina: []*types.ValidatorPublicKeyPair{
+			{
+				MinaKey:   minaPubKey,
+				CosmosKey: validatorPublicKey.Bytes(),
+			},
+		},
+		ValidatorMinaToCosmos: []*types.ValidatorPublicKeyPair{
+			{
+				MinaKey:   minaPubKey,
+				CosmosKey: validatorPublicKey.Bytes(),
 			},
 		},
 	}
 
-	err = f.keeper.InitGenesis(f.ctx, genesisState)
+	err := f.keeper.InitGenesis(f.ctx, genesisState)
 	require.NoError(t, err)
 	got, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 
-	require.EqualExportedValues(t, genesisState.UserKeyPairs, got.UserKeyPairs)
+	require.EqualExportedValues(t, genesisState.UserCosmosToMina, got.UserCosmosToMina)
+	require.EqualExportedValues(t, genesisState.UserMinaToCosmos, got.UserMinaToCosmos)
+	require.EqualExportedValues(t, genesisState.ValidatorCosmosToMina, got.ValidatorCosmosToMina)
+	require.EqualExportedValues(t, genesisState.ValidatorMinaToCosmos, got.ValidatorMinaToCosmos)
 
 }
