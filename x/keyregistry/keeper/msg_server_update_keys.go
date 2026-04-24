@@ -5,7 +5,6 @@ import (
 	"context"
 
 	"cosmossdk.io/errors"
-	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
@@ -15,7 +14,7 @@ func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*t
 	var err error
 
 	if len(msg.NewMinaPublicKey) != keys.PublicKeyTotalByteSize {
-		return nil, errors.Wrap(types.ErrInvalidPublicKey, "")
+		return nil, errors.Wrap(types.ErrInvalidPublicKey, "new mina public key must be compressed (33 bytes)")
 	}
 
 	switch msg.ActorType {
@@ -36,7 +35,7 @@ func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*t
 func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys) error {
 	_, err := k.addressCodec.StringToBytes(msg.Creator)
 	if err != nil {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
+		return errors.Wrap(types.ErrInvalidCreatorAddress, "creator address must be a valid bech32 address")
 	}
 
 	exists, err := k.UserMinaToCosmosHas(ctx, msg.PrevMinaPublicKey)
@@ -58,7 +57,7 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 	}
 
 	if msg.Creator != cosmosAddr {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
+		return errors.Wrap(types.ErrInvalidCreatorAddress, "creator address does not match the registered cosmos public key")
 	}
 
 	exists, err = k.UserCosmosToMinaHas(ctx, cosmosPublicKey)
@@ -106,7 +105,7 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 
 func (k msgServer) updateValidatorKeys(ctx context.Context, msg *types.MsgUpdateKeys) error {
 	if _, err := sdk.AccAddressFromBech32(msg.Creator); err != nil {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
+		return errors.Wrap(types.ErrInvalidCreatorAddress, "creator address must be a valid bech32 address")
 	}
 
 	exists, err := k.ValidatorMinaToCosmosHas(ctx, msg.PrevMinaPublicKey)

@@ -3,7 +3,7 @@ package keeper
 import (
 	"context"
 
-	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
@@ -13,7 +13,7 @@ import (
 func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
 	_, err := sdk.AccAddressFromBech32(msg.Creator)
 	if err != nil {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
+		return errors.Wrap(types.ErrInvalidCreatorAddress, "creator address must be a valid bech32 address")
 	}
 
 	err = types.ValidatorPublicKeyPair{
@@ -21,7 +21,7 @@ func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.M
 		CosmosKey: msg.CosmosPublicKey,
 	}.Validate()
 	if err != nil {
-		return errorsmod.Wrap(types.ErrInvalidPublicKey, "pubkeys must be valid")
+		return err
 	}
 
 	return k.persistValidatorRegistration(ctx, msg)
@@ -37,13 +37,13 @@ func (k msgServer) persistValidatorRegistration(ctx context.Context, msg *types.
 		return err
 	}
 	if cosmosKeyExists || minaKeyExists {
-		return errorsmod.Wrap(types.ErrValidatorSecondaryKeyExists, "")
+		return errors.Wrap(types.ErrValidatorSecondaryKeyExists, "provided cosmos or mina public key is already registered")
 	}
 
 	minaSigValidity := VerifyValidatorMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey)
 	cosmosSigValidity := VerifyValidatorCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
 	if !minaSigValidity || !cosmosSigValidity {
-		return errorsmod.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
+		return errors.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
 	}
 
 	err = k.Keeper.validatorCosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)

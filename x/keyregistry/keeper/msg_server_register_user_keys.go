@@ -3,14 +3,14 @@ package keeper
 import (
 	"context"
 
-	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/errors"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
 func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
 	_, err := k.addressCodec.StringToBytes(msg.Creator)
 	if err != nil {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
+		return errors.Wrap(types.ErrInvalidCreatorAddress, "creator address must be a valid bech32 address")
 	}
 
 	err = types.UserPublicKeyPair{
@@ -18,7 +18,7 @@ func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgReg
 		CosmosKey: msg.CosmosPublicKey,
 	}.Validate()
 	if err != nil {
-		return errorsmod.Wrap(types.ErrInvalidPublicKey, "")
+		return err
 	}
 
 	cosmosAddr, err := deriveAddressFromPubkey(msg.ActorType, msg.CosmosPublicKey)
@@ -27,7 +27,7 @@ func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgReg
 	}
 
 	if msg.Creator != cosmosAddr {
-		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
+		return errors.Wrap(types.ErrInvalidCreatorAddress, "creator address does not match the provided cosmos public key")
 	}
 
 	return k.persistUserRegistration(ctx, msg)
@@ -43,13 +43,13 @@ func (k msgServer) persistUserRegistration(ctx context.Context, msg *types.MsgRe
 		return err
 	}
 	if cosmosKeyExists || minaKeyExists {
-		return errorsmod.Wrap(types.ErrUserSecondaryKeyExists, "")
+		return errors.Wrap(types.ErrUserSecondaryKeyExists, "provided cosmos or mina public key is already registered")
 	}
 
 	minaSigValidity := VerifyUserMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey)
 	cosmosSigValidity := VerifyUserCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
 	if !minaSigValidity || !cosmosSigValidity {
-		return errorsmod.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
+		return errors.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
 	}
 
 	err = k.Keeper.userCosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)
