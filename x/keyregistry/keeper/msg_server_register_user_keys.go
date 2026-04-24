@@ -27,7 +27,7 @@ func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgReg
 	}
 
 	if msg.Creator != cosmosAddr {
-		return errorsmod.Wrap(types.ErrInvalidSigner, "")
+		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
 	}
 
 	return k.persistUserRegistration(ctx, msg)

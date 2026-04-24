@@ -58,7 +58,7 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 	}
 
 	if msg.Creator != cosmosAddr {
-		return errorsmod.Wrap(types.ErrInvalidSigner, "")
+		return errorsmod.Wrap(types.ErrInvalidCreatorAddress, "")
 	}
 
 	exists, err = k.UserCosmosToMinaHas(ctx, cosmosPublicKey)

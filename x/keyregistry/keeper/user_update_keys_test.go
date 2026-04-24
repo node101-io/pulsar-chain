@@ -140,7 +140,7 @@ func TestUserUpdateKeysInvalidSigner(t *testing.T) {
 		NewMinaSignature:  []byte(mockMinaSignature),
 		ActorType:         types.ActorType_USER,
 	})
-	require.ErrorIs(t, err, types.ErrInvalidSigner)
+	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
 }
 
 func TestUserUpdateKeysInvalidSignature(t *testing.T) {

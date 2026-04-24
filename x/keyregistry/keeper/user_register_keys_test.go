@@ -174,7 +174,7 @@ func TestUserInvalidSigner(t *testing.T) {
 		ActorType:       types.ActorType_USER,
 	})
 
-	require.ErrorIs(t, err, types.ErrInvalidSigner)
+	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
 
 }
 
