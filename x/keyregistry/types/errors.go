@@ -18,4 +18,5 @@ var (
 	ErrValidatorNotRegistered      = errors.Register(ModuleName, 1107, "validator has not been registered")
 	ErrInvalidActorType            = errors.Register(ModuleName, 1108, "invalid actor type")
 	ErrNilKeyPair                  = errors.Register(ModuleName, 1109, "nil keypair")
+	ErrInvalidGenesisState         = errors.Register(ModuleName, 1110, "invalid genesis state")
 )

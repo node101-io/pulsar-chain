@@ -15,8 +15,6 @@ message GenesisState {
     (gogoproto.nullable) = false,
     (amino.dont_omitempty) = true
   ];
-  repeated UserPublicKeyPair user_cosmos_to_mina = 2;
-  repeated UserPublicKeyPair user_mina_to_cosmos = 3;
-  repeated ValidatorPublicKeyPair validator_cosmos_to_mina = 4;
-  repeated ValidatorPublicKeyPair validator_mina_to_cosmos = 5;
+  repeated UserPublicKeyPair user_key_pairs = 2;
+  repeated ValidatorPublicKeyPair validator_key_pairs = 3;
 }
