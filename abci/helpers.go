@@ -19,7 +19,6 @@ type AbciHandler struct {
 	secondaryKey      SecondaryKey
 	stakingKeeper     stakingkeeper.Keeper
 	keyregistryKeeper keyregistrykeeper.Keeper
-	votes             map[uint64]map[string][]byte // height -> minaAddress -> extension bytes
 }
 
 type VoteExtensionBody struct {
@@ -39,26 +38,4 @@ func NewVoteExtHandler(secondaryKey SecondaryKey, stakingKeeper stakingkeeper.Ke
 		stakingKeeper:     stakingKeeper,
 		keyregistryKeeper: keyregistryKeeper,
 	}
-}
-
-func (h *AbciHandler) storeVote(height uint64, minaKey string, voteExt []byte) {
-
-	voteMap := h.votes[height]
-
-	voteMap[minaKey] = voteExt
-
-}
-
-func (h *AbciHandler) fetchVote(height uint64, minaKey string) []byte {
-
-	voteMap := h.votes[height]
-
-	return voteMap[minaKey]
-}
-
-func (h *AbciHandler) fetchVotes(height uint64) map[string][]byte {
-
-	voteMap := h.votes[height]
-
-	return voteMap
 }
