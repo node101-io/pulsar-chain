@@ -48,6 +48,7 @@ import (
 	"github.com/node101-io/pulsar-chain/docs"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
+	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 )
 
 const (
@@ -100,9 +101,10 @@ type App struct {
 	TransferKeeper      ibctransferkeeper.Keeper
 
 	// simulation manager
-	sm                *module.SimulationManager
-	PulsarKeeper      pulsarmodulekeeper.Keeper
-	KeyregistryKeeper keyregistrymodulekeeper.Keeper
+	sm                    *module.SimulationManager
+	PulsarKeeper          pulsarmodulekeeper.Keeper
+	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
+	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
 }
 
 func init() {
@@ -184,6 +186,7 @@ func New(
 		&app.ParamsKeeper,
 		&app.PulsarKeeper,
 		&app.KeyregistryKeeper,
+		&app.VotepersistenceKeeper,
 	); err != nil {
 		panic(err)
 	}
