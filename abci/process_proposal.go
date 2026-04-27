@@ -21,22 +21,22 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 		// vote ext reconstruct
 		currentState, err := stakingkeeper.Keeper.GetHistoricalInfo(h.stakingKeeper, ctx, req.GetHeight()-2)
 		if err != nil {
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 
 		valInfo, err := h.getValidatorSet(ctx, req.GetHeight()-1)
 		if err != nil {
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 
 		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
 		nextValidatorSetHash, err := h.calculateValidatorSetRoot(ctx, valInfo, poseidonHash)
 		if err != nil {
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 		if nextValidatorSetHash == nil {
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 
 		body := VoteExtensionBody{
@@ -56,7 +56,7 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			currentValidatorStakePower += val.Power
 		}
 
-		if float64(signedStakePower) < float64(currentValidatorStakePower)*AcceptanceRatio {
+		if signedStakePower*3 >= currentValidatorStakePower*2 {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
 		}
 
