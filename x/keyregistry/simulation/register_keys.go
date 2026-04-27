@@ -20,13 +20,20 @@ func SimulateMsgRegisterKeys(
 ) simtypes.Operation {
 	return func(r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context, accs []simtypes.Account, chainID string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
-		simAccount, _ := simtypes.RandomAcc(r, accs)
-		msg := &types.MsgRegisterKeys{
-			Creator: simAccount.Address.String(),
+		msgType := sdk.MsgTypeURL(&types.MsgRegisterKeys{})
+		simAccount, noOpReason := randomSimulationAccount(r, accs)
+		if noOpReason != "" {
+			return simtypes.NoOpMsg(types.ModuleName, msgType, noOpReason), nil, nil
 		}
 
-		// TODO: Handle the RegisterKeys simulation
+		msg, noOpReason, err := buildRegisterKeysMsg(r, ctx, k, randomActorType(r), simAccount)
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to build RegisterKeys msg"), nil, err
+		}
+		if noOpReason != "" {
+			return simtypes.NoOpMsg(types.ModuleName, msgType, noOpReason), nil, nil
+		}
 
-		return simtypes.NoOpMsg(types.ModuleName, sdk.MsgTypeURL(msg), "RegisterKeys simulation not implemented"), nil, nil
+		return deliverKeyregistryTx(r, app, txGen, ak, bk, msg, ctx, simAccount)
 	}
 }

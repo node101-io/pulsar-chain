@@ -20,13 +20,20 @@ func SimulateMsgUpdateKeys(
 ) simtypes.Operation {
 	return func(r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context, accs []simtypes.Account, chainID string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
-		simAccount, _ := simtypes.RandomAcc(r, accs)
-		msg := &types.MsgUpdateKeys{
-			Creator: simAccount.Address.String(),
+		msgType := sdk.MsgTypeURL(&types.MsgUpdateKeys{})
+		genesis, err := k.ExportGenesis(ctx)
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to export keyregistry genesis"), nil, err
 		}
 
-		// TODO: Handle the UpdateKeys simulation
+		msg, simAccount, noOpReason, err := buildUpdateKeysMsg(r, ctx, k, randomActorType(r), genesis, accs)
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to build UpdateKeys msg"), nil, err
+		}
+		if noOpReason != "" {
+			return simtypes.NoOpMsg(types.ModuleName, msgType, noOpReason), nil, nil
+		}
 
-		return simtypes.NoOpMsg(types.ModuleName, sdk.MsgTypeURL(msg), "UpdateKeys simulation not implemented"), nil, nil
+		return deliverKeyregistryTx(r, app, txGen, ak, bk, msg, ctx, simAccount)
 	}
 }

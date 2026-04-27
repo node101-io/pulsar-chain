@@ -30,7 +30,7 @@ func (am AppModule) RegisterStoreDecoder(_ simtypes.StoreDecoderRegistry) {}
 func (am AppModule) WeightedOperations(simState module.SimulationState) []simtypes.WeightedOperation {
 	operations := make([]simtypes.WeightedOperation, 0)
 	const (
-		opWeightMsgRegisterKeys          = "op_weight_msg_keyregistry"
+		opWeightMsgRegisterKeys          = "op_weight_msg_keyregistry_register_keys"
 		defaultWeightMsgRegisterKeys int = 100
 	)
 
@@ -45,7 +45,7 @@ func (am AppModule) WeightedOperations(simState module.SimulationState) []simtyp
 		keyregistrysimulation.SimulateMsgRegisterKeys(am.authKeeper, am.bankKeeper, am.keeper, simState.TxConfig),
 	))
 	const (
-		opWeightMsgUpdateKeys          = "op_weight_msg_keyregistry"
+		opWeightMsgUpdateKeys          = "op_weight_msg_keyregistry_update_keys"
 		defaultWeightMsgUpdateKeys int = 100
 	)
 
