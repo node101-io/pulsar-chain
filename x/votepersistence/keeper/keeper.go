@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"context"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -11,6 +12,8 @@ import (
 	"github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
+const VoteStorageMapName string = "vote_storage"
+
 type Keeper struct {
 	storeService corestore.KVStoreService
 	cdc          codec.Codec
@@ -18,6 +21,8 @@ type Keeper struct {
 	// Address capable of executing a MsgUpdateParams message.
 	// Typically, this should be the x/gov module account.
 	authority []byte
+
+	voteStorage collections.Map[collections.Pair[int64, []byte], []byte]
 
 	Schema collections.Schema
 	Params collections.Item[types.Params]
@@ -43,6 +48,12 @@ func NewKeeper(
 		authority:    authority,
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
+
+		voteStorage: collections.NewMap(sb,
+			types.VoteStorageMapPrefix,
+			VoteStorageMapName,
+			collections.PairKeyCodec(collections.Int64Key, collections.BytesKey),
+			collections.BytesValue),
 	}
 
 	schema, err := sb.Build()
@@ -57,4 +68,20 @@ func NewKeeper(
 // GetAuthority returns the module's authority.
 func (k Keeper) GetAuthority() []byte {
 	return k.authority
+}
+
+func (k Keeper) SetVote(ctx context.Context, blockHeight int64, minaAddress, voteExtensions []byte) error {
+	return k.voteStorage.Set(ctx, collections.Join(blockHeight, minaAddress), voteExtensions)
+}
+func (k Keeper) GetVote(ctx context.Context, blockHeight int64, minaAddress []byte) ([]byte, error) {
+	return k.voteStorage.Get(ctx, collections.Join(blockHeight, minaAddress))
+}
+func (k Keeper) RemoveVote(ctx context.Context, blockHeight int64, minaAddress []byte) error {
+	return k.voteStorage.Remove(ctx, collections.Join(blockHeight, minaAddress))
+}
+func (k Keeper) VoteExists(ctx context.Context, blockHeight int64, minaAddress []byte) (bool, error) {
+	return k.voteStorage.Has(ctx, collections.Join(blockHeight, minaAddress))
+}
+func (k Keeper) IterateVotes(ctx context.Context) (collections.Iterator[collections.Pair[int64, []byte], []byte], error) {
+	return k.voteStorage.Iterate(ctx, nil)
 }
