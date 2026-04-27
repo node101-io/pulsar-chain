@@ -17,27 +17,26 @@ func (h *AbciHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 
 		valInfo, err := h.getValidatorSet(ctx, req.Height)
 		if err != nil {
-			return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
+			return &abci.ResponsePrepareProposal{Txs: req.Txs}, err
 		}
 
-		for _, val := range valInfo {
+		for i, val := range valInfo {
 
 			exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, val.ConsensusAddr)
 			if err != nil {
-				return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
+				return &abci.ResponsePrepareProposal{Txs: req.Txs}, err
 			}
 			if !exists {
-				return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
+				return &abci.ResponsePrepareProposal{Txs: req.Txs}, err
 			}
-			minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, val.ConsensusAddr)
-			if err != nil {
-				return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
-			}
-			voteExtsForGivenBlock[string(val.ConsensusAddr)] = h.fetchVote(targetHeight, string(minaKey))
+
+			votes := req.LocalLastCommit.Votes
+
+			voteExtsForGivenBlock[string(votes[i].Validator.Address)] = votes[i].ExtensionSignature
 		}
 
 		if len(voteExtsForGivenBlock) == 0 {
-			return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
+			return &abci.ResponsePrepareProposal{Txs: req.Txs}, err
 		}
 
 		pl := payload{Height: targetHeight, Votes: voteExtsForGivenBlock}
@@ -54,6 +53,6 @@ func (h *AbciHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 		txs = append(txs, extTx)
 		txs = append(txs, req.Txs...)
 
-		return &abci.ResponsePrepareProposal{Txs: [][]byte{}}, nil
+		return &abci.ResponsePrepareProposal{Txs: txs}, nil
 	}
 }
