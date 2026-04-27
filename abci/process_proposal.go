@@ -47,16 +47,24 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 
 		var signedStakePower int64
 		var currentValidatorStakePower int64
-		voteExtMap := h.fetchVotes(uint64(req.GetHeight()) - 2)
 
+		votes := req.ProposedLastCommit.Votes
+		valInfoMap := make(map[string]validatorInfo)
+
+		// Require at least 2/3 signed power to prevent proposer-side signature withholding.
 		for _, val := range valInfo {
-			if voteExtMap[string(val.ConsensusAddr)] != nil {
-				signedStakePower += val.Power
-			}
+			valInfoMap[string(val.ConsensusAddr)] = val
 			currentValidatorStakePower += val.Power
 		}
 
-		if signedStakePower*3 >= currentValidatorStakePower*2 {
+		for _, vote := range votes {
+			_, ok := valInfoMap[string(vote.Validator.Address)]
+			if ok {
+				signedStakePower += vote.Validator.Power
+			}
+		}
+
+		if signedStakePower*3 < currentValidatorStakePower*2 {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
 		}
 
