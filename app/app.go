@@ -1,7 +1,10 @@
 package app
 
 import (
+	"encoding/base64"
+	"fmt"
 	"io"
+	"math/big"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 	"cosmossdk.io/core/appmodule"
@@ -45,6 +48,8 @@ import (
 	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
+	"github.com/node101-io/mina-signer-go/keys"
+	vote_ext "github.com/node101-io/pulsar-chain/abci"
 	"github.com/node101-io/pulsar-chain/docs"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
@@ -105,6 +110,8 @@ type App struct {
 	PulsarKeeper          pulsarmodulekeeper.Keeper
 	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
 	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
+
+	AbciHandler *vote_ext.AbciHandler
 }
 
 func init() {
@@ -191,12 +198,47 @@ func New(
 		panic(err)
 	}
 
+	minaPrivKey := appOpts.Get("vote_extension.priv_key")
+	keyStr, ok := minaPrivKey.(string)
+	if !ok {
+		panic("vote_extension.priv_key is not a string")
+	}
+
+	// Decode base64 -> bytes
+	keyBytes, err := base64.StdEncoding.DecodeString(keyStr)
+	if err != nil {
+		panic(fmt.Sprintf("failed to decode base64 priv key: %v", err))
+	}
+
+	// Bytes -> big.Int
+	prv := new(big.Int).SetBytes(keyBytes)
+	priv := keys.PrivateKey{
+		Value: prv,
+	}
+	public := priv.ToPublicKey()
+	secondaryKey := vote_ext.SecondaryKey{
+		SecretKey: &priv,
+		PublicKey: &public,
+	}
+
+	app.AbciHandler = vote_ext.NewVoteExtHandler(
+		secondaryKey,
+		*app.StakingKeeper,
+		app.KeyregistryKeeper,
+	)
+
 	// add to default baseapp options
 	// enable optimistic execution
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 
 	// build app
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+
+	app.SetExtendVoteHandler(app.AbciHandler.ExtendVoteHandler())
+	app.SetVerifyVoteExtensionHandler(app.AbciHandler.VerifyVoteExtensionHandler())
+	app.SetPrepareProposal(app.AbciHandler.PrepareProposalHandler())
+	app.SetProcessProposal(app.AbciHandler.ProcessProposalHandler())
+	app.SetPreBlocker(app.AbciHandler.PreBlocker())
 
 	// register legacy modules
 	if err := app.registerIBCModules(appOpts); err != nil {

@@ -28,6 +28,8 @@ validators:
 - name: validator2
   bonded: 100000000pmina
 
+ 
+
 genesis:
   app_state:
     keyregistry:
@@ -40,3 +42,7 @@ genesis:
       validator_key_pairs:
        # - mina_key: "3IvK1eWmmcfdlIb+T04+ck9Q5bjbqHqiT0ucGJITzyY="
         #  cosmos_key: "A8saw69s1DQWvUjseeOtG8hGavmYiInrQ5M1aOPa4QkP"
+  consensus:
+    params:
+      abci:
+        vote_extensions_enable_height: "1"
