@@ -6,10 +6,6 @@ package types
 import (
 	context "context"
 	fmt "fmt"
-	io "io"
-	math "math"
-	math_bits "math/bits"
-
 	_ "github.com/cosmos/cosmos-sdk/types/query"
 	_ "github.com/cosmos/cosmos-sdk/types/tx/amino"
 	_ "github.com/cosmos/gogoproto/gogoproto"
@@ -19,6 +15,9 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	io "io"
+	math "math"
+	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -115,9 +114,117 @@ func (m *QueryParamsResponse) GetParams() Params {
 	return Params{}
 }
 
+// QueryVoteExtBodyByHeightRequest defines the QueryVoteExtBodyByHeightRequest message.
+type QueryVoteExtBodyByHeightRequest struct {
+	BlockHeight int64 `protobuf:"varint,1,opt,name=block_height,json=blockHeight,proto3" json:"block_height,omitempty"`
+}
+
+func (m *QueryVoteExtBodyByHeightRequest) Reset()         { *m = QueryVoteExtBodyByHeightRequest{} }
+func (m *QueryVoteExtBodyByHeightRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryVoteExtBodyByHeightRequest) ProtoMessage()    {}
+func (*QueryVoteExtBodyByHeightRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_2c9976ecef977273, []int{2}
+}
+func (m *QueryVoteExtBodyByHeightRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryVoteExtBodyByHeightRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryVoteExtBodyByHeightRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryVoteExtBodyByHeightRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryVoteExtBodyByHeightRequest.Merge(m, src)
+}
+func (m *QueryVoteExtBodyByHeightRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryVoteExtBodyByHeightRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryVoteExtBodyByHeightRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryVoteExtBodyByHeightRequest proto.InternalMessageInfo
+
+func (m *QueryVoteExtBodyByHeightRequest) GetBlockHeight() int64 {
+	if m != nil {
+		return m.BlockHeight
+	}
+	return 0
+}
+
+// QueryVoteExtBodyByHeightResponse defines the QueryVoteExtBodyByHeightResponse message.
+type QueryVoteExtBodyByHeightResponse struct {
+	NextValidatorSetHash []byte `protobuf:"bytes,1,opt,name=next_validator_set_hash,json=nextValidatorSetHash,proto3" json:"next_validator_set_hash,omitempty"`
+	CurrentStateRoot     []byte `protobuf:"bytes,2,opt,name=current_state_root,json=currentStateRoot,proto3" json:"current_state_root,omitempty"`
+	CurrentBlockHeight   int64  `protobuf:"varint,3,opt,name=current_block_height,json=currentBlockHeight,proto3" json:"current_block_height,omitempty"`
+}
+
+func (m *QueryVoteExtBodyByHeightResponse) Reset()         { *m = QueryVoteExtBodyByHeightResponse{} }
+func (m *QueryVoteExtBodyByHeightResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryVoteExtBodyByHeightResponse) ProtoMessage()    {}
+func (*QueryVoteExtBodyByHeightResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_2c9976ecef977273, []int{3}
+}
+func (m *QueryVoteExtBodyByHeightResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryVoteExtBodyByHeightResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryVoteExtBodyByHeightResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryVoteExtBodyByHeightResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryVoteExtBodyByHeightResponse.Merge(m, src)
+}
+func (m *QueryVoteExtBodyByHeightResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryVoteExtBodyByHeightResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryVoteExtBodyByHeightResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryVoteExtBodyByHeightResponse proto.InternalMessageInfo
+
+func (m *QueryVoteExtBodyByHeightResponse) GetNextValidatorSetHash() []byte {
+	if m != nil {
+		return m.NextValidatorSetHash
+	}
+	return nil
+}
+
+func (m *QueryVoteExtBodyByHeightResponse) GetCurrentStateRoot() []byte {
+	if m != nil {
+		return m.CurrentStateRoot
+	}
+	return nil
+}
+
+func (m *QueryVoteExtBodyByHeightResponse) GetCurrentBlockHeight() int64 {
+	if m != nil {
+		return m.CurrentBlockHeight
+	}
+	return 0
+}
+
 func init() {
 	proto.RegisterType((*QueryParamsRequest)(nil), "pulsarchain.votepersistence.v1.QueryParamsRequest")
 	proto.RegisterType((*QueryParamsResponse)(nil), "pulsarchain.votepersistence.v1.QueryParamsResponse")
+	proto.RegisterType((*QueryVoteExtBodyByHeightRequest)(nil), "pulsarchain.votepersistence.v1.QueryVoteExtBodyByHeightRequest")
+	proto.RegisterType((*QueryVoteExtBodyByHeightResponse)(nil), "pulsarchain.votepersistence.v1.QueryVoteExtBodyByHeightResponse")
 }
 
 func init() {
@@ -125,29 +232,41 @@ func init() {
 }
 
 var fileDescriptor_2c9976ecef977273 = []byte{
-	// 342 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x91, 0xb1, 0x4a, 0x3b, 0x41,
-	0x10, 0xc6, 0x6f, 0xff, 0xf0, 0x0f, 0x78, 0x56, 0x9e, 0x29, 0x24, 0xc8, 0x2a, 0x29, 0x44, 0x22,
-	0xb9, 0xf5, 0x2e, 0x56, 0x29, 0xd3, 0xd9, 0x69, 0xb0, 0xb2, 0x72, 0xef, 0x1c, 0x2e, 0x0b, 0xb9,
-	0x9d, 0xcd, 0xed, 0xde, 0x61, 0x5a, 0x9f, 0x40, 0xf0, 0x25, 0x6c, 0x04, 0x3b, 0x5f, 0x21, 0x65,
-	0xc0, 0xc6, 0x4a, 0x24, 0x11, 0x7c, 0x0d, 0xc9, 0xed, 0x15, 0x6a, 0xd0, 0x60, 0xb3, 0x0c, 0xdf,
-	0x7e, 0xdf, 0x6f, 0x66, 0x76, 0xdd, 0x96, 0xca, 0x87, 0x9a, 0x67, 0xf1, 0x80, 0x0b, 0xc9, 0x0a,
-	0x34, 0xa0, 0x20, 0xd3, 0x42, 0x1b, 0x90, 0x31, 0xb0, 0x22, 0x60, 0xa3, 0x1c, 0xb2, 0xb1, 0xaf,
-	0x32, 0x34, 0xe8, 0xd1, 0x4f, 0x5e, 0xff, 0x9b, 0xd7, 0x2f, 0x82, 0xc6, 0x06, 0x4f, 0x85, 0x44,
-	0x56, 0x9e, 0x36, 0xd2, 0xa8, 0x27, 0x98, 0x60, 0x59, 0xb2, 0x45, 0x55, 0xa9, 0xdb, 0x09, 0x62,
-	0x32, 0x04, 0xc6, 0x95, 0x60, 0x5c, 0x4a, 0x34, 0xdc, 0x08, 0x94, 0xba, 0xba, 0x6d, 0xc5, 0xa8,
-	0x53, 0xd4, 0x2c, 0xe2, 0x1a, 0x6c, 0x7f, 0x56, 0x04, 0x11, 0x18, 0x1e, 0x30, 0xc5, 0x13, 0x21,
-	0x4b, 0x73, 0xe5, 0x3d, 0x58, 0x31, 0xbe, 0xe2, 0x19, 0x4f, 0x2b, 0x70, 0xb3, 0xee, 0x7a, 0xa7,
-	0x0b, 0xdc, 0x49, 0x29, 0xf6, 0x61, 0x94, 0x83, 0x36, 0xcd, 0x0b, 0x77, 0xf3, 0x8b, 0xaa, 0x15,
-	0x4a, 0x0d, 0xde, 0xb1, 0x5b, 0xb3, 0xe1, 0x2d, 0xb2, 0x4b, 0xf6, 0xd7, 0xc3, 0x3d, 0xff, 0xf7,
-	0xed, 0x7d, 0x9b, 0xef, 0xad, 0x4d, 0x5e, 0x76, 0x9c, 0xbb, 0xf7, 0x87, 0x16, 0xe9, 0x57, 0x80,
-	0xf0, 0x91, 0xb8, 0xff, 0xcb, 0x16, 0xde, 0x3d, 0x71, 0x6b, 0xd6, 0xe7, 0x85, 0xab, 0x78, 0xcb,
-	0xa3, 0x36, 0x3a, 0x7f, 0xca, 0xd8, 0x45, 0x9a, 0xdd, 0xeb, 0xa7, 0xb7, 0xdb, 0x7f, 0x47, 0x5e,
-	0xc8, 0x24, 0x5e, 0x42, 0x70, 0x18, 0xb4, 0x05, 0x32, 0xcb, 0x69, 0xaf, 0x78, 0xb7, 0xde, 0xd9,
-	0x64, 0x46, 0xc9, 0x74, 0x46, 0xc9, 0xeb, 0x8c, 0x92, 0x9b, 0x39, 0x75, 0xa6, 0x73, 0xea, 0x3c,
-	0xcf, 0xa9, 0x73, 0xde, 0x4d, 0x84, 0x19, 0xe4, 0x91, 0x1f, 0x63, 0xfa, 0x23, 0xf7, 0x6a, 0x89,
-	0x6c, 0xc6, 0x0a, 0x74, 0x54, 0x2b, 0xbf, 0xa3, 0xf3, 0x11, 0x00, 0x00, 0xff, 0xff, 0x9b, 0x87,
-	0xdc, 0x4b, 0x7c, 0x02, 0x00, 0x00,
+	// 529 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x53, 0xc1, 0x6e, 0xd3, 0x40,
+	0x10, 0x8d, 0x1b, 0x11, 0x89, 0x6d, 0x0f, 0xb0, 0x8d, 0x44, 0x15, 0x21, 0xb7, 0xe4, 0x80, 0x50,
+	0xa0, 0xde, 0x3a, 0x85, 0x4b, 0x2f, 0xa0, 0x08, 0xa4, 0x72, 0x03, 0xb7, 0xea, 0xa1, 0x17, 0xb3,
+	0x76, 0x56, 0xb6, 0x45, 0xb2, 0xe3, 0x7a, 0x27, 0x56, 0x2c, 0xc4, 0x85, 0x2f, 0x40, 0xe2, 0x27,
+	0xb8, 0x80, 0xb8, 0xf2, 0x07, 0x3d, 0x56, 0xe2, 0xc2, 0x09, 0xa1, 0x04, 0x89, 0x1f, 0xe0, 0x03,
+	0x90, 0xd7, 0x1b, 0xd1, 0x52, 0x42, 0x28, 0x97, 0xc8, 0x7a, 0xf3, 0xde, 0x9b, 0x37, 0x33, 0x1b,
+	0xd2, 0x49, 0x47, 0x03, 0xc5, 0xb3, 0x30, 0xe6, 0x89, 0x64, 0x39, 0xa0, 0x48, 0x45, 0xa6, 0x12,
+	0x85, 0x42, 0x86, 0x82, 0xe5, 0x2e, 0x3b, 0x1a, 0x89, 0xac, 0x70, 0xd2, 0x0c, 0x10, 0xa8, 0x7d,
+	0x8a, 0xeb, 0xfc, 0xc6, 0x75, 0x72, 0xb7, 0x75, 0x95, 0x0f, 0x13, 0x09, 0x4c, 0xff, 0x56, 0x92,
+	0x56, 0x27, 0x04, 0x35, 0x04, 0xc5, 0x02, 0xae, 0x44, 0xe5, 0xc5, 0x72, 0x37, 0x10, 0xc8, 0x5d,
+	0x96, 0xf2, 0x28, 0x91, 0x1c, 0x13, 0x90, 0x86, 0xdb, 0x8c, 0x20, 0x02, 0xfd, 0xc9, 0xca, 0x2f,
+	0x83, 0x5e, 0x8f, 0x00, 0xa2, 0x81, 0x60, 0x3c, 0x4d, 0x18, 0x97, 0x12, 0x50, 0x4b, 0x94, 0xa9,
+	0xde, 0x5e, 0x10, 0x3f, 0xe5, 0x19, 0x1f, 0x1a, 0x72, 0xbb, 0x49, 0xe8, 0xd3, 0x32, 0xc2, 0x13,
+	0x0d, 0x7a, 0xe2, 0x68, 0x24, 0x14, 0xb6, 0x9f, 0x91, 0xd5, 0x33, 0xa8, 0x4a, 0x41, 0x2a, 0x41,
+	0x1f, 0x93, 0x46, 0x25, 0x5e, 0xb3, 0x36, 0xac, 0x5b, 0xcb, 0xdd, 0x9b, 0xce, 0xdf, 0xa7, 0x77,
+	0x2a, 0x7d, 0xef, 0xf2, 0xf1, 0x97, 0xf5, 0xda, 0xdb, 0xef, 0x1f, 0x3a, 0x96, 0x67, 0x0c, 0xda,
+	0x0f, 0xc9, 0xba, 0xee, 0x70, 0x00, 0x28, 0x1e, 0x8d, 0xb1, 0x07, 0xfd, 0xa2, 0x57, 0xec, 0x8a,
+	0x24, 0x8a, 0xd1, 0x84, 0xa0, 0x37, 0xc8, 0x4a, 0x30, 0x80, 0xf0, 0xb9, 0x1f, 0x6b, 0x58, 0xf7,
+	0xac, 0x7b, 0xcb, 0x1a, 0xab, 0x98, 0xed, 0x8f, 0x16, 0xd9, 0x98, 0x6f, 0x63, 0x52, 0xdf, 0x23,
+	0xd7, 0xa4, 0x18, 0xa3, 0x9f, 0xf3, 0x41, 0xd2, 0xe7, 0x08, 0x99, 0xaf, 0x04, 0xfa, 0x31, 0x57,
+	0xb1, 0xb6, 0x5c, 0xf1, 0x9a, 0x65, 0xf9, 0x60, 0x56, 0xdd, 0x13, 0xb8, 0xcb, 0x55, 0x4c, 0xef,
+	0x10, 0x1a, 0x8e, 0xb2, 0x4c, 0x48, 0xf4, 0x15, 0x72, 0x14, 0x7e, 0x06, 0x80, 0x6b, 0x4b, 0x5a,
+	0x71, 0xc5, 0x54, 0xf6, 0xca, 0x82, 0x07, 0x80, 0x74, 0x8b, 0x34, 0x67, 0xec, 0x33, 0xa1, 0xeb,
+	0x3a, 0xf4, 0xcc, 0xa9, 0xf7, 0x2b, 0x7b, 0xf7, 0x7d, 0x9d, 0x5c, 0xd2, 0xd9, 0xe9, 0x3b, 0x8b,
+	0x34, 0xaa, 0x4d, 0xd1, 0xee, 0xa2, 0x8d, 0x9e, 0x3f, 0x56, 0x6b, 0xfb, 0x42, 0x9a, 0x6a, 0x29,
+	0xed, 0x9d, 0x57, 0x9f, 0xbe, 0xbd, 0x59, 0xba, 0x4b, 0xbb, 0x4c, 0x42, 0x5f, 0xb8, 0x5b, 0xee,
+	0x66, 0x02, 0xac, 0xf2, 0xd9, 0x5c, 0xf0, 0x72, 0xe8, 0x0f, 0x8b, 0xac, 0xfe, 0x61, 0xe1, 0xf4,
+	0xfe, 0x3f, 0x05, 0x99, 0x7f, 0xf1, 0xd6, 0x83, 0xff, 0x37, 0x30, 0x63, 0x1d, 0xea, 0xb1, 0xf6,
+	0xa9, 0x77, 0x91, 0xb1, 0x4a, 0xc8, 0x2f, 0x5f, 0x48, 0x00, 0xfd, 0xc2, 0x0f, 0x0a, 0x73, 0x3b,
+	0xf6, 0xe2, 0xf4, 0x25, 0x5f, 0xf6, 0xf6, 0x8f, 0x27, 0xb6, 0x75, 0x32, 0xb1, 0xad, 0xaf, 0x13,
+	0xdb, 0x7a, 0x3d, 0xb5, 0x6b, 0x27, 0x53, 0xbb, 0xf6, 0x79, 0x6a, 0xd7, 0x0e, 0x77, 0xa2, 0x04,
+	0xe3, 0x51, 0xe0, 0x84, 0x30, 0x9c, 0xdb, 0x77, 0x7c, 0xae, 0x33, 0x16, 0xa9, 0x50, 0x41, 0x43,
+	0xff, 0x0f, 0xb7, 0x7f, 0x06, 0x00, 0x00, 0xff, 0xff, 0x7d, 0x4c, 0x67, 0xcd, 0x75, 0x04, 0x00,
+	0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -164,6 +283,8 @@ const _ = grpc.SupportPackageIsVersion4
 type QueryClient interface {
 	// Parameters queries the parameters of the module.
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
+	// VoteExtBodyByHeight Queries a list of VoteExtBodyByHeight items.
+	VoteExtBodyByHeight(ctx context.Context, in *QueryVoteExtBodyByHeightRequest, opts ...grpc.CallOption) (*QueryVoteExtBodyByHeightResponse, error)
 }
 
 type queryClient struct {
@@ -183,10 +304,21 @@ func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts .
 	return out, nil
 }
 
+func (c *queryClient) VoteExtBodyByHeight(ctx context.Context, in *QueryVoteExtBodyByHeightRequest, opts ...grpc.CallOption) (*QueryVoteExtBodyByHeightResponse, error) {
+	out := new(QueryVoteExtBodyByHeightResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.votepersistence.v1.Query/VoteExtBodyByHeight", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Parameters queries the parameters of the module.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
+	// VoteExtBodyByHeight Queries a list of VoteExtBodyByHeight items.
+	VoteExtBodyByHeight(context.Context, *QueryVoteExtBodyByHeightRequest) (*QueryVoteExtBodyByHeightResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -195,6 +327,9 @@ type UnimplementedQueryServer struct {
 
 func (*UnimplementedQueryServer) Params(ctx context.Context, req *QueryParamsRequest) (*QueryParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
+}
+func (*UnimplementedQueryServer) VoteExtBodyByHeight(ctx context.Context, req *QueryVoteExtBodyByHeightRequest) (*QueryVoteExtBodyByHeightResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VoteExtBodyByHeight not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -219,6 +354,24 @@ func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_VoteExtBodyByHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryVoteExtBodyByHeightRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).VoteExtBodyByHeight(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.votepersistence.v1.Query/VoteExtBodyByHeight",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).VoteExtBodyByHeight(ctx, req.(*QueryVoteExtBodyByHeightRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pulsarchain.votepersistence.v1.Query",
@@ -227,6 +380,10 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Params",
 			Handler:    _Query_Params_Handler,
+		},
+		{
+			MethodName: "VoteExtBodyByHeight",
+			Handler:    _Query_VoteExtBodyByHeight_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -289,6 +446,76 @@ func (m *QueryParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryVoteExtBodyByHeightRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryVoteExtBodyByHeightRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryVoteExtBodyByHeightRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.BlockHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.BlockHeight))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryVoteExtBodyByHeightResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryVoteExtBodyByHeightResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryVoteExtBodyByHeightResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.CurrentBlockHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.CurrentBlockHeight))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.CurrentStateRoot) > 0 {
+		i -= len(m.CurrentStateRoot)
+		copy(dAtA[i:], m.CurrentStateRoot)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.CurrentStateRoot)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.NextValidatorSetHash) > 0 {
+		i -= len(m.NextValidatorSetHash)
+		copy(dAtA[i:], m.NextValidatorSetHash)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.NextValidatorSetHash)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -317,6 +544,38 @@ func (m *QueryParamsResponse) Size() (n int) {
 	_ = l
 	l = m.Params.Size()
 	n += 1 + l + sovQuery(uint64(l))
+	return n
+}
+
+func (m *QueryVoteExtBodyByHeightRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.BlockHeight != 0 {
+		n += 1 + sovQuery(uint64(m.BlockHeight))
+	}
+	return n
+}
+
+func (m *QueryVoteExtBodyByHeightResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.NextValidatorSetHash)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.CurrentStateRoot)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.CurrentBlockHeight != 0 {
+		n += 1 + sovQuery(uint64(m.CurrentBlockHeight))
+	}
 	return n
 }
 
@@ -438,6 +697,212 @@ func (m *QueryParamsResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryVoteExtBodyByHeightRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryVoteExtBodyByHeightRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryVoteExtBodyByHeightRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BlockHeight", wireType)
+			}
+			m.BlockHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BlockHeight |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryVoteExtBodyByHeightResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryVoteExtBodyByHeightResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryVoteExtBodyByHeightResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NextValidatorSetHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NextValidatorSetHash = append(m.NextValidatorSetHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.NextValidatorSetHash == nil {
+				m.NextValidatorSetHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CurrentStateRoot", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CurrentStateRoot = append(m.CurrentStateRoot[:0], dAtA[iNdEx:postIndex]...)
+			if m.CurrentStateRoot == nil {
+				m.CurrentStateRoot = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CurrentBlockHeight", wireType)
+			}
+			m.CurrentBlockHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CurrentBlockHeight |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQuery(dAtA[iNdEx:])

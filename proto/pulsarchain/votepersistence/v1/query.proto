@@ -1,4 +1,5 @@
 syntax = "proto3";
+
 package pulsarchain.votepersistence.v1;
 
 import "amino/amino.proto";
@@ -15,6 +16,11 @@ service Query {
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/params";
   }
+
+  // VoteExtBodyByHeight Queries a list of VoteExtBodyByHeight items.
+  rpc VoteExtBodyByHeight(QueryVoteExtBodyByHeightRequest) returns (QueryVoteExtBodyByHeightResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/vote_ext_body_by_height/{block_height}";
+  }
 }
 
 // QueryParamsRequest is request type for the Query/Params RPC method.
@@ -27,4 +33,16 @@ message QueryParamsResponse {
     (gogoproto.nullable) = false,
     (amino.dont_omitempty) = true
   ];
+}
+
+// QueryVoteExtBodyByHeightRequest defines the QueryVoteExtBodyByHeightRequest message.
+message QueryVoteExtBodyByHeightRequest {
+  int64 block_height = 1;
+}
+
+// QueryVoteExtBodyByHeightResponse defines the QueryVoteExtBodyByHeightResponse message.
+message QueryVoteExtBodyByHeightResponse {
+  bytes next_validator_set_hash = 1;
+  bytes current_state_root = 2;
+  int64 current_block_height = 3;
 }
