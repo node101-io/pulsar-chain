@@ -5,6 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
+	votepersistence "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 )
 
 const ActionsReducedRoot string = "pulsar"
@@ -21,9 +22,10 @@ type VoteExtensionBody struct {
 }
 
 type AbciHandler struct {
-	secondaryKey      SecondaryKey
-	stakingKeeper     stakingkeeper.Keeper
-	keyregistryKeeper keyregistrykeeper.Keeper
+	secondaryKey          SecondaryKey
+	stakingKeeper         stakingkeeper.Keeper
+	keyregistryKeeper     keyregistrykeeper.Keeper
+	votePersistenceKeeper votepersistence.Keeper
 }
 
 func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
