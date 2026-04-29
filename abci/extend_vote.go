@@ -28,6 +28,7 @@ type AbciHandler struct {
 
 func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+
 		if req.GetHeight() < 3 {
 			return &abci.ResponseExtendVote{VoteExtension: []byte{}}, nil
 		}
