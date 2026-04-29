@@ -11,8 +11,8 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
 
-		// If height is 1, we won't have any votes thus skip the proposal
-		if req.GetHeight() == 1 {
+		// If height is less than 3, we won't have any votes thus skip the proposal
+		if req.GetHeight() < 3 {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
 		}
 
