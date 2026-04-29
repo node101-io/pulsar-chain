@@ -225,6 +225,7 @@ func New(
 		secondaryKey,
 		*app.StakingKeeper,
 		app.KeyregistryKeeper,
+		app.VotepersistenceKeeper,
 	)
 
 	// add to default baseapp options
