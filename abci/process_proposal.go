@@ -1,12 +1,10 @@
 package vote_ext
 
 import (
+	"fmt"
+
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
-	"github.com/node101-io/mina-signer-go/constants"
-	"github.com/node101-io/mina-signer-go/field"
-	"github.com/node101-io/mina-signer-go/poseidon"
 )
 
 func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
@@ -18,57 +16,24 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
 		}
 
-		// vote ext reconstruct
-		currentState, err := stakingkeeper.Keeper.GetHistoricalInfo(h.stakingKeeper, ctx, req.GetHeight()-2)
+		body, err := h.constructVoteExtBody(ctx, req.GetHeight()-1)
 		if err != nil {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 
-		valInfo, err := h.getValidatorSet(ctx, req.GetHeight()-1)
+		err = h.verifyVoteExtension(ctx, req.Txs, body)
 		if err != nil {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 
-		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
-
-		nextValidatorSetHash, err := h.calculateValidatorSetRoot(ctx, valInfo, poseidonHash)
+		isEnoughStakePower, err := h.checkStakePower(ctx, req.GetHeight(), req.Txs)
 		if err != nil {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
-		if nextValidatorSetHash == nil {
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
+
+		if !isEnoughStakePower {
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("")
 		}
-
-		body := VoteExtensionBody{
-			NextBlockHeight:      req.GetHeight() - 1,
-			CurrentStateRoot:     currentState.Header.AppHash,
-			NextValidatorSetHash: nextValidatorSetHash.Bytes(),
-		}
-
-		var signedStakePower int64
-		var currentValidatorStakePower int64
-
-		votes := req.ProposedLastCommit.Votes
-		valInfoMap := make(map[string]validatorInfo)
-
-		// Require at least 2/3 signed power to prevent proposer-side signature withholding.
-		for _, val := range valInfo {
-			valInfoMap[string(val.ConsensusAddr)] = val
-			currentValidatorStakePower += val.Power
-		}
-
-		for _, vote := range votes {
-			_, ok := valInfoMap[string(vote.Validator.Address)]
-			if ok {
-				signedStakePower += vote.Validator.Power
-			}
-		}
-
-		if signedStakePower*3 < currentValidatorStakePower*2 {
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
-		}
-
-		MockSignatureVerify(body, h.secondaryKey.PublicKey.X.Bytes(), ActionsReducedRoot)
 
 		// Vote extension successfully verified
 		return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
