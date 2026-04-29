@@ -69,6 +69,36 @@ func TestVoteStorageRemove(t *testing.T) {
 	require.ErrorIs(t, err, collections.ErrNotFound)
 }
 
+func TestVoteStorageRemoveVotes(t *testing.T) {
+	f := initFixture(t)
+
+	entries := []voteEntry{
+		{blockHeight: 3, minaAddress: []byte("mina-a"), voteExtensions: []byte("vote-a")},
+		{blockHeight: 3, minaAddress: []byte("mina-b"), voteExtensions: []byte("vote-b")},
+		{blockHeight: 8, minaAddress: []byte("mina-c"), voteExtensions: []byte("vote-c")},
+	}
+
+	for _, entry := range entries {
+		err := f.keeper.SetVote(f.ctx, entry.blockHeight, entry.minaAddress, entry.voteExtensions)
+		require.NoError(t, err)
+	}
+
+	err := f.keeper.RemoveVotes(f.ctx)
+	require.NoError(t, err)
+
+	for _, entry := range entries {
+		exists, err := f.keeper.VoteExists(f.ctx, entry.blockHeight, entry.minaAddress)
+		require.NoError(t, err)
+		require.False(t, exists)
+	}
+
+	iter, err := f.keeper.IterateVotes(f.ctx)
+	require.NoError(t, err)
+	defer iter.Close()
+
+	require.False(t, iter.Valid())
+}
+
 func TestVoteStorageIterate(t *testing.T) {
 	f := initFixture(t)
 
