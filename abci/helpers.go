@@ -17,6 +17,7 @@ import (
 	"github.com/node101-io/mina-signer-go/poseidon"
 	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	votepersistence "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
+	"github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
 type SecondaryKey struct {
@@ -47,7 +48,7 @@ func (h *AbciHandler) verifyVoteExtension(ctx context.Context, txs [][]byte, bod
 	voteExtensionTx := txs[0]
 
 	if !strings.Contains(string(txs[0]), VoteExtMarker) {
-		return fmt.Errorf("")
+		return types.ErrVoteExtMarkerNotFound
 	}
 
 	voteExtensionTx = voteExtensionTx[len([]byte(VoteExtMarker)):]
@@ -80,7 +81,7 @@ func (h *AbciHandler) verifyVoteExtension(ctx context.Context, txs [][]byte, bod
 		}
 
 		if !MockSignatureVerify(vote, body, minaKey, ActionsReducedRoot) {
-			return fmt.Errorf("")
+			return types.ErrInvalidVoteExtension.Wrap("invalid signature")
 		}
 
 	}
