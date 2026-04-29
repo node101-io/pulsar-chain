@@ -17,6 +17,13 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Use:       "params",
 					Short:     "Shows the parameters of the module",
 				},
+				{
+					RpcMethod:      "VoteExtBodyByHeight",
+					Use:            "vote-ext-body-by-height [block-height]",
+					Short:          "Query vote-ext-body-by-height",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "block_height"}},
+				},
+
 				// this line is used by ignite scaffolding # autocli/query
 			},
 		},
