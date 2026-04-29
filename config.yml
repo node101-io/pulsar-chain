@@ -29,6 +29,8 @@ validators:
 - name: validator2
   bonded: 100000000pmina
 
+ 
+
 genesis:
   app_state:
     keyregistry:
