@@ -16,7 +16,7 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
 		}
 
-		body, err := h.constructVoteExtBody(ctx, req.GetHeight()-1)
+		body, err := h.reconstructVoteExtBody(ctx, req.GetHeight()-1)
 		if err != nil {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}

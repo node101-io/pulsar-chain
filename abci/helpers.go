@@ -11,6 +11,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
+	stakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/node101-io/mina-signer-go/constants"
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/keys"
@@ -89,7 +90,8 @@ func (h *AbciHandler) verifyVoteExtension(ctx context.Context, txs [][]byte, bod
 	return nil
 }
 
-func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]validatorInfo, error) {
+// Use if you need the validator set of block < N where N is the current block number.
+func (h *AbciHandler) getHistoricalValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]validatorInfo, error) {
 
 	historicalData, err := h.stakingKeeper.GetHistoricalInfo(ctx, currentBlockHeight)
 	if err != nil {
@@ -114,6 +116,37 @@ func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64)
 			Power:         consPower,
 		})
 	}
+	return valInfo, nil
+}
+
+// Use if you need the validator set of the current block
+func (h *AbciHandler) getCurrentValidatorSet(ctx sdk.Context) ([]validatorInfo, error) {
+
+	var valInfo []validatorInfo
+	var iterErr error
+
+	err := h.stakingKeeper.IterateLastValidators(ctx, func(index int64, validator stakingTypes.ValidatorI) (stop bool) {
+		consAddr, err := validator.GetConsAddr()
+		if err != nil {
+			iterErr = err
+			return true
+		}
+
+		valInfo = append(valInfo, validatorInfo{
+			ConsensusAddr: consAddr,
+			Power:         validator.GetConsensusPower(sdk.DefaultPowerReduction),
+		})
+
+		return false
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if iterErr != nil {
+		return nil, iterErr
+	}
+
 	return valInfo, nil
 }
 
@@ -181,7 +214,7 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, txs []
 
 	valInfoMap := make(map[string]validatorInfo)
 
-	currentValidatorSet, err := h.getValidatorSet(ctx, blockHeight-2)
+	currentValidatorSet, err := h.getHistoricalValidatorSet(ctx, blockHeight-2)
 	if err != nil {
 		return false, err
 	}
@@ -224,7 +257,36 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, txs []
 
 func (h *AbciHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (VoteExtensionBody, error) {
 
-	nextValidatorSet, err := h.getValidatorSet(ctx, blockHeight)
+	nextValidatorSet, err := h.getCurrentValidatorSet(ctx)
+	if err != nil {
+		return VoteExtensionBody{}, err
+	}
+
+	currentBlockInfo, err := h.stakingKeeper.GetHistoricalInfo(ctx, blockHeight-1)
+	if err != nil {
+		return VoteExtensionBody{}, err
+	}
+
+	poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+
+	nextValidatorSetHash, err := h.calculateValidatorSetRoot(ctx, nextValidatorSet, poseidonHash)
+	if err != nil {
+		return VoteExtensionBody{}, err
+	}
+	if nextValidatorSetHash == nil {
+		return VoteExtensionBody{}, err
+	}
+
+	return VoteExtensionBody{
+		NextValidatorSetHash: nextValidatorSetHash.Bytes(),
+		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
+		CurrentBlockHeight:   blockHeight - 1,
+	}, nil
+}
+
+func (h *AbciHandler) reconstructVoteExtBody(ctx sdk.Context, blockHeight int64) (VoteExtensionBody, error) {
+
+	nextValidatorSet, err := h.getHistoricalValidatorSet(ctx, blockHeight)
 	if err != nil {
 		return VoteExtensionBody{}, err
 	}
@@ -269,7 +331,7 @@ func (h *AbciHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 	voteExtsForGivenBlock := make(map[string][]byte)
 	currentValidatorSetMap := make(map[string]bool)
 
-	currentValidatorSet, err := h.getValidatorSet(ctx, blockHeight-2)
+	currentValidatorSet, err := h.getHistoricalValidatorSet(ctx, blockHeight-2)
 	if err != nil {
 		return payload{}, err
 	}

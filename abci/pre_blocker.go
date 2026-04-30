@@ -33,7 +33,7 @@ func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
 			return nil, err
 		}
 
-		currentValidatorSet, err := h.getValidatorSet(ctx, req.GetHeight()-2)
+		currentValidatorSet, err := h.getHistoricalValidatorSet(ctx, req.GetHeight()-2)
 		if err != nil {
 			return nil, err
 		}
