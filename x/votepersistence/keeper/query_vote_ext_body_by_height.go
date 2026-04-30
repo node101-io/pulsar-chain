@@ -28,8 +28,8 @@ func (q queryServer) VoteExtBodyByHeight(ctx context.Context, req *types.QueryVo
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	if req.BlockHeight == sdkCtx.BlockHeight() {
-		return nil, status.Error(codes.InvalidArgument, "no vote extensions in this block yet")
+	if req.BlockHeight >= sdkCtx.BlockHeight() {
+		return nil, status.Error(codes.InvalidArgument, "no vote extensions in the requested block yet")
 	}
 
 	if q.k.stakingKeeper == nil || q.k.keyregistryKeeper == nil {
