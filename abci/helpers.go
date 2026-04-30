@@ -126,7 +126,7 @@ func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []valid
 	for _, validator := range valInfo {
 		input = []*big.Int{}
 
-		cosmosValidatorInfo, err := h.stakingKeeper.Validator(ctx, validator.ConsensusAddr)
+		cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, validator.ConsensusAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +149,8 @@ func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []valid
 			return nil, err
 		}
 
-		MinaPublicKey, err := keys.PublicKey{}.FromAddress(string(minaPubKey))
+		var MinaPublicKey keys.PublicKey
+		err = MinaPublicKey.Unmarshal(minaPubKey)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +252,8 @@ func (h *AbciHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (
 }
 
 func (h *AbciHandler) getValidatorPublicKey(ctx sdk.Context, validatorAddr []byte) ([]byte, error) {
-	cosmosValidatorInfo, err := h.stakingKeeper.Validator(ctx, validatorAddr)
+
+	cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, validatorAddr)
 	if err != nil {
 		return nil, err
 	}
