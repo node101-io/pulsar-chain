@@ -5,6 +5,7 @@ import (
 
 	"cosmossdk.io/core/address"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 // AuthKeeper defines the expected interface for the Auth module.
@@ -18,6 +19,15 @@ type AuthKeeper interface {
 type BankKeeper interface {
 	SpendableCoins(context.Context, sdk.AccAddress) sdk.Coins
 	// Methods imported from bank should be defined here
+}
+
+type StakingKeeper interface {
+	GetHistoricalInfo(context.Context, int64) (stakingtypes.HistoricalInfo, error)
+}
+
+type KeyregistryKeeper interface {
+	ValidatorCosmosToMinaHas(context.Context, []byte) (bool, error)
+	ValidatorGetCosmosToMina(context.Context, []byte) ([]byte, error)
 }
 
 // ParamSubspace defines the expected Subspace interface for parameters.

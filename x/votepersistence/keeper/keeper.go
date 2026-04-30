@@ -15,9 +15,11 @@ import (
 const VoteStorageMapName string = "vote_storage"
 
 type Keeper struct {
-	storeService corestore.KVStoreService
-	cdc          codec.Codec
-	addressCodec address.Codec
+	storeService      corestore.KVStoreService
+	cdc               codec.Codec
+	addressCodec      address.Codec
+	stakingKeeper     types.StakingKeeper
+	keyregistryKeeper types.KeyregistryKeeper
 	// Address capable of executing a MsgUpdateParams message.
 	// Typically, this should be the x/gov module account.
 	authority []byte
@@ -32,6 +34,8 @@ func NewKeeper(
 	storeService corestore.KVStoreService,
 	cdc codec.Codec,
 	addressCodec address.Codec,
+	stakingKeeper types.StakingKeeper,
+	keyregistryKeeper types.KeyregistryKeeper,
 	authority []byte,
 
 ) Keeper {
@@ -42,10 +46,12 @@ func NewKeeper(
 	sb := collections.NewSchemaBuilder(storeService)
 
 	k := Keeper{
-		storeService: storeService,
-		cdc:          cdc,
-		addressCodec: addressCodec,
-		authority:    authority,
+		storeService:      storeService,
+		cdc:               cdc,
+		addressCodec:      addressCodec,
+		stakingKeeper:     stakingKeeper,
+		keyregistryKeeper: keyregistryKeeper,
+		authority:         authority,
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
 
