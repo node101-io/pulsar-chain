@@ -16,7 +16,7 @@ func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
-		err := h.votePersistenceKeeper.RemoveVotes(ctx)
+		err := h.votePersistenceKeeper.Clear(ctx)
 		if err != nil {
 			return nil, err
 		}
