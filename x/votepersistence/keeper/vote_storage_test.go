@@ -83,7 +83,7 @@ func TestVoteStorageRemoveVotes(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	err := f.keeper.RemoveVotes(f.ctx)
+	err := f.keeper.Clear(f.ctx)
 	require.NoError(t, err)
 
 	for _, entry := range entries {
