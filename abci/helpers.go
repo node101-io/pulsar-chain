@@ -15,17 +15,56 @@ import (
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/mina-signer-go/poseidon"
+	minasignature "github.com/node101-io/mina-signer-go/signature"
 	abcipb "github.com/node101-io/pulsar-chain/api/pulsarchain/abci"
 	"github.com/node101-io/pulsar-chain/x/votepersistence/types"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
-func MockSign(voteExtBody votepersistenceTypes.VoteExtBody) []byte {
-	return []byte{}
+func (s *SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBody) []byte {
+	if s == nil || s.SecretKey == nil {
+		return nil
+	}
+
+	msg, err := voteExtBody.Marshal()
+	if err != nil {
+		return nil
+	}
+
+	sig, err := s.SecretKey.SignMessage(hex.EncodeToString(msg), "testnet")
+	if err != nil {
+		return nil
+	}
+
+	bz, err := sig.MarshalBytes()
+	if err != nil {
+		return nil
+	}
+
+	return bz
 }
 
-func MockSignatureVerify(signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) bool {
-	return true
+func VerifyVoteExtSig(signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) bool {
+	if message.ActionsReducedRoot != reducedRoot {
+		return false
+	}
+
+	var pubKey keys.PublicKey
+	if err := pubKey.Unmarshal(minaKey); err != nil {
+		return false
+	}
+
+	var sig minasignature.Signature
+	if err := sig.UnmarshalBytes(signature); err != nil {
+		return false
+	}
+
+	msg, err := message.Marshal()
+	if err != nil {
+		return false
+	}
+
+	return pubKey.VerifyMessage(&sig, hex.EncodeToString(msg), "testnet")
 }
 
 func extractPayload(txs [][]byte) (abcipb.Payload, error) {
@@ -71,7 +110,7 @@ func (h *AbciHandler) verifyVoteExtension(ctx context.Context, pl abcipb.Payload
 			return err
 		}
 
-		if !MockSignatureVerify(vote.VoteExtension, body, minaKey, ActionsReducedRoot) {
+		if !VerifyVoteExtSig(vote.VoteExtension, body, minaKey, ActionsReducedRoot) {
 			return types.ErrInvalidVoteExtension.Wrap("invalid signature")
 		}
 
