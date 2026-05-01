@@ -41,7 +41,7 @@ func (h *AbciHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, err
 		}
 
-		sigValidity := MockSignatureVerify(req.VoteExtension, body, minaKey, ActionsReducedRoot)
+		sigValidity := VerifyVoteExtSig(req.VoteExtension, body, minaKey, ActionsReducedRoot)
 		if !sigValidity {
 			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, err
 		}

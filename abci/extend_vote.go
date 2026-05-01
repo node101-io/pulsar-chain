@@ -17,7 +17,7 @@ func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return nil, err
 		}
 
-		bz := MockSign(body)
+		bz := h.secondaryKey.SignVoteExtBody(body)
 
 		return &abci.ResponseExtendVote{VoteExtension: bz}, nil
 	}
