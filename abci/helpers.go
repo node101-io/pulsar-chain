@@ -28,6 +28,10 @@ func MockSignatureVerify(signature []byte, message VoteExtensionBody, minaKey []
 
 func extractPayload(txs [][]byte) (Payload, error) {
 
+	if len(txs) == 0 {
+		return Payload{}, ErrEmptyBlock
+	}
+
 	voteExtensionTx := txs[0]
 
 	if !strings.Contains(string(txs[0]), VoteExtMarker) {
