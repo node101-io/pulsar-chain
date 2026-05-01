@@ -256,6 +256,7 @@ func (h *AbciHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (
 		NextValidatorSetHash: nextValidatorSetHash.Bytes(),
 		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
 		CurrentBlockHeight:   blockHeight - 1,
+		ActionsReducedRoot:   ActionsReducedRoot,
 	}, nil
 }
 
@@ -285,6 +286,7 @@ func (h *AbciHandler) reconstructVoteExtBody(ctx sdk.Context, blockHeight int64)
 		NextValidatorSetHash: nextValidatorSetHash.Bytes(),
 		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
 		CurrentBlockHeight:   blockHeight - 1,
+		ActionsReducedRoot:   ActionsReducedRoot,
 	}, nil
 }
 
