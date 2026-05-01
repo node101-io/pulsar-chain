@@ -70,7 +70,7 @@ func VerifyVoteExtSig(signature []byte, message votepersistenceTypes.VoteExtBody
 func extractPayload(txs [][]byte) (abcipb.Payload, error) {
 
 	if len(txs) == 0 {
-		return abcipb.Payload{}, ErrEmptyBlock
+		return abcipb.Payload{}, nil
 	}
 
 	if !bytes.HasPrefix(txs[0], []byte(VoteExtMarker)) {
