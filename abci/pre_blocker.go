@@ -2,10 +2,10 @@ package vote_ext
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
 func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
@@ -61,7 +61,7 @@ func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
 			}
 
 			if !exists {
-				return nil, fmt.Errorf("")
+				return nil, keyregistryTypes.ErrValidatorNotRegistered
 			}
 
 			minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, cosmosValidatorPublicKey)

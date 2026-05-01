@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"sort"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/node101-io/mina-signer-go/poseidon"
 	minasignature "github.com/node101-io/mina-signer-go/signature"
 	abcipb "github.com/node101-io/pulsar-chain/api/pulsarchain/abci"
+	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/node101-io/pulsar-chain/x/votepersistence/types"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
@@ -102,7 +102,7 @@ func (h *AbciHandler) verifyVoteExtension(ctx context.Context, pl abcipb.Payload
 			return err
 		}
 		if !exists {
-			return fmt.Errorf("")
+			return keyregistryTypes.ErrValidatorNotRegistered
 		}
 
 		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, pk)
