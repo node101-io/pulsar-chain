@@ -1,11 +1,13 @@
 package vote_ext
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"sort"
 	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -94,6 +96,7 @@ func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64)
 		if err != nil {
 			return nil, err
 		}
+		sortValidatorsByPower(valInfo)
 
 		return valInfo, nil
 	}
@@ -105,7 +108,32 @@ func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64)
 	for _, validator := range historicalData.Valset {
 		valInfo = append(valInfo, validator)
 	}
+
+	sortValidatorsByPower(valInfo)
+
 	return valInfo, nil
+}
+
+func sortValidatorsByPower(validators []stakingTypes.ValidatorI) {
+	sort.SliceStable(validators, func(i, j int) bool {
+		leftPower := validators[i].GetConsensusPower(sdk.DefaultPowerReduction)
+		rightPower := validators[j].GetConsensusPower(sdk.DefaultPowerReduction)
+
+		if leftPower == rightPower {
+			leftAddr, err := validators[i].GetConsAddr()
+			if err != nil {
+				return false
+			}
+			rightAddr, err := validators[j].GetConsAddr()
+			if err != nil {
+				return false
+			}
+
+			return bytes.Compare(leftAddr, rightAddr) == -1
+		}
+
+		return leftPower > rightPower
+	})
 }
 
 // TODO: Move this helper to mina-signer-go
