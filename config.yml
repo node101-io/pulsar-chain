@@ -14,13 +14,15 @@ client:
   openapi:
     path: docs/static/openapi.json
 faucet:
-  name: bob
   coins:
   - 5token
   - 100000stake
 validators:
 - name: alice
   bonded: 100000000pmina
+  app:
+      vote_extension:
+        priv_key: "OhOfQtGMXqcrbfCRPEe4DjLUNHaOcD3RrWuRPBGO82M="
 - name: validator1
   bonded: 200000000pmina
 - name: validator2
@@ -36,7 +38,5 @@ genesis:
           # Cosmos user public key placeholder: secp256k1 compressed, zero bytes, 33 bytes.
           #cosmos_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       validator_key_pairs:
-        # Mina compressed public key placeholder: zero bytes, 33 bytes.
-        #- mina_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-          # Validator consensus public key placeholder: ed25519, zero bytes, 32 bytes.
-        #  cosmos_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+       # - mina_key: "3IvK1eWmmcfdlIb+T04+ck9Q5bjbqHqiT0ucGJITzyY="
+        #  cosmos_key: "A8saw69s1DQWvUjseeOtG8hGavmYiInrQ5M1aOPa4QkP"
