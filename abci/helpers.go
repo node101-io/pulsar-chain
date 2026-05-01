@@ -10,31 +10,13 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/node101-io/mina-signer-go/constants"
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/mina-signer-go/poseidon"
-	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
-	votepersistence "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 	"github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
-
-type SecondaryKey struct {
-	SecretKey *keys.PrivateKey
-	PublicKey *keys.PublicKey
-}
-
-func NewVoteExtHandler(secondaryKey SecondaryKey, stakingKeeper stakingkeeper.Keeper,
-	keyregistryKeeper keyregistrykeeper.Keeper, votepersistenceKeeper votepersistence.Keeper) *AbciHandler {
-	return &AbciHandler{
-		secondaryKey:          secondaryKey,
-		stakingKeeper:         stakingKeeper,
-		keyregistryKeeper:     keyregistryKeeper,
-		votePersistenceKeeper: votepersistenceKeeper,
-	}
-}
 
 func MockSign(voteExtBody VoteExtensionBody) []byte {
 	return []byte{}
