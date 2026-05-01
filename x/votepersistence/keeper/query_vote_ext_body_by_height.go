@@ -2,8 +2,6 @@ package keeper
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -17,7 +15,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (q queryServer) VoteExtBodyByHeight(ctx context.Context, req *types.QueryVoteExtBodyByHeightRequest) (*types.QueryVoteExtBodyByHeightResponse, error) {
+const ActionsReducedRoot string = "pulsar"
+
+func (q queryServer) VoteExtBodyByHeight(ctx context.Context, req *types.QueryVoteExtBodyByHeightRequest) (*types.VoteExtBody, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
@@ -39,15 +39,15 @@ func (q queryServer) VoteExtBodyByHeight(ctx context.Context, req *types.QueryVo
 	return q.constructVoteExtBodyByHeight(ctx, req.BlockHeight)
 }
 
-func (q queryServer) constructVoteExtBodyByHeight(ctx context.Context, blockHeight int64) (*types.QueryVoteExtBodyByHeightResponse, error) {
+func (q queryServer) constructVoteExtBodyByHeight(ctx context.Context, blockHeight int64) (*types.VoteExtBody, error) {
 	currentBlockInfo, err := q.k.stakingKeeper.GetHistoricalInfo(ctx, blockHeight-2)
 	if err != nil {
-		return nil, wrapHistoricalInfoError(blockHeight, err)
+		return nil, err
 	}
 
 	nextBlockInfo, err := q.k.stakingKeeper.GetHistoricalInfo(ctx, blockHeight-1)
 	if err != nil {
-		return nil, wrapHistoricalInfoError(blockHeight+1, err)
+		return nil, err
 	}
 
 	nextValidatorSetHash, err := q.calculateValidatorSetRoot(ctx, nextBlockInfo.Valset)
@@ -55,10 +55,11 @@ func (q queryServer) constructVoteExtBodyByHeight(ctx context.Context, blockHeig
 		return nil, err
 	}
 
-	return &types.QueryVoteExtBodyByHeightResponse{
+	return &types.VoteExtBody{
 		NextValidatorSetHash: nextValidatorSetHash,
 		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
 		CurrentBlockHeight:   blockHeight - 1,
+		ActionsReducedRoot:   ActionsReducedRoot,
 	}, nil
 }
 
@@ -109,12 +110,4 @@ func (q queryServer) calculateValidatorSetRoot(ctx context.Context, validatorSet
 	}
 
 	return merkleRoot.Bytes(), nil
-}
-
-func wrapHistoricalInfoError(height int64, err error) error {
-	if errors.Is(err, stakingtypes.ErrNoHistoricalInfo) {
-		return status.Errorf(codes.NotFound, "historical info not found for height %d", height)
-	}
-
-	return status.Error(codes.Internal, fmt.Sprintf("failed to load staking historical info for height %d", height))
 }
