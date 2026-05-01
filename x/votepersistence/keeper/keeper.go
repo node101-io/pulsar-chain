@@ -86,26 +86,8 @@ func (k Keeper) RemoveVote(ctx context.Context, blockHeight int64, minaAddress [
 	return k.voteStorage.Remove(ctx, collections.Join(blockHeight, minaAddress))
 }
 
-func (k Keeper) RemoveVotes(ctx context.Context) error {
-
-	iterator, err := k.voteStorage.Iterate(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer iterator.Close()
-
-	for iterator.Valid() {
-		key, err := iterator.Key()
-		if err != nil {
-			return err
-		}
-		err = k.voteStorage.Remove(ctx, key)
-		if err != nil {
-			return err
-		}
-		iterator.Next()
-	}
-	return nil
+func (k Keeper) Clear(ctx context.Context) error {
+	return k.voteStorage.Clear(ctx, nil)
 }
 
 func (k Keeper) VoteExists(ctx context.Context, blockHeight int64, minaAddress []byte) (bool, error) {
