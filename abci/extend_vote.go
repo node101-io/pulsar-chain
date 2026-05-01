@@ -5,8 +5,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const ActionsReducedRoot string = "pulsar"
-
 type validatorInfo struct {
 	ConsensusAddr []byte
 	Power         int64
