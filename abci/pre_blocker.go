@@ -2,7 +2,6 @@ package vote_ext
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -22,13 +21,7 @@ func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
 			return nil, err
 		}
 
-		voteExtensionTx := req.Txs[0]
-
-		voteExtensionTx = voteExtensionTx[len([]byte(VoteExtMarker)):]
-
-		var pl payload
-
-		err = json.Unmarshal(voteExtensionTx, &pl)
+		pl, err := extractPayload(req.Txs)
 		if err != nil {
 			return nil, err
 		}

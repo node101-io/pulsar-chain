@@ -21,12 +21,17 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 
-		err = h.verifyVoteExtension(ctx, req.Txs, body)
+		pl, err := extractPayload(req.Txs)
 		if err != nil {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 
-		isEnoughStakePower, err := h.checkStakePower(ctx, req.GetHeight(), req.Txs)
+		err = h.verifyVoteExtension(ctx, pl, body)
+		if err != nil {
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
+		}
+
+		isEnoughStakePower, err := h.checkStakePower(ctx, req.GetHeight(), pl)
 		if err != nil {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}

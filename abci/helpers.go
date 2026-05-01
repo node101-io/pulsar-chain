@@ -44,24 +44,28 @@ func MockSignatureVerify(signature []byte, message VoteExtensionBody, minaKey []
 	return true
 }
 
-func (h *AbciHandler) verifyVoteExtension(ctx context.Context, txs [][]byte, body VoteExtensionBody) error {
+func extractPayload(txs [][]byte) (payload, error) {
 
 	voteExtensionTx := txs[0]
 
 	if !strings.Contains(string(txs[0]), VoteExtMarker) {
-		return types.ErrVoteExtMarkerNotFound
+		return payload{}, types.ErrVoteExtMarkerNotFound
 	}
 
 	voteExtensionTx = voteExtensionTx[len([]byte(VoteExtMarker)):]
 
-	var payload payload
+	var pl payload
 
-	err := json.Unmarshal(voteExtensionTx, &payload)
+	err := json.Unmarshal(voteExtensionTx, &pl)
 	if err != nil {
-		return err
+		return payload{}, err
 	}
+	return pl, nil
+}
 
-	for publicKey, vote := range payload.Votes {
+func (h *AbciHandler) verifyVoteExtension(ctx context.Context, pl payload, body VoteExtensionBody) error {
+
+	for publicKey, vote := range pl.Votes {
 
 		pk, err := hex.DecodeString(publicKey)
 		if err != nil {
@@ -208,7 +212,7 @@ func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []valid
 
 }
 
-func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, txs [][]byte) (bool, error) {
+func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl payload) (bool, error) {
 	var signedStakePower int64
 	var currentValidatorStakePower int64
 
@@ -231,18 +235,7 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, txs []
 		currentValidatorStakePower += val.Power
 	}
 
-	voteExtensionTx := txs[0]
-
-	voteExtensionTx = voteExtensionTx[len([]byte(VoteExtMarker)):]
-
-	var payload payload
-
-	err = json.Unmarshal(voteExtensionTx, &payload)
-	if err != nil {
-		return false, err
-	}
-
-	for addr := range payload.Votes {
+	for addr := range pl.Votes {
 		validatorInfo, ok := valInfoMap[addr]
 		if ok {
 			signedStakePower += validatorInfo.Power
