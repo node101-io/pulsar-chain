@@ -10,8 +10,8 @@ func (h *AbciHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 
 		// to construct the payload we need to get the N-2th block's vote extensions.
-		// Hence, enabling prepare proposal on blocks < 3 will result in error.
-		if req.Height < 3 {
+		// Hence, enabling prepare proposal on blocks < 4 will result in error.
+		if req.Height < 4 {
 			return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
 		}
 
