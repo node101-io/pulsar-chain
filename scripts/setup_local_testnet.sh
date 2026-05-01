@@ -7,7 +7,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 PYTHON_HELPER="$SCRIPT_DIR/setup_local_testnet_helper.py"
 GO_HELPER="$SCRIPT_DIR/derive_mina_pub.go"
 
-CHAIN_HOME="${CHAIN_HOME:-$HOME/.pulsar-chain}"
+CHAIN_HOME="${CHAIN_HOME:-$HOME/.pulsar}"
 CHAIN_ID="${CHAIN_ID:-mytestnet}"
 MONIKER="${MONIKER:-mynode}"
 KEY_NAME="${KEY_NAME:-alice}"
@@ -18,14 +18,9 @@ BOND_AMOUNT="${BOND_AMOUNT:-100000000}"
 MIN_GAS_PRICE="${MIN_GAS_PRICE:-0.0001pmina}"
 VOTE_EXT_ENABLE_HEIGHT="${VOTE_EXT_ENABLE_HEIGHT:-1}"
 CONFIG_YML_PATH="${CONFIG_YML_PATH:-$REPO_ROOT/config.yml}"
-TMP_BUILD_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pulsar-localnet.XXXXXX")"
-BINARY_PATH="$TMP_BUILD_DIR/pulsar-chaind"
-
-cleanup() {
-  rm -rf "$TMP_BUILD_DIR"
-}
-
-trap cleanup EXIT
+BIN_DIR="${BIN_DIR:-$HOME/go/bin}"
+BINARY_PATH="${BINARY_PATH:-$BIN_DIR/pulsard}"
+COMPAT_BINARY_PATH="${COMPAT_BINARY_PATH:-$BIN_DIR/pulsar-chaind}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -59,11 +54,16 @@ APP_FILE="$CHAIN_HOME/config/app.toml"
 echo "==> Cleaning previous homes..."
 rm -rf "$CHAIN_HOME" "$HOME/.pulsar-node1" "$HOME/.pulsar-node2"
 
-echo "==> Building temporary binary..."
+echo "==> Building binary..."
+mkdir -p "$BIN_DIR"
 (
   cd "$REPO_ROOT"
   go build -o "$BINARY_PATH" ./cmd/pulsard
 )
+
+if [[ "$COMPAT_BINARY_PATH" != "$BINARY_PATH" ]]; then
+  cp "$BINARY_PATH" "$COMPAT_BINARY_PATH"
+fi
 
 echo "==> Initializing chain home..."
 "$BINARY_PATH" init "$MONIKER" --chain-id "$CHAIN_ID" --home "$CHAIN_HOME" >/dev/null
@@ -107,9 +107,15 @@ echo "==> Validating final genesis..."
 echo ""
 echo "Setup complete."
 echo "  home:        $CHAIN_HOME"
+echo "  binary:      $BINARY_PATH"
+echo "  compat:      $COMPAT_BINARY_PATH"
 echo "  validator:   $KEY_NAME"
 echo "  cosmos_key:  $COSMOS_PUB_KEY"
 echo "  mina_key:    $MINA_PUB_KEY"
 echo ""
+echo "Query example:"
+echo "  $BINARY_PATH query votepersistence vote-ext-body-by-height 5 --home $CHAIN_HOME"
+echo "  $COMPAT_BINARY_PATH query votepersistence vote-ext-body-by-height 5 --home $CHAIN_HOME"
+echo ""
 echo "==> Starting chain..."
-"$BINARY_PATH" start --home "$CHAIN_HOME"
+exec "$BINARY_PATH" start --home "$CHAIN_HOME"
