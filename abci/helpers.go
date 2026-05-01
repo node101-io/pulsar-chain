@@ -81,32 +81,18 @@ func (h *AbciHandler) verifyVoteExtension(ctx context.Context, pl Payload, body 
 }
 
 // Use if you need the validator set of block < N where N is the current block number.
-func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]validatorInfo, error) {
+func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]stakingTypes.ValidatorI, error) {
 
-	var valInfo []validatorInfo
-	var iterErr error
+	var valInfo []stakingTypes.ValidatorI
 
 	if ctx.BlockHeight() == currentBlockHeight {
 		err := h.stakingKeeper.IterateLastValidators(ctx, func(index int64, validator stakingTypes.ValidatorI) (stop bool) {
-			consAddr, err := validator.GetConsAddr()
-			if err != nil {
-				iterErr = err
-				return true
-			}
-
-			valInfo = append(valInfo, validatorInfo{
-				ConsensusAddr: consAddr,
-				Power:         validator.GetConsensusPower(sdk.DefaultPowerReduction),
-			})
-
+			valInfo = append(valInfo, validator)
 			return false
 		})
 
 		if err != nil {
 			return nil, err
-		}
-		if iterErr != nil {
-			return nil, iterErr
 		}
 
 		return valInfo, nil
@@ -116,28 +102,14 @@ func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64)
 	if err != nil {
 		return nil, err
 	}
-
-	validatorSet := historicalData.Valset
-
-	for _, validator := range validatorSet {
-
-		consAddr, err := validator.GetConsAddr()
-		if err != nil {
-			return nil, err
-		}
-
-		consPower := validator.ConsensusPower(sdk.DefaultPowerReduction)
-
-		valInfo = append(valInfo, validatorInfo{
-			ConsensusAddr: consAddr,
-			Power:         consPower,
-		})
+	for _, validator := range historicalData.Valset {
+		valInfo = append(valInfo, validator)
 	}
 	return valInfo, nil
 }
 
 // TODO: Move this helper to mina-signer-go
-func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []validatorInfo, poseidonHash *poseidon.Poseidon) (*big.Int, error) {
+func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []stakingTypes.ValidatorI, poseidonHash *poseidon.Poseidon) (*big.Int, error) {
 
 	input := []*big.Int{big.NewInt(0)}
 	merkleRoot := poseidonHash.Hash(input)
@@ -145,7 +117,12 @@ func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []valid
 	for _, validator := range valInfo {
 		input = []*big.Int{}
 
-		cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, validator.ConsensusAddr)
+		consAddr, err := validator.GetConsAddr()
+		if err != nil {
+			continue
+		}
+
+		cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, consAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +157,7 @@ func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []valid
 		} else {
 			input = append(input, big.NewInt(0))
 		}
-		power := new(big.Int).SetInt64(validator.Power)
+		power := new(big.Int).SetInt64(validator.GetConsensusPower(sdk.DefaultPowerReduction))
 		input = append(input, power)
 
 		hashOfAddr := poseidonHash.Hash(input)
@@ -198,7 +175,7 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Pay
 	var signedStakePower int64
 	var currentValidatorStakePower int64
 
-	valInfoMap := make(map[string]validatorInfo)
+	valInfoMap := make(map[string]stakingTypes.ValidatorI)
 
 	currentValidatorSet, err := h.getValidatorSet(ctx, blockHeight-2)
 	if err != nil {
@@ -208,19 +185,24 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Pay
 	// Require at least 2/3 signed power to prevent proposer-side signature withholding.
 	for _, val := range currentValidatorSet {
 
-		cosmosValidatorPubKey, err := h.getValidatorPublicKey(ctx, val.ConsensusAddr)
+		consAddr, err := val.GetConsAddr()
+		if err != nil {
+			continue
+		}
+
+		cosmosValidatorPubKey, err := h.getValidatorPublicKey(ctx, consAddr)
 		if err != nil {
 			return false, err
 		}
 
 		valInfoMap[hex.EncodeToString(cosmosValidatorPubKey)] = val
-		currentValidatorStakePower += val.Power
+		currentValidatorStakePower += val.GetConsensusPower(sdk.DefaultPowerReduction)
 	}
 
 	for addr := range pl.Votes {
 		validatorInfo, ok := valInfoMap[addr]
 		if ok {
-			signedStakePower += validatorInfo.Power
+			signedStakePower += validatorInfo.GetConsensusPower(sdk.DefaultPowerReduction)
 		}
 	}
 	if signedStakePower*3 < currentValidatorStakePower*2 {
@@ -284,7 +266,13 @@ func (h *AbciHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 	}
 
 	for _, currentValidator := range currentValidatorSet {
-		currentValidatorSetMap[string(currentValidator.ConsensusAddr)] = true
+
+		consAddr, err := currentValidator.GetConsAddr()
+		if err != nil {
+			continue
+		}
+
+		currentValidatorSetMap[string(consAddr)] = true
 	}
 
 	for i, vote := range voteExtensions {
