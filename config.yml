@@ -30,6 +30,13 @@ genesis:
   app_state:
     keyregistry:
       params: {}
-      key_pairs:
-        # - mina_key: "SC/6aqoZ19ObLka8NIQVMs1qPim+uD6epPLuQS4x2n4Z"
-        #   cosmos_key: "UdDr3CCO+4HVrBtbzqLTM3P2xAMNCIrPeCTeVfb5sw1y"
+      user_key_pairs:
+        # Mina compressed public key placeholder: zero bytes, 33 bytes.
+        #- mina_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          # Cosmos user public key placeholder: secp256k1 compressed, zero bytes, 33 bytes.
+          #cosmos_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      validator_key_pairs:
+        # Mina compressed public key placeholder: zero bytes, 33 bytes.
+        #- mina_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          # Validator consensus public key placeholder: ed25519, zero bytes, 32 bytes.
+        #  cosmos_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="

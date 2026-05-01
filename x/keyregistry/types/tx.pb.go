@@ -126,11 +126,12 @@ var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
 // MsgRegisterKeys defines the MsgRegisterKeys message.
 type MsgRegisterKeys struct {
-	Creator         string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
-	CosmosSignature string `protobuf:"bytes,2,opt,name=cosmos_signature,json=cosmosSignature,proto3" json:"cosmos_signature,omitempty"`
-	MinaSignature   string `protobuf:"bytes,3,opt,name=mina_signature,json=minaSignature,proto3" json:"mina_signature,omitempty"`
-	CosmosPublicKey []byte `protobuf:"bytes,4,opt,name=cosmos_public_key,json=cosmosPublicKey,proto3" json:"cosmos_public_key,omitempty"`
-	MinaPublicKey   []byte `protobuf:"bytes,5,opt,name=mina_public_key,json=minaPublicKey,proto3" json:"mina_public_key,omitempty"`
+	Creator         string    `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	CosmosPublicKey []byte    `protobuf:"bytes,2,opt,name=cosmos_public_key,json=cosmosPublicKey,proto3" json:"cosmos_public_key,omitempty"`
+	MinaPublicKey   []byte    `protobuf:"bytes,3,opt,name=mina_public_key,json=minaPublicKey,proto3" json:"mina_public_key,omitempty"`
+	CosmosSignature []byte    `protobuf:"bytes,4,opt,name=cosmos_signature,json=cosmosSignature,proto3" json:"cosmos_signature,omitempty"`
+	MinaSignature   []byte    `protobuf:"bytes,5,opt,name=mina_signature,json=minaSignature,proto3" json:"mina_signature,omitempty"`
+	ActorType       ActorType `protobuf:"varint,6,opt,name=actor_type,json=actorType,proto3,enum=pulsarchain.keyregistry.v1.ActorType" json:"actor_type,omitempty"`
 }
 
 func (m *MsgRegisterKeys) Reset()         { *m = MsgRegisterKeys{} }
@@ -173,20 +174,6 @@ func (m *MsgRegisterKeys) GetCreator() string {
 	return ""
 }
 
-func (m *MsgRegisterKeys) GetCosmosSignature() string {
-	if m != nil {
-		return m.CosmosSignature
-	}
-	return ""
-}
-
-func (m *MsgRegisterKeys) GetMinaSignature() string {
-	if m != nil {
-		return m.MinaSignature
-	}
-	return ""
-}
-
 func (m *MsgRegisterKeys) GetCosmosPublicKey() []byte {
 	if m != nil {
 		return m.CosmosPublicKey
@@ -199,6 +186,27 @@ func (m *MsgRegisterKeys) GetMinaPublicKey() []byte {
 		return m.MinaPublicKey
 	}
 	return nil
+}
+
+func (m *MsgRegisterKeys) GetCosmosSignature() []byte {
+	if m != nil {
+		return m.CosmosSignature
+	}
+	return nil
+}
+
+func (m *MsgRegisterKeys) GetMinaSignature() []byte {
+	if m != nil {
+		return m.MinaSignature
+	}
+	return nil
+}
+
+func (m *MsgRegisterKeys) GetActorType() ActorType {
+	if m != nil {
+		return m.ActorType
+	}
+	return ActorType_UNSPECIFIED
 }
 
 // MsgRegisterKeysResponse defines the MsgRegisterKeysResponse message.
@@ -238,11 +246,135 @@ func (m *MsgRegisterKeysResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgRegisterKeysResponse proto.InternalMessageInfo
 
+// MsgUpdateKeys defines the MsgUpdateKeys message.
+type MsgUpdateKeys struct {
+	Creator           string    `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	PrevMinaPublicKey []byte    `protobuf:"bytes,2,opt,name=prev_mina_public_key,json=prevMinaPublicKey,proto3" json:"prev_mina_public_key,omitempty"`
+	NewMinaPublicKey  []byte    `protobuf:"bytes,3,opt,name=new_mina_public_key,json=newMinaPublicKey,proto3" json:"new_mina_public_key,omitempty"`
+	CosmosSignature   []byte    `protobuf:"bytes,4,opt,name=cosmos_signature,json=cosmosSignature,proto3" json:"cosmos_signature,omitempty"`
+	NewMinaSignature  []byte    `protobuf:"bytes,5,opt,name=new_mina_signature,json=newMinaSignature,proto3" json:"new_mina_signature,omitempty"`
+	ActorType         ActorType `protobuf:"varint,6,opt,name=actor_type,json=actorType,proto3,enum=pulsarchain.keyregistry.v1.ActorType" json:"actor_type,omitempty"`
+}
+
+func (m *MsgUpdateKeys) Reset()         { *m = MsgUpdateKeys{} }
+func (m *MsgUpdateKeys) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateKeys) ProtoMessage()    {}
+func (*MsgUpdateKeys) Descriptor() ([]byte, []int) {
+	return fileDescriptor_235f5fb22cc1f8d8, []int{4}
+}
+func (m *MsgUpdateKeys) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateKeys.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateKeys) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateKeys.Merge(m, src)
+}
+func (m *MsgUpdateKeys) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateKeys) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateKeys.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateKeys proto.InternalMessageInfo
+
+func (m *MsgUpdateKeys) GetCreator() string {
+	if m != nil {
+		return m.Creator
+	}
+	return ""
+}
+
+func (m *MsgUpdateKeys) GetPrevMinaPublicKey() []byte {
+	if m != nil {
+		return m.PrevMinaPublicKey
+	}
+	return nil
+}
+
+func (m *MsgUpdateKeys) GetNewMinaPublicKey() []byte {
+	if m != nil {
+		return m.NewMinaPublicKey
+	}
+	return nil
+}
+
+func (m *MsgUpdateKeys) GetCosmosSignature() []byte {
+	if m != nil {
+		return m.CosmosSignature
+	}
+	return nil
+}
+
+func (m *MsgUpdateKeys) GetNewMinaSignature() []byte {
+	if m != nil {
+		return m.NewMinaSignature
+	}
+	return nil
+}
+
+func (m *MsgUpdateKeys) GetActorType() ActorType {
+	if m != nil {
+		return m.ActorType
+	}
+	return ActorType_UNSPECIFIED
+}
+
+// MsgUpdateKeysResponse defines the MsgUpdateKeysResponse message.
+type MsgUpdateKeysResponse struct {
+}
+
+func (m *MsgUpdateKeysResponse) Reset()         { *m = MsgUpdateKeysResponse{} }
+func (m *MsgUpdateKeysResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateKeysResponse) ProtoMessage()    {}
+func (*MsgUpdateKeysResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_235f5fb22cc1f8d8, []int{5}
+}
+func (m *MsgUpdateKeysResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateKeysResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateKeysResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateKeysResponse.Merge(m, src)
+}
+func (m *MsgUpdateKeysResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateKeysResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateKeysResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateKeysResponse proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*MsgUpdateParams)(nil), "pulsarchain.keyregistry.v1.MsgUpdateParams")
 	proto.RegisterType((*MsgUpdateParamsResponse)(nil), "pulsarchain.keyregistry.v1.MsgUpdateParamsResponse")
 	proto.RegisterType((*MsgRegisterKeys)(nil), "pulsarchain.keyregistry.v1.MsgRegisterKeys")
 	proto.RegisterType((*MsgRegisterKeysResponse)(nil), "pulsarchain.keyregistry.v1.MsgRegisterKeysResponse")
+	proto.RegisterType((*MsgUpdateKeys)(nil), "pulsarchain.keyregistry.v1.MsgUpdateKeys")
+	proto.RegisterType((*MsgUpdateKeysResponse)(nil), "pulsarchain.keyregistry.v1.MsgUpdateKeysResponse")
 }
 
 func init() {
@@ -250,39 +382,46 @@ func init() {
 }
 
 var fileDescriptor_235f5fb22cc1f8d8 = []byte{
-	// 503 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x93, 0xb1, 0x6f, 0x13, 0x31,
-	0x14, 0xc6, 0x63, 0x4a, 0x8b, 0x62, 0x02, 0xa1, 0xa7, 0x4a, 0x4d, 0x6f, 0x38, 0xa2, 0x20, 0x20,
-	0x0d, 0xca, 0x1d, 0x49, 0xa5, 0x0e, 0x15, 0x0b, 0x91, 0x98, 0xaa, 0x4a, 0xd1, 0x55, 0x2c, 0x2c,
-	0x95, 0x73, 0xb1, 0x1c, 0xab, 0xbd, 0xf3, 0xc9, 0xf6, 0x55, 0xbd, 0x0d, 0x31, 0x32, 0xf1, 0x67,
-	0x30, 0x66, 0xe0, 0x8f, 0xe8, 0x84, 0x2a, 0x26, 0x26, 0x84, 0x92, 0x21, 0x2b, 0x2b, 0x1b, 0x3a,
-	0xdb, 0x47, 0x2e, 0x51, 0x49, 0xc4, 0x12, 0xc5, 0x9f, 0x7f, 0x7e, 0x9f, 0xbf, 0xf7, 0x7c, 0xf0,
-	0x49, 0x9c, 0x5c, 0x08, 0xc4, 0x83, 0x11, 0xa2, 0x91, 0x77, 0x8e, 0x53, 0x8e, 0x09, 0x15, 0x92,
-	0xa7, 0xde, 0x65, 0xc7, 0x93, 0x57, 0x6e, 0xcc, 0x99, 0x64, 0x96, 0x5d, 0x80, 0xdc, 0x02, 0xe4,
-	0x5e, 0x76, 0xec, 0x6d, 0x14, 0xd2, 0x88, 0x79, 0xea, 0x57, 0xe3, 0xf6, 0x6e, 0xc0, 0x44, 0xc8,
-	0x84, 0x17, 0x0a, 0x92, 0x95, 0x09, 0x05, 0x31, 0x1b, 0x7b, 0x7a, 0xe3, 0x4c, 0xad, 0x3c, 0xbd,
-	0x30, 0x5b, 0x3b, 0x84, 0x11, 0xa6, 0xf5, 0xec, 0x9f, 0x51, 0x9f, 0xaf, 0xb8, 0x5d, 0x8c, 0x38,
-	0x0a, 0xcd, 0xf1, 0xc6, 0x57, 0x00, 0xab, 0x27, 0x82, 0xbc, 0x8d, 0x87, 0x48, 0xe2, 0xbe, 0xda,
-	0xb1, 0x0e, 0x61, 0x19, 0x25, 0x72, 0xc4, 0x38, 0x95, 0x69, 0x0d, 0xd4, 0x41, 0xb3, 0xdc, 0xab,
-	0x7d, 0xfb, 0xd2, 0xde, 0x31, 0xbe, 0xaf, 0x87, 0x43, 0x8e, 0x85, 0x38, 0x95, 0x9c, 0x46, 0xc4,
-	0x9f, 0xa3, 0xd6, 0x1b, 0xb8, 0xa5, 0x6b, 0xd7, 0xee, 0xd4, 0x41, 0xf3, 0x7e, 0xb7, 0xe1, 0xfe,
-	0x3b, 0xbe, 0xab, 0xbd, 0x7a, 0xe5, 0xeb, 0x1f, 0x8f, 0x4b, 0x9f, 0x67, 0xe3, 0x16, 0xf0, 0xcd,
-	0xe1, 0xa3, 0x57, 0x1f, 0x66, 0xe3, 0xd6, 0xbc, 0xec, 0xc7, 0xd9, 0xb8, 0xb5, 0x5f, 0x8c, 0x73,
-	0xb5, 0x10, 0x68, 0xe9, 0xf2, 0x8d, 0x3d, 0xb8, 0xbb, 0x24, 0xf9, 0x58, 0xc4, 0x2c, 0x12, 0xb8,
-	0xf1, 0x5b, 0x67, 0xf5, 0xd5, 0x51, 0xcc, 0x8f, 0x71, 0x2a, 0xac, 0x2e, 0xbc, 0x17, 0x70, 0x8c,
-	0x24, 0xe3, 0x6b, 0x93, 0xe6, 0xa0, 0xb5, 0x0f, 0x1f, 0x99, 0x79, 0x08, 0x4a, 0x22, 0x24, 0x13,
-	0x8e, 0x55, 0xe2, 0xb2, 0x5f, 0xd5, 0xfa, 0x69, 0x2e, 0x5b, 0x4f, 0xe1, 0xc3, 0x90, 0x46, 0xa8,
-	0x00, 0x6e, 0x28, 0xf0, 0x41, 0xa6, 0xce, 0xb1, 0x16, 0xdc, 0xce, 0x27, 0x9c, 0x0c, 0x2e, 0x68,
-	0x70, 0x76, 0x8e, 0xd3, 0xda, 0xdd, 0x3a, 0x68, 0x56, 0xf2, 0x92, 0x7d, 0xa5, 0x1f, 0xe3, 0xd4,
-	0x7a, 0x06, 0xab, 0xaa, 0x64, 0x81, 0xdc, 0x54, 0xa4, 0xaa, 0xf9, 0x97, 0x3b, 0xaa, 0x64, 0x6d,
-	0xcc, 0xef, 0x6c, 0xda, 0x52, 0x8c, 0x9e, 0xb7, 0xa5, 0xfb, 0x0b, 0xc0, 0x8d, 0x13, 0x41, 0xac,
-	0x18, 0x56, 0x16, 0x9e, 0xc1, 0x8b, 0x55, 0xe3, 0x5b, 0xea, 0xb1, 0x7d, 0xf0, 0x1f, 0x70, 0xee,
-	0x9c, 0x39, 0x2e, 0x0c, 0x63, 0x9d, 0x63, 0x11, 0x5e, 0xeb, 0x78, 0x5b, 0x56, 0x7b, 0xf3, 0x7d,
-	0xf6, 0xd4, 0x7a, 0xfd, 0xeb, 0x89, 0x03, 0x6e, 0x26, 0x0e, 0xf8, 0x39, 0x71, 0xc0, 0xa7, 0xa9,
-	0x53, 0xba, 0x99, 0x3a, 0xa5, 0xef, 0x53, 0xa7, 0xf4, 0xee, 0x90, 0x50, 0x39, 0x4a, 0x06, 0x6e,
-	0xc0, 0x42, 0x2f, 0x62, 0x43, 0xdc, 0x79, 0xd9, 0x69, 0x53, 0xe6, 0x69, 0xab, 0xf6, 0x6d, 0x0f,
-	0x50, 0xa6, 0x31, 0x16, 0x83, 0x2d, 0xf5, 0x39, 0x1d, 0xfc, 0x09, 0x00, 0x00, 0xff, 0xff, 0xfb,
-	0xf4, 0xf0, 0x15, 0x17, 0x04, 0x00, 0x00,
+	// 620 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x54, 0x3f, 0x6f, 0xd3, 0x4e,
+	0x18, 0x8e, 0xd3, 0x5f, 0xfb, 0x53, 0x8e, 0xfe, 0x35, 0x45, 0x49, 0x33, 0x98, 0x28, 0xa8, 0x90,
+	0x04, 0x62, 0x37, 0xa9, 0xd4, 0xa1, 0x62, 0x69, 0x04, 0x53, 0x15, 0x29, 0x72, 0x61, 0x61, 0xb1,
+	0x2e, 0xce, 0xc9, 0x31, 0xa9, 0x7d, 0xd6, 0xdd, 0x39, 0xad, 0x37, 0xc4, 0xc8, 0xc4, 0xc7, 0x60,
+	0xcc, 0xc0, 0xce, 0xda, 0x09, 0x45, 0x4c, 0x0c, 0x08, 0xa1, 0x64, 0xc8, 0xd7, 0x40, 0x3e, 0xdb,
+	0xb1, 0x13, 0x85, 0xa4, 0x54, 0x62, 0xb1, 0x7c, 0xef, 0xfb, 0xdc, 0xf3, 0xbc, 0xef, 0xf3, 0xde,
+	0x1d, 0x78, 0xe4, 0xb8, 0x97, 0x14, 0x12, 0xbd, 0x0b, 0x4d, 0x5b, 0xe9, 0x21, 0x8f, 0x20, 0xc3,
+	0xa4, 0x8c, 0x78, 0x4a, 0xbf, 0xa6, 0xb0, 0x6b, 0xd9, 0x21, 0x98, 0x61, 0x31, 0x9f, 0x00, 0xc9,
+	0x09, 0x90, 0xdc, 0xaf, 0xe5, 0xf7, 0xa0, 0x65, 0xda, 0x58, 0xe1, 0xdf, 0x00, 0x9e, 0xcf, 0xea,
+	0x98, 0x5a, 0x98, 0x2a, 0x16, 0x35, 0x7c, 0x1a, 0x8b, 0x1a, 0x61, 0xe2, 0x20, 0x48, 0x68, 0x7c,
+	0xa5, 0x04, 0x8b, 0x30, 0xb5, 0x6f, 0x60, 0x03, 0x07, 0x71, 0xff, 0x2f, 0x8c, 0x3e, 0x59, 0x52,
+	0x9d, 0x03, 0x09, 0xb4, 0xa2, 0xed, 0x47, 0x4b, 0x80, 0x3d, 0xe4, 0x69, 0xae, 0xd3, 0x81, 0x0c,
+	0x69, 0xcc, 0x73, 0x50, 0xb0, 0xa3, 0xf8, 0x55, 0x00, 0x3b, 0x4d, 0x6a, 0xbc, 0xe6, 0x89, 0x16,
+	0xe7, 0x12, 0x4f, 0x40, 0x06, 0xba, 0xac, 0x8b, 0x89, 0xc9, 0xbc, 0x9c, 0x50, 0x10, 0x4a, 0x99,
+	0x46, 0xee, 0xdb, 0xe7, 0xea, 0x7e, 0x58, 0xe9, 0x59, 0xa7, 0x43, 0x10, 0xa5, 0x17, 0x8c, 0x98,
+	0xb6, 0xa1, 0xc6, 0x50, 0xf1, 0x25, 0xd8, 0x08, 0xaa, 0xc9, 0xa5, 0x0b, 0x42, 0xe9, 0x5e, 0xbd,
+	0x28, 0xff, 0xd9, 0x30, 0x39, 0xd0, 0x6a, 0x64, 0x6e, 0x7e, 0x3e, 0x4c, 0x7d, 0x9a, 0x0c, 0x2a,
+	0x82, 0x1a, 0x6e, 0x3e, 0x7d, 0xfe, 0x7e, 0x32, 0xa8, 0xc4, 0xb4, 0x1f, 0x26, 0x83, 0x4a, 0x39,
+	0xd9, 0xd7, 0xf5, 0x4c, 0x67, 0x73, 0xc5, 0x17, 0x0f, 0x40, 0x76, 0x2e, 0xa4, 0x22, 0xea, 0x60,
+	0x9b, 0xa2, 0xe2, 0x97, 0x34, 0xef, 0x55, 0xe5, 0x5b, 0x11, 0x39, 0x47, 0x1e, 0x15, 0xeb, 0xe0,
+	0x7f, 0x9d, 0x20, 0xc8, 0x30, 0x59, 0xd9, 0x69, 0x04, 0x14, 0x2b, 0x60, 0x2f, 0x9a, 0xa0, 0xdb,
+	0xbe, 0x34, 0x75, 0xad, 0x87, 0x3c, 0xde, 0xf2, 0xa6, 0xba, 0x13, 0x24, 0x5a, 0x3c, 0x7e, 0x8e,
+	0x3c, 0xf1, 0x31, 0xd8, 0xb1, 0x4c, 0x1b, 0x26, 0x91, 0x6b, 0x1c, 0xb9, 0xe5, 0x87, 0x63, 0x5c,
+	0x19, 0xec, 0x86, 0x9c, 0xd4, 0x34, 0x6c, 0xc8, 0x5c, 0x82, 0x72, 0xff, 0x25, 0x29, 0x2f, 0xa2,
+	0xb0, 0x78, 0x08, 0xb6, 0x39, 0x65, 0x0c, 0x5c, 0x8f, 0x19, 0x63, 0xd8, 0x0b, 0x00, 0xa0, 0xce,
+	0x30, 0xe1, 0xd3, 0xce, 0x6d, 0x14, 0x84, 0xd2, 0x76, 0xfd, 0x70, 0xd9, 0x44, 0xce, 0x7c, 0xf4,
+	0x2b, 0xcf, 0x41, 0x6a, 0x06, 0x46, 0xbf, 0xa7, 0x9b, 0xfe, 0x30, 0xa2, 0xce, 0x43, 0x73, 0x93,
+	0x06, 0x4e, 0xcd, 0x1d, 0xa6, 0xc1, 0xd6, 0xd4, 0xf8, 0x3b, 0x5b, 0xab, 0x80, 0x7d, 0x87, 0xa0,
+	0xbe, 0x36, 0xef, 0x59, 0xe0, 0xee, 0x9e, 0x9f, 0x6b, 0xce, 0xf8, 0x56, 0x05, 0xf7, 0x6d, 0x74,
+	0xa5, 0x2d, 0xf6, 0x78, 0xd7, 0x46, 0x57, 0xcd, 0xbb, 0xda, 0xfc, 0x0c, 0x88, 0x53, 0xe6, 0x79,
+	0xab, 0x23, 0xe2, 0x7f, 0xeb, 0x76, 0x16, 0x3c, 0x98, 0x71, 0x34, 0xf2, 0xba, 0xfe, 0x23, 0x0d,
+	0xd6, 0x9a, 0xd4, 0x10, 0x1d, 0xb0, 0x39, 0x73, 0x71, 0x9f, 0x2e, 0x13, 0x9c, 0xbb, 0x15, 0xf9,
+	0xe3, 0xbf, 0x00, 0x47, 0xca, 0xbe, 0xe2, 0xcc, 0xf5, 0x59, 0xa5, 0x98, 0x04, 0xaf, 0x54, 0x5c,
+	0x74, 0xae, 0xc4, 0xb7, 0x00, 0x24, 0xce, 0x54, 0xf9, 0x56, 0x45, 0x73, 0xb5, 0xda, 0xad, 0xa1,
+	0x91, 0x56, 0x7e, 0xfd, 0x9d, 0xff, 0x10, 0x35, 0x5a, 0x37, 0x23, 0x49, 0x18, 0x8e, 0x24, 0xe1,
+	0xd7, 0x48, 0x12, 0x3e, 0x8e, 0xa5, 0xd4, 0x70, 0x2c, 0xa5, 0xbe, 0x8f, 0xa5, 0xd4, 0x9b, 0x13,
+	0xc3, 0x64, 0x5d, 0xb7, 0x2d, 0xeb, 0xd8, 0x52, 0x6c, 0xdc, 0x41, 0xb5, 0xa3, 0x5a, 0xd5, 0xc4,
+	0x4a, 0x20, 0x54, 0x5d, 0xf4, 0x3c, 0xf9, 0xc7, 0x81, 0xb6, 0x37, 0xf8, 0x63, 0x7b, 0xfc, 0x3b,
+	0x00, 0x00, 0xff, 0xff, 0x12, 0x10, 0x94, 0x52, 0x67, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -302,6 +441,8 @@ type MsgClient interface {
 	UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error)
 	// RegisterKeys defines the RegisterKeys RPC.
 	RegisterKeys(ctx context.Context, in *MsgRegisterKeys, opts ...grpc.CallOption) (*MsgRegisterKeysResponse, error)
+	// UpdateKeys defines the UpdateKeys RPC.
+	UpdateKeys(ctx context.Context, in *MsgUpdateKeys, opts ...grpc.CallOption) (*MsgUpdateKeysResponse, error)
 }
 
 type msgClient struct {
@@ -330,6 +471,15 @@ func (c *msgClient) RegisterKeys(ctx context.Context, in *MsgRegisterKeys, opts 
 	return out, nil
 }
 
+func (c *msgClient) UpdateKeys(ctx context.Context, in *MsgUpdateKeys, opts ...grpc.CallOption) (*MsgUpdateKeysResponse, error) {
+	out := new(MsgUpdateKeysResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Msg/UpdateKeys", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// UpdateParams defines a (governance) operation for updating the module
@@ -337,6 +487,8 @@ type MsgServer interface {
 	UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error)
 	// RegisterKeys defines the RegisterKeys RPC.
 	RegisterKeys(context.Context, *MsgRegisterKeys) (*MsgRegisterKeysResponse, error)
+	// UpdateKeys defines the UpdateKeys RPC.
+	UpdateKeys(context.Context, *MsgUpdateKeys) (*MsgUpdateKeysResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
@@ -348,6 +500,9 @@ func (*UnimplementedMsgServer) UpdateParams(ctx context.Context, req *MsgUpdateP
 }
 func (*UnimplementedMsgServer) RegisterKeys(ctx context.Context, req *MsgRegisterKeys) (*MsgRegisterKeysResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterKeys not implemented")
+}
+func (*UnimplementedMsgServer) UpdateKeys(ctx context.Context, req *MsgUpdateKeys) (*MsgUpdateKeysResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateKeys not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
@@ -390,6 +545,24 @@ func _Msg_RegisterKeys_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_UpdateKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateKeys)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).UpdateKeys(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.keyregistry.v1.Msg/UpdateKeys",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).UpdateKeys(ctx, req.(*MsgUpdateKeys))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Msg_serviceDesc = _Msg_serviceDesc
 var _Msg_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pulsarchain.keyregistry.v1.Msg",
@@ -402,6 +575,10 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RegisterKeys",
 			Handler:    _Msg_RegisterKeys_Handler,
+		},
+		{
+			MethodName: "UpdateKeys",
+			Handler:    _Msg_UpdateKeys_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -491,31 +668,36 @@ func (m *MsgRegisterKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.MinaPublicKey) > 0 {
-		i -= len(m.MinaPublicKey)
-		copy(dAtA[i:], m.MinaPublicKey)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.MinaPublicKey)))
+	if m.ActorType != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.ActorType))
 		i--
-		dAtA[i] = 0x2a
-	}
-	if len(m.CosmosPublicKey) > 0 {
-		i -= len(m.CosmosPublicKey)
-		copy(dAtA[i:], m.CosmosPublicKey)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.CosmosPublicKey)))
-		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x30
 	}
 	if len(m.MinaSignature) > 0 {
 		i -= len(m.MinaSignature)
 		copy(dAtA[i:], m.MinaSignature)
 		i = encodeVarintTx(dAtA, i, uint64(len(m.MinaSignature)))
 		i--
-		dAtA[i] = 0x1a
+		dAtA[i] = 0x2a
 	}
 	if len(m.CosmosSignature) > 0 {
 		i -= len(m.CosmosSignature)
 		copy(dAtA[i:], m.CosmosSignature)
 		i = encodeVarintTx(dAtA, i, uint64(len(m.CosmosSignature)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.MinaPublicKey) > 0 {
+		i -= len(m.MinaPublicKey)
+		copy(dAtA[i:], m.MinaPublicKey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.MinaPublicKey)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.CosmosPublicKey) > 0 {
+		i -= len(m.CosmosPublicKey)
+		copy(dAtA[i:], m.CosmosPublicKey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.CosmosPublicKey)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -545,6 +727,92 @@ func (m *MsgRegisterKeysResponse) MarshalTo(dAtA []byte) (int, error) {
 }
 
 func (m *MsgRegisterKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateKeys) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateKeys) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.ActorType != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.ActorType))
+		i--
+		dAtA[i] = 0x30
+	}
+	if len(m.NewMinaSignature) > 0 {
+		i -= len(m.NewMinaSignature)
+		copy(dAtA[i:], m.NewMinaSignature)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.NewMinaSignature)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.CosmosSignature) > 0 {
+		i -= len(m.CosmosSignature)
+		copy(dAtA[i:], m.CosmosSignature)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.CosmosSignature)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.NewMinaPublicKey) > 0 {
+		i -= len(m.NewMinaPublicKey)
+		copy(dAtA[i:], m.NewMinaPublicKey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.NewMinaPublicKey)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.PrevMinaPublicKey) > 0 {
+		i -= len(m.PrevMinaPublicKey)
+		copy(dAtA[i:], m.PrevMinaPublicKey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.PrevMinaPublicKey)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Creator) > 0 {
+		i -= len(m.Creator)
+		copy(dAtA[i:], m.Creator)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Creator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateKeysResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateKeysResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -597,14 +865,6 @@ func (m *MsgRegisterKeys) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	l = len(m.CosmosSignature)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
-	l = len(m.MinaSignature)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
 	l = len(m.CosmosPublicKey)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
@@ -613,10 +873,62 @@ func (m *MsgRegisterKeys) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
+	l = len(m.CosmosSignature)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.MinaSignature)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.ActorType != 0 {
+		n += 1 + sovTx(uint64(m.ActorType))
+	}
 	return n
 }
 
 func (m *MsgRegisterKeysResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgUpdateKeys) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Creator)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.PrevMinaPublicKey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.NewMinaPublicKey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.CosmosSignature)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.NewMinaSignature)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.ActorType != 0 {
+		n += 1 + sovTx(uint64(m.ActorType))
+	}
+	return n
+}
+
+func (m *MsgUpdateKeysResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -859,70 +1171,6 @@ func (m *MsgRegisterKeys) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CosmosSignature", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.CosmosSignature = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MinaSignature", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.MinaSignature = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field CosmosPublicKey", wireType)
 			}
 			var byteLen int
@@ -955,7 +1203,7 @@ func (m *MsgRegisterKeys) Unmarshal(dAtA []byte) error {
 				m.CosmosPublicKey = []byte{}
 			}
 			iNdEx = postIndex
-		case 5:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field MinaPublicKey", wireType)
 			}
@@ -989,6 +1237,93 @@ func (m *MsgRegisterKeys) Unmarshal(dAtA []byte) error {
 				m.MinaPublicKey = []byte{}
 			}
 			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CosmosSignature", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CosmosSignature = append(m.CosmosSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.CosmosSignature == nil {
+				m.CosmosSignature = []byte{}
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MinaSignature", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.MinaSignature = append(m.MinaSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.MinaSignature == nil {
+				m.MinaSignature = []byte{}
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ActorType", wireType)
+			}
+			m.ActorType = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ActorType |= ActorType(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])
@@ -1037,6 +1372,293 @@ func (m *MsgRegisterKeysResponse) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: MsgRegisterKeysResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateKeys: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateKeys: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Creator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Creator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PrevMinaPublicKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PrevMinaPublicKey = append(m.PrevMinaPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.PrevMinaPublicKey == nil {
+				m.PrevMinaPublicKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NewMinaPublicKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NewMinaPublicKey = append(m.NewMinaPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.NewMinaPublicKey == nil {
+				m.NewMinaPublicKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CosmosSignature", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CosmosSignature = append(m.CosmosSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.CosmosSignature == nil {
+				m.CosmosSignature = []byte{}
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NewMinaSignature", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NewMinaSignature = append(m.NewMinaSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.NewMinaSignature == nil {
+				m.NewMinaSignature = []byte{}
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ActorType", wireType)
+			}
+			m.ActorType = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ActorType |= ActorType(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateKeysResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateKeysResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateKeysResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 
-	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/errors"
 
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
@@ -12,12 +12,12 @@ import (
 func (k msgServer) UpdateParams(ctx context.Context, req *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
 	authority, err := k.addressCodec.StringToBytes(req.Authority)
 	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
+		return nil, errors.Wrap(types.ErrInvalidCreatorAddress, "authority address must be a valid bech32 address")
 	}
 
 	if !bytes.Equal(k.GetAuthority(), authority) {
 		expectedAuthorityStr, _ := k.addressCodec.BytesToString(k.GetAuthority())
-		return nil, errorsmod.Wrapf(types.ErrInvalidSigner, "invalid authority; expected %s, got %s", expectedAuthorityStr, req.Authority)
+		return nil, errors.Wrapf(types.ErrInvalidSigner, "invalid authority; expected %s, got %s", expectedAuthorityStr, req.Authority)
 	}
 
 	if err := req.Params.Validate(); err != nil {

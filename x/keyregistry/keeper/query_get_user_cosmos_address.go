@@ -9,17 +9,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// GetCosmosPubKey returns the cosmos public key associated with the given mina public key.
+// GetCosmosPubKey returns the user's cosmos public key associated with the given mina public key.
 // Returns NotFound if no mapping exists for the provided mina public key.
-func (q queryServer) GetCosmosPubKey(ctx context.Context, req *types.QueryGetCosmosPubKeyRequest) (*types.QueryGetCosmosPubKeyResponse, error) {
+func (q queryServer) GetUserCosmosPublicKey(ctx context.Context, req *types.QueryGetUserCosmosPublicKeyRequest) (*types.QueryGetUserCosmosPublicKeyResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	// Check if the mina key exists in the MinaToCosmos map.
-	exists, err := q.k.minaToCosmos.Has(sdkCtx, req.MinaPubKey)
+	// Check if the mina PublicKey exists in the MinaToCosmos map.
+	exists, err := q.k.userMinaToCosmos.Has(sdkCtx, req.UserMinaPublicKey)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
@@ -28,12 +28,12 @@ func (q queryServer) GetCosmosPubKey(ctx context.Context, req *types.QueryGetCos
 		return nil, status.Error(codes.NotFound, "cosmos key not found for given mina key")
 	}
 
-	cosmosKey, err := q.k.minaToCosmos.Get(sdkCtx, req.MinaPubKey)
+	cosmosKey, err := q.k.userMinaToCosmos.Get(sdkCtx, req.UserMinaPublicKey)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &types.QueryGetCosmosPubKeyResponse{
-		CosmosPubKey: cosmosKey,
+	return &types.QueryGetUserCosmosPublicKeyResponse{
+		UserCosmosPublicKey: cosmosKey,
 	}, nil
 }
