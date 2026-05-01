@@ -5,11 +5,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-type validatorInfo struct {
-	ConsensusAddr []byte
-	Power         int64
-}
-
 type VoteExtensionBody struct {
 	NextValidatorSetHash []byte
 	CurrentStateRoot     []byte
