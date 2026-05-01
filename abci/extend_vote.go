@@ -5,13 +5,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-type VoteExtensionBody struct {
-	NextValidatorSetHash []byte
-	CurrentStateRoot     []byte
-	CurrentBlockHeight   int64
-	ActionsReducedRoot   string
-}
-
 func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
 
