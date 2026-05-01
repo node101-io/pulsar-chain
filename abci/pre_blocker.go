@@ -48,9 +48,9 @@ func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
 			currentValidatorSetMap[hex.EncodeToString(cosmosValidatorPublicKey)] = cosmosValidatorPublicKey
 		}
 
-		for addr, vote := range pl.Votes {
+		for _, vote := range pl.Votes {
 
-			cosmosValidatorPublicKey, ok := currentValidatorSetMap[addr]
+			cosmosValidatorPublicKey, ok := currentValidatorSetMap[vote.ConsensusPublicKey]
 			if !ok {
 				continue
 			}
@@ -69,7 +69,7 @@ func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
 				return nil, err
 			}
 
-			err = h.votePersistenceKeeper.SetVote(ctx, req.GetHeight()-2, minaKey, vote)
+			err = h.votePersistenceKeeper.SetVote(ctx, req.GetHeight()-2, minaKey, vote.VoteExtension)
 			if err != nil {
 				return nil, err
 			}
