@@ -34,7 +34,13 @@ func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
 		currentValidatorSetMap := make(map[string][]byte)
 
 		for _, currentValidator := range currentValidatorSet {
-			cosmosValidatorPublicKey, err := h.getValidatorPublicKey(ctx, currentValidator.ConsensusAddr)
+
+			consAddr, err := currentValidator.GetConsAddr()
+			if err != nil {
+				continue
+			}
+
+			cosmosValidatorPublicKey, err := h.getValidatorPublicKey(ctx, consAddr)
 			if err != nil {
 				return nil, err
 			}
