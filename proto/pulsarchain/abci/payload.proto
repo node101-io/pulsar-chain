@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package pulsarchain.abci;
+
+option go_package = "github.com/node101-io/pulsar-chain/api/pulsarchain/abci;abcipb";
+
+message Payload {
+  int64 height = 1;
+  repeated Votes votes = 2;
+}
+
+message Votes {
+  string consensus_public_key = 1;
+  bytes vote_extension = 2;
+}

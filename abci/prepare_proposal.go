@@ -1,8 +1,6 @@
 package vote_ext
 
 import (
-	"encoding/json"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -23,7 +21,7 @@ func (h *AbciHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 			return &abci.ResponsePrepareProposal{Txs: req.Txs}, err
 		}
 
-		bz, err := json.Marshal(pl)
+		bz, err := pl.Marshal()
 		if err != nil {
 			return nil, err
 		}
