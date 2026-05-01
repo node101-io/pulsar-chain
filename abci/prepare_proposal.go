@@ -7,13 +7,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-var VoteExtMarker string = "VOTEEXT:"
-
-type payload struct {
-	Height int64             `json:"height"`
-	Votes  map[string][]byte `json:"votes"`
-}
-
 func (h *AbciHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
