@@ -5,6 +5,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
 
 def read_text(path_str: str) -> str:
@@ -42,25 +43,58 @@ def set_vote_extension_height(genesis_path: str, height: str) -> int:
     return 0
 
 
-def patch_keyregistry(genesis_path: str, mina_pub_key: str) -> int:
+def read_consensus_pub_key(priv_validator_key_path: str) -> int:
+    priv_validator_key = read_json(priv_validator_key_path)
+    print(priv_validator_key["pub_key"]["value"])
+    return 0
+
+
+def extract_gentx_consensus_pub_keys(genesis) -> list[str]:
+    gentxs = genesis["app_state"]["genutil"]["gen_txs"]
+    cosmos_keys = []
+
+    for gentx in gentxs:
+        messages = gentx.get("body", {}).get("messages", [])
+        if not messages:
+            continue
+
+        pub_key = messages[0].get("pubkey", {}).get("key")
+        if pub_key:
+            cosmos_keys.append(pub_key)
+
+    return cosmos_keys
+
+
+def patch_keyregistry(
+    genesis_path: str, mina_pub_keys: list[str], cosmos_keys: Optional[list[str]] = None
+) -> int:
     genesis = read_json(genesis_path)
 
-    cosmos_pub_key = (
-        genesis["app_state"]["genutil"]["gen_txs"][0]["body"]["messages"][0]["pubkey"]["key"]
-    )
+    if not mina_pub_keys:
+        raise SystemExit("at least one --mina-pub-key is required")
+
+    if cosmos_keys is None:
+        cosmos_keys = extract_gentx_consensus_pub_keys(genesis)
+
+    if len(cosmos_keys) != len(mina_pub_keys):
+        raise SystemExit(
+            "validator key pair count mismatch: "
+            f"{len(cosmos_keys)} cosmos keys for {len(mina_pub_keys)} mina keys"
+        )
 
     keyregistry = genesis["app_state"].setdefault("keyregistry", {})
     keyregistry["params"] = keyregistry.get("params", {})
     keyregistry["user_key_pairs"] = []
     keyregistry["validator_key_pairs"] = [
         {
-            "cosmos_key": cosmos_pub_key,
+            "cosmos_key": cosmos_key,
             "mina_key": mina_pub_key,
         }
+        for cosmos_key, mina_pub_key in zip(cosmos_keys, mina_pub_keys)
     ]
 
     write_json(genesis_path, genesis)
-    print(cosmos_pub_key)
+    print("\n".join(cosmos_keys))
     return 0
 
 
@@ -95,13 +129,17 @@ def build_parser() -> argparse.ArgumentParser:
     read_key = subparsers.add_parser("read-mina-priv-key")
     read_key.add_argument("--config", required=True)
 
+    read_consensus_key = subparsers.add_parser("read-consensus-pub-key")
+    read_consensus_key.add_argument("--priv-validator-key", required=True)
+
     set_height = subparsers.add_parser("set-vote-extension-height")
     set_height.add_argument("--genesis", required=True)
     set_height.add_argument("--height", required=True)
 
     patch_registry = subparsers.add_parser("patch-keyregistry")
     patch_registry.add_argument("--genesis", required=True)
-    patch_registry.add_argument("--mina-pub-key", required=True)
+    patch_registry.add_argument("--cosmos-key", action="append")
+    patch_registry.add_argument("--mina-pub-key", action="append", required=True)
 
     update_app = subparsers.add_parser("update-app-config")
     update_app.add_argument("--app", required=True)
@@ -117,10 +155,12 @@ def main() -> int:
 
     if args.command == "read-mina-priv-key":
         return read_mina_priv_key(args.config)
+    if args.command == "read-consensus-pub-key":
+        return read_consensus_pub_key(args.priv_validator_key)
     if args.command == "set-vote-extension-height":
         return set_vote_extension_height(args.genesis, args.height)
     if args.command == "patch-keyregistry":
-        return patch_keyregistry(args.genesis, args.mina_pub_key)
+        return patch_keyregistry(args.genesis, args.mina_pub_key, args.cosmos_key)
     if args.command == "update-app-config":
         return update_app_config(args.app, args.min_gas_price, args.mina_priv_key)
 
