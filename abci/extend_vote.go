@@ -16,6 +16,7 @@ type VoteExtensionBody struct {
 	NextValidatorSetHash []byte
 	CurrentStateRoot     []byte
 	CurrentBlockHeight   int64
+	ActionsReducedRoot   string
 }
 
 func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
