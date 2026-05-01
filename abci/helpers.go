@@ -77,7 +77,36 @@ func (h *AbciHandler) verifyVoteExtension(ctx context.Context, pl Payload, body 
 }
 
 // Use if you need the validator set of block < N where N is the current block number.
-func (h *AbciHandler) getHistoricalValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]validatorInfo, error) {
+func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]validatorInfo, error) {
+
+	var valInfo []validatorInfo
+	var iterErr error
+
+	if ctx.BlockHeight() == currentBlockHeight {
+		err := h.stakingKeeper.IterateLastValidators(ctx, func(index int64, validator stakingTypes.ValidatorI) (stop bool) {
+			consAddr, err := validator.GetConsAddr()
+			if err != nil {
+				iterErr = err
+				return true
+			}
+
+			valInfo = append(valInfo, validatorInfo{
+				ConsensusAddr: consAddr,
+				Power:         validator.GetConsensusPower(sdk.DefaultPowerReduction),
+			})
+
+			return false
+		})
+
+		if err != nil {
+			return nil, err
+		}
+		if iterErr != nil {
+			return nil, iterErr
+		}
+
+		return valInfo, nil
+	}
 
 	historicalData, err := h.stakingKeeper.GetHistoricalInfo(ctx, currentBlockHeight)
 	if err != nil {
@@ -85,8 +114,6 @@ func (h *AbciHandler) getHistoricalValidatorSet(ctx sdk.Context, currentBlockHei
 	}
 
 	validatorSet := historicalData.Valset
-
-	var valInfo []validatorInfo
 
 	for _, validator := range validatorSet {
 
@@ -102,37 +129,6 @@ func (h *AbciHandler) getHistoricalValidatorSet(ctx sdk.Context, currentBlockHei
 			Power:         consPower,
 		})
 	}
-	return valInfo, nil
-}
-
-// Use if you need the validator set of the current block
-func (h *AbciHandler) getCurrentValidatorSet(ctx sdk.Context) ([]validatorInfo, error) {
-
-	var valInfo []validatorInfo
-	var iterErr error
-
-	err := h.stakingKeeper.IterateLastValidators(ctx, func(index int64, validator stakingTypes.ValidatorI) (stop bool) {
-		consAddr, err := validator.GetConsAddr()
-		if err != nil {
-			iterErr = err
-			return true
-		}
-
-		valInfo = append(valInfo, validatorInfo{
-			ConsensusAddr: consAddr,
-			Power:         validator.GetConsensusPower(sdk.DefaultPowerReduction),
-		})
-
-		return false
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	if iterErr != nil {
-		return nil, iterErr
-	}
-
 	return valInfo, nil
 }
 
@@ -200,7 +196,7 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Pay
 
 	valInfoMap := make(map[string]validatorInfo)
 
-	currentValidatorSet, err := h.getHistoricalValidatorSet(ctx, blockHeight-2)
+	currentValidatorSet, err := h.getValidatorSet(ctx, blockHeight-2)
 	if err != nil {
 		return false, err
 	}
@@ -232,37 +228,7 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Pay
 
 func (h *AbciHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (VoteExtensionBody, error) {
 
-	nextValidatorSet, err := h.getCurrentValidatorSet(ctx)
-	if err != nil {
-		return VoteExtensionBody{}, err
-	}
-
-	currentBlockInfo, err := h.stakingKeeper.GetHistoricalInfo(ctx, blockHeight-1)
-	if err != nil {
-		return VoteExtensionBody{}, err
-	}
-
-	poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
-
-	nextValidatorSetHash, err := h.calculateValidatorSetRoot(ctx, nextValidatorSet, poseidonHash)
-	if err != nil {
-		return VoteExtensionBody{}, err
-	}
-	if nextValidatorSetHash == nil {
-		return VoteExtensionBody{}, err
-	}
-
-	return VoteExtensionBody{
-		NextValidatorSetHash: nextValidatorSetHash.Bytes(),
-		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
-		CurrentBlockHeight:   blockHeight - 1,
-		ActionsReducedRoot:   ActionsReducedRoot,
-	}, nil
-}
-
-func (h *AbciHandler) reconstructVoteExtBody(ctx sdk.Context, blockHeight int64) (VoteExtensionBody, error) {
-
-	nextValidatorSet, err := h.getHistoricalValidatorSet(ctx, blockHeight)
+	nextValidatorSet, err := h.getValidatorSet(ctx, blockHeight)
 	if err != nil {
 		return VoteExtensionBody{}, err
 	}
@@ -308,7 +274,7 @@ func (h *AbciHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 	voteExtsForGivenBlock := make(map[string][]byte)
 	currentValidatorSetMap := make(map[string]bool)
 
-	currentValidatorSet, err := h.getHistoricalValidatorSet(ctx, blockHeight-2)
+	currentValidatorSet, err := h.getValidatorSet(ctx, blockHeight-2)
 	if err != nil {
 		return Payload{}, err
 	}
