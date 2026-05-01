@@ -18,13 +18,14 @@ import (
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	"github.com/node101-io/pulsar-chain/x/votepersistence/types"
+	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
-func MockSign(voteExtBody VoteExtensionBody) []byte {
+func MockSign(voteExtBody votepersistenceTypes.VoteExtBody) []byte {
 	return []byte{}
 }
 
-func MockSignatureVerify(signature []byte, message VoteExtensionBody, minaKey []byte, reducedRoot string) bool {
+func MockSignatureVerify(signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) bool {
 	return true
 }
 
@@ -51,7 +52,7 @@ func extractPayload(txs [][]byte) (Payload, error) {
 	return pl, nil
 }
 
-func (h *AbciHandler) verifyVoteExtension(ctx context.Context, pl Payload, body VoteExtensionBody) error {
+func (h *AbciHandler) verifyVoteExtension(ctx context.Context, pl Payload, body votepersistenceTypes.VoteExtBody) error {
 
 	for publicKey, vote := range pl.Votes {
 
@@ -240,29 +241,29 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Pay
 	return true, nil
 }
 
-func (h *AbciHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (VoteExtensionBody, error) {
+func (h *AbciHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (votepersistenceTypes.VoteExtBody, error) {
 
 	nextValidatorSet, err := h.getValidatorSet(ctx, blockHeight)
 	if err != nil {
-		return VoteExtensionBody{}, err
+		return votepersistenceTypes.VoteExtBody{}, err
 	}
 
 	currentBlockInfo, err := h.stakingKeeper.GetHistoricalInfo(ctx, blockHeight-1)
 	if err != nil {
-		return VoteExtensionBody{}, err
+		return votepersistenceTypes.VoteExtBody{}, err
 	}
 
 	poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
 	nextValidatorSetHash, err := h.calculateValidatorSetRoot(ctx, nextValidatorSet, poseidonHash)
 	if err != nil {
-		return VoteExtensionBody{}, err
+		return votepersistenceTypes.VoteExtBody{}, err
 	}
 	if nextValidatorSetHash == nil {
-		return VoteExtensionBody{}, err
+		return votepersistenceTypes.VoteExtBody{}, err
 	}
 
-	return VoteExtensionBody{
+	return votepersistenceTypes.VoteExtBody{
 		NextValidatorSetHash: nextValidatorSetHash.Bytes(),
 		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
 		CurrentBlockHeight:   blockHeight - 1,
