@@ -221,7 +221,7 @@ func New(
 		PublicKey: &public,
 	}
 
-	app.AbciHandler = vote_ext.NewVoteExtHandler(
+	app.AbciHandler = vote_ext.NewABCIHandler(
 		secondaryKey,
 		*app.StakingKeeper,
 		app.KeyregistryKeeper,
