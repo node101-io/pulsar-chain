@@ -12,7 +12,7 @@ func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
 	return func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 
 		// If height is smaller than 4, we won't have any votes thus skip the proposal
-		if req.GetHeight() < 3 {
+		if req.GetHeight() < 4 {
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
