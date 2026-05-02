@@ -1,5 +1,11 @@
 package vote_ext
 
+import "errors"
+
 const ActionsReducedRoot string = "pulsar"
 
-var VoteExtMarker string = "VOTEEXT:"
+const VoteExtMarker string = "VOTEEXT:"
+
+const AdditionalVoteExtHeight int64 = 3
+
+var ErrUnableToReadConsensusParams error = errors.New("unable to read consensus params")

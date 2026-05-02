@@ -11,8 +11,12 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
 
-		// If height is less than 4, we won't have any votes thus skip the proposal
-		if req.GetHeight() < 4 {
+		cp := ctx.ConsensusParams()
+		if cp.Abci == nil {
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, ErrUnableToReadConsensusParams
+		}
+
+		if req.Height < cp.Abci.VoteExtensionsEnableHeight+AdditionalVoteExtHeight+1 {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
 		}
 

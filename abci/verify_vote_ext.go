@@ -9,7 +9,15 @@ import (
 
 func (h *AbciHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandler {
 	return func(ctx sdk.Context, req *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error) {
-		if req.GetHeight() < 3 {
+
+		cp := ctx.ConsensusParams()
+
+		if cp.Abci == nil {
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, ErrUnableToReadConsensusParams
+		}
+
+		if req.Height < cp.Abci.VoteExtensionsEnableHeight+AdditionalVoteExtHeight {
+
 			if len(req.VoteExtension) == 0 {
 				return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_ACCEPT}, nil
 			}
