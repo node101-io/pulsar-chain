@@ -11,8 +11,11 @@ import (
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-const CosmosToMinaMapName string = "cosmos_to_mina"
-const MinaToCosmosMapName string = "mina_to_cosmos"
+const UserCosmosToMinaMapName string = "user_cosmos_to_mina"
+const UserMinaToCosmosMapName string = "user_mina_to_cosmos"
+
+const ValidatorCosmosToMinaMapName string = "validator_cosmos_to_mina"
+const ValidatorMinaToCosmosMapName string = "validator_mina_to_cosmos"
 
 type Keeper struct {
 	storeService corestore.KVStoreService
@@ -25,8 +28,11 @@ type Keeper struct {
 	Schema collections.Schema
 	Params collections.Item[types.Params]
 
-	cosmosToMina collections.Map[[]byte, []byte] // Cosmos PubKey --> Mina PubKey
-	minaToCosmos collections.Map[[]byte, []byte] // Mina PubKey --> Cosmos PubKey
+	userCosmosToMina collections.Map[[]byte, []byte] // Cosmos Public Key --> Mina Public Key
+	userMinaToCosmos collections.Map[[]byte, []byte] // Mina Public Key --> CosmosPublic Key
+
+	validatorCosmosToMina collections.Map[[]byte, []byte] // Validator Cosmos Public Key  --> Validator Mina Public Key
+	validatorMinaToCosmos collections.Map[[]byte, []byte] // Validator Mina Public Key  --> Validator Cosmos Public Key
 }
 
 func NewKeeper(
@@ -50,8 +56,11 @@ func NewKeeper(
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
 
-		cosmosToMina: collections.NewMap(sb, types.CosmosToMinaPrefix, CosmosToMinaMapName, collections.BytesKey, collections.BytesValue),
-		minaToCosmos: collections.NewMap(sb, types.MinaToCosmosPrefix, MinaToCosmosMapName, collections.BytesKey, collections.BytesValue),
+		userCosmosToMina: collections.NewMap(sb, types.UserCosmosToMinaPrefix, UserCosmosToMinaMapName, collections.BytesKey, collections.BytesValue),
+		userMinaToCosmos: collections.NewMap(sb, types.UserMinaToCosmosPrefix, UserMinaToCosmosMapName, collections.BytesKey, collections.BytesValue),
+
+		validatorCosmosToMina: collections.NewMap(sb, types.ValidatorCosmosToMinaPrefix, ValidatorCosmosToMinaMapName, collections.BytesKey, collections.BytesValue),
+		validatorMinaToCosmos: collections.NewMap(sb, types.ValidatorMinaToCosmosPrefix, ValidatorMinaToCosmosMapName, collections.BytesKey, collections.BytesValue),
 	}
 	schema, err := sb.Build()
 	if err != nil {
@@ -67,26 +76,34 @@ func (k Keeper) GetAuthority() []byte {
 	return k.authority
 }
 
-func (k Keeper) SetCosmosToMina(ctx context.Context, cosmosPublicKey, minaPublicKey []byte) error {
-	return k.cosmosToMina.Set(ctx, cosmosPublicKey, minaPublicKey)
+func (k Keeper) UserGetCosmosToMina(ctx context.Context, cosmosPubKey []byte) ([]byte, error) {
+	return k.userCosmosToMina.Get(ctx, cosmosPubKey)
 }
 
-func (k Keeper) GetCosmosToMina(ctx context.Context, cosmosPublicKey []byte) ([]byte, error) {
-	return k.cosmosToMina.Get(ctx, cosmosPublicKey)
+func (k Keeper) UserGetMinaToCosmos(ctx context.Context, minaPubKey []byte) ([]byte, error) {
+	return k.userMinaToCosmos.Get(ctx, minaPubKey)
 }
 
-func (k Keeper) SetMinaToCosmos(ctx context.Context, minaPublicKey, cosmosPublicKey []byte) error {
-	return k.minaToCosmos.Set(ctx, minaPublicKey, cosmosPublicKey)
+func (k Keeper) UserCosmosToMinaHas(ctx context.Context, cosmosPubKey []byte) (bool, error) {
+	return k.userCosmosToMina.Has(ctx, cosmosPubKey)
 }
 
-func (k Keeper) GetMinaToCosmos(ctx context.Context, minaPublicKey []byte) ([]byte, error) {
-	return k.minaToCosmos.Get(ctx, minaPublicKey)
+func (k Keeper) UserMinaToCosmosHas(ctx context.Context, minaPubKey []byte) (bool, error) {
+	return k.userMinaToCosmos.Has(ctx, minaPubKey)
 }
 
-func (k Keeper) CosmosToMinaHas(ctx context.Context, cosmosPublicKey []byte) (bool, error) {
-	return k.cosmosToMina.Has(ctx, cosmosPublicKey)
+func (k Keeper) ValidatorGetCosmosToMina(ctx context.Context, consensusPubKey []byte) ([]byte, error) {
+	return k.validatorCosmosToMina.Get(ctx, consensusPubKey)
 }
 
-func (k Keeper) MinaToCosmosHas(ctx context.Context, minaPublicKey []byte) (bool, error) {
-	return k.minaToCosmos.Has(ctx, minaPublicKey)
+func (k Keeper) ValidatorGetMinaToCosmos(ctx context.Context, minaPubKey []byte) ([]byte, error) {
+	return k.validatorMinaToCosmos.Get(ctx, minaPubKey)
+}
+
+func (k Keeper) ValidatorCosmosToMinaHas(ctx context.Context, consensusPubKey []byte) (bool, error) {
+	return k.validatorCosmosToMina.Has(ctx, consensusPubKey)
+}
+
+func (k Keeper) ValidatorMinaToCosmosHas(ctx context.Context, minaPubKey []byte) (bool, error) {
+	return k.validatorMinaToCosmos.Has(ctx, minaPubKey)
 }

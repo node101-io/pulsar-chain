@@ -202,14 +202,14 @@ func New(
 		baseapp.SetOptimisticExecution(),
 		func(bApp *baseapp.BaseApp) {
 			anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-				AccountKeeper:       app.AuthKeeper,
-				BankKeeper:          app.BankKeeper,
-				FeegrantKeeper:      app.FeeGrantKeeper,
-				SignModeHandler:     app.txConfig.SignModeHandler(),
-				SigGasConsumer:      authante.DefaultSigVerificationGasConsumer,
-				MinaAddressResolver: app.KeyregistryKeeper,
-				MinaNetworkID:       appante.DefaultMinaNetworkID,
-				Logger:              logger,
+				AccountKeeper:     app.AuthKeeper,
+				BankKeeper:        app.BankKeeper,
+				FeegrantKeeper:    app.FeeGrantKeeper,
+				SignModeHandler:   app.txConfig.SignModeHandler(),
+				SigGasConsumer:    authante.DefaultSigVerificationGasConsumer,
+				KeyregistryKeeper: &app.KeyregistryKeeper,
+				MinaNetworkID:     appante.DefaultMinaNetworkID,
+				Logger:            logger,
 			})
 			if err != nil {
 				panic(err)

@@ -11,6 +11,7 @@ import (
 	signing "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 )
 
 // HandlerOptions are the options required for constructing the app ante handler.
@@ -23,7 +24,7 @@ type HandlerOptions struct {
 	SigGasConsumer         func(meter storetypes.GasMeter, sig signing.SignatureV2, params authtypes.Params) error
 	TxFeeChecker           authante.TxFeeChecker
 	SigVerifyOptions       []authante.SigVerificationDecoratorOption
-	MinaAddressResolver    MinaAddressResolver
+	KeyregistryKeeper      *keyregistrykeeper.Keeper
 	MinaNetworkID          string
 	Logger                 log.Logger
 }
@@ -42,8 +43,8 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 		return nil, errorsmod.Wrap(sdkerrors.ErrLogic, "sign mode handler is required for ante builder")
 	}
 
-	if options.MinaAddressResolver == nil {
-		return nil, errorsmod.Wrap(sdkerrors.ErrLogic, "mina address resolver is required for ante builder")
+	if options.KeyregistryKeeper == nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrLogic, "keyregistry keeper is required for ante builder")
 	}
 
 	if options.MinaNetworkID == "" {
@@ -64,7 +65,7 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 	)
 
 	minaVerifier := NewMinaVerifier(
-		options.MinaAddressResolver,
+		options.KeyregistryKeeper,
 		options.AccountKeeper,
 		options.SignModeHandler,
 		options.MinaNetworkID,

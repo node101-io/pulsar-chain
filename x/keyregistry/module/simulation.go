@@ -30,7 +30,7 @@ func (am AppModule) RegisterStoreDecoder(_ simtypes.StoreDecoderRegistry) {}
 func (am AppModule) WeightedOperations(simState module.SimulationState) []simtypes.WeightedOperation {
 	operations := make([]simtypes.WeightedOperation, 0)
 	const (
-		opWeightMsgRegisterKeys          = "op_weight_msg_keyregistry"
+		opWeightMsgRegisterKeys          = "op_weight_msg_keyregistry_register_keys"
 		defaultWeightMsgRegisterKeys int = 100
 	)
 
@@ -43,6 +43,21 @@ func (am AppModule) WeightedOperations(simState module.SimulationState) []simtyp
 	operations = append(operations, simulation.NewWeightedOperation(
 		weightMsgRegisterKeys,
 		keyregistrysimulation.SimulateMsgRegisterKeys(am.authKeeper, am.bankKeeper, am.keeper, simState.TxConfig),
+	))
+	const (
+		opWeightMsgUpdateKeys          = "op_weight_msg_keyregistry_update_keys"
+		defaultWeightMsgUpdateKeys int = 100
+	)
+
+	var weightMsgUpdateKeys int
+	simState.AppParams.GetOrGenerate(opWeightMsgUpdateKeys, &weightMsgUpdateKeys, nil,
+		func(_ *rand.Rand) {
+			weightMsgUpdateKeys = defaultWeightMsgUpdateKeys
+		},
+	)
+	operations = append(operations, simulation.NewWeightedOperation(
+		weightMsgUpdateKeys,
+		keyregistrysimulation.SimulateMsgUpdateKeys(am.authKeeper, am.bankKeeper, am.keeper, simState.TxConfig),
 	))
 
 	return operations

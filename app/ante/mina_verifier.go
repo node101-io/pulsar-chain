@@ -1,8 +1,6 @@
 package ante
 
 import (
-	"context"
-
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	txsigning "cosmossdk.io/x/tx/signing"
@@ -13,39 +11,35 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/node101-io/mina-signer-go/keys"
 	minasignature "github.com/node101-io/mina-signer-go/signature"
+	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 )
 
 // DefaultMinaNetworkID is the default Mina network used by the chain.
 const DefaultMinaNetworkID = "devnet"
 
-// MinaAddressResolver resolves a signer address to a registered Mina address.
-type MinaAddressResolver interface {
-	GetCosmosToMina(ctx context.Context, signerAddress []byte) ([]byte, error)
-}
-
 // MinaVerifier verifies tx signatures using Mina cryptography.
 type MinaVerifier struct {
-	addressResolver MinaAddressResolver
-	accountKeeper   authante.AccountKeeper
-	signModeHandler *txsigning.HandlerMap
-	networkID       string
-	logger          log.Logger
+	keyregistryKeeper *keyregistrykeeper.Keeper
+	accountKeeper     authante.AccountKeeper
+	signModeHandler   *txsigning.HandlerMap
+	networkID         string
+	logger            log.Logger
 }
 
 // NewMinaVerifier creates a new Mina signature verifier.
 func NewMinaVerifier(
-	addressResolver MinaAddressResolver,
+	keyregistryKeeper *keyregistrykeeper.Keeper,
 	accountKeeper authante.AccountKeeper,
 	signModeHandler *txsigning.HandlerMap,
 	networkID string,
 	logger log.Logger,
 ) MinaVerifier {
 	return MinaVerifier{
-		addressResolver: addressResolver,
-		accountKeeper:   accountKeeper,
-		signModeHandler: signModeHandler,
-		networkID:       networkID,
-		logger:          logger,
+		keyregistryKeeper: keyregistryKeeper,
+		accountKeeper:     accountKeeper,
+		signModeHandler:   signModeHandler,
+		networkID:         networkID,
+		logger:            logger,
 	}
 }
 
@@ -122,17 +116,26 @@ func (v MinaVerifier) verifySingleSignature(
 	signatureData *signing.SingleSignatureData,
 	sequence uint64,
 ) error {
-	minaAddress, err := v.addressResolver.GetCosmosToMina(ctx, account.GetAddress())
-	if err != nil {
+	cosmosPubKey := account.GetPubKey()
+	if cosmosPubKey == nil {
 		return errorsmod.Wrapf(
-			sdkerrors.ErrUnauthorized,
-			"no Mina address registered for signer %s",
+			sdkerrors.ErrInvalidPubKey,
+			"no Cosmos public key found for signer %s",
 			account.GetAddress().String(),
 		)
 	}
 
-	minaPubKey, err := new(keys.PublicKey).FromAddress(string(minaAddress))
+	minaPubKeyBytes, err := v.keyregistryKeeper.UserGetCosmosToMina(ctx, cosmosPubKey.Bytes())
 	if err != nil {
+		return errorsmod.Wrapf(
+			sdkerrors.ErrUnauthorized,
+			"no Mina public key registered for signer %s",
+			account.GetAddress().String(),
+		)
+	}
+
+	var minaPubKey keys.PublicKey
+	if err := minaPubKey.UnmarshalBytes(minaPubKeyBytes); err != nil {
 		return errorsmod.Wrapf(
 			sdkerrors.ErrInvalidPubKey,
 			"failed to parse Mina public key: %v",

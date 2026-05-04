@@ -7,18 +7,22 @@ import (
 	"time"
 
 	"cosmossdk.io/core/address"
-	"cosmossdk.io/x/tx/signing"
 	"cosmossdk.io/log"
+	storetypes "cosmossdk.io/store/types"
+	txsigning "cosmossdk.io/x/tx/signing"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-	txsigning "cosmossdk.io/x/tx/signing"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/runtime"
+	"github.com/cosmos/cosmos-sdk/std"
+	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/cosmos/cosmos-sdk/std"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -27,6 +31,9 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	gogoproto "github.com/cosmos/gogoproto/proto"
 	"github.com/node101-io/mina-signer-go/keys"
+	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
+	keyregistrymodule "github.com/node101-io/pulsar-chain/x/keyregistry/module"
+	keyregistrytypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
 	protov2 "google.golang.org/protobuf/proto"
 )
@@ -60,21 +67,6 @@ func (k verifierAccountKeeper) RemoveExpiredUnorderedNonces(sdk.Context) error {
 
 func (k verifierAccountKeeper) TryAddUnorderedNonce(sdk.Context, []byte, time.Time) error {
 	return nil
-}
-
-type verifierResolver struct {
-	minaAddress []byte
-	err         error
-	calls       int
-}
-
-func (r *verifierResolver) GetCosmosToMina(context.Context, []byte) ([]byte, error) {
-	r.calls++
-	if r.err != nil {
-		return nil, r.err
-	}
-
-	return r.minaAddress, nil
 }
 
 type stubAuthTx struct {
@@ -125,14 +117,62 @@ func (tx stubAuthTx) FeePayer() []byte { return nil }
 
 func (tx stubAuthTx) FeeGranter() []byte { return nil }
 
+func newKeyregistryKeeperForTest(t *testing.T) (sdk.Context, *keyregistrykeeper.Keeper) {
+	t.Helper()
+
+	encCfg := moduletestutil.MakeTestEncodingConfig(keyregistrymodule.AppModule{})
+	addressCodec := addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+	storeKey := storetypes.NewKVStoreKey(keyregistrytypes.StoreKey)
+	storeService := runtime.NewKVStoreService(storeKey)
+	ctx := testutil.DefaultContextWithDB(t, storeKey, storetypes.NewTransientStoreKey("transient_test")).Ctx
+	authority := authtypes.NewModuleAddress(keyregistrytypes.GovModuleName)
+
+	keeper := keyregistrykeeper.NewKeeper(
+		storeService,
+		encCfg.Codec,
+		addressCodec,
+		authority,
+	)
+
+	err := keeper.InitGenesis(ctx, *keyregistrytypes.DefaultGenesis())
+	require.NoError(t, err)
+
+	return ctx, &keeper
+}
+
+func registerMinaPublicKeyForAccount(
+	t *testing.T,
+	ctx sdk.Context,
+	keeper *keyregistrykeeper.Keeper,
+	account sdk.AccountI,
+	minaPubKey []byte,
+) {
+	t.Helper()
+
+	cosmosPubKey := account.GetPubKey()
+	require.NotNil(t, cosmosPubKey)
+
+	err := keeper.InitGenesis(ctx, keyregistrytypes.GenesisState{
+		Params: keyregistrytypes.DefaultParams(),
+		UserKeyPairs: []*keyregistrytypes.UserPublicKeyPair{
+			{
+				CosmosKey: cosmosPubKey.Bytes(),
+				MinaKey:   minaPubKey,
+			},
+		},
+		ValidatorKeyPairs: keyregistrytypes.DefaultValidatorPublicKeyPair(),
+	})
+	require.NoError(t, err)
+}
+
 // newVerifierForTest keeps the early-branch tests lightweight by wiring a minimal verifier.
 // It is paired with an empty HandlerMap because those tests never build real sign bytes.
 func newVerifierForTest(
 	account sdk.AccountI,
-	resolver *verifierResolver,
+	keyregistryKeeper *keyregistrykeeper.Keeper,
 ) MinaVerifier {
 	return NewMinaVerifier(
-		resolver,
+		keyregistryKeeper,
 		verifierAccountKeeper{account: account},
 		&txsigning.HandlerMap{},
 		DefaultMinaNetworkID,
@@ -151,7 +191,7 @@ func newVerifierEncodingConfig(t *testing.T) verifierEncodingConfig {
 
 	interfaceRegistry, err := codectypes.NewInterfaceRegistryWithOptions(codectypes.InterfaceRegistryOptions{
 		ProtoFiles: gogoproto.HybridResolver,
-		SigningOptions: signing.Options{
+		SigningOptions: txsigning.Options{
 			AddressCodec:          authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix()),
 			ValidatorAddressCodec: authcodec.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix()),
 		},
@@ -172,14 +212,14 @@ func newVerifierEncodingConfig(t *testing.T) verifierEncodingConfig {
 func newVerifierWithRealSignModeHandlerForTest(
 	t *testing.T,
 	account sdk.AccountI,
-	resolver *verifierResolver,
+	keyregistryKeeper *keyregistrykeeper.Keeper,
 ) (MinaVerifier, verifierEncodingConfig) {
 	t.Helper()
 
 	encoding := newVerifierEncodingConfig(t)
 
 	return NewMinaVerifier(
-		resolver,
+		keyregistryKeeper,
 		verifierAccountKeeper{account: account},
 		encoding.TxConfig.SignModeHandler(),
 		DefaultMinaNetworkID,
@@ -210,6 +250,16 @@ func newMinaPrivateKeyForTest(t *testing.T, marker byte) *keys.PrivateKey {
 	require.NotNil(t, privateKey)
 
 	return &privateKey
+}
+
+func minaPublicKeyBytesForTest(t *testing.T, privateKey *keys.PrivateKey) []byte {
+	t.Helper()
+
+	publicKey := privateKey.ToPublicKey()
+	publicKeyBytes, err := publicKey.MarshalBytes()
+	require.NoError(t, err)
+
+	return publicKeyBytes
 }
 
 // buildVerifierTestTx creates the smallest real SDK tx shape the verifier can inspect and re-sign.
@@ -309,7 +359,7 @@ func TestMinaVerifierRejectsUnorderedTransactions(t *testing.T) {
 
 	address := sdk.AccAddress([]byte("verifier-address-001"))
 	account := authtypes.NewBaseAccount(address, nil, 1, 7)
-	verifier := newVerifierForTest(account, &verifierResolver{})
+	verifier := newVerifierForTest(account, nil)
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
 		unordered: true,
@@ -323,7 +373,7 @@ func TestMinaVerifierRejectsUnorderedTransactions(t *testing.T) {
 func TestMinaVerifierRejectsInvalidTransactionType(t *testing.T) {
 	t.Parallel()
 	_, account := newVerifierAccount(t, 1, 7)
-	verifier := newVerifierForTest(account, &verifierResolver{})
+	verifier := newVerifierForTest(account, nil)
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubBasicTx{}, false)
 
@@ -336,7 +386,7 @@ func TestMinaVerifierRejectsInvalidTransactionType(t *testing.T) {
 func TestMinaVerifierPropagatesGetSignaturesError(t *testing.T) {
 	t.Parallel()
 	_, account := newVerifierAccount(t, 1, 7)
-	verifier := newVerifierForTest(account, &verifierResolver{})
+	verifier := newVerifierForTest(account, nil)
 	expectedErr := errors.New("signatures unavailable")
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
@@ -351,7 +401,7 @@ func TestMinaVerifierPropagatesGetSignaturesError(t *testing.T) {
 func TestMinaVerifierPropagatesGetSignersError(t *testing.T) {
 	t.Parallel()
 	_, account := newVerifierAccount(t, 1, 7)
-	verifier := newVerifierForTest(account, &verifierResolver{})
+	verifier := newVerifierForTest(account, nil)
 	expectedErr := errors.New("signers unavailable")
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
@@ -368,7 +418,7 @@ func TestMinaVerifierRejectsSignerSignatureCountMismatch(t *testing.T) {
 	t.Parallel()
 	address := sdk.AccAddress([]byte("verifier-address-mismatch"))
 	_, account := newVerifierAccount(t, 1, 7)
-	verifier := newVerifierForTest(account, &verifierResolver{})
+	verifier := newVerifierForTest(account, nil)
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
 		signers: [][]byte{address},
@@ -386,7 +436,7 @@ func TestMinaVerifierRejectsWrongSequence(t *testing.T) {
 
 	address := sdk.AccAddress([]byte("verifier-address-002"))
 	account := authtypes.NewBaseAccount(address, nil, 1, 7)
-	verifier := newVerifierForTest(account, &verifierResolver{})
+	verifier := newVerifierForTest(account, nil)
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
 		signers: [][]byte{address},
@@ -411,7 +461,7 @@ func TestMinaVerifierRejectsNonSingleSignatureData(t *testing.T) {
 
 	address := sdk.AccAddress([]byte("verifier-address-003"))
 	account := authtypes.NewBaseAccount(address, nil, 1, 7)
-	verifier := newVerifierForTest(account, &verifierResolver{})
+	verifier := newVerifierForTest(account, nil)
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
 		signers: [][]byte{address},
@@ -431,13 +481,12 @@ func TestMinaVerifierRejectsNonSingleSignatureData(t *testing.T) {
 func TestMinaVerifierRejectsMissingRegistryEntry(t *testing.T) {
 	t.Parallel()
 
-	address := sdk.AccAddress([]byte("verifier-address-004"))
-	account := authtypes.NewBaseAccount(address, nil, 1, 7)
-	resolver := &verifierResolver{err: errors.New("not found")}
-	verifier := newVerifierForTest(account, resolver)
+	ctx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	_, account := newVerifierAccount(t, 1, 7)
+	verifier := newVerifierForTest(account, keyregistryKeeper)
 
-	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
-		signers: [][]byte{address},
+	err := verifier.VerifySignatures(ctx.WithIsSigverifyTx(true), stubAuthTx{
+		signers: [][]byte{account.GetAddress()},
 		sigs: []signingtypes.SignatureV2{
 			{
 				Sequence: 7,
@@ -449,20 +498,20 @@ func TestMinaVerifierRejectsMissingRegistryEntry(t *testing.T) {
 		},
 	}, false)
 
-	require.ErrorContains(t, err, "no Mina address registered for signer")
-	require.Equal(t, 1, resolver.calls)
+	require.ErrorContains(t, err, "no Mina public key registered for signer")
 }
 
-// Resolver output must be a valid Mina address string because verifier parses it.
-// Invalid address bytes should fail before signature decoding or sign-byte generation.
-func TestMinaVerifierRejectsInvalidRegisteredMinaAddress(t *testing.T) {
+// Mina-authenticated txs need an existing Cosmos public key to locate the registered Mina key.
+// Without it the ante handler cannot bridge from signer address to keyregistry state.
+func TestMinaVerifierRejectsMissingCosmosPublicKey(t *testing.T) {
 	t.Parallel()
-	address := sdk.AccAddress([]byte("verifier-address-invalid-mina"))
-	account := authtypes.NewBaseAccount(address, nil, 1, 7)
-	resolver := &verifierResolver{minaAddress: []byte("not-a-mina-address")}
-	verifier := newVerifierForTest(account, resolver)
 
-	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
+	ctx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	address := sdk.AccAddress([]byte("verifier-address-004"))
+	account := authtypes.NewBaseAccount(address, nil, 1, 7)
+	verifier := newVerifierForTest(account, keyregistryKeeper)
+
+	err := verifier.VerifySignatures(ctx.WithIsSigverifyTx(true), stubAuthTx{
 		signers: [][]byte{address},
 		sigs: []signingtypes.SignatureV2{
 			{
@@ -476,8 +525,36 @@ func TestMinaVerifierRejectsInvalidRegisteredMinaAddress(t *testing.T) {
 	}, false)
 
 	require.ErrorIs(t, err, sdkerrors.ErrInvalidPubKey)
+	require.ErrorContains(t, err, "no Cosmos public key found for signer")
+}
+
+// Keyregistry output must be a valid compressed Mina public key.
+// Invalid bytes should fail before signature decoding or sign-byte generation.
+func TestMinaVerifierRejectsInvalidRegisteredMinaPublicKey(t *testing.T) {
+	t.Parallel()
+
+	ctx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	_, account := newVerifierAccount(t, 1, 7)
+	invalidMinaPubKey := make([]byte, keys.PublicKeyTotalByteSize)
+	invalidMinaPubKey[keys.PublicKeyXByteSize] = 0x02
+	registerMinaPublicKeyForAccount(t, ctx, keyregistryKeeper, account, invalidMinaPubKey)
+	verifier := newVerifierForTest(account, keyregistryKeeper)
+
+	err := verifier.VerifySignatures(ctx.WithIsSigverifyTx(true), stubAuthTx{
+		signers: [][]byte{account.GetAddress()},
+		sigs: []signingtypes.SignatureV2{
+			{
+				Sequence: 7,
+				Data: &signingtypes.SingleSignatureData{
+					SignMode:  signingtypes.SignMode_SIGN_MODE_DIRECT,
+					Signature: []byte{1},
+				},
+			},
+		},
+	}, false)
+
+	require.ErrorIs(t, err, sdkerrors.ErrInvalidPubKey)
 	require.ErrorContains(t, err, "failed to parse Mina public key")
-	require.Equal(t, 1, resolver.calls)
 }
 
 // Signature payloads must decode as real Mina signatures before any sign-byte comparison can happen.
@@ -485,19 +562,15 @@ func TestMinaVerifierRejectsInvalidRegisteredMinaAddress(t *testing.T) {
 func TestMinaVerifierRejectsInvalidSignatureEncoding(t *testing.T) {
 	t.Parallel()
 
-	address := sdk.AccAddress([]byte("verifier-address-005"))
-	account := authtypes.NewBaseAccount(address, nil, 1, 7)
+	ctx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	_, account := newVerifierAccount(t, 1, 7)
+	minaPrivateKey := newMinaPrivateKeyForTest(t, 1)
+	registerMinaPublicKeyForAccount(t, ctx, keyregistryKeeper, account, minaPublicKeyBytesForTest(t, minaPrivateKey))
 
-	var seed [32]byte
-	seed[0] = 1
-	minaAddress, err := keys.NewPrivateKeyFromBytes(seed).ToPublicKey().ToAddress()
-	require.NoError(t, err)
+	verifier := newVerifierForTest(account, keyregistryKeeper)
 
-	resolver := &verifierResolver{minaAddress: []byte(minaAddress)}
-	verifier := newVerifierForTest(account, resolver)
-
-	err = verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
-		signers: [][]byte{address},
+	err := verifier.VerifySignatures(ctx.WithIsSigverifyTx(true), stubAuthTx{
+		signers: [][]byte{account.GetAddress()},
 		sigs: []signingtypes.SignatureV2{
 			{
 				Sequence: 7,
@@ -510,7 +583,6 @@ func TestMinaVerifierRejectsInvalidSignatureEncoding(t *testing.T) {
 	}, false)
 
 	require.ErrorContains(t, err, "failed to parse Mina signature")
-	require.Equal(t, 1, resolver.calls)
 }
 
 // Simulation mode skips expensive Mina crypto while leaving the outer verifier flow intact.
@@ -520,8 +592,7 @@ func TestMinaVerifierSkipsCryptoVerificationDuringSimulation(t *testing.T) {
 
 	address := sdk.AccAddress([]byte("verifier-address-006"))
 	account := authtypes.NewBaseAccount(address, nil, 1, 7)
-	resolver := &verifierResolver{err: errors.New("should not be called")}
-	verifier := newVerifierForTest(account, resolver)
+	verifier := newVerifierForTest(account, nil)
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), stubAuthTx{
 		signers: [][]byte{address},
@@ -537,7 +608,6 @@ func TestMinaVerifierSkipsCryptoVerificationDuringSimulation(t *testing.T) {
 	}, true)
 
 	require.NoError(t, err)
-	require.Zero(t, resolver.calls)
 }
 
 // ReCheckTx skips expensive signature verification but still enforces cheap invariants.
@@ -546,8 +616,7 @@ func TestMinaVerifierSkipsCryptoVerificationDuringRecheck(t *testing.T) {
 	t.Parallel()
 	address := sdk.AccAddress([]byte("verifier-address-recheck"))
 	account := authtypes.NewBaseAccount(address, nil, 1, 7)
-	resolver := &verifierResolver{err: errors.New("should not be called")}
-	verifier := newVerifierForTest(account, resolver)
+	verifier := newVerifierForTest(account, nil)
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true).WithIsReCheckTx(true), stubAuthTx{
 		signers: [][]byte{address},
@@ -563,7 +632,6 @@ func TestMinaVerifierSkipsCryptoVerificationDuringRecheck(t *testing.T) {
 	}, false)
 
 	require.NoError(t, err)
-	require.Zero(t, resolver.calls)
 }
 
 // Contexts that disable sigverify should bypass Mina crypto checks entirely.
@@ -572,8 +640,7 @@ func TestMinaVerifierSkipsCryptoVerificationWhenSigverifyDisabled(t *testing.T) 
 	t.Parallel()
 	address := sdk.AccAddress([]byte("verifier-address-nosigverify"))
 	account := authtypes.NewBaseAccount(address, nil, 1, 7)
-	resolver := &verifierResolver{err: errors.New("should not be called")}
-	verifier := newVerifierForTest(account, resolver)
+	verifier := newVerifierForTest(account, nil)
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(false), stubAuthTx{
 		signers: [][]byte{address},
@@ -589,20 +656,18 @@ func TestMinaVerifierSkipsCryptoVerificationWhenSigverifyDisabled(t *testing.T) 
 	}, false)
 
 	require.NoError(t, err)
-	require.Zero(t, resolver.calls)
 }
 
 // A decodable Mina signature is not enough if the sign mode has no registered handler.
 // This covers the sign-bytes generation failure branch inside verifySingleSignature.
 func TestMinaVerifierRejectsUnsupportedSignMode(t *testing.T) {
 	t.Parallel()
-	ctx := newTestSDKContext(t).WithIsSigverifyTx(true)
 	cosmosPrivKey, account := newVerifierAccount(t, 5, 9)
 	minaPrivKey := newMinaPrivateKeyForTest(t, 21)
-	minaAddress, err := minaPrivKey.ToPublicKey().ToAddress()
-	require.NoError(t, err)
-	resolver := &verifierResolver{minaAddress: []byte(minaAddress)}
-	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, resolver)
+	registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	ctx := registryCtx.WithIsSigverifyTx(true)
+	registerMinaPublicKeyForAccount(t, registryCtx, keyregistryKeeper, account, minaPublicKeyBytesForTest(t, minaPrivKey))
+	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
 	// The signature must decode successfully so the verifier reaches sign-bytes generation.
 	signatureBytes := signMinaBytes(t, minaPrivKey, []byte("unsupported-sign-mode"), DefaultMinaNetworkID)
@@ -616,24 +681,22 @@ func TestMinaVerifierRejectsUnsupportedSignMode(t *testing.T) {
 		signatureBytes,
 	)
 
-	err = verifier.VerifySignatures(ctx, tx, false)
+	err := verifier.VerifySignatures(ctx, tx, false)
 
 	require.ErrorIs(t, err, sdkerrors.ErrInvalidType)
 	require.ErrorContains(t, err, "failed to generate sign bytes")
-	require.Equal(t, 1, resolver.calls)
 }
 
 // The verifier must reject signatures that decode correctly but were made over the wrong message.
 // This distinguishes actual cryptographic failure from malformed signature bytes.
 func TestMinaVerifierRejectsCryptographicallyInvalidSignature(t *testing.T) {
 	t.Parallel()
-	ctx := newTestSDKContext(t).WithIsSigverifyTx(true)
 	cosmosPrivKey, account := newVerifierAccount(t, 6, 10)
 	minaPrivKey := newMinaPrivateKeyForTest(t, 22)
-	minaAddress, err := minaPrivKey.ToPublicKey().ToAddress()
-	require.NoError(t, err)
-	resolver := &verifierResolver{minaAddress: []byte(minaAddress)}
-	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, resolver)
+	registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	ctx := registryCtx.WithIsSigverifyTx(true)
+	registerMinaPublicKeyForAccount(t, registryCtx, keyregistryKeeper, account, minaPublicKeyBytesForTest(t, minaPrivKey))
+	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
 	signMode := signingtypes.SignMode(encoding.TxConfig.SignModeHandler().DefaultMode())
 	// We first build the real tx shape so the invalid signature targets the exact bytes verifier expects.
@@ -659,24 +722,22 @@ func TestMinaVerifierRejectsCryptographicallyInvalidSignature(t *testing.T) {
 		invalidSignatureBytes,
 	)
 
-	err = verifier.VerifySignatures(ctx, tx, false)
+	err := verifier.VerifySignatures(ctx, tx, false)
 
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized)
 	require.ErrorContains(t, err, "Mina signature verification failed")
-	require.Equal(t, 1, resolver.calls)
 }
 
 // A matching Mina key, real sign bytes and valid signature should pass end to end.
 // This is the main success path for the verifier's custom crypto flow.
 func TestMinaVerifierAcceptsValidSignature(t *testing.T) {
 	t.Parallel()
-	ctx := newTestSDKContext(t).WithIsSigverifyTx(true)
 	cosmosPrivKey, account := newVerifierAccount(t, 7, 11)
 	minaPrivKey := newMinaPrivateKeyForTest(t, 23)
-	minaAddress, err := minaPrivKey.ToPublicKey().ToAddress()
-	require.NoError(t, err)
-	resolver := &verifierResolver{minaAddress: []byte(minaAddress)}
-	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, resolver)
+	registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	ctx := registryCtx.WithIsSigverifyTx(true)
+	registerMinaPublicKeyForAccount(t, registryCtx, keyregistryKeeper, account, minaPublicKeyBytesForTest(t, minaPrivKey))
+	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
 	signMode := signingtypes.SignMode(encoding.TxConfig.SignModeHandler().DefaultMode())
 	// The first tx instance gives us the exact bytes the verifier will later reconstruct.
@@ -702,23 +763,21 @@ func TestMinaVerifierAcceptsValidSignature(t *testing.T) {
 		signatureBytes,
 	)
 
-	err = verifier.VerifySignatures(ctx, tx, false)
+	err := verifier.VerifySignatures(ctx, tx, false)
 
 	require.NoError(t, err)
-	require.Equal(t, 1, resolver.calls)
 }
 
 // At genesis height the verifier intentionally signs with account number zero.
 // This test locks down that branch with a valid end-to-end signature.
 func TestMinaVerifierUsesZeroAccountNumberAtGenesisHeight(t *testing.T) {
 	t.Parallel()
-	ctx := newTestSDKContext(t).WithBlockHeight(0).WithIsSigverifyTx(true)
 	cosmosPrivKey, account := newVerifierAccount(t, 99, 12)
 	minaPrivKey := newMinaPrivateKeyForTest(t, 24)
-	minaAddress, err := minaPrivKey.ToPublicKey().ToAddress()
-	require.NoError(t, err)
-	resolver := &verifierResolver{minaAddress: []byte(minaAddress)}
-	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, resolver)
+	registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	ctx := registryCtx.WithBlockHeight(0).WithIsSigverifyTx(true)
+	registerMinaPublicKeyForAccount(t, registryCtx, keyregistryKeeper, account, minaPublicKeyBytesForTest(t, minaPrivKey))
+	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
 	signMode := signingtypes.SignMode(encoding.TxConfig.SignModeHandler().DefaultMode())
 	// The sign bytes here intentionally omit the account number because block height is zero.
@@ -744,8 +803,7 @@ func TestMinaVerifierUsesZeroAccountNumberAtGenesisHeight(t *testing.T) {
 		signatureBytes,
 	)
 
-	err = verifier.VerifySignatures(ctx, tx, false)
+	err := verifier.VerifySignatures(ctx, tx, false)
 
 	require.NoError(t, err)
-	require.Equal(t, 1, resolver.calls)
 }

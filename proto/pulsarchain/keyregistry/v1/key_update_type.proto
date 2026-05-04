@@ -3,8 +3,8 @@ package pulsarchain.keyregistry.v1;
 
 option go_package = "github.com/node101-io/pulsar-chain/x/keyregistry/types";
 
-// KeyPair defines the KeyPair message.
-message KeyPair {
-  bytes mina_key = 1;
-  bytes cosmos_key = 2;
+enum ActorType {
+  UNSPECIFIED = 0;
+  USER = 1;
+  VALIDATOR = 2;
 }

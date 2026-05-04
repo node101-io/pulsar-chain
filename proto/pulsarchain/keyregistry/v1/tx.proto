@@ -7,6 +7,7 @@ import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 import "pulsarchain/keyregistry/v1/params.proto";
+import "pulsarchain/keyregistry/v1/key_update_type.proto";
 
 option go_package = "github.com/node101-io/pulsar-chain/x/keyregistry/types";
 
@@ -20,6 +21,9 @@ service Msg {
 
   // RegisterKeys defines the RegisterKeys RPC.
   rpc RegisterKeys(MsgRegisterKeys) returns (MsgRegisterKeysResponse);
+
+  // UpdateKeys defines the UpdateKeys RPC.
+  rpc UpdateKeys(MsgUpdateKeys) returns (MsgUpdateKeysResponse);
 }
 
 // MsgUpdateParams is the Msg/UpdateParams request type.
@@ -47,11 +51,26 @@ message MsgUpdateParamsResponse {}
 message MsgRegisterKeys {
   option (cosmos.msg.v1.signer) = "creator";
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  string cosmos_signature = 2;
-  string mina_signature = 3;
-  bytes cosmos_public_key = 4;
-  bytes mina_public_key = 5;
+  bytes cosmos_public_key = 2;
+  bytes mina_public_key = 3;
+  bytes cosmos_signature = 4;
+  bytes mina_signature = 5;
+  ActorType actor_type = 6;
 }
 
 // MsgRegisterKeysResponse defines the MsgRegisterKeysResponse message.
 message MsgRegisterKeysResponse {}
+
+// MsgUpdateKeys defines the MsgUpdateKeys message.
+message MsgUpdateKeys {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes prev_mina_public_key = 2;
+  bytes new_mina_public_key = 3;
+  bytes cosmos_signature = 4;
+  bytes new_mina_signature = 5;
+  ActorType actor_type = 6;
+}
+
+// MsgUpdateKeysResponse defines the MsgUpdateKeysResponse message.
+message MsgUpdateKeysResponse {}
