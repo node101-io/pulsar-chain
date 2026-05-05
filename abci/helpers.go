@@ -2,13 +2,12 @@ package vote_ext
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"sort"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/node101-io/mina-signer-go/constants"
@@ -17,7 +16,7 @@ import (
 	"github.com/node101-io/mina-signer-go/poseidon"
 	minasignature "github.com/node101-io/mina-signer-go/signature"
 	abcipb "github.com/node101-io/pulsar-chain/api/pulsarchain/abci"
-	"github.com/node101-io/pulsar-chain/x/votepersistence/types"
+	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
@@ -31,7 +30,7 @@ func (s *SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtB
 		return nil
 	}
 
-	sig, err := s.SecretKey.SignMessage(hex.EncodeToString(msg), "testnet")
+	sig, err := s.SecretKey.SignMessage(hex.EncodeToString(msg), NetworkID)
 	if err != nil {
 		return nil
 	}
@@ -44,7 +43,7 @@ func (s *SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtB
 	return bz
 }
 
-func VerifyVoteExtSig(signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) bool {
+func verifyVoteExtSig(signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) bool {
 	if message.ActionsReducedRoot != reducedRoot {
 		return false
 	}
@@ -64,7 +63,7 @@ func VerifyVoteExtSig(signature []byte, message votepersistenceTypes.VoteExtBody
 		return false
 	}
 
-	return pubKey.VerifyMessage(&sig, hex.EncodeToString(msg), "testnet")
+	return pubKey.VerifyMessage(&sig, hex.EncodeToString(msg), NetworkID)
 }
 
 func extractPayload(txs [][]byte) (abcipb.Payload, error) {
@@ -74,7 +73,7 @@ func extractPayload(txs [][]byte) (abcipb.Payload, error) {
 	}
 
 	if !bytes.HasPrefix(txs[0], []byte(VoteExtMarker)) {
-		return abcipb.Payload{}, types.ErrVoteExtMarkerNotFound
+		return abcipb.Payload{}, votepersistenceTypes.ErrVoteExtMarkerNotFound
 	}
 
 	voteExtensionTx := txs[0][len([]byte(VoteExtMarker)):]
@@ -86,37 +85,6 @@ func extractPayload(txs [][]byte) (abcipb.Payload, error) {
 		return abcipb.Payload{}, err
 	}
 	return pl, nil
-}
-
-func (h *AbciHandler) verifyVoteExtension(ctx context.Context, pl abcipb.Payload, body votepersistenceTypes.VoteExtBody) error {
-
-	for _, vote := range pl.Votes {
-
-		pk, err := hex.DecodeString(vote.ConsensusPublicKey)
-		if err != nil {
-			return err
-		}
-
-		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, pk)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return fmt.Errorf("")
-		}
-
-		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, pk)
-		if err != nil {
-			return err
-		}
-
-		if !VerifyVoteExtSig(vote.VoteExtension, body, minaKey, ActionsReducedRoot) {
-			return types.ErrInvalidVoteExtension.Wrap("invalid signature")
-		}
-
-	}
-
-	return nil
 }
 
 // Use if you need the validator set of block < N where N is the current block number.
@@ -236,7 +204,7 @@ func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 
 }
 
-func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl abcipb.Payload) (bool, error) {
+func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl abcipb.Payload, body votepersistenceTypes.VoteExtBody) (bool, error) {
 	var signedStakePower int64
 	var currentValidatorStakePower int64
 
@@ -265,10 +233,36 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl abc
 	}
 
 	for _, vote := range pl.Votes {
+
 		validatorInfo, ok := valInfoMap[vote.ConsensusPublicKey]
-		if ok {
-			signedStakePower += validatorInfo.GetConsensusPower(sdk.DefaultPowerReduction)
+		if !ok {
+			continue
 		}
+
+		pk, err := hex.DecodeString(vote.ConsensusPublicKey)
+		if err != nil {
+			return false, err
+		}
+
+		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, pk)
+		if err != nil {
+			return false, err
+		}
+		if !exists {
+			return false, types.ErrValidatorNotRegistered
+		}
+
+		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, pk)
+		if err != nil {
+			return false, err
+		}
+
+		if !verifyVoteExtSig(vote.VoteExtension, body, minaKey, ActionsReducedRoot) {
+			return false, votepersistenceTypes.ErrInvalidVoteExtension.Wrap("invalid signature")
+		}
+
+		signedStakePower += validatorInfo.GetConsensusPower(sdk.DefaultPowerReduction)
+
 	}
 	if signedStakePower*3 < currentValidatorStakePower*2 {
 		return false, nil
@@ -345,6 +339,14 @@ func (h *AbciHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 	for _, vote := range voteExtensions {
 
 		if !currentValidatorSetMap[string(vote.Validator.Address)] {
+			continue
+		}
+
+		if vote.BlockIdFlag != tmproto.BlockIDFlagCommit {
+			continue
+		}
+
+		if len(vote.VoteExtension) == 0 {
 			continue
 		}
 
