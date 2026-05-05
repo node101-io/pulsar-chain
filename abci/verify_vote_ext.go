@@ -5,6 +5,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
 func (h *AbciHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandler {
@@ -36,7 +37,7 @@ func (h *AbciHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		}
 
 		if !exists {
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, err
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, types.ErrValidatorNotRegistered
 		}
 
 		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, cosmosValidatorPubKey)
@@ -49,9 +50,9 @@ func (h *AbciHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, err
 		}
 
-		sigValidity := VerifyVoteExtSig(req.VoteExtension, body, minaKey, ActionsReducedRoot)
+		sigValidity := verifyVoteExtSig(req.VoteExtension, body, minaKey, ActionsReducedRoot)
 		if !sigValidity {
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, err
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, types.ErrInvalidSignature
 		}
 
 		return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_ACCEPT}, nil

@@ -30,12 +30,7 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 
-		err = h.verifyVoteExtension(ctx, pl, body)
-		if err != nil {
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
-		}
-
-		isEnoughStakePower, err := h.checkStakePower(ctx, req.GetHeight(), pl)
+		isEnoughStakePower, err := h.checkStakePower(ctx, req.GetHeight(), pl, body)
 		if err != nil {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
