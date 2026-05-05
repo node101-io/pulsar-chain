@@ -1,8 +1,6 @@
 package vote_ext
 
 import (
-	"fmt"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -36,7 +34,7 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 		}
 
 		if !isEnoughStakePower {
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, fmt.Errorf("")
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, ErrNotEnoughStakePower
 		}
 
 		// Vote extension successfully verified
