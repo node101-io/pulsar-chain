@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 
 import argparse
+import base64
+import hashlib
 import json
 import re
 import sys
 from pathlib import Path
 from typing import Optional
+
+
+MINA_SCALAR_FIELD = int(
+    "40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001", 16
+)
 
 
 def read_text(path_str: str) -> str:
@@ -46,6 +53,40 @@ def set_vote_extension_height(genesis_path: str, height: str) -> int:
 def read_consensus_pub_key(priv_validator_key_path: str) -> int:
     priv_validator_key = read_json(priv_validator_key_path)
     print(priv_validator_key["pub_key"]["value"])
+    return 0
+
+
+def generate_default_mina_priv_key(index: str) -> int:
+    data = hashlib.sha256(f"pulsar-local-testnet-node-{index}".encode()).digest()
+
+    while True:
+        value = int.from_bytes(data, "big") % MINA_SCALAR_FIELD
+        if value != 0:
+            print(base64.b64encode(value.to_bytes(32, "big")).decode())
+            return 0
+
+        data = hashlib.sha256(data).digest()
+
+
+def validate_mina_priv_key(index: str, mina_priv_key: str) -> int:
+    try:
+        raw = base64.b64decode(mina_priv_key, validate=True)
+    except Exception as exc:
+        raise SystemExit(f"node{index} mina private key is not valid base64: {exc}")
+
+    if len(raw) != 32:
+        raise SystemExit(
+            f"node{index} mina private key must decode to 32 bytes, got {len(raw)}"
+        )
+
+    value = int.from_bytes(raw, "big")
+    if value == 0 or value >= MINA_SCALAR_FIELD:
+        raise SystemExit(
+            "node"
+            f"{index} mina private key must represent a non-zero scalar smaller than "
+            f"{MINA_SCALAR_FIELD:x}"
+        )
+
     return 0
 
 
@@ -136,6 +177,13 @@ def build_parser() -> argparse.ArgumentParser:
     set_height.add_argument("--genesis", required=True)
     set_height.add_argument("--height", required=True)
 
+    generate_mina_key = subparsers.add_parser("generate-default-mina-priv-key")
+    generate_mina_key.add_argument("--index", required=True)
+
+    validate_mina_key = subparsers.add_parser("validate-mina-priv-key")
+    validate_mina_key.add_argument("--index", required=True)
+    validate_mina_key.add_argument("--mina-priv-key", required=True)
+
     patch_registry = subparsers.add_parser("patch-keyregistry")
     patch_registry.add_argument("--genesis", required=True)
     patch_registry.add_argument("--cosmos-key", action="append")
@@ -159,6 +207,10 @@ def main() -> int:
         return read_consensus_pub_key(args.priv_validator_key)
     if args.command == "set-vote-extension-height":
         return set_vote_extension_height(args.genesis, args.height)
+    if args.command == "generate-default-mina-priv-key":
+        return generate_default_mina_priv_key(args.index)
+    if args.command == "validate-mina-priv-key":
+        return validate_mina_priv_key(args.index, args.mina_priv_key)
     if args.command == "patch-keyregistry":
         return patch_keyregistry(args.genesis, args.mina_pub_key, args.cosmos_key)
     if args.command == "update-app-config":

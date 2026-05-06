@@ -8,32 +8,25 @@ PYTHON_HELPER="$SCRIPT_DIR/setup_local_testnet_helper.py"
 GO_HELPER="$SCRIPT_DIR/derive_mina_pub.go"
 
 LEGACY_CHAIN_HOME="${CHAIN_HOME:-$HOME/.pulsar}"
-NODE1_HOME="${NODE1_HOME:-$HOME/.pulsar-node1}"
-NODE2_HOME="${NODE2_HOME:-$HOME/.pulsar-node2}"
 CHAIN_ID="${CHAIN_ID:-mytestnet}"
-NODE1_MONIKER="${NODE1_MONIKER:-node1}"
-NODE2_MONIKER="${NODE2_MONIKER:-node2}"
-NODE1_KEY_NAME="${NODE1_KEY_NAME:-validator1}"
-NODE2_KEY_NAME="${NODE2_KEY_NAME:-validator2}"
 KEYRING_BACKEND="${KEYRING_BACKEND:-test}"
 DENOM="${DENOM:-pmina}"
 STAKE_AMOUNT="${STAKE_AMOUNT:-1000000000}"
 BOND_AMOUNT="${BOND_AMOUNT:-100000000}"
 MIN_GAS_PRICE="${MIN_GAS_PRICE:-0.0001pmina}"
-VOTE_EXT_ENABLE_HEIGHT="${VOTE_EXT_ENABLE_HEIGHT:-3}"
-NODE1_MINA_PRIV_KEY="${NODE1_MINA_PRIV_KEY:-ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM=}"
-NODE2_MINA_PRIV_KEY="${NODE2_MINA_PRIV_KEY:-PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng=}"
-NODE1_P2P_PORT="${NODE1_P2P_PORT:-26656}"
-NODE1_RPC_PORT="${NODE1_RPC_PORT:-26657}"
-NODE2_P2P_PORT="${NODE2_P2P_PORT:-26666}"
-NODE2_RPC_PORT="${NODE2_RPC_PORT:-26667}"
-NODE1_GRPC_PORT="${NODE1_GRPC_PORT:-9090}"
-NODE2_GRPC_PORT="${NODE2_GRPC_PORT:-9091}"
-NODE1_API_PORT="${NODE1_API_PORT:-1317}"
-NODE2_API_PORT="${NODE2_API_PORT:-1318}"
+VOTE_EXT_ENABLE_HEIGHT="${VOTE_EXT_ENABLE_HEIGHT:-1}"
 BIN_DIR="${BIN_DIR:-$HOME/go/bin}"
 BINARY_PATH="${BINARY_PATH:-$BIN_DIR/pulsard}"
 COMPAT_BINARY_PATH="${COMPAT_BINARY_PATH:-$BIN_DIR/pulsar-chaind}"
+DEFAULT_NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
+DEFAULT_NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
+
+if (( $# > 1 )); then
+  echo "usage: $0 [validator-count]" >&2
+  exit 1
+fi
+
+VALIDATOR_COUNT="${1:-${VALIDATOR_COUNT:-2}}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -48,6 +41,33 @@ derive_mina_pub_key() {
 
 read_consensus_pub_key() {
   python3 "$PYTHON_HELPER" read-consensus-pub-key --priv-validator-key "$1"
+}
+
+generate_default_mina_priv_key() {
+  python3 "$PYTHON_HELPER" generate-default-mina-priv-key --index "$1"
+}
+
+default_node_mina_priv_key() {
+  local index="$1"
+
+  case "$index" in
+    1) printf '%s\n' "$DEFAULT_NODE1_MINA_PRIV_KEY" ;;
+    2) printf '%s\n' "$DEFAULT_NODE2_MINA_PRIV_KEY" ;;
+    *) generate_default_mina_priv_key "$index" ;;
+  esac
+}
+
+validate_mina_priv_key() {
+  python3 "$PYTHON_HELPER" validate-mina-priv-key --index "$1" --mina-priv-key "$2"
+}
+
+get_node_setting() {
+  local index="$1"
+  local suffix="$2"
+  local default_value="$3"
+  local var_name="NODE${index}_${suffix}"
+
+  printf '%s\n' "${!var_name:-$default_value}"
 }
 
 configure_node() {
@@ -74,17 +94,55 @@ configure_node() {
     --mina-priv-key "$mina_priv_key"
 }
 
+build_persistent_peers() {
+  local current_index="$1"
+  local i
+  local -a peers=()
+
+  for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+    if (( i == current_index )); then
+      continue
+    fi
+
+    peers+=("${NODE_IDS[i]}@127.0.0.1:${NODE_P2P_PORTS[i]}")
+  done
+
+  local IFS=,
+  printf '%s\n' "${peers[*]}"
+}
+
 require_cmd go
 require_cmd python3
 
-NODE1_MINA_PUB_KEY="$(derive_mina_pub_key "$NODE1_MINA_PRIV_KEY")"
-NODE2_MINA_PUB_KEY="$(derive_mina_pub_key "$NODE2_MINA_PRIV_KEY")"
+if ! [[ "$VALIDATOR_COUNT" =~ ^[0-9]+$ ]] || (( VALIDATOR_COUNT < 1 )); then
+  echo "validator count must be a positive integer, got: $VALIDATOR_COUNT" >&2
+  exit 1
+fi
 
-NODE1_GENESIS_FILE="$NODE1_HOME/config/genesis.json"
-NODE2_GENESIS_FILE="$NODE2_HOME/config/genesis.json"
+declare -a NODE_HOMES NODE_MONIKERS NODE_KEY_NAMES NODE_MINA_PRIV_KEYS NODE_MINA_PUB_KEYS
+declare -a NODE_P2P_PORTS NODE_RPC_PORTS NODE_GRPC_PORTS NODE_API_PORTS
+declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS
+
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  NODE_HOMES[i]="$(get_node_setting "$i" "HOME" "$HOME/.pulsar-node${i}")"
+  NODE_MONIKERS[i]="$(get_node_setting "$i" "MONIKER" "node${i}")"
+  NODE_KEY_NAMES[i]="$(get_node_setting "$i" "KEY_NAME" "validator${i}")"
+  NODE_MINA_PRIV_KEYS[i]="$(get_node_setting "$i" "MINA_PRIV_KEY" "$(default_node_mina_priv_key "$i")")"
+  validate_mina_priv_key "$i" "${NODE_MINA_PRIV_KEYS[i]}"
+  NODE_P2P_PORTS[i]="$(get_node_setting "$i" "P2P_PORT" "$((26656 + ((i - 1) * 10)))")"
+  NODE_RPC_PORTS[i]="$(get_node_setting "$i" "RPC_PORT" "$((26657 + ((i - 1) * 10)))")"
+  NODE_GRPC_PORTS[i]="$(get_node_setting "$i" "GRPC_PORT" "$((9090 + i - 1))")"
+  NODE_API_PORTS[i]="$(get_node_setting "$i" "API_PORT" "$((1317 + i - 1))")"
+  NODE_MINA_PUB_KEYS[i]="$(derive_mina_pub_key "${NODE_MINA_PRIV_KEYS[i]}")"
+  NODE_GENESIS_FILES[i]="${NODE_HOMES[i]}/config/genesis.json"
+done
+
+PRIMARY_NODE_INDEX=1
+PRIMARY_HOME="${NODE_HOMES[PRIMARY_NODE_INDEX]}"
+PRIMARY_GENESIS_FILE="${NODE_GENESIS_FILES[PRIMARY_NODE_INDEX]}"
 
 echo "==> Cleaning previous homes..."
-rm -rf "$LEGACY_CHAIN_HOME" "$NODE1_HOME" "$NODE2_HOME"
+rm -rf "$LEGACY_CHAIN_HOME" "${NODE_HOMES[@]}"
 
 echo "==> Building binary..."
 mkdir -p "$BIN_DIR"
@@ -98,101 +156,98 @@ if [[ "$COMPAT_BINARY_PATH" != "$BINARY_PATH" ]]; then
 fi
 
 echo "==> Initializing nodes..."
-"$BINARY_PATH" init "$NODE1_MONIKER" --chain-id "$CHAIN_ID" --home "$NODE1_HOME" >/dev/null 2>&1
-"$BINARY_PATH" init "$NODE2_MONIKER" --chain-id "$CHAIN_ID" --home "$NODE2_HOME" >/dev/null 2>&1
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  "$BINARY_PATH" init "${NODE_MONIKERS[i]}" --chain-id "$CHAIN_ID" --home "${NODE_HOMES[i]}" >/dev/null 2>&1
+done
 
 echo "==> Setting vote extension enable height..."
 python3 "$PYTHON_HELPER" set-vote-extension-height \
-  --genesis "$NODE1_GENESIS_FILE" \
+  --genesis "$PRIMARY_GENESIS_FILE" \
   --height "$VOTE_EXT_ENABLE_HEIGHT"
 
 echo "==> Creating validator keys..."
-"$BINARY_PATH" keys add "$NODE1_KEY_NAME" --home "$NODE1_HOME" --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
-"$BINARY_PATH" keys add "$NODE2_KEY_NAME" --home "$NODE2_HOME" --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
-
-NODE1_ADDR="$("$BINARY_PATH" keys show "$NODE1_KEY_NAME" --address --home "$NODE1_HOME" --keyring-backend "$KEYRING_BACKEND")"
-NODE2_ADDR="$("$BINARY_PATH" keys show "$NODE2_KEY_NAME" --address --home "$NODE2_HOME" --keyring-backend "$KEYRING_BACKEND")"
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  "$BINARY_PATH" keys add "${NODE_KEY_NAMES[i]}" --home "${NODE_HOMES[i]}" --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
+  NODE_ADDRS[i]="$("$BINARY_PATH" keys show "${NODE_KEY_NAMES[i]}" --address --home "${NODE_HOMES[i]}" --keyring-backend "$KEYRING_BACKEND")"
+done
 
 echo "==> Adding genesis accounts..."
-"$BINARY_PATH" genesis add-genesis-account "$NODE1_ADDR" "${STAKE_AMOUNT}${DENOM}" --home "$NODE1_HOME" >/dev/null 2>&1
-"$BINARY_PATH" genesis add-genesis-account "$NODE2_ADDR" "${STAKE_AMOUNT}${DENOM}" --home "$NODE1_HOME" >/dev/null 2>&1
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  "$BINARY_PATH" genesis add-genesis-account "${NODE_ADDRS[i]}" "${STAKE_AMOUNT}${DENOM}" --home "$PRIMARY_HOME" >/dev/null 2>&1
+done
 
-echo "==> Creating gentx for ${NODE1_KEY_NAME}..."
-"$BINARY_PATH" genesis gentx "$NODE1_KEY_NAME" "${BOND_AMOUNT}${DENOM}" \
-  --chain-id "$CHAIN_ID" \
-  --home "$NODE1_HOME" \
-  --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  if (( i > PRIMARY_NODE_INDEX )); then
+    echo "==> Copying shared genesis to ${NODE_MONIKERS[i]}..."
+    cp "$PRIMARY_GENESIS_FILE" "${NODE_GENESIS_FILES[i]}"
+  fi
 
-echo "==> Copying shared genesis to node2..."
-cp "$NODE1_GENESIS_FILE" "$NODE2_GENESIS_FILE"
-
-echo "==> Creating gentx for ${NODE2_KEY_NAME}..."
-"$BINARY_PATH" genesis gentx "$NODE2_KEY_NAME" "${BOND_AMOUNT}${DENOM}" \
-  --chain-id "$CHAIN_ID" \
-  --home "$NODE2_HOME" \
-  --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
+  echo "==> Creating gentx for ${NODE_KEY_NAMES[i]}..."
+  "$BINARY_PATH" genesis gentx "${NODE_KEY_NAMES[i]}" "${BOND_AMOUNT}${DENOM}" \
+    --chain-id "$CHAIN_ID" \
+    --home "${NODE_HOMES[i]}" \
+    --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
+done
 
 echo "==> Collecting gentxs..."
-cp "$NODE2_HOME"/config/gentx/*.json "$NODE1_HOME/config/gentx/"
-"$BINARY_PATH" genesis collect-gentxs --home "$NODE1_HOME" >/dev/null 2>&1
+for ((i = PRIMARY_NODE_INDEX + 1; i <= VALIDATOR_COUNT; i++)); do
+  cp "${NODE_HOMES[i]}"/config/gentx/*.json "$PRIMARY_HOME/config/gentx/"
+done
+"$BINARY_PATH" genesis collect-gentxs --home "$PRIMARY_HOME" >/dev/null 2>&1
 
-NODE1_COSMOS_PUB_KEY="$(read_consensus_pub_key "$NODE1_HOME/config/priv_validator_key.json")"
-NODE2_COSMOS_PUB_KEY="$(read_consensus_pub_key "$NODE2_HOME/config/priv_validator_key.json")"
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  NODE_COSMOS_PUB_KEYS[i]="$(read_consensus_pub_key "${NODE_HOMES[i]}/config/priv_validator_key.json")"
+done
 
 echo "==> Patching keyregistry validator key pairs..."
-python3 "$PYTHON_HELPER" patch-keyregistry \
-  --genesis "$NODE1_GENESIS_FILE" \
-  --cosmos-key "$NODE1_COSMOS_PUB_KEY" \
-  --mina-pub-key "$NODE1_MINA_PUB_KEY" \
-  --cosmos-key "$NODE2_COSMOS_PUB_KEY" \
-  --mina-pub-key "$NODE2_MINA_PUB_KEY" >/dev/null
+patch_keyregistry_args=(patch-keyregistry --genesis "$PRIMARY_GENESIS_FILE")
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  patch_keyregistry_args+=(--cosmos-key "${NODE_COSMOS_PUB_KEYS[i]}")
+  patch_keyregistry_args+=(--mina-pub-key "${NODE_MINA_PUB_KEYS[i]}")
+done
+python3 "$PYTHON_HELPER" "${patch_keyregistry_args[@]}" >/dev/null
 
 echo "==> Validating final genesis..."
-"$BINARY_PATH" genesis validate-genesis --home "$NODE1_HOME" >/dev/null 2>&1
+"$BINARY_PATH" genesis validate-genesis --home "$PRIMARY_HOME" >/dev/null 2>&1
 
-echo "==> Copying final genesis to node2..."
-cp "$NODE1_GENESIS_FILE" "$NODE2_GENESIS_FILE"
+for ((i = PRIMARY_NODE_INDEX + 1; i <= VALIDATOR_COUNT; i++)); do
+  echo "==> Copying final genesis to ${NODE_MONIKERS[i]}..."
+  cp "$PRIMARY_GENESIS_FILE" "${NODE_GENESIS_FILES[i]}"
+done
 
-NODE1_ID="$("$BINARY_PATH" tendermint show-node-id --home "$NODE1_HOME")"
-NODE2_ID="$("$BINARY_PATH" tendermint show-node-id --home "$NODE2_HOME")"
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  NODE_IDS[i]="$("$BINARY_PATH" tendermint show-node-id --home "${NODE_HOMES[i]}")"
+done
 
-echo "==> Configuring node1..."
-configure_node \
-  "$NODE1_HOME" \
-  "$NODE1_RPC_PORT" \
-  "$NODE1_P2P_PORT" \
-  "$NODE1_API_PORT" \
-  "$NODE1_GRPC_PORT" \
-  "$NODE2_ID@127.0.0.1:$NODE2_P2P_PORT" \
-  "$NODE1_MINA_PRIV_KEY"
-
-echo "==> Configuring node2..."
-configure_node \
-  "$NODE2_HOME" \
-  "$NODE2_RPC_PORT" \
-  "$NODE2_P2P_PORT" \
-  "$NODE2_API_PORT" \
-  "$NODE2_GRPC_PORT" \
-  "$NODE1_ID@127.0.0.1:$NODE1_P2P_PORT" \
-  "$NODE2_MINA_PRIV_KEY"
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  echo "==> Configuring ${NODE_MONIKERS[i]}..."
+  configure_node \
+    "${NODE_HOMES[i]}" \
+    "${NODE_RPC_PORTS[i]}" \
+    "${NODE_P2P_PORTS[i]}" \
+    "${NODE_API_PORTS[i]}" \
+    "${NODE_GRPC_PORTS[i]}" \
+    "$(build_persistent_peers "$i")" \
+    "${NODE_MINA_PRIV_KEYS[i]}"
+done
 
 echo ""
 echo "Setup complete."
+echo "  validators:        $VALIDATOR_COUNT"
 echo "  binary:            $BINARY_PATH"
 echo "  compat binary:     $COMPAT_BINARY_PATH"
-echo "  node1 home:        $NODE1_HOME"
-echo "  node2 home:        $NODE2_HOME"
-echo "  node1 address:     $NODE1_ADDR"
-echo "  node2 address:     $NODE2_ADDR"
-echo "  node1 cosmos key:  $NODE1_COSMOS_PUB_KEY"
-echo "  node2 cosmos key:  $NODE2_COSMOS_PUB_KEY"
-echo "  node1 mina key:    $NODE1_MINA_PUB_KEY"
-echo "  node2 mina key:    $NODE2_MINA_PUB_KEY"
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  echo "  ${NODE_MONIKERS[i]} home:        ${NODE_HOMES[i]}"
+  echo "  ${NODE_MONIKERS[i]} address:     ${NODE_ADDRS[i]}"
+  echo "  ${NODE_MONIKERS[i]} cosmos key:  ${NODE_COSMOS_PUB_KEYS[i]}"
+  echo "  ${NODE_MONIKERS[i]} mina key:    ${NODE_MINA_PUB_KEYS[i]}"
+done
 echo ""
 echo "Start the nodes in separate terminals:"
-echo "  $BINARY_PATH start --home $NODE1_HOME"
-echo "  $BINARY_PATH start --home $NODE2_HOME"
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  echo "  $BINARY_PATH start --home ${NODE_HOMES[i]}"
+done
 echo ""
 echo "Validation examples:"
-echo "  curl -s http://localhost:$NODE1_RPC_PORT/validators | python3 -m json.tool | grep total"
-echo "  $BINARY_PATH query votepersistence vote-ext-body-by-height 5 --home $NODE1_HOME"
+echo "  curl -s http://localhost:${NODE_RPC_PORTS[PRIMARY_NODE_INDEX]}/validators | python3 -m json.tool | grep total"
+echo "  $BINARY_PATH query votepersistence vote-ext-body-by-height 5 --home $PRIMARY_HOME"
