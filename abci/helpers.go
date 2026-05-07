@@ -209,6 +209,7 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl abc
 	var currentValidatorStakePower int64
 
 	valInfoMap := make(map[string]stakingTypes.ValidatorI)
+	validatorSeen := make(map[string]bool)
 
 	currentValidatorSet, err := h.getValidatorSet(ctx, blockHeight-2)
 	if err != nil {
@@ -243,6 +244,12 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl abc
 		if err != nil {
 			return false, err
 		}
+
+		if validatorSeen[vote.ConsensusPublicKey] {
+			continue
+		}
+
+		validatorSeen[vote.ConsensusPublicKey] = true
 
 		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, pk)
 		if err != nil {
