@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"context"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -66,4 +67,12 @@ func NewKeeper(
 // GetAuthority returns the module's authority.
 func (k Keeper) GetAuthority() []byte {
 	return k.authority
+}
+
+func (k Keeper) GetBridgeState(ctx context.Context) (types.BridgeState, error) {
+	return k.BridgeState.Get(ctx)
+}
+
+func (k Keeper) setBridgeState(ctx context.Context, st types.BridgeState) error {
+	return k.BridgeState.Set(ctx, st)
 }
