@@ -28,6 +28,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod: "UpdateParams",
 					Skip:      true, // skipped because authority gated
 				},
+				{
+					RpcMethod:      "PushNewActions",
+					Use:            "push-new-actions [mina-block-height]",
+					Short:          "Send a PushNewActions tx",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "mina_block_height"}},
+				},
 				// this line is used by ignite scaffolding # autocli/tx
 			},
 		},
