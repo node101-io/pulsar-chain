@@ -11,6 +11,8 @@ import (
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
 
+const BridgeStateItemName string = "bridge_state"
+
 type Keeper struct {
 	storeService corestore.KVStoreService
 	cdc          codec.Codec
@@ -19,8 +21,9 @@ type Keeper struct {
 	// Typically, this should be the x/gov module account.
 	authority []byte
 
-	Schema collections.Schema
-	Params collections.Item[types.Params]
+	Schema      collections.Schema
+	Params      collections.Item[types.Params]
+	BridgeState collections.Item[types.BridgeState]
 }
 
 func NewKeeper(
@@ -43,6 +46,12 @@ func NewKeeper(
 		authority:    authority,
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
+		BridgeState: collections.NewItem(
+			sb,
+			types.BridgeStateKey,
+			BridgeStateItemName,
+			codec.CollValue[types.BridgeState](cdc),
+		),
 	}
 
 	schema, err := sb.Build()
