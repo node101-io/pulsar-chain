@@ -20,17 +20,29 @@ import (
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
-func (s *SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBody) []byte {
+func (s *SecondaryKey) SignVoteExtBody(poseidon *poseidon.Poseidon, voteExtBody votepersistenceTypes.VoteExtBody) []byte {
 	if s == nil || s.SecretKey == nil {
 		return nil
 	}
 
-	msg, err := voteExtBody.Marshal()
-	if err != nil {
+	innerHash := poseidon.Hash([]*big.Int{
+		new(big.Int).SetBytes(voteExtBody.NextValidatorSetHash),
+		new(big.Int).SetBytes(voteExtBody.CurrentStateRoot),
+		big.NewInt(voteExtBody.CurrentBlockHeight),
+	})
+	if innerHash == nil {
 		return nil
 	}
 
-	sig, err := s.SecretKey.SignMessage(hex.EncodeToString(msg), NetworkID)
+	msgHash := poseidon.Hash([]*big.Int{
+		innerHash,
+		new(big.Int).SetBytes([]byte(voteExtBody.ActionsReducedRoot)),
+	})
+	if msgHash == nil {
+		return nil
+	}
+
+	sig, err := s.SecretKey.SignFieldElement(msgHash, NetworkID)
 	if err != nil {
 		return nil
 	}
@@ -43,7 +55,7 @@ func (s *SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtB
 	return bz
 }
 
-func verifyVoteExtSig(signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) bool {
+func verifyVoteExtSig(poseidon *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) bool {
 	if message.ActionsReducedRoot != reducedRoot {
 		return false
 	}
@@ -53,17 +65,29 @@ func verifyVoteExtSig(signature []byte, message votepersistenceTypes.VoteExtBody
 		return false
 	}
 
+	innerHash := poseidon.Hash([]*big.Int{
+		new(big.Int).SetBytes(message.NextValidatorSetHash),
+		new(big.Int).SetBytes(message.CurrentStateRoot),
+		big.NewInt(message.CurrentBlockHeight),
+	})
+	if innerHash == nil {
+		return false
+	}
+
+	msgHash := poseidon.Hash([]*big.Int{
+		innerHash,
+		new(big.Int).SetBytes([]byte(message.ActionsReducedRoot)),
+	})
+	if msgHash == nil {
+		return false
+	}
+
 	var sig minasignature.Signature
 	if err := sig.UnmarshalBytes(signature); err != nil {
 		return false
 	}
 
-	msg, err := message.Marshal()
-	if err != nil {
-		return false
-	}
-
-	return pubKey.VerifyMessage(&sig, hex.EncodeToString(msg), NetworkID)
+	return pubKey.VerifyFieldElement(&sig, msgHash, NetworkID)
 }
 
 func extractPayload(txs [][]byte) (abcipb.Payload, error) {
@@ -264,7 +288,9 @@ func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl abc
 			return false, err
 		}
 
-		if !verifyVoteExtSig(vote.VoteExtension, body, minaKey, ActionsReducedRoot) {
+		poseidon := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+
+		if !verifyVoteExtSig(poseidon, vote.VoteExtension, body, minaKey, ActionsReducedRoot) {
 			return false, votepersistenceTypes.ErrInvalidVoteExtension.Wrap("invalid signature")
 		}
 

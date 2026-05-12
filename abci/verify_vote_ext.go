@@ -5,6 +5,9 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/node101-io/mina-signer-go/constants"
+	"github.com/node101-io/mina-signer-go/field"
+	"github.com/node101-io/mina-signer-go/poseidon"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
@@ -25,6 +28,10 @@ func (h *AbciHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 
 			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("rejected")
 		}
+
+		logger := ctx.Logger()
+
+		logger.Info("vote ext verify called")
 
 		cosmosValidatorPubKey, err := h.getValidatorPublicKey(ctx, req.ValidatorAddress)
 		if err != nil {
@@ -49,11 +56,14 @@ func (h *AbciHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		if err != nil {
 			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, err
 		}
+		poseidon := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
-		sigValidity := verifyVoteExtSig(req.VoteExtension, body, minaKey, ActionsReducedRoot)
+		sigValidity := verifyVoteExtSig(poseidon, req.VoteExtension, body, minaKey, ActionsReducedRoot)
 		if !sigValidity {
 			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, types.ErrInvalidSignature
 		}
+
+		logger.Info("vote ext verified")
 
 		return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_ACCEPT}, nil
 	}

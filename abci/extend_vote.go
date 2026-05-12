@@ -3,6 +3,9 @@ package vote_ext
 import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/node101-io/mina-signer-go/constants"
+	"github.com/node101-io/mina-signer-go/field"
+	"github.com/node101-io/mina-signer-go/poseidon"
 )
 
 func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
@@ -22,7 +25,9 @@ func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return nil, err
 		}
 
-		bz := h.secondaryKey.SignVoteExtBody(body)
+		poseidon := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+
+		bz := h.secondaryKey.SignVoteExtBody(poseidon, body)
 
 		return &abci.ResponseExtendVote{VoteExtension: bz}, nil
 	}
