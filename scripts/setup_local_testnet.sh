@@ -18,6 +18,9 @@ VOTE_EXT_ENABLE_HEIGHT="${VOTE_EXT_ENABLE_HEIGHT:-1}"
 BIN_DIR="${BIN_DIR:-$HOME/go/bin}"
 BINARY_PATH="${BINARY_PATH:-$BIN_DIR/pulsard}"
 COMPAT_BINARY_PATH="${COMPAT_BINARY_PATH:-$BIN_DIR/pulsar-chaind}"
+API_ENABLE="${API_ENABLE:-true}"
+API_BIND_HOST="${API_BIND_HOST:-0.0.0.0}"
+GRPC_BIND_HOST="${GRPC_BIND_HOST:-localhost}"
 DEFAULT_NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
 DEFAULT_NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
 
@@ -85,13 +88,16 @@ configure_node() {
   sed -i.bak 's|addr_book_strict = true|addr_book_strict = false|' "$home/config/config.toml"
   sed -i.bak 's|allow_duplicate_ip = false|allow_duplicate_ip = true|' "$home/config/config.toml"
 
-  sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://localhost:${api_port}\"|" "$home/config/app.toml"
-  sed -i.bak "s|address = \"localhost:9090\"|address = \"localhost:${grpc_port}\"|" "$home/config/app.toml"
+  sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://${API_BIND_HOST}:${api_port}\"|" "$home/config/app.toml"
+  sed -i.bak "s|address = \"localhost:9090\"|address = \"${GRPC_BIND_HOST}:${grpc_port}\"|" "$home/config/app.toml"
 
   python3 "$PYTHON_HELPER" update-app-config \
     --app "$home/config/app.toml" \
     --min-gas-price "$MIN_GAS_PRICE" \
-    --mina-priv-key "$mina_priv_key"
+    --mina-priv-key "$mina_priv_key" \
+    --api-enable "$API_ENABLE" \
+    --api-address "tcp://${API_BIND_HOST}:${api_port}" \
+    --grpc-address "${GRPC_BIND_HOST}:${grpc_port}"
 }
 
 build_persistent_peers() {
@@ -251,3 +257,4 @@ echo ""
 echo "Validation examples:"
 echo "  curl -s http://localhost:${NODE_RPC_PORTS[PRIMARY_NODE_INDEX]}/validators | python3 -m json.tool | grep total"
 echo "  $BINARY_PATH query votepersistence vote-ext-body-by-height 5 --home $PRIMARY_HOME"
+echo "  curl -s http://${API_BIND_HOST}:${NODE_API_PORTS[PRIMARY_NODE_INDEX]}/node101-io/pulsar-chain/votepersistence/v1/vote_ext_body_by_height/5 | python3 -m json.tool"
