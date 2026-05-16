@@ -18,8 +18,8 @@ service Query {
     option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/params";
   }
 
-  // VoteExtBodyByHeight Queries a list of VoteExtBodyByHeight items.
-  rpc VoteExtBodyByHeight(QueryVoteExtBodyByHeightRequest) returns (VoteExtBody) {
+  // VoteExtBodyByHeight queries the vote extension body for a block height.
+  rpc VoteExtBodyByHeight(QueryVoteExtBodyByHeightRequest) returns (QueryVoteExtBodyByHeightResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/vote_ext_body_by_height/{block_height}";
   }
 
@@ -44,6 +44,11 @@ message QueryParamsResponse {
 // QueryVoteExtBodyByHeightRequest defines the QueryVoteExtBodyByHeightRequest message.
 message QueryVoteExtBodyByHeightRequest {
   int64 block_height = 1;
+}
+
+// QueryVoteExtBodyByHeightResponse defines the QueryVoteExtBodyByHeightResponse message.
+message QueryVoteExtBodyByHeightResponse {
+  VoteExtBody vote_ext_body = 1;
 }
 
 // QueryVoteExtensionsRequest defines the QueryVoteExtensionsRequest message.

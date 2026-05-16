@@ -211,7 +211,7 @@ func TestVoteExtBodyByHeightSuccess(t *testing.T) {
 		CurrentStateRoot:     []byte("current-state-root"),
 		CurrentBlockHeight:   7,
 		ActionsReducedRoot:   keeper.ActionsReducedRoot,
-	}, queryResp)
+	}, queryResp.VoteExtBody)
 }
 
 // TestVoteExtBodyByHeightValidatorMinaKeyNotFound verifies that
