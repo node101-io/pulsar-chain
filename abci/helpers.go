@@ -15,7 +15,6 @@ import (
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	minasignature "github.com/node101-io/mina-signer-go/signature"
-	abcipb "github.com/node101-io/pulsar-chain/api/pulsarchain/abci"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
@@ -90,23 +89,23 @@ func verifyVoteExtSig(poseidon *poseidon.Poseidon, signature []byte, message vot
 	return pubKey.VerifyFieldElement(&sig, msgHash, NetworkID)
 }
 
-func extractPayload(txs [][]byte) (abcipb.Payload, error) {
+func extractPayload(txs [][]byte) (Payload, error) {
 
 	if len(txs) == 0 {
-		return abcipb.Payload{}, nil
+		return Payload{}, nil
 	}
 
 	if !bytes.HasPrefix(txs[0], []byte(VoteExtMarker)) {
-		return abcipb.Payload{}, votepersistenceTypes.ErrVoteExtMarkerNotFound
+		return Payload{}, votepersistenceTypes.ErrVoteExtMarkerNotFound
 	}
 
 	voteExtensionTx := txs[0][len([]byte(VoteExtMarker)):]
 
-	var pl abcipb.Payload
+	var pl Payload
 
 	err := pl.Unmarshal(voteExtensionTx)
 	if err != nil {
-		return abcipb.Payload{}, err
+		return Payload{}, err
 	}
 	return pl, nil
 }
@@ -228,7 +227,7 @@ func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 
 }
 
-func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl abcipb.Payload, body votepersistenceTypes.VoteExtBody) (bool, error) {
+func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Payload, body votepersistenceTypes.VoteExtBody) (bool, error) {
 	var signedStakePower int64
 	var currentValidatorStakePower int64
 
@@ -348,15 +347,15 @@ func (h *AbciHandler) getValidatorPublicKey(ctx sdk.Context, validatorAddr []byt
 	return cosmosValidatorPubKey.Bytes(), nil
 }
 
-func (h *AbciHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []abci.ExtendedVoteInfo) (abcipb.Payload, error) {
+func (h *AbciHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []abci.ExtendedVoteInfo) (Payload, error) {
 
-	var voteExtsForGivenBlock []*abcipb.Votes
+	var voteExtsForGivenBlock []*Votes
 
 	currentValidatorSetMap := make(map[string]bool)
 
 	currentValidatorSet, err := h.getValidatorSet(ctx, blockHeight-2)
 	if err != nil {
-		return abcipb.Payload{}, err
+		return Payload{}, err
 	}
 
 	for _, currentValidator := range currentValidatorSet {
@@ -385,18 +384,18 @@ func (h *AbciHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 
 		cosmosValidatorPubKey, err := h.getValidatorPublicKey(ctx, vote.Validator.Address)
 		if err != nil {
-			return abcipb.Payload{}, err
+			return Payload{}, err
 		}
 
-		voteExtsForGivenBlock = append(voteExtsForGivenBlock, &abcipb.Votes{
+		voteExtsForGivenBlock = append(voteExtsForGivenBlock, &Votes{
 			ConsensusPublicKey: hex.EncodeToString(cosmosValidatorPubKey),
 			VoteExtension:      vote.VoteExtension,
 		})
 	}
 
 	if len(voteExtsForGivenBlock) == 0 {
-		return abcipb.Payload{}, nil
+		return Payload{}, nil
 	}
 
-	return abcipb.Payload{Height: blockHeight - 1, Votes: voteExtsForGivenBlock}, nil
+	return Payload{Height: blockHeight - 1, Votes: voteExtsForGivenBlock}, nil
 }
