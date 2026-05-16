@@ -3,20 +3,17 @@ package vote_ext
 import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/node101-io/mina-signer-go/constants"
-	"github.com/node101-io/mina-signer-go/field"
-	"github.com/node101-io/mina-signer-go/poseidon"
 )
 
 func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
 
-		cp := ctx.ConsensusParams()
-		if cp.Abci == nil {
-			return &abci.ResponseExtendVote{VoteExtension: []byte{}}, ErrUnableToReadConsensusParams
+		shouldExtendVote, err := shouldExtendVoteAtHeight(ctx, req.GetHeight())
+		if err != nil {
+			return nil, err
 		}
 
-		if req.Height < cp.Abci.VoteExtensionsEnableHeight+AdditionalVoteExtHeight {
+		if !shouldExtendVote {
 			return &abci.ResponseExtendVote{VoteExtension: []byte{}}, nil
 		}
 
@@ -25,9 +22,10 @@ func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return nil, err
 		}
 
-		poseidon := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
-
-		bz := h.secondaryKey.SignVoteExtBody(poseidon, body)
+		bz, err := h.secondaryKey.SignVoteExtBody(body)
+		if err != nil {
+			return nil, err
+		}
 
 		return &abci.ResponseExtendVote{VoteExtension: bz}, nil
 	}
