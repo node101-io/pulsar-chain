@@ -86,7 +86,7 @@ configure_node() {
   sed -i.bak 's|allow_duplicate_ip = false|allow_duplicate_ip = true|' "$home/config/config.toml"
 
   sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://localhost:${api_port}\"|" "$home/config/app.toml"
-  sed -i.bak "s|address = \"localhost:9090\"|address = \"localhost:${grpc_port}\"|" "$home/config/app.toml"
+  sed -i.bak "s|address = \"localhost:9090\"|address = \"0.0.0.0:${grpc_port}\"|" "$home/config/app.toml"
 
   python3 "$PYTHON_HELPER" update-app-config \
     --app "$home/config/app.toml" \
