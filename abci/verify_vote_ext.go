@@ -14,14 +14,12 @@ import (
 func (h *AbciHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandler {
 	return func(ctx sdk.Context, req *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error) {
 
-		cp := ctx.ConsensusParams()
-
-		if cp.Abci == nil {
-			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, ErrUnableToReadConsensusParams
+		shouldVerifyVoteExtension, err := shouldExtendVoteAtHeight(ctx, req.GetHeight())
+		if err != nil {
+			return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, err
 		}
 
-		if req.Height < cp.Abci.VoteExtensionsEnableHeight+AdditionalVoteExtHeight {
-
+		if !shouldVerifyVoteExtension {
 			if len(req.VoteExtension) == 0 {
 				return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_ACCEPT}, nil
 			}

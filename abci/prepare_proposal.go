@@ -9,12 +9,12 @@ func (h *AbciHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 
-		cp := ctx.ConsensusParams()
-		if cp.Abci == nil {
-			return &abci.ResponsePrepareProposal{Txs: req.Txs}, ErrUnableToReadConsensusParams
+		shouldIncludeVoteExtensions, err := shouldRequireProposalPayloadAtHeight(ctx, req.GetHeight())
+		if err != nil {
+			return nil, err
 		}
 
-		if req.Height < cp.Abci.VoteExtensionsEnableHeight+AdditionalVoteExtHeight+1 {
+		if !shouldIncludeVoteExtensions {
 			return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
 		}
 

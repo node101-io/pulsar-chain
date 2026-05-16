@@ -221,12 +221,15 @@ func New(
 		PublicKey: &public,
 	}
 
-	app.AbciHandler = vote_ext.NewABCIHandler(
+	app.AbciHandler, err = vote_ext.NewABCIHandler(
 		secondaryKey,
 		*app.StakingKeeper,
 		app.KeyregistryKeeper,
 		app.VotepersistenceKeeper,
 	)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize ABCI handler: %v", err))
+	}
 
 	// add to default baseapp options
 	// enable optimistic execution

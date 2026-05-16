@@ -9,12 +9,12 @@ func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
 
-		cp := ctx.ConsensusParams()
-		if cp.Abci == nil {
-			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, ErrUnableToReadConsensusParams
+		shouldValidateVoteExtensions, err := shouldRequireProposalPayloadAtHeight(ctx, req.GetHeight())
+		if err != nil {
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, err
 		}
 
-		if req.Height < cp.Abci.VoteExtensionsEnableHeight+AdditionalVoteExtHeight+1 {
+		if !shouldValidateVoteExtensions {
 			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
 		}
 
