@@ -9,7 +9,6 @@ import "google/api/annotations.proto";
 import "pulsarchain/votepersistence/v1/params.proto";
 import "pulsarchain/votepersistence/v1/vote_ext_body.proto";
 
-
 option go_package = "github.com/node101-io/pulsar-chain/x/votepersistence/types";
 
 // Query defines the gRPC querier service.
@@ -22,6 +21,11 @@ service Query {
   // VoteExtBodyByHeight Queries a list of VoteExtBodyByHeight items.
   rpc VoteExtBodyByHeight(QueryVoteExtBodyByHeightRequest) returns (VoteExtBody) {
     option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/vote_ext_body_by_height/{block_height}";
+  }
+
+  // VoteExtensions queries the currently persisted vote extensions.
+  rpc VoteExtensions(QueryVoteExtensionsRequest) returns (QueryVoteExtensionsResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/vote_extensions";
   }
 }
 
@@ -42,3 +46,18 @@ message QueryVoteExtBodyByHeightRequest {
   int64 block_height = 1;
 }
 
+// QueryVoteExtensionsRequest defines the QueryVoteExtensionsRequest message.
+message QueryVoteExtensionsRequest {}
+
+// StoredVoteExtension defines a persisted Mina validator vote extension.
+message StoredVoteExtension {
+  bytes mina_public_key = 1;
+  bytes vote_extension = 2;
+}
+
+// QueryVoteExtensionsResponse defines the QueryVoteExtensionsResponse message.
+message QueryVoteExtensionsResponse {
+  int64 query_block_height = 1;
+  int64 persisted_vote_extensions_block_height = 2;
+  repeated StoredVoteExtension vote_extensions = 3;
+}

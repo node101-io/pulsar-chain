@@ -24,6 +24,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "block_height"}},
 				},
 
+				{
+					RpcMethod: "VoteExtensions",
+					Use:       "vote-extensions",
+					Short:     "Query persisted vote extensions",
+				},
+
 				// this line is used by ignite scaffolding # autocli/query
 			},
 		},
