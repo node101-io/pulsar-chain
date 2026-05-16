@@ -17,7 +17,7 @@ import (
 
 const ActionsReducedRoot string = "pulsar"
 
-func (q queryServer) VoteExtBodyByHeight(ctx context.Context, req *types.QueryVoteExtBodyByHeightRequest) (*types.VoteExtBody, error) {
+func (q queryServer) VoteExtBodyByHeight(ctx context.Context, req *types.QueryVoteExtBodyByHeightRequest) (*types.QueryVoteExtBodyByHeightResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
@@ -36,7 +36,14 @@ func (q queryServer) VoteExtBodyByHeight(ctx context.Context, req *types.QueryVo
 		return nil, status.Error(codes.Internal, "vote extension query dependencies are not configured")
 	}
 
-	return q.constructVoteExtBodyByHeight(ctx, req.BlockHeight)
+	voteExtBody, err := q.constructVoteExtBodyByHeight(ctx, req.BlockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.QueryVoteExtBodyByHeightResponse{
+		VoteExtBody: voteExtBody,
+	}, nil
 }
 
 func (q queryServer) constructVoteExtBodyByHeight(ctx context.Context, blockHeight int64) (*types.VoteExtBody, error) {
