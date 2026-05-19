@@ -44,7 +44,7 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 				continue
 			}
 
-			cosmosValidatorPublicKey, err := h.getValidatorPublicKey(ctx, consAddr)
+			cosmosValidatorPublicKey, err := h.getConsPubKeyByConsAddr(ctx, consAddr)
 			if err != nil {
 				return nil, err
 			}

@@ -2,6 +2,7 @@ package abci
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"sort"
 
@@ -14,12 +15,14 @@ import (
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
-// Use if you need the validator set of block < N where N is the current block number.
-func (h *ABCIHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]stakingTypes.ValidatorI, error) {
+// getValidatorSet returns the validator set for validatorSetHeight. The current
+// block height is read from LastValidators; earlier heights are read from
+// staking historical info.
+func (h *ABCIHandler) getValidatorSet(ctx sdk.Context, validatorSetHeight int64) ([]stakingTypes.ValidatorI, error) {
 
 	var valInfo []stakingTypes.ValidatorI
 
-	if ctx.BlockHeight() == currentBlockHeight {
+	if ctx.BlockHeight() == validatorSetHeight {
 		err := h.stakingKeeper.IterateLastValidators(ctx, func(index int64, validator stakingTypes.ValidatorI) (stop bool) {
 			valInfo = append(valInfo, validator)
 			return false
@@ -28,12 +31,14 @@ func (h *ABCIHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64)
 		if err != nil {
 			return nil, err
 		}
-		sortValidatorsByPower(valInfo)
+		if err := sortValidatorsByPower(valInfo); err != nil {
+			return nil, err
+		}
 
 		return valInfo, nil
 	}
 
-	historicalData, err := h.stakingKeeper.GetHistoricalInfo(ctx, currentBlockHeight)
+	historicalData, err := h.stakingKeeper.GetHistoricalInfo(ctx, validatorSetHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -41,45 +46,67 @@ func (h *ABCIHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64)
 		valInfo = append(valInfo, validator)
 	}
 
-	sortValidatorsByPower(valInfo)
+	if err := sortValidatorsByPower(valInfo); err != nil {
+		return nil, err
+	}
 
 	return valInfo, nil
 }
 
-func sortValidatorsByPower(validators []stakingTypes.ValidatorI) {
-	sort.SliceStable(validators, func(i, j int) bool {
-		leftPower := validators[i].GetConsensusPower(sdk.DefaultPowerReduction)
-		rightPower := validators[j].GetConsensusPower(sdk.DefaultPowerReduction)
+func sortValidatorsByPower(validators []stakingTypes.ValidatorI) error {
+	type validatorSortEntry struct {
+		validator        stakingTypes.ValidatorI
+		consensusAddress []byte
+		consensusPower   int64
+	}
 
-		if leftPower == rightPower {
-			leftAddr, err := validators[i].GetConsAddr()
-			if err != nil {
-				return false
-			}
-			rightAddr, err := validators[j].GetConsAddr()
-			if err != nil {
-				return false
-			}
-
-			return bytes.Compare(leftAddr, rightAddr) == -1
+	entries := make([]validatorSortEntry, 0, len(validators))
+	for _, validator := range validators {
+		consAddr, err := validator.GetConsAddr()
+		if err != nil {
+			return fmt.Errorf("failed to read validator consensus address: %w", err)
 		}
 
-		return leftPower > rightPower
+		entries = append(entries, validatorSortEntry{
+			validator:        validator,
+			consensusAddress: consAddr,
+			consensusPower:   validator.GetConsensusPower(sdk.DefaultPowerReduction),
+		})
+	}
+
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].consensusPower == entries[j].consensusPower {
+			return bytes.Compare(entries[i].consensusAddress, entries[j].consensusAddress) < 0
+		}
+
+		return entries[i].consensusPower > entries[j].consensusPower
 	})
+
+	for i, entry := range entries {
+		validators[i] = entry.validator
+	}
+
+	return nil
 }
 
 // TODO: Move this helper to mina-signer-go
 func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []stakingTypes.ValidatorI, poseidonHash *poseidon.Poseidon) (*big.Int, error) {
+	if poseidonHash == nil {
+		return nil, ErrValidatorSetRootHashFailed
+	}
 
 	input := []*big.Int{big.NewInt(0)}
 	merkleRoot := poseidonHash.Hash(input)
+	if merkleRoot == nil {
+		return nil, ErrValidatorSetRootHashFailed
+	}
 
 	for _, validator := range valInfo {
 		input = []*big.Int{}
 
 		consAddr, err := validator.GetConsAddr()
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("failed to read validator consensus address: %w", err)
 		}
 
 		cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, sdk.ConsAddress(consAddr))
@@ -97,7 +124,7 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 			return nil, err
 		}
 		if !minaPubKeyExists {
-			return nil, err
+			return nil, fmt.Errorf("%w: consensus public key %X", ErrValidatorMinaKeyNotFound, cosmosValidatorPubKey.Bytes())
 		}
 
 		minaPubKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, cosmosValidatorPubKey.Bytes())
@@ -105,14 +132,14 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 			return nil, err
 		}
 
-		var MinaPublicKey keys.PublicKey
-		err = MinaPublicKey.Unmarshal(minaPubKey)
+		var minaPublicKey keys.PublicKey
+		err = minaPublicKey.Unmarshal(minaPubKey)
 		if err != nil {
 			return nil, err
 		}
 
-		input = append(input, MinaPublicKey.X)
-		if MinaPublicKey.IsOdd {
+		input = append(input, minaPublicKey.X)
+		if minaPublicKey.IsOdd {
 			input = append(input, big.NewInt(1))
 		} else {
 			input = append(input, big.NewInt(0))
@@ -121,10 +148,16 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 		input = append(input, power)
 
 		hashOfAddr := poseidonHash.Hash(input)
+		if hashOfAddr == nil {
+			return nil, ErrValidatorSetRootHashFailed
+		}
 
 		input = []*big.Int{merkleRoot, hashOfAddr}
 
 		merkleRoot = poseidonHash.Hash(input)
+		if merkleRoot == nil {
+			return nil, ErrValidatorSetRootHashFailed
+		}
 	}
 
 	return merkleRoot, nil
@@ -145,23 +178,23 @@ func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (
 
 	poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
-	nextValidatorSetHash, err := h.calculateValidatorSetRoot(ctx, nextValidatorSet, poseidonHash)
+	nextValidatorSetRoot, err := h.calculateValidatorSetRoot(ctx, nextValidatorSet, poseidonHash)
 	if err != nil {
 		return votepersistenceTypes.VoteExtBody{}, err
 	}
-	if nextValidatorSetHash == nil {
-		return votepersistenceTypes.VoteExtBody{}, err
+	if nextValidatorSetRoot == nil {
+		return votepersistenceTypes.VoteExtBody{}, ErrValidatorSetRootHashFailed
 	}
 
 	return votepersistenceTypes.VoteExtBody{
-		NextValidatorSetHash: nextValidatorSetHash.Bytes(),
+		NextValidatorSetHash: nextValidatorSetRoot.Bytes(),
 		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
 		CurrentBlockHeight:   blockHeight - 1,
 		ActionsReducedRoot:   ActionsReducedRoot,
 	}, nil
 }
 
-func (h *ABCIHandler) getValidatorPublicKey(ctx sdk.Context, validatorAddr []byte) ([]byte, error) {
+func (h *ABCIHandler) getConsPubKeyByConsAddr(ctx sdk.Context, validatorAddr []byte) ([]byte, error) {
 
 	cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, sdk.ConsAddress(validatorAddr))
 	if err != nil {

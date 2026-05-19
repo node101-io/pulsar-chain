@@ -31,7 +31,7 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 
 		logger.Info("vote ext verify called")
 
-		cosmosValidatorPubKey, err := h.getValidatorPublicKey(ctx, req.ValidatorAddress)
+		cosmosValidatorPubKey, err := h.getConsPubKeyByConsAddr(ctx, req.ValidatorAddress)
 		if err != nil {
 			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
 		}

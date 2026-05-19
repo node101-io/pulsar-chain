@@ -76,7 +76,7 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 			continue
 		}
 
-		cosmosValidatorPubKey, err := h.getValidatorPublicKey(ctx, vote.Validator.Address)
+		cosmosValidatorPubKey, err := h.getConsPubKeyByConsAddr(ctx, vote.Validator.Address)
 		if err != nil {
 			return Payload{}, err
 		}
