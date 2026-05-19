@@ -5,7 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func (h *AbciHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
+func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
 

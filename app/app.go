@@ -111,7 +111,7 @@ type App struct {
 	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
 	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
 
-	AbciHandler *vote_ext.AbciHandler
+	ABCIHandler *vote_ext.ABCIHandler
 }
 
 func init() {
@@ -221,9 +221,9 @@ func New(
 		PublicKey: &public,
 	}
 
-	app.AbciHandler, err = vote_ext.NewABCIHandler(
+	app.ABCIHandler, err = vote_ext.NewABCIHandler(
 		secondaryKey,
-		*app.StakingKeeper,
+		app.StakingKeeper,
 		app.KeyregistryKeeper,
 		app.VotepersistenceKeeper,
 	)
@@ -238,11 +238,11 @@ func New(
 	// build app
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
-	app.SetExtendVoteHandler(app.AbciHandler.ExtendVoteHandler())
-	app.SetVerifyVoteExtensionHandler(app.AbciHandler.VerifyVoteExtensionHandler())
-	app.SetPrepareProposal(app.AbciHandler.PrepareProposalHandler())
-	app.SetProcessProposal(app.AbciHandler.ProcessProposalHandler())
-	app.SetPreBlocker(app.AbciHandler.PreBlocker())
+	app.SetExtendVoteHandler(app.ABCIHandler.ExtendVoteHandler())
+	app.SetVerifyVoteExtensionHandler(app.ABCIHandler.VerifyVoteExtensionHandler())
+	app.SetPrepareProposal(app.ABCIHandler.PrepareProposalHandler())
+	app.SetProcessProposal(app.ABCIHandler.ProcessProposalHandler())
+	app.SetPreBlocker(app.ABCIHandler.PreBlocker())
 
 	// register legacy modules
 	if err := app.registerIBCModules(appOpts); err != nil {

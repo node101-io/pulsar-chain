@@ -8,7 +8,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
+func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 	return func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 
 		// If height is smaller than 4, we won't have any votes thus skip the proposal

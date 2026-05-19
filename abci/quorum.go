@@ -12,7 +12,7 @@ import (
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
-func (h *AbciHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Payload, body votepersistenceTypes.VoteExtBody) (bool, error) {
+func (h *ABCIHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Payload, body votepersistenceTypes.VoteExtBody) (bool, error) {
 	var signedStakePower int64
 	var currentValidatorStakePower int64
 
