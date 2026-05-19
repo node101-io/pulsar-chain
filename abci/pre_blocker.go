@@ -24,12 +24,17 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 			return nil, ErrVoteExtPayloadNotFound
 		}
 
-		body, err := h.constructVoteExtBody(ctx, req.GetHeight()-1)
+		voteExtensionHeight := req.GetHeight() - 1
+		if err := validatePayloadHeight(pl, voteExtensionHeight); err != nil {
+			return nil, err
+		}
+
+		body, err := h.constructVoteExtBody(ctx, voteExtensionHeight)
 		if err != nil {
 			return nil, err
 		}
 
-		verifiedVotes, err := h.validatePayloadVotes(ctx, req.GetHeight(), pl, body)
+		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, req.GetHeight(), pl, body)
 		if err != nil {
 			return nil, err
 		}

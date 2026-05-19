@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidatePayloadVotesReturnsVerifiedVotesAndPower(t *testing.T) {
+func TestValidatePayloadVoteExtensionsReturnsVerifiedVotesAndPower(t *testing.T) {
 	firstValidator := newTestBondedValidator(t, 10)
 	secondValidator := newTestBondedValidator(t, 5)
 	firstMinaKey := validSecondaryKey()
@@ -25,12 +25,12 @@ func TestValidatePayloadVotesReturnsVerifiedVotesAndPower(t *testing.T) {
 		string(consensusPubKeyBytes(t, firstValidator)):  firstMinaKey,
 		string(consensusPubKeyBytes(t, secondValidator)): secondMinaKey,
 	}, nil)
-	payload := Payload{Votes: []*Votes{
-		signedPayloadVote(t, firstValidator, firstMinaKey, body),
-		signedPayloadVote(t, secondValidator, secondMinaKey, body),
+	payload := Payload{VoteExtensions: []*PayloadVoteExtension{
+		signedPayloadVoteExtension(t, firstValidator, firstMinaKey, body),
+		signedPayloadVoteExtension(t, secondValidator, secondMinaKey, body),
 	}}
 
-	verifiedVotes, err := handler.validatePayloadVotes(sdk.Context{}, 10, payload, body)
+	verifiedVotes, err := handler.validatePayloadVoteExtensions(sdk.Context{}, 10, payload, body)
 
 	require.NoError(t, err)
 	require.Len(t, verifiedVotes.votes, 2)
@@ -41,69 +41,69 @@ func TestValidatePayloadVotesReturnsVerifiedVotesAndPower(t *testing.T) {
 	require.Equal(t, testMinaPublicKeyFromSecondaryKey(t, firstMinaKey), verifiedVotes.votes[0].minaPublicKey)
 }
 
-func TestValidatePayloadVotesUsesFirstDuplicateVote(t *testing.T) {
+func TestValidatePayloadVoteExtensionsUsesFirstDuplicateVote(t *testing.T) {
 	validator := newTestBondedValidator(t, 10)
 	secondaryKey := validSecondaryKey()
 	body := validVoteExtBody()
 	handler := newQuorumTestHandler(t, []stakingtypes.Validator{validator}, map[string]SecondaryKey{
 		string(consensusPubKeyBytes(t, validator)): secondaryKey,
 	}, nil)
-	firstVote := signedPayloadVote(t, validator, secondaryKey, body)
-	secondVote := &Votes{
+	firstVote := signedPayloadVoteExtension(t, validator, secondaryKey, body)
+	secondVote := &PayloadVoteExtension{
 		ConsensusPublicKey: firstVote.ConsensusPublicKey,
 		VoteExtension:      []byte("invalid-duplicate-vote"),
 	}
 
-	verifiedVotes, err := handler.validatePayloadVotes(sdk.Context{}, 10, Payload{Votes: []*Votes{firstVote, secondVote}}, body)
+	verifiedVotes, err := handler.validatePayloadVoteExtensions(sdk.Context{}, 10, Payload{VoteExtensions: []*PayloadVoteExtension{firstVote, secondVote}}, body)
 
 	require.NoError(t, err)
 	require.Len(t, verifiedVotes.votes, 1)
 	require.Equal(t, firstVote.VoteExtension, verifiedVotes.votes[0].voteExtension)
 }
 
-func TestValidatePayloadVotesRejectsInvalidFirstDuplicate(t *testing.T) {
+func TestValidatePayloadVoteExtensionsRejectsInvalidFirstDuplicate(t *testing.T) {
 	validator := newTestBondedValidator(t, 10)
 	secondaryKey := validSecondaryKey()
 	body := validVoteExtBody()
 	handler := newQuorumTestHandler(t, []stakingtypes.Validator{validator}, map[string]SecondaryKey{
 		string(consensusPubKeyBytes(t, validator)): secondaryKey,
 	}, nil)
-	validVote := signedPayloadVote(t, validator, secondaryKey, body)
-	invalidFirstVote := &Votes{
+	validVote := signedPayloadVoteExtension(t, validator, secondaryKey, body)
+	invalidFirstVote := &PayloadVoteExtension{
 		ConsensusPublicKey: validVote.ConsensusPublicKey,
 		VoteExtension:      []byte("invalid-first-duplicate"),
 	}
 
-	_, err := handler.validatePayloadVotes(sdk.Context{}, 10, Payload{Votes: []*Votes{invalidFirstVote, validVote}}, body)
+	_, err := handler.validatePayloadVoteExtensions(sdk.Context{}, 10, Payload{VoteExtensions: []*PayloadVoteExtension{invalidFirstVote, validVote}}, body)
 
 	require.ErrorIs(t, err, votepersistencetypes.ErrInvalidVoteExtension)
 }
 
-func TestValidatePayloadVotesRejectsMissingMinaKey(t *testing.T) {
+func TestValidatePayloadVoteExtensionsRejectsMissingMinaKey(t *testing.T) {
 	validator := newTestBondedValidator(t, 10)
 	secondaryKey := validSecondaryKey()
 	body := validVoteExtBody()
 	handler := newQuorumTestHandler(t, []stakingtypes.Validator{validator}, nil, nil)
-	payload := Payload{Votes: []*Votes{signedPayloadVote(t, validator, secondaryKey, body)}}
+	payload := Payload{VoteExtensions: []*PayloadVoteExtension{signedPayloadVoteExtension(t, validator, secondaryKey, body)}}
 
-	_, err := handler.validatePayloadVotes(sdk.Context{}, 10, payload, body)
+	_, err := handler.validatePayloadVoteExtensions(sdk.Context{}, 10, payload, body)
 
 	require.ErrorIs(t, err, keyregistrytypes.ErrValidatorNotRegistered)
 }
 
-func TestValidatePayloadVotesRejectsInvalidSignature(t *testing.T) {
+func TestValidatePayloadVoteExtensionsRejectsInvalidSignature(t *testing.T) {
 	validator := newTestBondedValidator(t, 10)
 	secondaryKey := validSecondaryKey()
 	body := validVoteExtBody()
 	handler := newQuorumTestHandler(t, []stakingtypes.Validator{validator}, map[string]SecondaryKey{
 		string(consensusPubKeyBytes(t, validator)): secondaryKey,
 	}, nil)
-	payload := Payload{Votes: []*Votes{{
+	payload := Payload{VoteExtensions: []*PayloadVoteExtension{{
 		ConsensusPublicKey: consensusPubKeyBytes(t, validator),
 		VoteExtension:      []byte("invalid-signature"),
 	}}}
 
-	_, err := handler.validatePayloadVotes(sdk.Context{}, 10, payload, body)
+	_, err := handler.validatePayloadVoteExtensions(sdk.Context{}, 10, payload, body)
 
 	require.ErrorIs(t, err, votepersistencetypes.ErrInvalidVoteExtension)
 }
@@ -128,15 +128,18 @@ func TestPreBlockerPersistsOnlyCanonicalVerifiedVotes(t *testing.T) {
 	ctx := quorumTestContext(reqHeight)
 	body, err := handler.constructVoteExtBody(ctx, reqHeight-1)
 	require.NoError(t, err)
-	firstVote := signedPayloadVote(t, validator, secondaryKey, body)
-	secondVote := &Votes{
+	firstVote := signedPayloadVoteExtension(t, validator, secondaryKey, body)
+	secondVote := &PayloadVoteExtension{
 		ConsensusPublicKey: firstVote.ConsensusPublicKey,
 		VoteExtension:      []byte("invalid-duplicate-vote"),
 	}
 
 	response, err := handler.PreBlocker()(ctx, &cometabci.RequestFinalizeBlock{
 		Height: reqHeight,
-		Txs:    [][]byte{markedPayloadTx(t, Payload{Votes: []*Votes{firstVote, secondVote}})},
+		Txs: [][]byte{markedPayloadTx(t, Payload{
+			VoteExtensionHeight: reqHeight - 1,
+			VoteExtensions:      []*PayloadVoteExtension{firstVote, secondVote},
+		})},
 	})
 
 	require.NoError(t, err)
@@ -157,10 +160,13 @@ func TestPreBlockerDoesNotMutateStoreWhenValidationFails(t *testing.T) {
 		string(consensusPubKeyBytes(t, validator)): secondaryKey,
 	}, votePersistenceKeeper)
 	ctx := quorumTestContext(reqHeight)
-	payload := Payload{Votes: []*Votes{{
-		ConsensusPublicKey: consensusPubKeyBytes(t, validator),
-		VoteExtension:      []byte("invalid-signature"),
-	}}}
+	payload := Payload{
+		VoteExtensionHeight: reqHeight - 1,
+		VoteExtensions: []*PayloadVoteExtension{{
+			ConsensusPublicKey: consensusPubKeyBytes(t, validator),
+			VoteExtension:      []byte("invalid-signature"),
+		}},
+	}
 
 	response, err := handler.PreBlocker()(ctx, &cometabci.RequestFinalizeBlock{
 		Height: reqHeight,
@@ -197,13 +203,13 @@ func newQuorumTestHandler(t *testing.T, validators []stakingtypes.Validator, key
 	}
 }
 
-func signedPayloadVote(t *testing.T, validator stakingtypes.Validator, secondaryKey SecondaryKey, body votepersistencetypes.VoteExtBody) *Votes {
+func signedPayloadVoteExtension(t *testing.T, validator stakingtypes.Validator, secondaryKey SecondaryKey, body votepersistencetypes.VoteExtBody) *PayloadVoteExtension {
 	t.Helper()
 
 	signature, err := secondaryKey.SignVoteExtBody(body)
 	require.NoError(t, err)
 
-	return &Votes{
+	return &PayloadVoteExtension{
 		ConsensusPublicKey: consensusPubKeyBytes(t, validator),
 		VoteExtension:      signature,
 	}

@@ -37,13 +37,21 @@ func extractPayload(txs [][]byte) (Payload, bool, error) {
 	return pl, true, nil
 }
 
+func validatePayloadHeight(pl Payload, expectedHeight int64) error {
+	if pl.VoteExtensionHeight != expectedHeight {
+		return fmt.Errorf("%w: expected %d, got %d", ErrInvalidPayloadHeight, expectedHeight, pl.VoteExtensionHeight)
+	}
+
+	return nil
+}
+
 // constructPayload derives the internal proposal payload from CometBFT's
 // LocalLastCommit.Votes. CometBFT builds that list with one slot per validator
 // index; duplicate handling for proposer-supplied payload bytes belongs in the
 // payload validation path, not in this construction path.
 func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
 
-	var voteExtsForGivenBlock []*Votes
+	var voteExtsForGivenBlock []*PayloadVoteExtension
 
 	currentValidatorSetMap := make(map[string]bool)
 
@@ -81,7 +89,7 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 			return Payload{}, err
 		}
 
-		voteExtsForGivenBlock = append(voteExtsForGivenBlock, &Votes{
+		voteExtsForGivenBlock = append(voteExtsForGivenBlock, &PayloadVoteExtension{
 			ConsensusPublicKey: cosmosValidatorPubKey,
 			VoteExtension:      vote.VoteExtension,
 		})
@@ -91,5 +99,5 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 		return Payload{}, nil
 	}
 
-	return Payload{Height: blockHeight - 1, Votes: voteExtsForGivenBlock}, nil
+	return Payload{VoteExtensionHeight: blockHeight - 1, VoteExtensions: voteExtsForGivenBlock}, nil
 }

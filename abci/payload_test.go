@@ -10,12 +10,12 @@ func TestExtractPayloadReportsMissingPayload(t *testing.T) {
 	payload, found, err := extractPayload(nil)
 	require.NoError(t, err)
 	require.False(t, found)
-	require.Empty(t, payload.Votes)
+	require.Empty(t, payload.VoteExtensions)
 
 	payload, found, err = extractPayload([][]byte{[]byte("user-tx")})
 	require.NoError(t, err)
 	require.False(t, found)
-	require.Empty(t, payload.Votes)
+	require.Empty(t, payload.VoteExtensions)
 }
 
 func TestExtractPayloadRejectsInvalidPayloadBody(t *testing.T) {
@@ -31,8 +31,8 @@ func TestExtractPayloadRejectsInvalidPayloadBody(t *testing.T) {
 
 func TestExtractPayloadPreservesConsensusPublicKeyBytes(t *testing.T) {
 	expected := Payload{
-		Height: 12,
-		Votes: []*Votes{
+		VoteExtensionHeight: 12,
+		VoteExtensions: []*PayloadVoteExtension{
 			{
 				ConsensusPublicKey: []byte{0x00, 0xff, 0x10, 0x80, 0x41},
 				VoteExtension:      []byte("vote-extension"),
@@ -48,8 +48,13 @@ func TestExtractPayloadPreservesConsensusPublicKeyBytes(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, found)
 
-	require.Equal(t, expected.Height, actual.Height)
-	require.Len(t, actual.Votes, 1)
-	require.Equal(t, expected.Votes[0].ConsensusPublicKey, actual.Votes[0].ConsensusPublicKey)
-	require.Equal(t, expected.Votes[0].VoteExtension, actual.Votes[0].VoteExtension)
+	require.Equal(t, expected.VoteExtensionHeight, actual.VoteExtensionHeight)
+	require.Len(t, actual.VoteExtensions, 1)
+	require.Equal(t, expected.VoteExtensions[0].ConsensusPublicKey, actual.VoteExtensions[0].ConsensusPublicKey)
+	require.Equal(t, expected.VoteExtensions[0].VoteExtension, actual.VoteExtensions[0].VoteExtension)
+}
+
+func TestValidatePayloadHeight(t *testing.T) {
+	require.NoError(t, validatePayloadHeight(Payload{VoteExtensionHeight: 12}, 12))
+	require.ErrorIs(t, validatePayloadHeight(Payload{VoteExtensionHeight: 11}, 12), ErrInvalidPayloadHeight)
 }

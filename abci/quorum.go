@@ -17,15 +17,15 @@ type validatorVoteInfo struct {
 
 type consPubKeyKey string
 
-type verifiedPayloadVote struct {
+type verifiedPayloadVoteExtension struct {
 	consensusPublicKey []byte
 	minaPublicKey      []byte
 	voteExtension      []byte
 	power              int64
 }
 
-type verifiedPayloadVotes struct {
-	votes       []verifiedPayloadVote
+type verifiedPayloadVoteExtensions struct {
+	votes       []verifiedPayloadVoteExtension
 	signedPower int64
 	totalPower  int64
 }
@@ -64,17 +64,17 @@ func (h *ABCIHandler) buildValidatorVoteIndex(ctx sdk.Context, proposalHeight in
 	return validatorVoteIndex, totalPower, nil
 }
 
-func (h *ABCIHandler) validatePayloadVotes(ctx sdk.Context, proposalHeight int64, pl Payload, body votepersistenceTypes.VoteExtBody) (verifiedPayloadVotes, error) {
+func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, proposalHeight int64, pl Payload, body votepersistenceTypes.VoteExtBody) (verifiedPayloadVoteExtensions, error) {
 	validatorVoteIndex, totalPower, err := h.buildValidatorVoteIndex(ctx, proposalHeight)
 	if err != nil {
-		return verifiedPayloadVotes{}, err
+		return verifiedPayloadVoteExtensions{}, err
 	}
 
 	poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 	seenConsensusPubKeys := make(map[consPubKeyKey]struct{})
-	verifiedVotes := verifiedPayloadVotes{totalPower: totalPower}
+	verifiedVotes := verifiedPayloadVoteExtensions{totalPower: totalPower}
 
-	for _, vote := range pl.Votes {
+	for _, vote := range pl.VoteExtensions {
 		consPubKeyKey := consPubKeyMapKey(vote.ConsensusPublicKey)
 		validatorInfo, ok := validatorVoteIndex[consPubKeyKey]
 		if !ok {
@@ -89,22 +89,22 @@ func (h *ABCIHandler) validatePayloadVotes(ctx sdk.Context, proposalHeight int64
 
 		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, vote.ConsensusPublicKey)
 		if err != nil {
-			return verifiedPayloadVotes{}, err
+			return verifiedPayloadVoteExtensions{}, err
 		}
 		if !exists {
-			return verifiedPayloadVotes{}, types.ErrValidatorNotRegistered
+			return verifiedPayloadVoteExtensions{}, types.ErrValidatorNotRegistered
 		}
 
 		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, vote.ConsensusPublicKey)
 		if err != nil {
-			return verifiedPayloadVotes{}, err
+			return verifiedPayloadVoteExtensions{}, err
 		}
 
 		if err := verifyVoteExtSig(poseidonHash, vote.VoteExtension, body, minaKey, ActionsReducedRoot); err != nil {
-			return verifiedPayloadVotes{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
+			return verifiedPayloadVoteExtensions{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
 		}
 
-		verifiedVotes.votes = append(verifiedVotes.votes, verifiedPayloadVote{
+		verifiedVotes.votes = append(verifiedVotes.votes, verifiedPayloadVoteExtension{
 			consensusPublicKey: vote.ConsensusPublicKey,
 			minaPublicKey:      minaKey,
 			voteExtension:      vote.VoteExtension,
