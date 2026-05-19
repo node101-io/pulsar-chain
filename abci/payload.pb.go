@@ -22,9 +22,15 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// Payload is encoded as the first proposal transaction after the ABCI
+// vote-extension marker. Honest proposers prepend it before normal user
+// transactions, and validators reject required-height proposals when this
+// reserved first transaction is absent.
 type Payload struct {
-	Height int64    `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
-	Votes  []*Votes `protobuf:"bytes,2,rep,name=votes,proto3" json:"votes,omitempty"`
+	// vote_extension_height is the height whose last-commit vote extensions are
+	// carried by this payload. For a proposal at height N, this value is N-1.
+	VoteExtensionHeight int64                   `protobuf:"varint,1,opt,name=vote_extension_height,json=voteExtensionHeight,proto3" json:"vote_extension_height,omitempty"`
+	VoteExtensions      []*PayloadVoteExtension `protobuf:"bytes,2,rep,name=vote_extensions,json=voteExtensions,proto3" json:"vote_extensions,omitempty"`
 }
 
 func (m *Payload) Reset()         { *m = Payload{} }
@@ -60,37 +66,40 @@ func (m *Payload) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Payload proto.InternalMessageInfo
 
-func (m *Payload) GetHeight() int64 {
+func (m *Payload) GetVoteExtensionHeight() int64 {
 	if m != nil {
-		return m.Height
+		return m.VoteExtensionHeight
 	}
 	return 0
 }
 
-func (m *Payload) GetVotes() []*Votes {
+func (m *Payload) GetVoteExtensions() []*PayloadVoteExtension {
 	if m != nil {
-		return m.Votes
+		return m.VoteExtensions
 	}
 	return nil
 }
 
-type Votes struct {
+// PayloadVoteExtension carries one CometBFT last-commit vote extension and its
+// validator consensus public key. The proposer constructs these entries from
+// LocalLastCommit.Votes, which CometBFT provides with one slot per validator index.
+type PayloadVoteExtension struct {
 	ConsensusPublicKey []byte `protobuf:"bytes,1,opt,name=consensus_public_key,json=consensusPublicKey,proto3" json:"consensus_public_key,omitempty"`
 	VoteExtension      []byte `protobuf:"bytes,2,opt,name=vote_extension,json=voteExtension,proto3" json:"vote_extension,omitempty"`
 }
 
-func (m *Votes) Reset()         { *m = Votes{} }
-func (m *Votes) String() string { return proto.CompactTextString(m) }
-func (*Votes) ProtoMessage()    {}
-func (*Votes) Descriptor() ([]byte, []int) {
+func (m *PayloadVoteExtension) Reset()         { *m = PayloadVoteExtension{} }
+func (m *PayloadVoteExtension) String() string { return proto.CompactTextString(m) }
+func (*PayloadVoteExtension) ProtoMessage()    {}
+func (*PayloadVoteExtension) Descriptor() ([]byte, []int) {
 	return fileDescriptor_5a138d1c833ef562, []int{1}
 }
-func (m *Votes) XXX_Unmarshal(b []byte) error {
+func (m *PayloadVoteExtension) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Votes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *PayloadVoteExtension) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Votes.Marshal(b, m, deterministic)
+		return xxx_messageInfo_PayloadVoteExtension.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -100,26 +109,26 @@ func (m *Votes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Votes) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Votes.Merge(m, src)
+func (m *PayloadVoteExtension) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PayloadVoteExtension.Merge(m, src)
 }
-func (m *Votes) XXX_Size() int {
+func (m *PayloadVoteExtension) XXX_Size() int {
 	return m.Size()
 }
-func (m *Votes) XXX_DiscardUnknown() {
-	xxx_messageInfo_Votes.DiscardUnknown(m)
+func (m *PayloadVoteExtension) XXX_DiscardUnknown() {
+	xxx_messageInfo_PayloadVoteExtension.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Votes proto.InternalMessageInfo
+var xxx_messageInfo_PayloadVoteExtension proto.InternalMessageInfo
 
-func (m *Votes) GetConsensusPublicKey() []byte {
+func (m *PayloadVoteExtension) GetConsensusPublicKey() []byte {
 	if m != nil {
 		return m.ConsensusPublicKey
 	}
 	return nil
 }
 
-func (m *Votes) GetVoteExtension() []byte {
+func (m *PayloadVoteExtension) GetVoteExtension() []byte {
 	if m != nil {
 		return m.VoteExtension
 	}
@@ -128,29 +137,30 @@ func (m *Votes) GetVoteExtension() []byte {
 
 func init() {
 	proto.RegisterType((*Payload)(nil), "pulsarchain.abci.Payload")
-	proto.RegisterType((*Votes)(nil), "pulsarchain.abci.Votes")
+	proto.RegisterType((*PayloadVoteExtension)(nil), "pulsarchain.abci.PayloadVoteExtension")
 }
 
 func init() { proto.RegisterFile("pulsarchain/abci/payload.proto", fileDescriptor_5a138d1c833ef562) }
 
 var fileDescriptor_5a138d1c833ef562 = []byte{
-	// 249 bytes of a gzipped FileDescriptorProto
+	// 264 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x2b, 0x28, 0xcd, 0x29,
 	0x4e, 0x2c, 0x4a, 0xce, 0x48, 0xcc, 0xcc, 0xd3, 0x4f, 0x4c, 0x4a, 0xce, 0xd4, 0x2f, 0x48, 0xac,
 	0xcc, 0xc9, 0x4f, 0x4c, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x40, 0x92, 0xd7, 0x03,
-	0xc9, 0x2b, 0x05, 0x70, 0xb1, 0x07, 0x40, 0x94, 0x08, 0x89, 0x71, 0xb1, 0x65, 0xa4, 0x66, 0xa6,
-	0x67, 0x94, 0x48, 0x30, 0x2a, 0x30, 0x6a, 0x30, 0x07, 0x41, 0x79, 0x42, 0xba, 0x5c, 0xac, 0x65,
-	0xf9, 0x25, 0xa9, 0xc5, 0x12, 0x4c, 0x0a, 0xcc, 0x1a, 0xdc, 0x46, 0xe2, 0x7a, 0xe8, 0x86, 0xe8,
-	0x85, 0x81, 0xa4, 0x83, 0x20, 0xaa, 0x94, 0x12, 0xb8, 0x58, 0xc1, 0x7c, 0x21, 0x03, 0x2e, 0x91,
-	0xe4, 0xfc, 0xbc, 0xe2, 0xd4, 0xbc, 0xe2, 0xd2, 0xe2, 0xf8, 0x82, 0xd2, 0xa4, 0x9c, 0xcc, 0xe4,
-	0xf8, 0xec, 0xd4, 0x4a, 0xb0, 0xe9, 0x3c, 0x41, 0x42, 0x70, 0xb9, 0x00, 0xb0, 0x94, 0x77, 0x6a,
-	0xa5, 0x90, 0x2a, 0x17, 0x1f, 0xc8, 0x8c, 0xf8, 0xd4, 0x8a, 0x92, 0xd4, 0xbc, 0xe2, 0xcc, 0xfc,
-	0x3c, 0x09, 0x26, 0xb0, 0x5a, 0x5e, 0x90, 0xa8, 0x2b, 0x4c, 0xd0, 0xc9, 0xed, 0xc4, 0x23, 0x39,
-	0xc6, 0x0b, 0x8f, 0xe4, 0x18, 0x1f, 0x3c, 0x92, 0x63, 0x9c, 0xf0, 0x58, 0x8e, 0xe1, 0xc2, 0x63,
-	0x39, 0x86, 0x1b, 0x8f, 0xe5, 0x18, 0xa2, 0x74, 0xd2, 0x33, 0x4b, 0x32, 0x4a, 0x93, 0xf4, 0x92,
-	0xf3, 0x73, 0xf5, 0xf3, 0xf2, 0x53, 0x52, 0x0d, 0x0d, 0x0c, 0x75, 0x33, 0xf3, 0xf5, 0x21, 0x0e,
-	0xd6, 0x45, 0x04, 0x8b, 0x35, 0x88, 0x48, 0x62, 0x03, 0x07, 0x8a, 0x31, 0x20, 0x00, 0x00, 0xff,
-	0xff, 0xea, 0x18, 0xe4, 0x7d, 0x36, 0x01, 0x00, 0x00,
+	0xc9, 0x2b, 0xf5, 0x31, 0x72, 0xb1, 0x07, 0x40, 0xd4, 0x08, 0x19, 0x71, 0x89, 0x96, 0xe5, 0x97,
+	0xa4, 0xc6, 0xa7, 0x56, 0x94, 0xa4, 0xe6, 0x15, 0x67, 0xe6, 0xe7, 0xc5, 0x67, 0xa4, 0x66, 0xa6,
+	0x67, 0x94, 0x48, 0x30, 0x2a, 0x30, 0x6a, 0x30, 0x07, 0x09, 0x83, 0x24, 0x5d, 0x61, 0x72, 0x1e,
+	0x60, 0x29, 0x21, 0x7f, 0x2e, 0x7e, 0x54, 0x3d, 0xc5, 0x12, 0x4c, 0x0a, 0xcc, 0x1a, 0xdc, 0x46,
+	0x6a, 0x7a, 0xe8, 0x76, 0xe9, 0x41, 0xed, 0x09, 0x43, 0x36, 0x26, 0x88, 0x0f, 0xc5, 0xd4, 0x62,
+	0xa5, 0x7c, 0x2e, 0x11, 0x6c, 0xea, 0x84, 0x0c, 0xb8, 0x44, 0x92, 0xf3, 0xf3, 0x8a, 0x53, 0xf3,
+	0x8a, 0x4b, 0x8b, 0xe3, 0x0b, 0x4a, 0x93, 0x72, 0x32, 0x93, 0xe3, 0xb3, 0x53, 0x2b, 0xc1, 0x6e,
+	0xe3, 0x09, 0x12, 0x82, 0xcb, 0x05, 0x80, 0xa5, 0xbc, 0x53, 0x2b, 0x85, 0x54, 0xb9, 0xf8, 0x50,
+	0x9d, 0x26, 0xc1, 0x04, 0x56, 0xcb, 0x8b, 0x62, 0xa3, 0x93, 0xdb, 0x89, 0x47, 0x72, 0x8c, 0x17,
+	0x1e, 0xc9, 0x31, 0x3e, 0x78, 0x24, 0xc7, 0x38, 0xe1, 0xb1, 0x1c, 0xc3, 0x85, 0xc7, 0x72, 0x0c,
+	0x37, 0x1e, 0xcb, 0x31, 0x44, 0xe9, 0xa4, 0x67, 0x96, 0x64, 0x94, 0x26, 0xe9, 0x25, 0xe7, 0xe7,
+	0xea, 0xe7, 0xe5, 0xa7, 0xa4, 0x1a, 0x1a, 0x18, 0xea, 0x66, 0xe6, 0xeb, 0x43, 0xfc, 0xa5, 0x8b,
+	0x08, 0x64, 0x6b, 0x10, 0x91, 0xc4, 0x06, 0x0e, 0x62, 0x63, 0x40, 0x00, 0x00, 0x00, 0xff, 0xff,
+	0x49, 0x7e, 0xc7, 0x33, 0x84, 0x01, 0x00, 0x00,
 }
 
 func (m *Payload) Marshal() (dAtA []byte, err error) {
@@ -173,10 +183,10 @@ func (m *Payload) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Votes) > 0 {
-		for iNdEx := len(m.Votes) - 1; iNdEx >= 0; iNdEx-- {
+	if len(m.VoteExtensions) > 0 {
+		for iNdEx := len(m.VoteExtensions) - 1; iNdEx >= 0; iNdEx-- {
 			{
-				size, err := m.Votes[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				size, err := m.VoteExtensions[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -187,15 +197,15 @@ func (m *Payload) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0x12
 		}
 	}
-	if m.Height != 0 {
-		i = encodeVarintPayload(dAtA, i, uint64(m.Height))
+	if m.VoteExtensionHeight != 0 {
+		i = encodeVarintPayload(dAtA, i, uint64(m.VoteExtensionHeight))
 		i--
 		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
 
-func (m *Votes) Marshal() (dAtA []byte, err error) {
+func (m *PayloadVoteExtension) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -205,12 +215,12 @@ func (m *Votes) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Votes) MarshalTo(dAtA []byte) (int, error) {
+func (m *PayloadVoteExtension) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Votes) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *PayloadVoteExtension) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -249,11 +259,11 @@ func (m *Payload) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Height != 0 {
-		n += 1 + sovPayload(uint64(m.Height))
+	if m.VoteExtensionHeight != 0 {
+		n += 1 + sovPayload(uint64(m.VoteExtensionHeight))
 	}
-	if len(m.Votes) > 0 {
-		for _, e := range m.Votes {
+	if len(m.VoteExtensions) > 0 {
+		for _, e := range m.VoteExtensions {
 			l = e.Size()
 			n += 1 + l + sovPayload(uint64(l))
 		}
@@ -261,7 +271,7 @@ func (m *Payload) Size() (n int) {
 	return n
 }
 
-func (m *Votes) Size() (n int) {
+func (m *PayloadVoteExtension) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -315,9 +325,9 @@ func (m *Payload) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field VoteExtensionHeight", wireType)
 			}
-			m.Height = 0
+			m.VoteExtensionHeight = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowPayload
@@ -327,14 +337,14 @@ func (m *Payload) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Height |= int64(b&0x7F) << shift
+				m.VoteExtensionHeight |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Votes", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field VoteExtensions", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -361,8 +371,8 @@ func (m *Payload) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Votes = append(m.Votes, &Votes{})
-			if err := m.Votes[len(m.Votes)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.VoteExtensions = append(m.VoteExtensions, &PayloadVoteExtension{})
+			if err := m.VoteExtensions[len(m.VoteExtensions)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -387,7 +397,7 @@ func (m *Payload) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *Votes) Unmarshal(dAtA []byte) error {
+func (m *PayloadVoteExtension) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -410,10 +420,10 @@ func (m *Votes) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Votes: wiretype end group for non-group")
+			return fmt.Errorf("proto: PayloadVoteExtension: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Votes: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: PayloadVoteExtension: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

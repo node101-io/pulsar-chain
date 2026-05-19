@@ -22,6 +22,7 @@ const NetworkID string = "testnet"
 var (
 	ErrUnableToReadConsensusParams     error = errors.New("unable to read consensus params")
 	ErrInvalidPayload                  error = errors.New("invalid payload")
+	ErrInvalidPayloadHeight            error = errors.New("invalid payload height")
 	ErrVoteExtPayloadNotFound          error = errors.New("vote extension payload not found")
 	ErrNotEnoughStakePower             error = errors.New("not enough stake power signed the vote extension")
 	ErrMissingSecondaryKey             error = errors.New("missing secondary key")

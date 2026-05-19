@@ -18,7 +18,9 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_ACCEPT}, nil
 		}
 
-		body, err := h.constructVoteExtBody(ctx, req.GetHeight()-1)
+		voteExtensionHeight := req.GetHeight() - 1
+
+		body, err := h.constructVoteExtBody(ctx, voteExtensionHeight)
 		if err != nil {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
 		}
@@ -30,8 +32,11 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 		if !payloadFound {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, ErrVoteExtPayloadNotFound
 		}
+		if err := validatePayloadHeight(pl, voteExtensionHeight); err != nil {
+			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
+		}
 
-		verifiedVotes, err := h.validatePayloadVotes(ctx, req.GetHeight(), pl, body)
+		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, req.GetHeight(), pl, body)
 		if err != nil {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
 		}
