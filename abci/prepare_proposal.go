@@ -1,13 +1,13 @@
-package vote_ext
+package abci
 
 import (
-	abci "github.com/cometbft/cometbft/abci/types"
+	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func (h *ABCIHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 
-	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	return func(ctx sdk.Context, req *cometabci.RequestPrepareProposal) (*cometabci.ResponsePrepareProposal, error) {
 
 		shouldIncludeVoteExtensions, err := shouldRequireProposalPayloadAtHeight(ctx, req.GetHeight())
 		if err != nil {
@@ -15,13 +15,13 @@ func (h *ABCIHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 		}
 
 		if !shouldIncludeVoteExtensions {
-			return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
+			return &cometabci.ResponsePrepareProposal{Txs: req.Txs}, nil
 		}
 
 		votes := req.LocalLastCommit.Votes
 		pl, err := h.constructPayload(ctx, req.GetHeight(), votes)
 		if err != nil {
-			return &abci.ResponsePrepareProposal{Txs: req.Txs}, err
+			return &cometabci.ResponsePrepareProposal{Txs: req.Txs}, err
 		}
 
 		bz, err := pl.Marshal()
@@ -37,6 +37,6 @@ func (h *ABCIHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 		txs = append(txs, extTx)
 		txs = append(txs, req.Txs...)
 
-		return &abci.ResponsePrepareProposal{Txs: txs}, nil
+		return &cometabci.ResponsePrepareProposal{Txs: txs}, nil
 	}
 }

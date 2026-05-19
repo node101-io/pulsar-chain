@@ -1,10 +1,10 @@
-package vote_ext
+package abci
 
 import (
 	"bytes"
 	"encoding/hex"
 
-	abci "github.com/cometbft/cometbft/abci/types"
+	cometabci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
@@ -31,7 +31,7 @@ func extractPayload(txs [][]byte) (Payload, error) {
 	return pl, nil
 }
 
-func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []abci.ExtendedVoteInfo) (Payload, error) {
+func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
 
 	var voteExtsForGivenBlock []*Votes
 

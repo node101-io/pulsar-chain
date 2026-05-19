@@ -1,12 +1,12 @@
-package vote_ext
+package abci
 
 import (
-	abci "github.com/cometbft/cometbft/abci/types"
+	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func (h *ABCIHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
-	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
+	return func(ctx sdk.Context, req *cometabci.RequestExtendVote) (*cometabci.ResponseExtendVote, error) {
 
 		shouldExtendVote, err := shouldExtendVoteAtHeight(ctx, req.GetHeight())
 		if err != nil {
@@ -14,7 +14,7 @@ func (h *ABCIHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 		}
 
 		if !shouldExtendVote {
-			return &abci.ResponseExtendVote{VoteExtension: []byte{}}, nil
+			return &cometabci.ResponseExtendVote{VoteExtension: []byte{}}, nil
 		}
 
 		body, err := h.constructVoteExtBody(ctx, req.GetHeight())
@@ -27,6 +27,6 @@ func (h *ABCIHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return nil, err
 		}
 
-		return &abci.ResponseExtendVote{VoteExtension: bz}, nil
+		return &cometabci.ResponseExtendVote{VoteExtension: bz}, nil
 	}
 }
