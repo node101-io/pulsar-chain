@@ -63,27 +63,31 @@ func (s SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBo
 	return bz, nil
 }
 
-func verifyVoteExtSig(poseidon *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) bool {
+func verifyVoteExtSig(poseidon *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) error {
 	if message.ActionsReducedRoot != reducedRoot {
-		return false
+		return ErrInvalidVoteExtReducedRoot
 	}
 
 	var pubKey keys.PublicKey
 	if err := pubKey.Unmarshal(minaKey); err != nil {
-		return false
+		return fmt.Errorf("%w: %v", ErrInvalidVoteExtMinaPublicKey, err)
 	}
 
 	msgHash, err := hashVoteExtBody(poseidon, message)
 	if err != nil {
-		return false
+		return err
 	}
 
 	var sig minasignature.Signature
 	if err := sig.UnmarshalBytes(signature); err != nil {
-		return false
+		return fmt.Errorf("%w: %v", ErrInvalidVoteExtSignatureEncoding, err)
 	}
 
-	return pubKey.VerifyFieldElement(&sig, msgHash, NetworkID)
+	if !pubKey.VerifyFieldElement(&sig, msgHash, NetworkID) {
+		return ErrInvalidVoteExtSignature
+	}
+
+	return nil
 }
 
 func hashVoteExtBody(poseidonHash *poseidon.Poseidon, voteExtBody votepersistenceTypes.VoteExtBody) (*big.Int, error) {
