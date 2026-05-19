@@ -1,8 +1,9 @@
 package abci
 
 import (
+	"math/big"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/node101-io/mina-signer-go/constants"
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
@@ -10,73 +11,122 @@ import (
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
-func (h *ABCIHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Payload, body votepersistenceTypes.VoteExtBody) (bool, error) {
-	var signedStakePower int64
-	var currentValidatorStakePower int64
+type validatorVoteInfo struct {
+	power int64
+}
 
-	valInfoMap := make(map[string]stakingTypes.ValidatorI)
-	validatorSeen := make(map[string]bool)
+type consPubKeyKey string
 
-	currentValidatorSet, err := h.getValidatorSet(ctx, blockHeight-2)
+type verifiedPayloadVote struct {
+	consensusPublicKey []byte
+	minaPublicKey      []byte
+	voteExtension      []byte
+	power              int64
+}
+
+type verifiedPayloadVotes struct {
+	votes       []verifiedPayloadVote
+	signedPower int64
+	totalPower  int64
+}
+
+func consPubKeyMapKey(consPubKey []byte) consPubKeyKey {
+	return consPubKeyKey(consPubKey)
+}
+
+func (h *ABCIHandler) buildValidatorVoteIndex(ctx sdk.Context, proposalHeight int64) (map[consPubKeyKey]validatorVoteInfo, int64, error) {
+	validatorVoteIndex := make(map[consPubKeyKey]validatorVoteInfo)
+	var totalPower int64
+
+	currentValidatorSet, err := h.getValidatorSet(ctx, proposalHeight-2)
 	if err != nil {
-		return false, err
+		return nil, 0, err
 	}
 
-	// Require at least 2/3 signed power to prevent proposer-side signature withholding.
 	for _, val := range currentValidatorSet {
-
 		consAddr, err := val.GetConsAddr()
 		if err != nil {
-			continue
+			return nil, 0, err
 		}
 
 		cosmosValidatorPubKey, err := h.getConsPubKeyByConsAddr(ctx, consAddr)
 		if err != nil {
-			return false, err
+			return nil, 0, err
 		}
 
-		valInfoMap[string(cosmosValidatorPubKey)] = val
-		currentValidatorStakePower += val.GetConsensusPower(sdk.DefaultPowerReduction)
+		power := val.GetConsensusPower(sdk.DefaultPowerReduction)
+		validatorVoteIndex[consPubKeyMapKey(cosmosValidatorPubKey)] = validatorVoteInfo{
+			power: power,
+		}
+		totalPower += power
 	}
 
-	for _, vote := range pl.Votes {
+	return validatorVoteIndex, totalPower, nil
+}
 
-		validatorInfo, ok := valInfoMap[string(vote.ConsensusPublicKey)]
+func (h *ABCIHandler) validatePayloadVotes(ctx sdk.Context, proposalHeight int64, pl Payload, body votepersistenceTypes.VoteExtBody) (verifiedPayloadVotes, error) {
+	validatorVoteIndex, totalPower, err := h.buildValidatorVoteIndex(ctx, proposalHeight)
+	if err != nil {
+		return verifiedPayloadVotes{}, err
+	}
+
+	poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+	seenConsensusPubKeys := make(map[consPubKeyKey]struct{})
+	verifiedVotes := verifiedPayloadVotes{totalPower: totalPower}
+
+	for _, vote := range pl.Votes {
+		consPubKeyKey := consPubKeyMapKey(vote.ConsensusPublicKey)
+		validatorInfo, ok := validatorVoteIndex[consPubKeyKey]
 		if !ok {
 			continue
 		}
 
-		if validatorSeen[string(vote.ConsensusPublicKey)] {
+		if _, seen := seenConsensusPubKeys[consPubKeyKey]; seen {
 			continue
 		}
 
-		validatorSeen[string(vote.ConsensusPublicKey)] = true
+		seenConsensusPubKeys[consPubKeyKey] = struct{}{}
 
 		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, vote.ConsensusPublicKey)
 		if err != nil {
-			return false, err
+			return verifiedPayloadVotes{}, err
 		}
 		if !exists {
-			return false, types.ErrValidatorNotRegistered
+			return verifiedPayloadVotes{}, types.ErrValidatorNotRegistered
 		}
 
 		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, vote.ConsensusPublicKey)
 		if err != nil {
-			return false, err
+			return verifiedPayloadVotes{}, err
 		}
-
-		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
 		if err := verifyVoteExtSig(poseidonHash, vote.VoteExtension, body, minaKey, ActionsReducedRoot); err != nil {
-			return false, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
+			return verifiedPayloadVotes{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
 		}
 
-		signedStakePower += validatorInfo.GetConsensusPower(sdk.DefaultPowerReduction)
+		verifiedVotes.votes = append(verifiedVotes.votes, verifiedPayloadVote{
+			consensusPublicKey: vote.ConsensusPublicKey,
+			minaPublicKey:      minaKey,
+			voteExtension:      vote.VoteExtension,
+			power:              validatorInfo.power,
+		})
+		verifiedVotes.signedPower += validatorInfo.power
 
 	}
-	if signedStakePower*3 < currentValidatorStakePower*2 {
-		return false, nil
+
+	return verifiedVotes, nil
+}
+
+func hasAtLeastTwoThirdsPower(signedPower, totalPower int64) bool {
+	if totalPower <= 0 {
+		return false
 	}
 
-	return true, nil
+	signed := big.NewInt(signedPower)
+	signed.Mul(signed, big.NewInt(3))
+
+	total := big.NewInt(totalPower)
+	total.Mul(total, big.NewInt(2))
+
+	return signed.Cmp(total) >= 0
 }

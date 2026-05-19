@@ -31,12 +31,12 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, ErrVoteExtPayloadNotFound
 		}
 
-		isEnoughStakePower, err := h.checkStakePower(ctx, req.GetHeight(), pl, body)
+		verifiedVotes, err := h.validatePayloadVotes(ctx, req.GetHeight(), pl, body)
 		if err != nil {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
 		}
 
-		if !isEnoughStakePower {
+		if !hasAtLeastTwoThirdsPower(verifiedVotes.signedPower, verifiedVotes.totalPower) {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, ErrNotEnoughStakePower
 		}
 

@@ -1,8 +1,6 @@
 package abci
 
 import (
-	"fmt"
-
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -18,10 +16,6 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
-		if err := h.votePersistenceKeeper.Clear(ctx); err != nil {
-			return nil, err
-		}
-
 		pl, payloadFound, err := extractPayload(req.Txs)
 		if err != nil {
 			return nil, err
@@ -30,54 +24,28 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 			return nil, ErrVoteExtPayloadNotFound
 		}
 
-		currentValidatorSet, err := h.getValidatorSet(ctx, req.GetHeight()-2)
+		body, err := h.constructVoteExtBody(ctx, req.GetHeight()-1)
 		if err != nil {
 			return nil, err
 		}
 
-		currentValidatorSetMap := make(map[string][]byte)
-
-		for _, currentValidator := range currentValidatorSet {
-
-			consAddr, err := currentValidator.GetConsAddr()
-			if err != nil {
-				continue
-			}
-
-			cosmosValidatorPublicKey, err := h.getConsPubKeyByConsAddr(ctx, consAddr)
-			if err != nil {
-				return nil, err
-			}
-
-			currentValidatorSetMap[string(cosmosValidatorPublicKey)] = cosmosValidatorPublicKey
+		verifiedVotes, err := h.validatePayloadVotes(ctx, req.GetHeight(), pl, body)
+		if err != nil {
+			return nil, err
 		}
 
-		for _, vote := range pl.Votes {
+		if !hasAtLeastTwoThirdsPower(verifiedVotes.signedPower, verifiedVotes.totalPower) {
+			return nil, ErrNotEnoughStakePower
+		}
 
-			cosmosValidatorPublicKey, ok := currentValidatorSetMap[string(vote.ConsensusPublicKey)]
-			if !ok {
-				continue
-			}
+		if err := h.votePersistenceKeeper.Clear(ctx); err != nil {
+			return nil, err
+		}
 
-			exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, cosmosValidatorPublicKey)
-			if err != nil {
+		for _, vote := range verifiedVotes.votes {
+			if err := h.votePersistenceKeeper.SetVote(ctx, req.GetHeight()-2, vote.minaPublicKey, vote.voteExtension); err != nil {
 				return nil, err
 			}
-
-			if !exists {
-				return nil, fmt.Errorf("")
-			}
-
-			minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, cosmosValidatorPublicKey)
-			if err != nil {
-				return nil, err
-			}
-
-			err = h.votePersistenceKeeper.SetVote(ctx, req.GetHeight()-2, minaKey, vote.VoteExtension)
-			if err != nil {
-				return nil, err
-			}
-
 		}
 
 		return &sdk.ResponsePreBlock{}, nil
