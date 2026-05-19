@@ -29,8 +29,9 @@ func (h *ABCIHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 			return nil, err
 		}
 
-		// prefix makes it easier to identify the vote extension
-		extTx := append([]byte(VoteExtMarker), bz...)
+		// The marker reserves the first transaction slot for the internal
+		// vote-extension payload; remaining entries are normal user transactions.
+		extTx := append(voteExtMarkerBytes[:len(voteExtMarkerBytes):len(voteExtMarkerBytes)], bz...)
 
 		// prepend to existing txs
 		txs := make([][]byte, 0, len(req.Txs)+1)

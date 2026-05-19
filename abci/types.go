@@ -6,10 +6,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// TODO: Will remove this when we add Bridge module
 const ActionsReducedRoot string = "pulsar"
 
 // VoteExtMarker reserves the first proposal transaction slot for ABCI vote-extension payloads.
-const VoteExtMarker string = "VOTEEXT:"
+// Honest proposers prepend exactly one marker-prefixed internal payload before user transactions.
+const VoteExtMarker = "PULSAR_ABCI_VOTE_EXT_PAYLOAD:"
+
+var voteExtMarkerBytes = []byte(VoteExtMarker)
 
 const AdditionalVoteExtHeight int64 = 3
 

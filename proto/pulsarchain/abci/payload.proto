@@ -4,11 +4,19 @@ package pulsarchain.abci;
 
 option go_package = "github.com/node101-io/pulsar-chain/abci;abci";
 
+// Payload is encoded as the first proposal transaction after the ABCI
+// vote-extension marker. Honest proposers prepend it before normal user
+// transactions, and validators reject required-height proposals when this
+// reserved first transaction is absent.
 message Payload {
   int64 height = 1;
   repeated Votes votes = 2;
 }
 
+// Votes carries one CometBFT last-commit vote extension and its validator
+// consensus public key. The proposer constructs these entries from
+// LocalLastCommit.Votes, which CometBFT provides with one slot per validator
+// index.
 message Votes {
   bytes consensus_public_key = 1;
   bytes vote_extension = 2;
