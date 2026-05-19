@@ -36,6 +36,8 @@ var (
 	ErrInvalidVoteExtMinaPublicKey     error = errors.New("invalid vote extension mina public key")
 	ErrInvalidVoteExtSignatureEncoding error = errors.New("invalid vote extension signature encoding")
 	ErrInvalidVoteExtSignature         error = errors.New("invalid vote extension signature")
+	ErrValidatorMinaKeyNotFound        error = errors.New("validator mina key not found")
+	ErrValidatorSetRootHashFailed      error = errors.New("failed to hash validator set root")
 )
 
 func shouldExtendVoteAtHeight(ctx sdk.Context, height int64) (bool, error) {

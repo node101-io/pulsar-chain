@@ -30,7 +30,7 @@ func (h *ABCIHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Pay
 			continue
 		}
 
-		cosmosValidatorPubKey, err := h.getValidatorPublicKey(ctx, consAddr)
+		cosmosValidatorPubKey, err := h.getConsPubKeyByConsAddr(ctx, consAddr)
 		if err != nil {
 			return false, err
 		}
