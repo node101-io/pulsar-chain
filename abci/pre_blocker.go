@@ -1,15 +1,15 @@
-package vote_ext
+package abci
 
 import (
 	"encoding/hex"
 	"fmt"
 
-	abci "github.com/cometbft/cometbft/abci/types"
+	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
-	return func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+	return func(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 
 		// If height is smaller than 4, we won't have any votes thus skip the proposal
 		if req.GetHeight() < 4 {

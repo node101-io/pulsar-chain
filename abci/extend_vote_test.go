@@ -1,11 +1,11 @@
-package vote_ext
+package abci
 
 import (
 	"errors"
 	"math/big"
 	"testing"
 
-	abci "github.com/cometbft/cometbft/abci/types"
+	cometabci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/constants"
@@ -22,7 +22,7 @@ func TestExtendVoteHandlerDisabledHeight(t *testing.T) {
 	})
 	handler := (&ABCIHandler{}).ExtendVoteHandler()
 
-	response, err := handler(ctx, &abci.RequestExtendVote{Height: 3})
+	response, err := handler(ctx, &cometabci.RequestExtendVote{Height: 3})
 
 	require.NoError(t, err)
 	require.NotNil(t, response)
@@ -33,7 +33,7 @@ func TestExtendVoteHandlerConsensusParamsFail(t *testing.T) {
 	ctx := sdk.Context{}.WithConsensusParams(tmproto.ConsensusParams{})
 	handler := (&ABCIHandler{}).ExtendVoteHandler()
 
-	response, err := handler(ctx, &abci.RequestExtendVote{Height: 4})
+	response, err := handler(ctx, &cometabci.RequestExtendVote{Height: 4})
 
 	require.Nil(t, response)
 	require.ErrorIs(t, err, ErrUnableToReadConsensusParams)

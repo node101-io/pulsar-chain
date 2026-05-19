@@ -49,7 +49,7 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
 	"github.com/node101-io/mina-signer-go/keys"
-	vote_ext "github.com/node101-io/pulsar-chain/abci"
+	abcihandler "github.com/node101-io/pulsar-chain/abci"
 	"github.com/node101-io/pulsar-chain/docs"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
@@ -111,7 +111,7 @@ type App struct {
 	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
 	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
 
-	ABCIHandler *vote_ext.ABCIHandler
+	ABCIHandler *abcihandler.ABCIHandler
 }
 
 func init() {
@@ -216,12 +216,12 @@ func New(
 		Value: prv,
 	}
 	public := priv.ToPublicKey()
-	secondaryKey := vote_ext.SecondaryKey{
+	secondaryKey := abcihandler.SecondaryKey{
 		SecretKey: &priv,
 		PublicKey: &public,
 	}
 
-	app.ABCIHandler, err = vote_ext.NewABCIHandler(
+	app.ABCIHandler, err = abcihandler.NewABCIHandler(
 		secondaryKey,
 		app.StakingKeeper,
 		app.KeyregistryKeeper,
