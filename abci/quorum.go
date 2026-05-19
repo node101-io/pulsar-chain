@@ -1,8 +1,6 @@
 package abci
 
 import (
-	"encoding/hex"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/node101-io/mina-signer-go/constants"
@@ -37,29 +35,24 @@ func (h *ABCIHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Pay
 			return false, err
 		}
 
-		valInfoMap[hex.EncodeToString(cosmosValidatorPubKey)] = val
+		valInfoMap[string(cosmosValidatorPubKey)] = val
 		currentValidatorStakePower += val.GetConsensusPower(sdk.DefaultPowerReduction)
 	}
 
 	for _, vote := range pl.Votes {
 
-		validatorInfo, ok := valInfoMap[vote.ConsensusPublicKey]
+		validatorInfo, ok := valInfoMap[string(vote.ConsensusPublicKey)]
 		if !ok {
 			continue
 		}
 
-		pk, err := hex.DecodeString(vote.ConsensusPublicKey)
-		if err != nil {
-			return false, err
-		}
-
-		if validatorSeen[vote.ConsensusPublicKey] {
+		if validatorSeen[string(vote.ConsensusPublicKey)] {
 			continue
 		}
 
-		validatorSeen[vote.ConsensusPublicKey] = true
+		validatorSeen[string(vote.ConsensusPublicKey)] = true
 
-		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, pk)
+		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, vote.ConsensusPublicKey)
 		if err != nil {
 			return false, err
 		}
@@ -67,7 +60,7 @@ func (h *ABCIHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Pay
 			return false, types.ErrValidatorNotRegistered
 		}
 
-		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, pk)
+		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, vote.ConsensusPublicKey)
 		if err != nil {
 			return false, err
 		}

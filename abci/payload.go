@@ -2,33 +2,39 @@ package abci
 
 import (
 	"bytes"
-	"encoding/hex"
+	"fmt"
 
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
-func extractPayload(txs [][]byte) (Payload, error) {
+// extractPayload decodes the reserved vote-extension payload from the first proposal tx.
+// The found return value is false only when the reserved payload is absent; malformed
+// marker payloads return found=true with an error so callers can distinguish absence
+// from invalid protocol data.
+func extractPayload(txs [][]byte) (Payload, bool, error) {
 
 	if len(txs) == 0 {
-		return Payload{}, nil
+		return Payload{}, false, nil
 	}
 
 	if !bytes.HasPrefix(txs[0], []byte(VoteExtMarker)) {
-		return Payload{}, votepersistenceTypes.ErrVoteExtMarkerNotFound
+		return Payload{}, false, nil
 	}
 
 	voteExtensionTx := txs[0][len([]byte(VoteExtMarker)):]
+	if len(voteExtensionTx) == 0 {
+		return Payload{}, true, ErrInvalidPayload
+	}
 
 	var pl Payload
 
 	err := pl.Unmarshal(voteExtensionTx)
 	if err != nil {
-		return Payload{}, err
+		return Payload{}, true, fmt.Errorf("%w: %v", ErrInvalidPayload, err)
 	}
-	return pl, nil
+	return pl, true, nil
 }
 
 func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
@@ -72,7 +78,7 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 		}
 
 		voteExtsForGivenBlock = append(voteExtsForGivenBlock, &Votes{
-			ConsensusPublicKey: hex.EncodeToString(cosmosValidatorPubKey),
+			ConsensusPublicKey: cosmosValidatorPubKey,
 			VoteExtension:      vote.VoteExtension,
 		})
 	}

@@ -8,6 +8,7 @@ import (
 
 const ActionsReducedRoot string = "pulsar"
 
+// VoteExtMarker reserves the first proposal transaction slot for ABCI vote-extension payloads.
 const VoteExtMarker string = "VOTEEXT:"
 
 const AdditionalVoteExtHeight int64 = 3
@@ -17,6 +18,7 @@ const NetworkID string = "testnet"
 var (
 	ErrUnableToReadConsensusParams     error = errors.New("unable to read consensus params")
 	ErrInvalidPayload                  error = errors.New("invalid payload")
+	ErrVoteExtPayloadNotFound          error = errors.New("vote extension payload not found")
 	ErrNotEnoughStakePower             error = errors.New("not enough stake power signed the vote extension")
 	ErrMissingSecondaryKey             error = errors.New("missing secondary key")
 	ErrInvalidSecondaryKey             error = errors.New("invalid secondary key")

@@ -23,9 +23,12 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
 		}
 
-		pl, err := extractPayload(req.Txs)
+		pl, payloadFound, err := extractPayload(req.Txs)
 		if err != nil {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
+		}
+		if !payloadFound {
+			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, ErrVoteExtPayloadNotFound
 		}
 
 		isEnoughStakePower, err := h.checkStakePower(ctx, req.GetHeight(), pl, body)
