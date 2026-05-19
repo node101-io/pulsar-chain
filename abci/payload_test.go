@@ -19,11 +19,11 @@ func TestExtractPayloadReportsMissingPayload(t *testing.T) {
 }
 
 func TestExtractPayloadRejectsInvalidPayloadBody(t *testing.T) {
-	_, found, err := extractPayload([][]byte{[]byte(VoteExtMarker)})
+	_, found, err := extractPayload([][]byte{voteExtMarkerBytes})
 	require.True(t, found)
 	require.ErrorIs(t, err, ErrInvalidPayload)
 
-	malformedPayload := append([]byte(VoteExtMarker), []byte{0xff, 0xff, 0xff}...)
+	malformedPayload := append(voteExtMarkerBytes[:len(voteExtMarkerBytes):len(voteExtMarkerBytes)], []byte{0xff, 0xff, 0xff}...)
 	_, found, err = extractPayload([][]byte{malformedPayload})
 	require.True(t, found)
 	require.ErrorIs(t, err, ErrInvalidPayload)
@@ -43,7 +43,7 @@ func TestExtractPayloadPreservesConsensusPublicKeyBytes(t *testing.T) {
 	payloadBytes, err := expected.Marshal()
 	require.NoError(t, err)
 
-	markedPayload := append([]byte(VoteExtMarker), payloadBytes...)
+	markedPayload := append(voteExtMarkerBytes[:len(voteExtMarkerBytes):len(voteExtMarkerBytes)], payloadBytes...)
 	actual, found, err := extractPayload([][]byte{markedPayload})
 	require.NoError(t, err)
 	require.True(t, found)

@@ -19,11 +19,11 @@ func extractPayload(txs [][]byte) (Payload, bool, error) {
 		return Payload{}, false, nil
 	}
 
-	if !bytes.HasPrefix(txs[0], []byte(VoteExtMarker)) {
+	if !bytes.HasPrefix(txs[0], voteExtMarkerBytes) {
 		return Payload{}, false, nil
 	}
 
-	voteExtensionTx := txs[0][len([]byte(VoteExtMarker)):]
+	voteExtensionTx := txs[0][len(voteExtMarkerBytes):]
 	if len(voteExtensionTx) == 0 {
 		return Payload{}, true, ErrInvalidPayload
 	}
@@ -37,6 +37,10 @@ func extractPayload(txs [][]byte) (Payload, bool, error) {
 	return pl, true, nil
 }
 
+// constructPayload derives the internal proposal payload from CometBFT's
+// LocalLastCommit.Votes. CometBFT builds that list with one slot per validator
+// index; duplicate handling for proposer-supplied payload bytes belongs in the
+// payload validation path, not in this construction path.
 func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
 
 	var voteExtsForGivenBlock []*Votes
