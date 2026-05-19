@@ -5,7 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func (h *AbciHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
+func (h *ABCIHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 	return func(ctx sdk.Context, req *abci.RequestExtendVote) (*abci.ResponseExtendVote, error) {
 
 		shouldExtendVote, err := shouldExtendVoteAtHeight(ctx, req.GetHeight())

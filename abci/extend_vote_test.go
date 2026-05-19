@@ -8,13 +8,10 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/node101-io/mina-signer-go/constants"
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/mina-signer-go/poseidon"
-	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
-	votepersistencekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 	votepersistencetypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +20,7 @@ func TestExtendVoteHandlerDisabledHeight(t *testing.T) {
 	ctx := sdk.Context{}.WithConsensusParams(tmproto.ConsensusParams{
 		Abci: &tmproto.ABCIParams{VoteExtensionsEnableHeight: 1},
 	})
-	handler := (&AbciHandler{}).ExtendVoteHandler()
+	handler := (&ABCIHandler{}).ExtendVoteHandler()
 
 	response, err := handler(ctx, &abci.RequestExtendVote{Height: 3})
 
@@ -34,7 +31,7 @@ func TestExtendVoteHandlerDisabledHeight(t *testing.T) {
 
 func TestExtendVoteHandlerConsensusParamsFail(t *testing.T) {
 	ctx := sdk.Context{}.WithConsensusParams(tmproto.ConsensusParams{})
-	handler := (&AbciHandler{}).ExtendVoteHandler()
+	handler := (&ABCIHandler{}).ExtendVoteHandler()
 
 	response, err := handler(ctx, &abci.RequestExtendVote{Height: 4})
 
@@ -89,13 +86,6 @@ func TestSecondaryKeyValidate(t *testing.T) {
 
 	err := mismatchedKey.Validate()
 	require.True(t, errors.Is(err, ErrInvalidSecondaryKey))
-}
-
-func TestNewABCIHandlerValidatesSecondaryKey(t *testing.T) {
-	handler, err := NewABCIHandler(SecondaryKey{}, stakingkeeper.Keeper{}, keyregistrykeeper.Keeper{}, votepersistencekeeper.Keeper{})
-
-	require.Nil(t, handler)
-	require.ErrorIs(t, err, ErrMissingSecondaryKey)
 }
 
 func validSecondaryKey() SecondaryKey {

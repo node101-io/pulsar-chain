@@ -15,7 +15,7 @@ import (
 )
 
 // Use if you need the validator set of block < N where N is the current block number.
-func (h *AbciHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]stakingTypes.ValidatorI, error) {
+func (h *ABCIHandler) getValidatorSet(ctx sdk.Context, currentBlockHeight int64) ([]stakingTypes.ValidatorI, error) {
 
 	var valInfo []stakingTypes.ValidatorI
 
@@ -69,7 +69,7 @@ func sortValidatorsByPower(validators []stakingTypes.ValidatorI) {
 }
 
 // TODO: Move this helper to mina-signer-go
-func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []stakingTypes.ValidatorI, poseidonHash *poseidon.Poseidon) (*big.Int, error) {
+func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []stakingTypes.ValidatorI, poseidonHash *poseidon.Poseidon) (*big.Int, error) {
 
 	input := []*big.Int{big.NewInt(0)}
 	merkleRoot := poseidonHash.Hash(input)
@@ -82,7 +82,7 @@ func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 			continue
 		}
 
-		cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, consAddr)
+		cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, sdk.ConsAddress(consAddr))
 		if err != nil {
 			return nil, err
 		}
@@ -131,7 +131,7 @@ func (h *AbciHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 
 }
 
-func (h *AbciHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (votepersistenceTypes.VoteExtBody, error) {
+func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (votepersistenceTypes.VoteExtBody, error) {
 
 	nextValidatorSet, err := h.getValidatorSet(ctx, blockHeight)
 	if err != nil {
@@ -161,9 +161,9 @@ func (h *AbciHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (
 	}, nil
 }
 
-func (h *AbciHandler) getValidatorPublicKey(ctx sdk.Context, validatorAddr []byte) ([]byte, error) {
+func (h *ABCIHandler) getValidatorPublicKey(ctx sdk.Context, validatorAddr []byte) ([]byte, error) {
 
-	cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, validatorAddr)
+	cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, sdk.ConsAddress(validatorAddr))
 	if err != nil {
 		return nil, err
 	}

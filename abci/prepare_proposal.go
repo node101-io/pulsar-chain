@@ -5,7 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func (h *AbciHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
+func (h *ABCIHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 

@@ -31,7 +31,7 @@ func extractPayload(txs [][]byte) (Payload, error) {
 	return pl, nil
 }
 
-func (h *AbciHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []abci.ExtendedVoteInfo) (Payload, error) {
+func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []abci.ExtendedVoteInfo) (Payload, error) {
 
 	var voteExtsForGivenBlock []*Votes
 
