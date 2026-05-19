@@ -1,7 +1,6 @@
 package abci
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	cometabci "github.com/cometbft/cometbft/abci/types"
@@ -11,19 +10,24 @@ import (
 func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 	return func(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 
-		// If height is smaller than 4, we won't have any votes thus skip the proposal
-		if req.GetHeight() < 4 {
+		shouldPersistVoteExtensions, err := shouldRequireProposalPayloadAtHeight(ctx, req.GetHeight())
+		if err != nil {
+			return nil, err
+		}
+		if !shouldPersistVoteExtensions {
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
-		err := h.votePersistenceKeeper.Clear(ctx)
-		if err != nil {
+		if err := h.votePersistenceKeeper.Clear(ctx); err != nil {
 			return nil, err
 		}
 
-		pl, err := extractPayload(req.Txs)
+		pl, payloadFound, err := extractPayload(req.Txs)
 		if err != nil {
 			return nil, err
+		}
+		if !payloadFound {
+			return nil, ErrVoteExtPayloadNotFound
 		}
 
 		currentValidatorSet, err := h.getValidatorSet(ctx, req.GetHeight()-2)
@@ -45,12 +49,12 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 				return nil, err
 			}
 
-			currentValidatorSetMap[hex.EncodeToString(cosmosValidatorPublicKey)] = cosmosValidatorPublicKey
+			currentValidatorSetMap[string(cosmosValidatorPublicKey)] = cosmosValidatorPublicKey
 		}
 
 		for _, vote := range pl.Votes {
 
-			cosmosValidatorPublicKey, ok := currentValidatorSetMap[vote.ConsensusPublicKey]
+			cosmosValidatorPublicKey, ok := currentValidatorSetMap[string(vote.ConsensusPublicKey)]
 			if !ok {
 				continue
 			}

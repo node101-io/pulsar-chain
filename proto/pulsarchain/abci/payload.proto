@@ -10,6 +10,6 @@ message Payload {
 }
 
 message Votes {
-  string consensus_public_key = 1;
+  bytes consensus_public_key = 1;
   bytes vote_extension = 2;
 }
