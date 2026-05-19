@@ -54,11 +54,10 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		if err != nil {
 			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
 		}
-		poseidon := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
-		sigValidity := verifyVoteExtSig(poseidon, req.VoteExtension, body, minaKey, ActionsReducedRoot)
-		if !sigValidity {
-			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, types.ErrInvalidSignature
+		if err := verifyVoteExtSig(poseidonHash, req.VoteExtension, body, minaKey, ActionsReducedRoot); err != nil {
+			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
 		}
 
 		logger.Info("vote ext verified")

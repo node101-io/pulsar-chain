@@ -72,10 +72,10 @@ func (h *ABCIHandler) checkStakePower(ctx sdk.Context, blockHeight int64, pl Pay
 			return false, err
 		}
 
-		poseidon := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
-		if !verifyVoteExtSig(poseidon, vote.VoteExtension, body, minaKey, ActionsReducedRoot) {
-			return false, votepersistenceTypes.ErrInvalidVoteExtension.Wrap("invalid signature")
+		if err := verifyVoteExtSig(poseidonHash, vote.VoteExtension, body, minaKey, ActionsReducedRoot); err != nil {
+			return false, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
 		}
 
 		signedStakePower += validatorInfo.GetConsensusPower(sdk.DefaultPowerReduction)
