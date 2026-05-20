@@ -17,7 +17,21 @@ type AuthKeeper interface {
 // BankKeeper defines the expected interface for the Bank module.
 type BankKeeper interface {
 	SpendableCoins(context.Context, sdk.AccAddress) sdk.Coins
-	// Methods imported from bank should be defined here
+	SendCoinsFromModuleToAccount(context.Context, string, sdk.AccAddress, sdk.Coins) error
+	SendCoinsFromAccountToModule(context.Context, sdk.AccAddress, string, sdk.Coins) error
+	MintCoins(context.Context, string, sdk.Coins) error
+	BurnCoins(context.Context, string, sdk.Coins) error
+}
+
+// KeyregistryKeeper defines the expected interface for the Keyregistry module.
+type KeyregistryKeeper interface {
+	UserGetMinaToCosmos(context.Context, []byte) ([]byte, error)
+	UserMinaToCosmosHas(context.Context, []byte) (bool, error)
+	UserCosmosToMinaHas(context.Context, []byte) (bool, error)
+
+	ValidatorGetMinaToCosmos(context.Context, []byte) ([]byte, error)
+	ValidatorMinaToCosmosHas(context.Context, []byte) (bool, error)
+	ValidatorCosmosToMinaHas(context.Context, []byte) (bool, error)
 }
 
 // ParamSubspace defines the expected Subspace interface for parameters.

@@ -3,7 +3,8 @@ package types
 // DefaultGenesis returns the default genesis state
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		Params: DefaultParams(),
+		Params:      DefaultParams(),
+		BridgeState: DefaultBridgeState(),
 	}
 }
 
@@ -11,4 +12,12 @@ func DefaultGenesis() *GenesisState {
 // failure.
 func (gs GenesisState) Validate() error {
 	return gs.Params.Validate()
+}
+
+func DefaultBridgeState() BridgeState {
+
+	return BridgeState{
+		LatestFetchedMinaHeight: 0,
+		ActionsReducedRoot:      nil,
+	}
 }

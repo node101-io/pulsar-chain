@@ -25,6 +25,9 @@ type Keeper struct {
 	Schema      collections.Schema
 	Params      collections.Item[types.Params]
 	BridgeState collections.Item[types.BridgeState]
+
+	bankKeeper        types.BankKeeper
+	keyRegistryKeeper types.KeyregistryKeeper
 }
 
 func NewKeeper(
@@ -32,7 +35,8 @@ func NewKeeper(
 	cdc codec.Codec,
 	addressCodec address.Codec,
 	authority []byte,
-
+	bankKeeper types.BankKeeper,
+	keyRegistryKeeper types.KeyregistryKeeper,
 ) Keeper {
 	if _, err := addressCodec.BytesToString(authority); err != nil {
 		panic(fmt.Sprintf("invalid authority address %s: %s", authority, err))
@@ -53,6 +57,8 @@ func NewKeeper(
 			BridgeStateItemName,
 			codec.CollValue[types.BridgeState](cdc),
 		),
+		bankKeeper:        bankKeeper,
+		keyRegistryKeeper: keyRegistryKeeper,
 	}
 
 	schema, err := sb.Build()
