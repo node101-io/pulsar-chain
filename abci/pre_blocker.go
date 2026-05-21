@@ -24,7 +24,14 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 			return nil, ErrVoteExtPayloadNotFound
 		}
 
-		voteExtensionHeight := req.GetHeight() - 1
+		proposalHeight := req.GetHeight()
+		// Vote extensions included in a proposal at height N are produced and
+		// requested by consensus at height N-1.
+		voteExtensionHeight := proposalHeight - 1
+		// Each vote extension body signs the state transition produced two
+		// blocks earlier, so persistence is keyed by the proof target height N-2.
+		proofTargetHeight := proposalHeight - 2
+
 		if err := validatePayloadHeight(pl, voteExtensionHeight); err != nil {
 			return nil, err
 		}
@@ -48,7 +55,7 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 		}
 
 		for _, vote := range verifiedVotes.votes {
-			if err := h.votePersistenceKeeper.SetVote(ctx, req.GetHeight()-2, vote.minaPublicKey, vote.voteExtension); err != nil {
+			if err := h.votePersistenceKeeper.SetVote(ctx, proofTargetHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
 				return nil, err
 			}
 		}
