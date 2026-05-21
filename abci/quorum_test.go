@@ -146,7 +146,7 @@ func TestPreBlockerPersistsOnlyCanonicalVerifiedVotes(t *testing.T) {
 	require.NotNil(t, response)
 	require.Equal(t, 1, votePersistenceKeeper.clearCalls)
 	require.Len(t, votePersistenceKeeper.setVotes, 1)
-	require.Equal(t, reqHeight-2, votePersistenceKeeper.setVotes[0].height)
+	require.Equal(t, reqHeight-3, votePersistenceKeeper.setVotes[0].height)
 	require.Equal(t, testMinaPublicKeyFromSecondaryKey(t, secondaryKey), votePersistenceKeeper.setVotes[0].minaPublicKey)
 	require.Equal(t, firstVote.VoteExtension, votePersistenceKeeper.setVotes[0].voteExtension)
 }

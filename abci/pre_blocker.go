@@ -26,11 +26,12 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 
 		proposalHeight := req.GetHeight()
 		// Vote extensions included in a proposal at height N are produced and
-		// requested by consensus at height N-1.
+		// requested by consensus at height N-1. That is the height encoded in
+		// Payload.vote_extension_height and used to reconstruct the signed body.
 		voteExtensionHeight := proposalHeight - 1
-		// Each vote extension body signs the state transition produced two
-		// blocks earlier, so persistence is keyed by the proof target height N-2.
-		proofTargetHeight := proposalHeight - 2
+		// A vote extension at height N-1 signs the transition from state N-3
+		// to state N-2, so persistence is keyed by the signed source state height.
+		signedStateHeight := voteExtensionHeight - 2
 
 		if err := validatePayloadHeight(pl, voteExtensionHeight); err != nil {
 			return nil, err
@@ -41,7 +42,7 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 			return nil, err
 		}
 
-		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, req.GetHeight(), pl, body)
+		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, voteExtensionHeight, pl, body)
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +56,7 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 		}
 
 		for _, vote := range verifiedVotes.votes {
-			if err := h.votePersistenceKeeper.SetVote(ctx, proofTargetHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
+			if err := h.votePersistenceKeeper.SetVote(ctx, signedStateHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
 				return nil, err
 			}
 		}

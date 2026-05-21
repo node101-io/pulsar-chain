@@ -24,7 +24,8 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 
 		proposalHeight := req.GetHeight()
 		// Vote extensions included in a proposal at height N are produced and
-		// requested by consensus at height N-1.
+		// requested by consensus at height N-1. The payload must identify that
+		// vote-extension height so validators reconstruct the same signed body.
 		voteExtensionHeight := proposalHeight - 1
 
 		body, err := h.constructVoteExtBody(ctx, voteExtensionHeight)
@@ -46,7 +47,7 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, nil
 		}
 
-		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, proposalHeight, pl, body)
+		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, voteExtensionHeight, pl, body)
 		if err != nil {
 			if isInvalidProcessProposalError(err) {
 				return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, nil

@@ -35,11 +35,13 @@ func consPubKeyMapKey(consPubKey []byte) consPubKeyKey {
 	return consPubKeyKey(consPubKey)
 }
 
-func (h *ABCIHandler) buildValidatorVoteIndex(ctx sdk.Context, proposalHeight int64) (map[consPubKeyKey]validatorVoteInfo, int64, error) {
+func (h *ABCIHandler) buildValidatorVoteIndex(ctx sdk.Context, voteExtensionHeight int64) (map[consPubKeyKey]validatorVoteInfo, int64, error) {
 	validatorVoteIndex := make(map[consPubKeyKey]validatorVoteInfo)
 	var totalPower int64
 
-	currentValidatorSet, err := h.getValidatorSet(ctx, proposalHeight-2)
+	// Quorum is measured against the validator set that was active for the
+	// consensus height that produced these vote extensions.
+	currentValidatorSet, err := h.getValidatorSet(ctx, voteExtensionHeight)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -65,8 +67,11 @@ func (h *ABCIHandler) buildValidatorVoteIndex(ctx sdk.Context, proposalHeight in
 	return validatorVoteIndex, totalPower, nil
 }
 
-func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, proposalHeight int64, pl Payload, body votepersistenceTypes.VoteExtBody) (verifiedPayloadVoteExtensions, error) {
-	validatorVoteIndex, totalPower, err := h.buildValidatorVoteIndex(ctx, proposalHeight)
+func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, voteExtensionHeight int64, pl Payload, body votepersistenceTypes.VoteExtBody) (verifiedPayloadVoteExtensions, error) {
+	// voteExtensionHeight is the consensus height of the vote extensions carried
+	// by the payload. The body may refer to an older signed state height, but the
+	// eligible validators and quorum power are still determined at this height.
+	validatorVoteIndex, totalPower, err := h.buildValidatorVoteIndex(ctx, voteExtensionHeight)
 	if err != nil {
 		return verifiedPayloadVoteExtensions{}, err
 	}

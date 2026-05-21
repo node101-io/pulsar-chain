@@ -49,13 +49,19 @@ func validatePayloadHeight(pl Payload, expectedHeight int64) error {
 // LocalLastCommit.Votes. CometBFT builds that list with one slot per validator
 // index; duplicate handling for proposer-supplied payload bytes belongs in the
 // payload validation path, not in this construction path.
-func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
+func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
 
 	var voteExtsForGivenBlock []*PayloadVoteExtension
 
 	currentValidatorSetMap := make(map[string]bool)
+	// A proposal at height P carries the vote extensions produced by consensus
+	// for height P-1. The payload height records that consensus production height,
+	// not the proposal height and not the signed state height inside the body.
+	voteExtensionHeight := proposalHeight - 1
 
-	currentValidatorSet, err := h.getValidatorSet(ctx, blockHeight-2)
+	// The validator set used for payload eligibility must match the set that
+	// produced the vote extensions at voteExtensionHeight.
+	currentValidatorSet, err := h.getValidatorSet(ctx, voteExtensionHeight)
 	if err != nil {
 		return Payload{}, err
 	}
@@ -99,5 +105,5 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 		return Payload{}, ErrNoVoteExtensionsForPayload
 	}
 
-	return Payload{VoteExtensionHeight: blockHeight - 1, VoteExtensions: voteExtsForGivenBlock}, nil
+	return Payload{VoteExtensionHeight: voteExtensionHeight, VoteExtensions: voteExtsForGivenBlock}, nil
 }
