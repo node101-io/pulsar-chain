@@ -117,7 +117,7 @@ func TestVoteExtBodyByHeightInvalidArgumentFail(t *testing.T) {
 }
 
 // TestVoteExtBodyByHeightEarlyBlockInvalidArgumentFail verifies that
-// VoteExtBodyByHeight rejects requests for block heights smaller than 4.
+// VoteExtBodyByHeight rejects requests for vote-extension heights smaller than 2.
 func TestVoteExtBodyByHeightEarlyBlockInvalidArgumentFail(t *testing.T) {
 	f := initFixture(t)
 
@@ -126,12 +126,50 @@ func TestVoteExtBodyByHeightEarlyBlockInvalidArgumentFail(t *testing.T) {
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
 	_, err := qs.VoteExtBodyByHeight(f.ctx, &types.QueryVoteExtBodyByHeightRequest{
-		BlockHeight: 3,
+		BlockHeight: 1,
 	})
 	require.Error(t, err)
 
 	st, _ := status.FromError(err)
 	require.Equal(t, codes.InvalidArgument, st.Code())
+}
+
+// TestVoteExtBodyByHeightSecondHeightSuccess verifies that height 2 is the first
+// valid vote-extension height when the required historical info exists.
+func TestVoteExtBodyByHeightSecondHeightSuccess(t *testing.T) {
+	f := initFixture(t)
+
+	validator := newBondedValidator(t, 15)
+	consPubKey, err := validator.ConsPubKey()
+	require.NoError(t, err)
+	minaPubKey := generateMinaPublicKey(t, [32]byte{
+		3, 3, 3, 3, 3, 3, 3, 3,
+		3, 3, 3, 3, 3, 3, 3, 3,
+		3, 3, 3, 3, 3, 3, 3, 3,
+		3, 3, 3, 3, 3, 3, 3, 3,
+	})
+	registerValidatorKeys(t, f, consPubKey, minaPubKey)
+
+	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 1, &stakingtypes.HistoricalInfo{
+		Header: tmproto.Header{AppHash: []byte("genesis-state-root")},
+	}))
+	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 2, &stakingtypes.HistoricalInfo{
+		Valset: []stakingtypes.Validator{validator},
+	}))
+
+	ctx := f.ctx.WithBlockHeight(3)
+	qs := keeper.NewQueryServerImpl(f.keeper)
+	params := types.DefaultParams()
+	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
+
+	queryResp, err := qs.VoteExtBodyByHeight(ctx, &types.QueryVoteExtBodyByHeightRequest{
+		BlockHeight: 2,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, queryResp)
+
+	require.Equal(t, int64(0), queryResp.VoteExtBody.CurrentBlockHeight)
+	require.Equal(t, []byte("genesis-state-root"), queryResp.VoteExtBody.CurrentStateRoot)
 }
 
 // TestVoteExtBodyByHeightRequestedBlockNotAvailable verifies that
@@ -183,10 +221,10 @@ func TestVoteExtBodyByHeightSuccess(t *testing.T) {
 	registerValidatorKeys(t, f, consPubKeyOne, minaPubKeyOne)
 	registerValidatorKeys(t, f, consPubKeyTwo, minaPubKeyTwo)
 
-	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 6, &stakingtypes.HistoricalInfo{
+	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 7, &stakingtypes.HistoricalInfo{
 		Header: tmproto.Header{AppHash: []byte("current-state-root")},
 	}))
-	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 7, &stakingtypes.HistoricalInfo{
+	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 8, &stakingtypes.HistoricalInfo{
 		Valset: []stakingtypes.Validator{validatorOne, validatorTwo},
 	}))
 
@@ -209,7 +247,7 @@ func TestVoteExtBodyByHeightSuccess(t *testing.T) {
 	require.Equal(t, &types.VoteExtBody{
 		NextValidatorSetHash: calculateExpectedValidatorSetRoot(t, []stakingtypes.Validator{validatorOne, validatorTwo}, cosmosToMina),
 		CurrentStateRoot:     []byte("current-state-root"),
-		CurrentBlockHeight:   7,
+		CurrentBlockHeight:   6,
 		ActionsReducedRoot:   keeper.ActionsReducedRoot,
 	}, queryResp.VoteExtBody)
 }
@@ -222,10 +260,10 @@ func TestVoteExtBodyByHeightValidatorMinaKeyNotFound(t *testing.T) {
 
 	validator := newBondedValidator(t, 15)
 
-	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 6, &stakingtypes.HistoricalInfo{
+	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 7, &stakingtypes.HistoricalInfo{
 		Header: tmproto.Header{AppHash: []byte("current-state-root")},
 	}))
-	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 7, &stakingtypes.HistoricalInfo{
+	require.NoError(t, f.stakingKeeper.SetHistoricalInfo(f.ctx, 8, &stakingtypes.HistoricalInfo{
 		Valset: []stakingtypes.Validator{validator},
 	}))
 

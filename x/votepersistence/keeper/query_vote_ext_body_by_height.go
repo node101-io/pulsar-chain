@@ -22,8 +22,8 @@ func (q queryServer) VoteExtBodyByHeight(ctx context.Context, req *types.QueryVo
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
 
-	if req.BlockHeight < 4 {
-		return nil, status.Error(codes.InvalidArgument, "there is no vote extension in blocks smaller than 4")
+	if req.BlockHeight < 2 {
+		return nil, status.Error(codes.InvalidArgument, "there is no vote extension body for heights smaller than 2")
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
@@ -46,13 +46,24 @@ func (q queryServer) VoteExtBodyByHeight(ctx context.Context, req *types.QueryVo
 	}, nil
 }
 
-func (q queryServer) constructVoteExtBodyByHeight(ctx context.Context, blockHeight int64) (*types.VoteExtBody, error) {
-	currentBlockInfo, err := q.k.stakingKeeper.GetHistoricalInfo(ctx, blockHeight-2)
+func (q queryServer) constructVoteExtBodyByHeight(ctx context.Context, voteExtensionHeight int64) (*types.VoteExtBody, error) {
+	// VoteExtBodyByHeight reconstructs the same body produced by ExtendVote(N).
+	// The request height is the vote-extension consensus height N, while the body
+	// signs the transition from state N-2 to state N-1.
+	signedStateHeight := voteExtensionHeight - 2
+	// HistoricalInfo(H).Header.AppHash is the state root after H-1, so H=N-1
+	// yields the source state root for N-2.
+	stateRootHistoricalInfoHeight := voteExtensionHeight - 1
+	// HistoricalInfo(N).Valset is the validator set after the signed transition
+	// and therefore matches NextValidatorSetHash in the body.
+	targetValidatorSetHistoricalInfoHeight := voteExtensionHeight
+
+	currentBlockInfo, err := q.k.stakingKeeper.GetHistoricalInfo(ctx, stateRootHistoricalInfoHeight)
 	if err != nil {
 		return nil, err
 	}
 
-	nextBlockInfo, err := q.k.stakingKeeper.GetHistoricalInfo(ctx, blockHeight-1)
+	nextBlockInfo, err := q.k.stakingKeeper.GetHistoricalInfo(ctx, targetValidatorSetHistoricalInfoHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +76,7 @@ func (q queryServer) constructVoteExtBodyByHeight(ctx context.Context, blockHeig
 	return &types.VoteExtBody{
 		NextValidatorSetHash: nextValidatorSetHash,
 		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
-		CurrentBlockHeight:   blockHeight - 1,
+		CurrentBlockHeight:   signedStateHeight,
 		ActionsReducedRoot:   ActionsReducedRoot,
 	}, nil
 }

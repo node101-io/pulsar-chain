@@ -18,7 +18,7 @@ service Query {
     option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/params";
   }
 
-  // VoteExtBodyByHeight queries the vote extension body for a block height.
+  // VoteExtBodyByHeight queries the vote extension body for a vote-extension height.
   rpc VoteExtBodyByHeight(QueryVoteExtBodyByHeightRequest) returns (QueryVoteExtBodyByHeightResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/vote_ext_body_by_height/{block_height}";
   }
@@ -43,6 +43,8 @@ message QueryParamsResponse {
 
 // QueryVoteExtBodyByHeightRequest defines the QueryVoteExtBodyByHeightRequest message.
 message QueryVoteExtBodyByHeightRequest {
+  // block_height is the consensus height N where the vote extension is produced.
+  // The returned body signs the transition from state N-2 to state N-1.
   int64 block_height = 1;
 }
 
@@ -63,6 +65,8 @@ message StoredVoteExtension {
 // QueryVoteExtensionsResponse defines the QueryVoteExtensionsResponse message.
 message QueryVoteExtensionsResponse {
   int64 query_block_height = 1;
+  // persisted_vote_extensions_block_height is the signed source/current state
+  // height. For vote extensions produced at height N, this value is N-2.
   int64 persisted_vote_extensions_block_height = 2;
   repeated StoredVoteExtension vote_extensions = 3;
 }

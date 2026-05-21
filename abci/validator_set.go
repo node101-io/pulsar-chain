@@ -164,14 +164,24 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 
 }
 
-func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (votepersistenceTypes.VoteExtBody, error) {
+func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, voteExtensionHeight int64) (votepersistenceTypes.VoteExtBody, error) {
+	// ExtendVote(N) signs the transition from state N-2 to state N-1. The body
+	// stores the source/current state height, while the validator-set root commits
+	// to the target validator set available after N-1.
+	signedStateHeight := voteExtensionHeight - 2
+	// Staking stores HistoricalInfo(H).Header.AppHash as the app hash entering
+	// height H, which is the state root after H-1. Reading H=N-1 gives state N-2.
+	stateRootHistoricalInfoHeight := voteExtensionHeight - 1
+	// At ExtendVote(N), the committed staking state already contains the validator
+	// set after N-1; that is the target validator set for the signed transition.
+	targetValidatorSetHeight := voteExtensionHeight
 
-	nextValidatorSet, err := h.getValidatorSet(ctx, blockHeight)
+	nextValidatorSet, err := h.getValidatorSet(ctx, targetValidatorSetHeight)
 	if err != nil {
 		return votepersistenceTypes.VoteExtBody{}, err
 	}
 
-	currentBlockInfo, err := h.stakingKeeper.GetHistoricalInfo(ctx, blockHeight-1)
+	currentBlockInfo, err := h.stakingKeeper.GetHistoricalInfo(ctx, stateRootHistoricalInfoHeight)
 	if err != nil {
 		return votepersistenceTypes.VoteExtBody{}, err
 	}
@@ -189,7 +199,7 @@ func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, blockHeight int64) (
 	return votepersistenceTypes.VoteExtBody{
 		NextValidatorSetHash: nextValidatorSetRoot.Bytes(),
 		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
-		CurrentBlockHeight:   blockHeight - 1,
+		CurrentBlockHeight:   signedStateHeight,
 		ActionsReducedRoot:   ActionsReducedRoot,
 	}, nil
 }

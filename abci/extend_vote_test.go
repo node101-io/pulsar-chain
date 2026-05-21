@@ -15,7 +15,7 @@ func TestExtendVoteHandlerDisabledHeight(t *testing.T) {
 	})
 	handler := (&ABCIHandler{}).ExtendVoteHandler()
 
-	response, err := handler(ctx, &cometabci.RequestExtendVote{Height: 3})
+	response, err := handler(ctx, &cometabci.RequestExtendVote{Height: 1})
 
 	require.NoError(t, err)
 	require.NotNil(t, response)
