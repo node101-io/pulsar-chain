@@ -18,7 +18,10 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_ACCEPT}, nil
 		}
 
-		voteExtensionHeight := req.GetHeight() - 1
+		proposalHeight := req.GetHeight()
+		// Vote extensions included in a proposal at height N are produced and
+		// requested by consensus at height N-1.
+		voteExtensionHeight := proposalHeight - 1
 
 		body, err := h.constructVoteExtBody(ctx, voteExtensionHeight)
 		if err != nil {
@@ -36,7 +39,7 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
 		}
 
-		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, req.GetHeight(), pl, body)
+		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, proposalHeight, pl, body)
 		if err != nil {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
 		}
