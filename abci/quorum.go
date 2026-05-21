@@ -1,13 +1,14 @@
 package abci
 
 import (
+	"errors"
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/constants"
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
-	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
+	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
@@ -92,7 +93,7 @@ func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, proposalHei
 			return verifiedPayloadVoteExtensions{}, err
 		}
 		if !exists {
-			return verifiedPayloadVoteExtensions{}, types.ErrValidatorNotRegistered
+			return verifiedPayloadVoteExtensions{}, keyregistryTypes.ErrValidatorNotRegistered
 		}
 
 		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, vote.ConsensusPublicKey)
@@ -101,7 +102,11 @@ func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, proposalHei
 		}
 
 		if err := verifyVoteExtSig(poseidonHash, vote.VoteExtension, body, minaKey, ActionsReducedRoot); err != nil {
-			return verifiedPayloadVoteExtensions{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
+			if errors.Is(err, ErrInvalidVoteExtSignatureEncoding) || errors.Is(err, ErrInvalidVoteExtSignature) {
+				return verifiedPayloadVoteExtensions{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
+			}
+
+			return verifiedPayloadVoteExtensions{}, err
 		}
 
 		verifiedVotes.votes = append(verifiedVotes.votes, verifiedPayloadVoteExtension{
