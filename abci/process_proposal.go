@@ -1,8 +1,12 @@
 package abci
 
 import (
+	"errors"
+
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
+	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
 func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
@@ -30,26 +34,42 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 
 		pl, payloadFound, err := extractPayload(req.Txs)
 		if err != nil {
+			if isInvalidProcessProposalError(err) {
+				return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, nil
+			}
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
 		}
 		if !payloadFound {
-			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, ErrVoteExtPayloadNotFound
+			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, nil
 		}
 		if err := validatePayloadHeight(pl, voteExtensionHeight); err != nil {
-			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
+			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, nil
 		}
 
 		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, proposalHeight, pl, body)
 		if err != nil {
+			if isInvalidProcessProposalError(err) {
+				return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, nil
+			}
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
 		}
 
 		if !hasAtLeastTwoThirdsPower(verifiedVotes.signedPower, verifiedVotes.totalPower) {
-			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, ErrNotEnoughStakePower
+			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, nil
 		}
 
-		// Vote extension successfully verified
 		return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_ACCEPT}, nil
 	}
 
+}
+
+// Invalid proposal errors are normal consensus rejection outcomes. Internal
+// application failures should still be returned as errors so the node can surface them.
+func isInvalidProcessProposalError(err error) bool {
+	return errors.Is(err, ErrInvalidPayload) ||
+		errors.Is(err, ErrInvalidPayloadHeight) ||
+		errors.Is(err, ErrVoteExtPayloadNotFound) ||
+		errors.Is(err, ErrNotEnoughStakePower) ||
+		errors.Is(err, keyregistryTypes.ErrValidatorNotRegistered) ||
+		errors.Is(err, votepersistenceTypes.ErrInvalidVoteExtension)
 }
