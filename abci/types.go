@@ -24,6 +24,8 @@ var (
 	ErrInvalidPayload                  error = errors.New("invalid payload")
 	ErrInvalidPayloadHeight            error = errors.New("invalid payload height")
 	ErrVoteExtPayloadNotFound          error = errors.New("vote extension payload not found")
+	ErrNoVoteExtensionsForPayload      error = errors.New("no vote extensions for payload")
+	ErrVoteExtPayloadTooLarge          error = errors.New("vote extension payload exceeds max tx bytes")
 	ErrNotEnoughStakePower             error = errors.New("not enough stake power signed the vote extension")
 	ErrMissingSecondaryKey             error = errors.New("missing secondary key")
 	ErrInvalidSecondaryKey             error = errors.New("invalid secondary key")

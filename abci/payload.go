@@ -96,7 +96,7 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, blockHeight int64, voteE
 	}
 
 	if len(voteExtsForGivenBlock) == 0 {
-		return Payload{}, nil
+		return Payload{}, ErrNoVoteExtensionsForPayload
 	}
 
 	return Payload{VoteExtensionHeight: blockHeight - 1, VoteExtensions: voteExtsForGivenBlock}, nil
