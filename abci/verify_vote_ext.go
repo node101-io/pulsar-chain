@@ -1,14 +1,14 @@
 package abci
 
 import (
-	"fmt"
+	"errors"
 
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/constants"
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
-	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
+	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
 func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandler {
@@ -24,12 +24,8 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 				return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_ACCEPT}, nil
 			}
 
-			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, fmt.Errorf("rejected")
+			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, nil
 		}
-
-		logger := ctx.Logger()
-
-		logger.Info("vote ext verify called")
 
 		cosmosValidatorPubKey, err := h.getConsPubKeyByConsAddr(ctx, req.ValidatorAddress)
 		if err != nil {
@@ -42,7 +38,7 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		}
 
 		if !exists {
-			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, types.ErrValidatorNotRegistered
+			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, nil
 		}
 
 		minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, cosmosValidatorPubKey)
@@ -57,10 +53,14 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
 
 		if err := verifyVoteExtSig(poseidonHash, req.VoteExtension, body, minaKey, ActionsReducedRoot); err != nil {
+			if errors.Is(err, keyregistryTypes.ErrValidatorNotRegistered) ||
+				errors.Is(err, ErrInvalidVoteExtSignatureEncoding) ||
+				errors.Is(err, ErrInvalidVoteExtSignature) {
+				return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, nil
+			}
+
 			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
 		}
-
-		logger.Info("vote ext verified")
 
 		return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_ACCEPT}, nil
 	}
