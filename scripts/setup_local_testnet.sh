@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 PYTHON_HELPER="$SCRIPT_DIR/setup_local_testnet_helper.py"
-GO_HELPER="$SCRIPT_DIR/derive_mina_pub.go"
+DEVTOOLS_HELPER="$SCRIPT_DIR/devtools"
 
 LEGACY_CHAIN_HOME="${CHAIN_HOME:-$HOME/.pulsar}"
 CHAIN_ID="${CHAIN_ID:-mytestnet}"
@@ -36,7 +36,7 @@ require_cmd() {
 }
 
 derive_mina_pub_key() {
-  go run "$GO_HELPER" "$1"
+  go run "$DEVTOOLS_HELPER" derive-mina-pub "$1"
 }
 
 read_consensus_pub_key() {
@@ -250,4 +250,6 @@ done
 echo ""
 echo "Validation examples:"
 echo "  curl -s http://localhost:${NODE_RPC_PORTS[PRIMARY_NODE_INDEX]}/validators | python3 -m json.tool | grep total"
-echo "  $BINARY_PATH query votepersistence vote-ext-body-by-height 5 --home $PRIMARY_HOME"
+echo "  $BINARY_PATH query votepersistence vote-extensions --home $PRIMARY_HOME"
+echo "  grpcurl -plaintext -d '{\"vote_extension_height\":\"5\"}' localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]} pulsarchain.abci.Query/VoteExtBodyByHeight"
+echo "  go run ./scripts/devtools verify-vote-extensions --grpc-addr localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]}"
