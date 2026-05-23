@@ -7,7 +7,6 @@ import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "pulsarchain/votepersistence/v1/params.proto";
-import "pulsarchain/votepersistence/v1/vote_ext_body.proto";
 
 option go_package = "github.com/node101-io/pulsar-chain/x/votepersistence/types";
 
@@ -16,11 +15,6 @@ service Query {
   // Parameters queries the parameters of the module.
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/params";
-  }
-
-  // VoteExtBodyByHeight queries the vote extension body for a vote-extension height.
-  rpc VoteExtBodyByHeight(QueryVoteExtBodyByHeightRequest) returns (QueryVoteExtBodyByHeightResponse) {
-    option (google.api.http).get = "/node101-io/pulsar-chain/votepersistence/v1/vote_ext_body_by_height/{block_height}";
   }
 
   // VoteExtensions queries the currently persisted vote extensions.
@@ -39,18 +33,6 @@ message QueryParamsResponse {
     (gogoproto.nullable) = false,
     (amino.dont_omitempty) = true
   ];
-}
-
-// QueryVoteExtBodyByHeightRequest defines the QueryVoteExtBodyByHeightRequest message.
-message QueryVoteExtBodyByHeightRequest {
-  // block_height is the consensus height N where the vote extension is produced.
-  // The returned body signs the transition from state N-2 to state N-1.
-  int64 block_height = 1;
-}
-
-// QueryVoteExtBodyByHeightResponse defines the QueryVoteExtBodyByHeightResponse message.
-message QueryVoteExtBodyByHeightResponse {
-  VoteExtBody vote_ext_body = 1;
 }
 
 // QueryVoteExtensionsRequest defines the QueryVoteExtensionsRequest message.

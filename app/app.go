@@ -243,6 +243,7 @@ func New(
 	app.SetPrepareProposal(app.ABCIHandler.PrepareProposalHandler())
 	app.SetProcessProposal(app.ABCIHandler.ProcessProposalHandler())
 	app.SetPreBlocker(app.ABCIHandler.PreBlocker())
+	abcihandler.RegisterQueryServer(app.GRPCQueryRouter(), app.ABCIHandler)
 
 	// register legacy modules
 	if err := app.registerIBCModules(appOpts); err != nil {
@@ -321,6 +322,14 @@ func (app *App) SimulationManager() *module.SimulationManager {
 // API server.
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
+	if err := abcihandler.RegisterQueryHandlerClient(
+		apiSvr.ClientCtx.CmdContext,
+		apiSvr.GRPCGatewayRouter,
+		abcihandler.NewQueryClient(apiSvr.ClientCtx),
+	); err != nil {
+		panic(err)
+	}
+
 	// register swagger API in app.go so that other applications can override easily
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
 		panic(err)

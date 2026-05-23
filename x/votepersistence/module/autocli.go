@@ -18,13 +18,6 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Shows the parameters of the module",
 				},
 				{
-					RpcMethod:      "VoteExtBodyByHeight",
-					Use:            "vote-ext-body-by-height [block-height]",
-					Short:          "Query vote-ext-body-by-height",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "block_height"}},
-				},
-
-				{
 					RpcMethod: "VoteExtensions",
 					Use:       "vote-extensions",
 					Short:     "Query persisted vote extensions",
