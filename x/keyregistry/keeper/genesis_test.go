@@ -31,41 +31,53 @@ func TestInitAndExportGenesis(t *testing.T) {
 
 	userCosmosPubKey := secp256k1.GenPrivKey().PubKey()
 	validatorPublicKey := cometed25519.GenPrivKey().PubKey()
-	minaPriv := secp256k1.GenPrivKey()
-	minaPubKey := minaPriv.PubKey().Bytes()
+
+	userMinaPriv, err := generateMinaKey(types.ActorType_USER)
+	require.NoError(t, err)
+
+	userMinaPk, err := userMinaPriv.ToPublicKey()
+	require.NoError(t, err)
+	userMinaPubKey := userMinaPk.Bytes()
+
+	validatorMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_VALIDATOR)
+	require.NoError(t, err)
+
+	validatorMinaPk, err := validatorMinaPriv.ToPublicKey()
+	require.NoError(t, err)
+	validatorMinaPubKey := validatorMinaPk.Bytes()
 
 	genesisState := types.GenesisState{
 		Params: types.DefaultParams(),
 		UserKeyPairs: []*types.UserPublicKeyPair{
 			{
-				MinaKey:   minaPubKey,
+				MinaKey:   userMinaPubKey,
 				CosmosKey: userCosmosPubKey.Bytes(),
 			},
 		},
 		ValidatorKeyPairs: []*types.ValidatorPublicKeyPair{
 			{
-				MinaKey:   minaPubKey,
+				MinaKey:   validatorMinaPubKey,
 				CosmosKey: validatorPublicKey.Bytes(),
 			},
 		},
 	}
 
-	err := f.keeper.InitGenesis(f.ctx, genesisState)
+	err = f.keeper.InitGenesis(f.ctx, genesisState)
 	require.NoError(t, err)
 
-	userMinaPubKey, err := f.keeper.UserGetCosmosToMina(f.ctx, userCosmosPubKey.Bytes())
+	userMinaPubKeyGot, err := f.keeper.UserGetCosmosToMina(f.ctx, userCosmosPubKey.Bytes())
 	require.NoError(t, err)
-	require.Equal(t, minaPubKey, userMinaPubKey)
+	require.Equal(t, userMinaPubKey, userMinaPubKeyGot)
 
-	userCosmosKey, err := f.keeper.UserGetMinaToCosmos(f.ctx, minaPubKey)
+	userCosmosKey, err := f.keeper.UserGetMinaToCosmos(f.ctx, userMinaPubKey)
 	require.NoError(t, err)
 	require.Equal(t, userCosmosPubKey.Bytes(), userCosmosKey)
 
-	validatorMinaPubKey, err := f.keeper.ValidatorGetCosmosToMina(f.ctx, validatorPublicKey.Bytes())
+	validatorMinaPubKeyGot, err := f.keeper.ValidatorGetCosmosToMina(f.ctx, validatorPublicKey.Bytes())
 	require.NoError(t, err)
-	require.Equal(t, minaPubKey, validatorMinaPubKey)
+	require.Equal(t, validatorMinaPubKey, validatorMinaPubKeyGot)
 
-	validatorCosmosKey, err := f.keeper.ValidatorGetMinaToCosmos(f.ctx, minaPubKey)
+	validatorCosmosKey, err := f.keeper.ValidatorGetMinaToCosmos(f.ctx, validatorMinaPubKey)
 	require.NoError(t, err)
 	require.Equal(t, validatorPublicKey.Bytes(), validatorCosmosKey)
 
@@ -81,10 +93,20 @@ func TestInitGenesisRejectsInvalidStateWithoutPartialWrite(t *testing.T) {
 	f := initFixture(t)
 
 	userCosmosPubKey := secp256k1.GenPrivKey().PubKey()
-	minaPrivKey := secp256k1.GenPrivKey()
-	minaPubKey := minaPrivKey.PubKey().Bytes()
-	secondaryMinaPrivKey := secp256k1.GenPrivKey()
-	secondaryMinaPubKey := secondaryMinaPrivKey.PubKey().Bytes()
+
+	minaPrivKey, err := generateMinaKey(types.ActorType_USER)
+	require.NoError(t, err)
+
+	minaPk, err := minaPrivKey.ToPublicKey()
+	require.NoError(t, err)
+	minaPubKey := minaPk.Bytes()
+
+	secondaryMinaPrivKey, err := generateMinaSecondaryKeyPair(types.ActorType_USER)
+	require.NoError(t, err)
+
+	secondaryMinaPk, err := secondaryMinaPrivKey.ToPublicKey()
+	require.NoError(t, err)
+	secondaryMinaPubKey := secondaryMinaPk.Bytes()
 
 	genesisState := types.GenesisState{
 		Params: types.DefaultParams(),
@@ -100,7 +122,7 @@ func TestInitGenesisRejectsInvalidStateWithoutPartialWrite(t *testing.T) {
 		},
 	}
 
-	err := f.keeper.InitGenesis(f.ctx, genesisState)
+	err = f.keeper.InitGenesis(f.ctx, genesisState)
 	require.ErrorIs(t, err, types.ErrInvalidGenesisState)
 
 	exists, err := f.keeper.UserCosmosToMinaHas(f.ctx, userCosmosPubKey.Bytes())

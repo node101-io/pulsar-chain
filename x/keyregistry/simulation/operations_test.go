@@ -14,7 +14,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/node101-io/mina-signer-go/keys"
+	"github.com/node101-io/mina-signer-go/publickey"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
@@ -25,7 +25,7 @@ func TestRandomMinaPublicKeyLength(t *testing.T) {
 
 	minaPublicKey := randomMinaPublicKey(r)
 
-	require.Len(t, minaPublicKey, keys.PublicKeyTotalByteSize)
+	require.Len(t, minaPublicKey, publickey.Size())
 }
 
 func TestBuildRegisterKeysMsgUsesUserSimulationAccountPublicKey(t *testing.T) {
@@ -40,7 +40,7 @@ func TestBuildRegisterKeysMsgUsesUserSimulationAccountPublicKey(t *testing.T) {
 	require.Equal(t, simAccount.Address.String(), msg.Creator)
 	require.Equal(t, types.ActorType_USER, msg.ActorType)
 	require.Equal(t, simAccount.PubKey.Bytes(), msg.CosmosPublicKey)
-	require.Len(t, msg.MinaPublicKey, keys.PublicKeyTotalByteSize)
+	require.Len(t, msg.MinaPublicKey, publickey.Size())
 	require.NotEmpty(t, msg.CosmosSignature)
 	require.NotEmpty(t, msg.MinaSignature)
 }
@@ -58,7 +58,7 @@ func TestBuildRegisterKeysMsgUsesValidatorConsensusPublicKey(t *testing.T) {
 	require.Equal(t, types.ActorType_VALIDATOR, msg.ActorType)
 	require.Equal(t, simAccount.ConsKey.PubKey().Bytes(), msg.CosmosPublicKey)
 	require.Len(t, msg.CosmosPublicKey, 32)
-	require.Len(t, msg.MinaPublicKey, keys.PublicKeyTotalByteSize)
+	require.Len(t, msg.MinaPublicKey, publickey.Size())
 	require.NotEmpty(t, msg.CosmosSignature)
 	require.NotEmpty(t, msg.MinaSignature)
 }
@@ -97,7 +97,7 @@ func TestRandomUniqueMinaPublicKeyRetriesDuplicate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, 2, calls)
-	require.Len(t, minaPublicKey, keys.PublicKeyTotalByteSize)
+	require.Len(t, minaPublicKey, publickey.Size())
 }
 
 func TestRandomUniqueMinaPublicKeyStopsAfterRetries(t *testing.T) {

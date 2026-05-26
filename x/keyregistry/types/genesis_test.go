@@ -11,12 +11,12 @@ import (
 func TestGenesisState_Validate(t *testing.T) {
 	userCosmosA := testBytes(33, 'a')
 	userCosmosB := testBytes(33, 'b')
-	userMinaX := testBytes(33, 'x')
-	userMinaY := testBytes(33, 'y')
+	userMinaX := testBytes(32, 'x')
+	userMinaY := testBytes(32, 'y')
 	validatorConsensusA := testBytes(32, 'a')
 	validatorConsensusB := testBytes(32, 'b')
-	validatorMinaX := testBytes(33, 'x')
-	validatorMinaY := testBytes(33, 'y')
+	validatorMinaX := testBytes(32, 'x')
+	validatorMinaY := testBytes(32, 'y')
 
 	tests := []struct {
 		desc        string

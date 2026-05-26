@@ -6,15 +6,15 @@ import (
 
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/node101-io/mina-signer-go/keys"
+	"github.com/node101-io/mina-signer-go/publickey"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
 func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*types.MsgUpdateKeysResponse, error) {
 	var err error
 
-	if len(msg.NewMinaPublicKey) != keys.PublicKeyTotalByteSize {
-		return nil, errors.Wrap(types.ErrInvalidPublicKey, "new mina public key must be compressed (33 bytes)")
+	if len(msg.NewMinaPublicKey) != publickey.Size() {
+		return nil, errors.Wrap(types.ErrInvalidPublicKey, "new mina public key must be compressed (32 bytes)")
 	}
 
 	switch msg.ActorType {
@@ -87,7 +87,13 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 	if !VerifyUserCosmosSig(msg.CosmosSignature, msg.NewMinaPublicKey, cosmosPublicKey) {
 		return types.ErrInvalidSignature
 	}
-	if !VerifyUserMinaSig(msg.NewMinaSignature, cosmosPublicKey, msg.NewMinaPublicKey) {
+
+	minaSigValidity, err := VerifyMinaSig(msg.NewMinaSignature, cosmosPublicKey, msg.NewMinaPublicKey, msg.ActorType)
+	if err != nil {
+		return err
+	}
+
+	if !minaSigValidity {
 		return types.ErrInvalidSignature
 	}
 
@@ -148,7 +154,13 @@ func (k msgServer) updateValidatorKeys(ctx context.Context, msg *types.MsgUpdate
 	if !VerifyValidatorCosmosSig(msg.CosmosSignature, msg.NewMinaPublicKey, cosmosPublicKey) {
 		return types.ErrInvalidSignature
 	}
-	if !VerifyValidatorMinaSig(msg.NewMinaSignature, cosmosPublicKey, msg.NewMinaPublicKey) {
+
+	minaSigValidity, err := VerifyMinaSig(msg.NewMinaSignature, cosmosPublicKey, msg.NewMinaPublicKey, msg.ActorType)
+	if err != nil {
+		return err
+	}
+
+	if !minaSigValidity {
 		return types.ErrInvalidSignature
 	}
 

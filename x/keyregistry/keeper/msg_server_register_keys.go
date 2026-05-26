@@ -3,29 +3,44 @@ package keeper
 import (
 	"context"
 
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/node101-io/mina-signer-go/publickey"
+	"github.com/node101-io/mina-signer-go/signature"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-// TODO: Implement Mina signature verification for users
-func VerifyUserMinaSig(sig []byte, msg, minaAddress []byte) bool {
-	return true
+func VerifyMinaSig(sig []byte, msg, minaAddress []byte, actorType types.ActorType) (bool, error) {
+
+	minaPk, err := publickey.NewPublicKeyFromBytes(minaAddress, mina.NetworkID(actorType.String()))
+	if err != nil {
+		return false, err
+	}
+
+	minaSig, err := signature.NewSignatureFromBytes(sig)
+	if err != nil {
+		return false, err
+	}
+
+	return minaPk.VerifyBytes(minaSig, msg)
 }
 
-// TODO: Implement Cosmos signature verification for users
 func VerifyUserCosmosSig(sig []byte, msg, cosmosAddress []byte) bool {
-	return true
+
+	cosmosPk := secp256k1.PubKey{
+		Key: cosmosAddress,
+	}
+
+	return cosmosPk.VerifySignature(msg, sig)
 }
 
-// TODO: Implement Mina signature verification for users
-func VerifyValidatorMinaSig(sig []byte, msg, minaAddress []byte) bool {
-	return true
-}
-
-// TODO: Implement Cosmos signature verification for users
 func VerifyValidatorCosmosSig(sig []byte, msg, cosmosAddress []byte) bool {
-	return true
+
+	var cosmosValidatorPubKey ed25519.PubKey = cosmosAddress
+
+	return cosmosValidatorPubKey.VerifySignature(msg, sig)
 }
 
 // deriveAddressFromPubkey derives the expected signer address from the provided
