@@ -115,6 +115,29 @@ func TestValidatorInvalidSignature(t *testing.T) {
 	require.ErrorIs(t, err, keyregistrytypes.ErrInvalidSignature)
 }
 
+func TestValidatorMalformedMinaSignature(t *testing.T) {
+
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	cosmosPriv := generateValidatorCosmosPrivKey()
+	minaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
+	require.NoError(t, err)
+
+	creator, cosmosPubKey, minaPubKey, cosmosSig, _, err := signValidatorRegistration(cosmosPriv, minaPriv)
+	require.NoError(t, err)
+
+	_, err = ms.RegisterKeys(f.ctx, &keyregistrytypes.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   malformedMinaSignature(),
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   minaPubKey,
+		ActorType:       keyregistrytypes.ActorType_VALIDATOR,
+	})
+	require.ErrorIs(t, err, keyregistrytypes.ErrInvalidSignature)
+}
+
 func TestValidatorInsertSecondaryKeysFail(t *testing.T) {
 
 	f := initFixture(t)

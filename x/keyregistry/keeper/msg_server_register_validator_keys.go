@@ -8,8 +8,9 @@ import (
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-// handleValidatorRegistration encapsulates the validator registration flow
-// where the Cosmos-side key is the validator public key.
+// handleValidatorRegistration encapsulates the validator registration flow.
+// The creator is the transaction signer/submitter; validator ownership is
+// proven by the provided validator key and signatures.
 func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
 	_, err := sdk.AccAddressFromBech32(msg.Creator)
 	if err != nil {

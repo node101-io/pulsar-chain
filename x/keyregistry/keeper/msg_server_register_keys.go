@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 
+	"cosmossdk.io/errors"
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -16,15 +17,20 @@ func VerifyMinaSig(sig []byte, msg, minaAddress []byte, actorType types.ActorTyp
 
 	minaPk, err := publickey.NewPublicKeyFromBytes(minaAddress, mina.NetworkID(actorType.String()))
 	if err != nil {
-		return false, err
+		return false, errors.Wrapf(types.ErrInvalidPublicKey, "invalid mina public key: %v", err)
 	}
 
 	minaSig, err := signature.NewSignatureFromBytes(sig)
 	if err != nil {
-		return false, err
+		return false, errors.Wrapf(types.ErrInvalidSignature, "invalid mina signature: %v", err)
 	}
 
-	return minaPk.VerifyBytes(minaSig, msg)
+	valid, err := minaPk.VerifyBytes(minaSig, msg)
+	if err != nil {
+		return false, errors.Wrapf(types.ErrInvalidSignature, "failed to verify mina signature: %v", err)
+	}
+
+	return valid, nil
 }
 
 func VerifyUserCosmosSig(sig []byte, msg, cosmosAddress []byte) bool {
@@ -63,8 +69,8 @@ func deriveAddressFromPubkey(actorType types.ActorType, cosmosPublicKey []byte) 
 // RegisterKeys registers a Mina and Cosmos public key pair on chain.
 // It verifies that:
 //   - the creator address is valid
-//   - the cosmos public key is a valid compressed secp256k1 key (33 bytes)
-//   - the creator address matches the provided cosmos public key
+//   - the provided public keys match the actor-specific key formats
+//   - the creator address matches the provided cosmos public key for user registrations
 //   - neither the cosmos nor mina public key is already registered
 //   - both the mina and cosmos signatures are valid
 //

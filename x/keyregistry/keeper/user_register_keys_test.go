@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
@@ -9,6 +10,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/privatekey"
+	"github.com/node101-io/mina-signer-go/publickey"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
@@ -16,6 +18,14 @@ import (
 
 var MinaPriv = []byte("7olA5Knafb5E2hJoWFzD+oamtyXIXXUZmYG9+pBMjTGIjqZTVLNGbE7DQ3Zq5YL5NMW31UMMMGgNCeEk+gyzRA==")
 var MinaSecondaryPriv = []byte("0GUKibsJSZwgiU7k4cXQQWb2QKEP9/iRFATJEUqf2Pc+GxciLMKRQGTIcInKsTzV09rjDsLmZiBl9Up71bvV6g==")
+
+func malformedMinaPublicKey() []byte {
+	return bytes.Repeat([]byte{0xff}, publickey.Size())
+}
+
+func malformedMinaSignature() []byte {
+	return []byte("bad-mina-signature")
+}
 
 func generateMinaKey(actorType types.ActorType) (*privatekey.PrivateKey, error) {
 	minaPrivKey, err := privatekey.NewPrivateKeyFromBytes([32]byte(MinaPriv), mina.NetworkID(actorType.String()))
@@ -227,6 +237,29 @@ func TestUserInvalidSignature(t *testing.T) {
 		Creator:         creator,
 		CosmosSignature: wrongCosmosSig,
 		MinaSignature:   minaSig,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_USER,
+	})
+	require.ErrorIs(t, err, types.ErrInvalidSignature)
+}
+
+func TestUserMalformedMinaSignature(t *testing.T) {
+
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	cosmosPriv := generateUserCosmosPrivKey()
+	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	require.NoError(t, err)
+
+	creator, cosmosPubKey, minaPubKey, cosmosSig, _, err := signUserRegistration(cosmosPriv, minaPriv)
+	require.NoError(t, err)
+
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   malformedMinaSignature(),
 		CosmosPublicKey: cosmosPubKey,
 		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_USER,

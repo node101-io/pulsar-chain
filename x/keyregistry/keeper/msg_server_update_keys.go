@@ -6,15 +6,17 @@ import (
 
 	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/node101-io/mina-signer-go/publickey"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
 func (k msgServer) UpdateKeys(ctx context.Context, msg *types.MsgUpdateKeys) (*types.MsgUpdateKeysResponse, error) {
 	var err error
 
-	if len(msg.NewMinaPublicKey) != publickey.Size() {
-		return nil, errors.Wrap(types.ErrInvalidPublicKey, "new mina public key must be compressed (32 bytes)")
+	if err := types.ValidateMinaPublicKey(msg.PrevMinaPublicKey); err != nil {
+		return nil, errors.Wrap(err, "previous mina public key")
+	}
+	if err := types.ValidateMinaPublicKey(msg.NewMinaPublicKey); err != nil {
+		return nil, errors.Wrap(err, "new mina public key")
 	}
 
 	switch msg.ActorType {
