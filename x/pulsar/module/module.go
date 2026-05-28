@@ -20,7 +20,7 @@ import (
 
 var (
 	_ module.AppModuleBasic = (*AppModule)(nil)
-	_ module.AppModule      = (*AppModule)(nil)
+	_ module.AppModule      = (*AppModule)(nil) //nolint:staticcheck // Legacy Cosmos SDK module interface is still required by the scaffold.
 	_ module.HasGenesis     = (*AppModule)(nil)
 
 	_ appmodule.AppModule       = (*AppModule)(nil)
