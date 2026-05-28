@@ -15,6 +15,9 @@ func (q queryServer) GetUserMinaPublicKey(ctx context.Context, req *types.QueryG
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
+	if err := types.ValidateUserCosmosPublicKey(req.UserCosmosPublicKey); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 

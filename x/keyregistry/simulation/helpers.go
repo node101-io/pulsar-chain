@@ -2,22 +2,31 @@ package simulation
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"math/rand"
 
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	simutil "github.com/cosmos/cosmos-sdk/x/simulation"
-	"github.com/node101-io/mina-signer-go/keys"
+	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
 const maxUniqueMinaKeyRetries = 20
+const maxMinaPrivateKeyRetries = 100
 
 type registeredUserPair struct {
 	pair    *types.UserPublicKeyPair
+	account simtypes.Account
+}
+
+type registeredValidatorPair struct {
+	pair    *types.ValidatorPublicKeyPair
 	account simtypes.Account
 }
 
@@ -38,33 +47,142 @@ func randomBytes(r *rand.Rand, size int) []byte {
 	return bytes
 }
 
-func randomMinaPublicKey(r *rand.Rand) []byte {
-	// TODO: Generate a real Mina public key once the crypto library is integrated.
-	return randomBytes(r, keys.PublicKeyTotalByteSize)
-}
+func randomMinaPrivateKey(reader io.Reader, actorType types.ActorType) (*privatekey.PrivateKey, error) {
+	var lastErr error
 
-func mockSimulationSignature() []byte {
-	// TODO: Generate deterministic valid signatures once real crypto verification is integrated.
-	return []byte("mock-keyregistry-signature")
-}
-
-func randomUniqueMinaPublicKey(
-	r *rand.Rand,
-	ctx context.Context,
-	hasMinaKey func(context.Context, []byte) (bool, error),
-) ([]byte, bool, error) {
-	for i := 0; i < maxUniqueMinaKeyRetries; i++ {
-		minaPublicKey := randomMinaPublicKey(r)
-		exists, err := hasMinaKey(ctx, minaPublicKey)
-		if err != nil {
-			return nil, false, err
+	for i := 0; i < maxMinaPrivateKeyRetries; i++ {
+		var seed [32]byte
+		if _, err := io.ReadFull(reader, seed[:]); err != nil {
+			return nil, err
 		}
+
+		minaPrivKey, err := privatekey.NewPrivateKeyFromBytes(seed, mina.NetworkID(actorType.String()))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		return minaPrivKey, nil
+	}
+
+	return nil, fmt.Errorf("unable to generate valid mina private key after %d retries: %w", maxMinaPrivateKeyRetries, lastErr)
+}
+
+func randomMinaKeyPair(reader io.Reader, actorType types.ActorType) (*privatekey.PrivateKey, []byte, error) {
+	minaPrivKey, err := randomMinaPrivateKey(reader, actorType)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	minaPubKey, err := minaPrivKey.ToPublicKey()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return minaPrivKey, minaPubKey.Bytes(), nil
+}
+
+func randomMinaPublicKeyForActor(reader io.Reader, actorType types.ActorType) ([]byte, error) {
+	_, minaPubKey, err := randomMinaKeyPair(reader, actorType)
+	if err != nil {
+		return nil, err
+	}
+
+	return minaPubKey, nil
+}
+
+func randomMinaPublicKey(reader io.Reader) []byte {
+	minaPubKey, err := randomMinaPublicKeyForActor(reader, types.ActorType_USER)
+	if err != nil {
+		panic(err)
+	}
+
+	return minaPubKey
+}
+
+func signMinaBytes(minaPrivKey *privatekey.PrivateKey, msg []byte) ([]byte, error) {
+	minaSig, err := minaPrivKey.SignBytes(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return minaSig.Bytes(), nil
+}
+
+func signCosmosBytesForActor(
+	actorType types.ActorType,
+	simAccount simtypes.Account,
+	msg []byte,
+) ([]byte, string, error) {
+	switch actorType {
+	case types.ActorType_USER:
+		if simAccount.PrivKey == nil {
+			return nil, "simulation account has no user private key", nil
+		}
+
+		sig, err := simAccount.PrivKey.Sign(msg)
+		if err != nil {
+			return nil, "", err
+		}
+
+		return sig, "", nil
+
+	case types.ActorType_VALIDATOR:
+		if simAccount.ConsKey == nil {
+			return nil, "simulation account has no validator consensus private key", nil
+		}
+
+		sig, err := simAccount.ConsKey.Sign(msg)
+		if err != nil {
+			return nil, "", err
+		}
+
+		return sig, "", nil
+
+	default:
+		return nil, "invalid actor type", nil
+	}
+}
+
+func randomUniqueMinaKeyPair(
+	reader io.Reader,
+	ctx context.Context,
+	actorType types.ActorType,
+	hasMinaKey func(context.Context, []byte) (bool, error),
+) (*privatekey.PrivateKey, []byte, bool, error) {
+	for i := 0; i < maxUniqueMinaKeyRetries; i++ {
+		minaPrivKey, minaPubKey, err := randomMinaKeyPair(reader, actorType)
+		if err != nil {
+			return nil, nil, false, err
+		}
+
+		exists, err := hasMinaKey(ctx, minaPubKey)
+		if err != nil {
+			return nil, nil, false, err
+		}
+
 		if !exists {
-			return minaPublicKey, true, nil
+			return minaPrivKey, minaPubKey, true, nil
 		}
 	}
 
-	return nil, false, nil
+	return nil, nil, false, nil
+}
+
+func randomUniqueMinaPublicKey(
+	reader io.Reader,
+	ctx context.Context,
+	hasMinaKey func(context.Context, []byte) (bool, error),
+) ([]byte, bool, error) {
+	_, minaPubKey, ok, err := randomUniqueMinaKeyPair(reader, ctx, types.ActorType_USER, hasMinaKey)
+	if err != nil {
+		return nil, false, err
+	}
+	if !ok {
+		return nil, false, nil
+	}
+
+	return minaPubKey, true, nil
 }
 
 func deliverKeyregistryTx(
@@ -115,7 +233,7 @@ func buildRegisterKeysMsg(
 		return nil, "cosmos public key already registered", nil
 	}
 
-	minaPublicKey, ok, err := randomUniqueMinaPublicKey(r, ctx, actorMinaKeyExistsFunc(k, actorType))
+	minaPrivKey, minaPublicKey, ok, err := randomUniqueMinaKeyPair(r, ctx, actorType, actorMinaKeyExistsFunc(k, actorType))
 	if err != nil {
 		return nil, "", err
 	}
@@ -123,12 +241,25 @@ func buildRegisterKeysMsg(
 		return nil, "unable to generate unique mina public key", nil
 	}
 
+	cosmosSignature, noOpReason, err := signCosmosBytesForActor(actorType, simAccount, minaPublicKey)
+	if err != nil {
+		return nil, "", err
+	}
+	if noOpReason != "" {
+		return nil, noOpReason, nil
+	}
+
+	minaSignature, err := signMinaBytes(minaPrivKey, cosmosPublicKey)
+	if err != nil {
+		return nil, "", err
+	}
+
 	return &types.MsgRegisterKeys{
 		Creator:         simAccount.Address.String(),
 		CosmosPublicKey: cosmosPublicKey,
 		MinaPublicKey:   minaPublicKey,
-		CosmosSignature: mockSimulationSignature(),
-		MinaSignature:   mockSimulationSignature(),
+		CosmosSignature: cosmosSignature,
+		MinaSignature:   minaSignature,
 		ActorType:       actorType,
 	}, "", nil
 }
@@ -142,9 +273,10 @@ func buildUpdateKeysMsg(
 	accs []simtypes.Account,
 ) (*types.MsgUpdateKeys, simtypes.Account, string, error) {
 	var (
-		simAccount        simtypes.Account
+		txAccount         simtypes.Account
+		signerAccount     simtypes.Account
+		cosmosPublicKey   []byte
 		prevMinaPublicKey []byte
-		noOpReason        string
 	)
 
 	switch actorType {
@@ -153,23 +285,28 @@ func buildUpdateKeysMsg(
 		if !ok {
 			return nil, simtypes.Account{}, "no registered user key pair with simulation signer", nil
 		}
-		simAccount = userPair.account
+
+		txAccount = userPair.account
+		signerAccount = userPair.account
+		cosmosPublicKey = userPair.pair.CosmosKey
 		prevMinaPublicKey = userPair.pair.MinaKey
+
 	case types.ActorType_VALIDATOR:
-		validatorPair, ok := selectRegisteredValidatorPair(r, genesis.ValidatorKeyPairs)
+		validatorPair, ok := selectRegisteredValidatorPairWithSigner(r, genesis.ValidatorKeyPairs, accs)
 		if !ok {
-			return nil, simtypes.Account{}, "no registered validator key pair", nil
+			return nil, simtypes.Account{}, "no registered validator key pair with simulation signer", nil
 		}
-		simAccount, noOpReason = randomSimulationAccount(r, accs)
-		if noOpReason != "" {
-			return nil, simtypes.Account{}, noOpReason, nil
-		}
-		prevMinaPublicKey = validatorPair.MinaKey
+
+		txAccount = validatorPair.account
+		signerAccount = validatorPair.account
+		cosmosPublicKey = validatorPair.pair.CosmosKey
+		prevMinaPublicKey = validatorPair.pair.MinaKey
+
 	default:
 		return nil, simtypes.Account{}, "invalid actor type", nil
 	}
 
-	newMinaPublicKey, ok, err := randomUniqueMinaPublicKey(r, ctx, actorMinaKeyExistsFunc(k, actorType))
+	minaPrivKey, newMinaPublicKey, ok, err := randomUniqueMinaKeyPair(r, ctx, actorType, actorMinaKeyExistsFunc(k, actorType))
 	if err != nil {
 		return nil, simtypes.Account{}, "", err
 	}
@@ -177,14 +314,27 @@ func buildUpdateKeysMsg(
 		return nil, simtypes.Account{}, "unable to generate unique mina public key", nil
 	}
 
+	cosmosSignature, noOpReason, err := signCosmosBytesForActor(actorType, signerAccount, newMinaPublicKey)
+	if err != nil {
+		return nil, simtypes.Account{}, "", err
+	}
+	if noOpReason != "" {
+		return nil, simtypes.Account{}, noOpReason, nil
+	}
+
+	newMinaSignature, err := signMinaBytes(minaPrivKey, cosmosPublicKey)
+	if err != nil {
+		return nil, simtypes.Account{}, "", err
+	}
+
 	return &types.MsgUpdateKeys{
-		Creator:           simAccount.Address.String(),
+		Creator:           txAccount.Address.String(),
 		PrevMinaPublicKey: prevMinaPublicKey,
 		NewMinaPublicKey:  newMinaPublicKey,
-		CosmosSignature:   mockSimulationSignature(),
-		NewMinaSignature:  mockSimulationSignature(),
+		CosmosSignature:   cosmosSignature,
+		NewMinaSignature:  newMinaSignature,
 		ActorType:         actorType,
-	}, simAccount, "", nil
+	}, txAccount, "", nil
 }
 
 func cosmosPublicKeyForActor(actorType types.ActorType, simAccount simtypes.Account) ([]byte, string) {
@@ -195,12 +345,14 @@ func cosmosPublicKeyForActor(actorType types.ActorType, simAccount simtypes.Acco
 		}
 
 		return simAccount.PubKey.Bytes(), ""
+
 	case types.ActorType_VALIDATOR:
 		if simAccount.ConsKey == nil {
 			return nil, "simulation account has no validator consensus key"
 		}
 
 		return simAccount.ConsKey.PubKey().Bytes(), ""
+
 	default:
 		return nil, "invalid actor type"
 	}
@@ -260,6 +412,7 @@ func selectRegisteredUserPairWithSigner(
 		if keyPair == nil {
 			continue
 		}
+
 		account, ok := accountByPublicKey[string(keyPair.CosmosKey)]
 		if !ok {
 			continue
@@ -278,20 +431,38 @@ func selectRegisteredUserPairWithSigner(
 	return candidates[r.Intn(len(candidates))], true
 }
 
-func selectRegisteredValidatorPair(
+func selectRegisteredValidatorPairWithSigner(
 	r *rand.Rand,
 	validatorKeyPairs []*types.ValidatorPublicKeyPair,
-) (*types.ValidatorPublicKeyPair, bool) {
-	var candidates []*types.ValidatorPublicKeyPair
+	accs []simtypes.Account,
+) (registeredValidatorPair, bool) {
+	accountByPublicKey := make(map[string]simtypes.Account, len(accs))
+	for _, account := range accs {
+		if account.ConsKey == nil {
+			continue
+		}
+		accountByPublicKey[string(account.ConsKey.PubKey().Bytes())] = account
+	}
+
+	var candidates []registeredValidatorPair
 	for _, keyPair := range validatorKeyPairs {
 		if keyPair == nil {
 			continue
 		}
-		candidates = append(candidates, keyPair)
+
+		account, ok := accountByPublicKey[string(keyPair.CosmosKey)]
+		if !ok {
+			continue
+		}
+
+		candidates = append(candidates, registeredValidatorPair{
+			pair:    keyPair,
+			account: account,
+		})
 	}
 
 	if len(candidates) == 0 {
-		return nil, false
+		return registeredValidatorPair{}, false
 	}
 
 	return candidates[r.Intn(len(candidates))], true
