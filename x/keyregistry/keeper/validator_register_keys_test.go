@@ -5,7 +5,6 @@ import (
 
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
-	keyregistrytypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,15 +22,15 @@ func TestValidatorRegisterKeysFail(t *testing.T) {
 	creator, _, minaPubKey, cosmosSig, minaSig, err := signValidatorRegistration(cosmosPriv, minaPriv)
 	require.NoError(t, err)
 
-	_, err = ms.RegisterKeys(f.ctx, &keyregistrytypes.MsgRegisterKeys{
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         creator,
 		CosmosSignature: cosmosSig,
 		MinaSignature:   minaSig,
 		CosmosPublicKey: []byte("bad-cosmos-key"),
 		MinaPublicKey:   minaPubKey,
-		ActorType:       keyregistrytypes.ActorType_VALIDATOR,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
-	require.ErrorIs(t, err, keyregistrytypes.ErrInvalidPublicKey)
+	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
 }
 
 func TestValidatorRegisterKeysSuccess(t *testing.T) {
@@ -46,13 +45,13 @@ func TestValidatorRegisterKeysSuccess(t *testing.T) {
 	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signValidatorRegistration(cosmosPriv, minaPriv)
 	require.NoError(t, err)
 
-	resp, err := ms.RegisterKeys(f.ctx, &keyregistrytypes.MsgRegisterKeys{
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         creator,
 		CosmosSignature: cosmosSig,
 		MinaSignature:   minaSig,
 		CosmosPublicKey: cosmosPubKey,
 		MinaPublicKey:   minaPubKey,
-		ActorType:       keyregistrytypes.ActorType_VALIDATOR,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -78,15 +77,15 @@ func TestValidatorInvalidCreatorAddress(t *testing.T) {
 	_, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signValidatorRegistration(cosmosPriv, minaPriv)
 	require.NoError(t, err)
 
-	_, err = ms.RegisterKeys(f.ctx, &keyregistrytypes.MsgRegisterKeys{
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         "creator",
 		CosmosSignature: cosmosSig,
 		MinaSignature:   minaSig,
 		CosmosPublicKey: cosmosPubKey,
 		MinaPublicKey:   minaPubKey,
-		ActorType:       keyregistrytypes.ActorType_VALIDATOR,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
-	require.ErrorIs(t, err, keyregistrytypes.ErrInvalidCreatorAddress)
+	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
 }
 
 func TestValidatorInvalidSignature(t *testing.T) {
@@ -104,15 +103,15 @@ func TestValidatorInvalidSignature(t *testing.T) {
 	wrongCosmosSig, err := generateValidatorCosmosPrivKey().Sign(minaPubKey)
 	require.NoError(t, err)
 
-	_, err = ms.RegisterKeys(f.ctx, &keyregistrytypes.MsgRegisterKeys{
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         creator,
 		CosmosSignature: wrongCosmosSig,
 		MinaSignature:   minaSig,
 		CosmosPublicKey: cosmosPubKey,
 		MinaPublicKey:   minaPubKey,
-		ActorType:       keyregistrytypes.ActorType_VALIDATOR,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
-	require.ErrorIs(t, err, keyregistrytypes.ErrInvalidSignature)
+	require.ErrorIs(t, err, types.ErrInvalidSignature)
 }
 
 func TestValidatorMalformedMinaSignature(t *testing.T) {
@@ -127,18 +126,18 @@ func TestValidatorMalformedMinaSignature(t *testing.T) {
 	creator, cosmosPubKey, minaPubKey, cosmosSig, _, err := signValidatorRegistration(cosmosPriv, minaPriv)
 	require.NoError(t, err)
 
-	_, err = ms.RegisterKeys(f.ctx, &keyregistrytypes.MsgRegisterKeys{
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         creator,
 		CosmosSignature: cosmosSig,
 		MinaSignature:   malformedMinaSignature(),
 		CosmosPublicKey: cosmosPubKey,
 		MinaPublicKey:   minaPubKey,
-		ActorType:       keyregistrytypes.ActorType_VALIDATOR,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
-	require.ErrorIs(t, err, keyregistrytypes.ErrInvalidSignature)
+	require.ErrorIs(t, err, types.ErrInvalidSignature)
 }
 
-func TestValidatorInsertSecondaryKeysFail(t *testing.T) {
+func TestValidatorRegisterKeysMalformedMinaPublicKey(t *testing.T) {
 
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
@@ -147,27 +146,95 @@ func TestValidatorInsertSecondaryKeysFail(t *testing.T) {
 	minaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
 	require.NoError(t, err)
 
+	creator, cosmosPubKey, _, cosmosSig, minaSig, err := signValidatorRegistration(cosmosPriv, minaPriv)
+	require.NoError(t, err)
+
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   minaSig,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   malformedMinaPublicKey(),
+		ActorType:       types.ActorType_VALIDATOR,
+	})
+	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
+}
+
+func TestValidatorRegisterKeysDuplicateCosmosKey(t *testing.T) {
+
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	cosmosPriv := generateValidatorCosmosPrivKey()
+	minaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
+	require.NoError(t, err)
+
+	secondaryMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_VALIDATOR)
+	require.NoError(t, err)
+
 	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signValidatorRegistration(cosmosPriv, minaPriv)
 	require.NoError(t, err)
 
-	resp, err := ms.RegisterKeys(f.ctx, &keyregistrytypes.MsgRegisterKeys{
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         creator,
 		CosmosSignature: cosmosSig,
 		MinaSignature:   minaSig,
 		CosmosPublicKey: cosmosPubKey,
 		MinaPublicKey:   minaPubKey,
-		ActorType:       keyregistrytypes.ActorType_VALIDATOR,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	_, err = ms.RegisterKeys(f.ctx, &keyregistrytypes.MsgRegisterKeys{
+	creator, cosmosPubKey, secondaryMinaPubKey, cosmosSig, secondaryMinaSig, err := signValidatorRegistration(cosmosPriv, secondaryMinaPriv)
+	require.NoError(t, err)
+
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   secondaryMinaSig,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   secondaryMinaPubKey,
+		ActorType:       types.ActorType_VALIDATOR,
+	})
+	require.ErrorIs(t, err, types.ErrValidatorSecondaryKeyExists)
+}
+
+func TestValidatorRegisterKeysDuplicateMinaKey(t *testing.T) {
+
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	firstCosmosPriv := generateValidatorCosmosPrivKey()
+	secondCosmosPriv := generateValidatorCosmosPrivKey()
+
+	minaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
+	require.NoError(t, err)
+
+	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signValidatorRegistration(firstCosmosPriv, minaPriv)
+	require.NoError(t, err)
+
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         creator,
 		CosmosSignature: cosmosSig,
 		MinaSignature:   minaSig,
 		CosmosPublicKey: cosmosPubKey,
 		MinaPublicKey:   minaPubKey,
-		ActorType:       keyregistrytypes.ActorType_VALIDATOR,
+		ActorType:       types.ActorType_VALIDATOR,
 	})
-	require.ErrorIs(t, err, keyregistrytypes.ErrValidatorSecondaryKeyExists)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err = signValidatorRegistration(secondCosmosPriv, minaPriv)
+	require.NoError(t, err)
+
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   minaSig,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_VALIDATOR,
+	})
+	require.ErrorIs(t, err, types.ErrValidatorSecondaryKeyExists)
 }

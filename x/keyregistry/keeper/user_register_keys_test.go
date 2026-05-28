@@ -166,7 +166,7 @@ func TestUserRegisterKeysSuccess(t *testing.T) {
 	require.NotNil(t, resp)
 }
 
-// TestUserInvalidCreatorAddress verifies that RegisterKeys fails with ErrInvalidCreatorAddres
+// TestUserInvalidCreatorAddress verifies that RegisterKeys fails with ErrInvalidCreatorAddress
 // when the creator field is not a valid bech32 address.
 func TestUserInvalidCreatorAddress(t *testing.T) {
 
@@ -191,7 +191,7 @@ func TestUserInvalidCreatorAddress(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
 }
 
-// TestUserInvalidSigner verifies that RegisterKeys fails with ErrInvalidSigner
+// TestUserInvalidSigner verifies that RegisterKeys fails with ErrInvalidCreatorAddress
 // when the creator address bytes do not match the provided Cosmos-side value.
 func TestUserInvalidSigner(t *testing.T) {
 
@@ -267,9 +267,32 @@ func TestUserMalformedMinaSignature(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrInvalidSignature)
 }
 
-// TestUserInsertSecondaryKeysFail verifies that registering the same key pair twice
-// fails with ErrSecondaryKeyExists on the second attempt.
-func TestUserInsertSecondaryKeysFail(t *testing.T) {
+func TestUserRegisterKeysMalformedMinaPublicKey(t *testing.T) {
+
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	cosmosPriv := generateUserCosmosPrivKey()
+	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	require.NoError(t, err)
+
+	creator, cosmosPubKey, _, cosmosSig, minaSig, err := signUserRegistration(cosmosPriv, minaPriv)
+	require.NoError(t, err)
+
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   minaSig,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   malformedMinaPublicKey(),
+		ActorType:       types.ActorType_USER,
+	})
+	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
+}
+
+// TestUserRegisterKeysDuplicateCosmosKey verifies that reusing a registered
+// Cosmos key with a different Mina key fails.
+func TestUserRegisterKeysDuplicateCosmosKey(t *testing.T) {
 
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
@@ -305,6 +328,47 @@ func TestUserInsertSecondaryKeysFail(t *testing.T) {
 		MinaSignature:   secondaryMinaSig,
 		CosmosPublicKey: cosmosPubKey,
 		MinaPublicKey:   secondaryMinaPubKey,
+		ActorType:       types.ActorType_USER,
+	})
+	require.ErrorIs(t, err, types.ErrUserSecondaryKeyExists)
+}
+
+// TestUserRegisterKeysDuplicateMinaKey verifies that reusing a registered Mina
+// key with a different Cosmos key fails.
+func TestUserRegisterKeysDuplicateMinaKey(t *testing.T) {
+
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	firstCosmosPriv := generateUserCosmosPrivKey()
+	secondCosmosPriv := generateUserCosmosPrivKey()
+
+	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	require.NoError(t, err)
+
+	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signUserRegistration(firstCosmosPriv, minaPriv)
+	require.NoError(t, err)
+
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   minaSig,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_USER,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err = signUserRegistration(secondCosmosPriv, minaPriv)
+	require.NoError(t, err)
+
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   minaSig,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_USER,
 	})
 	require.ErrorIs(t, err, types.ErrUserSecondaryKeyExists)

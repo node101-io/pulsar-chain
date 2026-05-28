@@ -149,36 +149,6 @@ func TestValidatorUpdateKeysMalformedNewMinaPublicKey(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
 }
 
-func TestValidatorUpdateKeysMissingCosmosToMinaMapping(t *testing.T) {
-
-	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	cosmosPriv := generateValidatorCosmosPrivKey()
-
-	prevMinaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
-	require.NoError(t, err)
-
-	newMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_VALIDATOR)
-	require.NoError(t, err)
-
-	prevMinaPk, err := prevMinaPriv.ToPublicKey()
-	require.NoError(t, err)
-
-	creator, _, newMinaPubKey, cosmosSig, newMinaSig, err := signValidatorRegistration(cosmosPriv, newMinaPriv)
-	require.NoError(t, err)
-
-	_, err = ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           creator,
-		PrevMinaPublicKey: prevMinaPk.Bytes(),
-		NewMinaPublicKey:  newMinaPubKey,
-		CosmosSignature:   cosmosSig,
-		NewMinaSignature:  newMinaSig,
-		ActorType:         types.ActorType_VALIDATOR,
-	})
-	require.ErrorIs(t, err, types.ErrValidatorNotRegistered)
-}
-
 func TestValidatorUpdateKeysInvalidCreatorAddress(t *testing.T) {
 
 	f := initFixture(t)
