@@ -39,7 +39,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/node101-io/mina-signer-go v0.0.0-20260526115052-f1891097c31e
+	github.com/node101-io/mina-signer-go v0.0.0-20260528161125-58c8e2225973
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
