@@ -2,6 +2,8 @@ package simulation
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"math/rand"
 
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
@@ -16,6 +18,7 @@ import (
 )
 
 const maxUniqueMinaKeyRetries = 20
+const maxMinaPrivateKeyRetries = 100
 
 type registeredUserPair struct {
 	pair    *types.UserPublicKeyPair
@@ -44,17 +47,29 @@ func randomBytes(r *rand.Rand, size int) []byte {
 	return bytes
 }
 
-func randomMinaPrivateKey(r *rand.Rand, actorType types.ActorType) (*privatekey.PrivateKey, error) {
-	var seed [32]byte
-	if _, err := r.Read(seed[:]); err != nil {
-		return nil, err
+func randomMinaPrivateKey(reader io.Reader, actorType types.ActorType) (*privatekey.PrivateKey, error) {
+	var lastErr error
+
+	for i := 0; i < maxMinaPrivateKeyRetries; i++ {
+		var seed [32]byte
+		if _, err := io.ReadFull(reader, seed[:]); err != nil {
+			return nil, err
+		}
+
+		minaPrivKey, err := privatekey.NewPrivateKeyFromBytes(seed, mina.NetworkID(actorType.String()))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		return minaPrivKey, nil
 	}
 
-	return privatekey.NewPrivateKeyFromBytes(seed, mina.NetworkID(actorType.String()))
+	return nil, fmt.Errorf("unable to generate valid mina private key after %d retries: %w", maxMinaPrivateKeyRetries, lastErr)
 }
 
-func randomMinaKeyPair(r *rand.Rand, actorType types.ActorType) (*privatekey.PrivateKey, []byte, error) {
-	minaPrivKey, err := randomMinaPrivateKey(r, actorType)
+func randomMinaKeyPair(reader io.Reader, actorType types.ActorType) (*privatekey.PrivateKey, []byte, error) {
+	minaPrivKey, err := randomMinaPrivateKey(reader, actorType)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -67,8 +82,8 @@ func randomMinaKeyPair(r *rand.Rand, actorType types.ActorType) (*privatekey.Pri
 	return minaPrivKey, minaPubKey.Bytes(), nil
 }
 
-func randomMinaPublicKeyForActor(r *rand.Rand, actorType types.ActorType) ([]byte, error) {
-	_, minaPubKey, err := randomMinaKeyPair(r, actorType)
+func randomMinaPublicKeyForActor(reader io.Reader, actorType types.ActorType) ([]byte, error) {
+	_, minaPubKey, err := randomMinaKeyPair(reader, actorType)
 	if err != nil {
 		return nil, err
 	}
@@ -76,8 +91,8 @@ func randomMinaPublicKeyForActor(r *rand.Rand, actorType types.ActorType) ([]byt
 	return minaPubKey, nil
 }
 
-func randomMinaPublicKey(r *rand.Rand) []byte {
-	minaPubKey, err := randomMinaPublicKeyForActor(r, types.ActorType_USER)
+func randomMinaPublicKey(reader io.Reader) []byte {
+	minaPubKey, err := randomMinaPublicKeyForActor(reader, types.ActorType_USER)
 	if err != nil {
 		panic(err)
 	}
@@ -130,13 +145,13 @@ func signCosmosBytesForActor(
 }
 
 func randomUniqueMinaKeyPair(
-	r *rand.Rand,
+	reader io.Reader,
 	ctx context.Context,
 	actorType types.ActorType,
 	hasMinaKey func(context.Context, []byte) (bool, error),
 ) (*privatekey.PrivateKey, []byte, bool, error) {
 	for i := 0; i < maxUniqueMinaKeyRetries; i++ {
-		minaPrivKey, minaPubKey, err := randomMinaKeyPair(r, actorType)
+		minaPrivKey, minaPubKey, err := randomMinaKeyPair(reader, actorType)
 		if err != nil {
 			return nil, nil, false, err
 		}
@@ -155,11 +170,11 @@ func randomUniqueMinaKeyPair(
 }
 
 func randomUniqueMinaPublicKey(
-	r *rand.Rand,
+	reader io.Reader,
 	ctx context.Context,
 	hasMinaKey func(context.Context, []byte) (bool, error),
 ) ([]byte, bool, error) {
-	_, minaPubKey, ok, err := randomUniqueMinaKeyPair(r, ctx, types.ActorType_USER, hasMinaKey)
+	_, minaPubKey, ok, err := randomUniqueMinaKeyPair(reader, ctx, types.ActorType_USER, hasMinaKey)
 	if err != nil {
 		return nil, false, err
 	}

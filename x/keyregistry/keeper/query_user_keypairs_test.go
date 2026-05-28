@@ -1,8 +1,6 @@
 package keeper_test
 
 import (
-	"crypto/ed25519"
-	"crypto/rand"
 	"testing"
 
 	"github.com/cometbft/cometbft/crypto/secp256k1"
@@ -23,6 +21,22 @@ func TestUserCosmosMapInvalidArgumentFail(t *testing.T) {
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
 	_, err := qs.GetUserCosmosPublicKey(f.ctx, nil)
+	require.Error(t, err)
+
+	st, _ := status.FromError(err)
+	require.Equal(t, codes.InvalidArgument, st.Code())
+}
+
+func TestUserCosmosMapInvalidMinaPublicKey(t *testing.T) {
+	f := initFixture(t)
+
+	qs := keeper.NewQueryServerImpl(f.keeper)
+	params := types.DefaultParams()
+	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
+
+	_, err := qs.GetUserCosmosPublicKey(f.ctx, &types.QueryGetUserCosmosPublicKeyRequest{
+		UserMinaPublicKey: malformedMinaPublicKey(),
+	})
 	require.Error(t, err)
 
 	st, _ := status.FromError(err)
@@ -123,6 +137,22 @@ func TestUserMinaMapInvalidArgumentFail(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, st.Code())
 }
 
+func TestUserMinaMapInvalidCosmosPublicKey(t *testing.T) {
+	f := initFixture(t)
+
+	qs := keeper.NewQueryServerImpl(f.keeper)
+	params := types.DefaultParams()
+	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
+
+	_, err := qs.GetUserMinaPublicKey(f.ctx, &types.QueryGetUserMinaPublicKeyRequest{
+		UserCosmosPublicKey: []byte("bad-cosmos-key"),
+	})
+	require.Error(t, err)
+
+	st, _ := status.FromError(err)
+	require.Equal(t, codes.InvalidArgument, st.Code())
+}
+
 // TestUserCosmosMapPubkeyNotFound verifies that GetCosmosPubKey returns
 // a NotFound error when the provided mina public key has no associated cosmos key.
 func TestUserCosmosMapPubkeyNotFound(t *testing.T) {
@@ -132,14 +162,16 @@ func TestUserCosmosMapPubkeyNotFound(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	pub, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
+	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	require.NoError(t, err)
+
+	minaPubKey, err := minaPriv.ToPublicKey()
+	require.NoError(t, err)
 
 	_, err = qs.GetUserCosmosPublicKey(f.ctx, &types.QueryGetUserCosmosPublicKeyRequest{
-		UserMinaPublicKey: pub,
+		UserMinaPublicKey: minaPubKey.Bytes(),
 	})
+	require.Error(t, err)
 
 	st, _ := status.FromError(err)
 	require.Equal(t, codes.NotFound, st.Code())
@@ -161,6 +193,7 @@ func TestUserMinaMapPubkeyNotFound(t *testing.T) {
 	_, err := qs.GetUserMinaPublicKey(f.ctx, &types.QueryGetUserMinaPublicKeyRequest{
 		UserCosmosPublicKey: pub.Bytes(),
 	})
+	require.Error(t, err)
 
 	st, _ := status.FromError(err)
 	require.Equal(t, codes.NotFound, st.Code())

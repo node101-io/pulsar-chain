@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"bytes"
 	"context"
 	"math/rand"
 	"testing"
@@ -14,18 +15,35 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/node101-io/mina-signer-go/publickey"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
 )
 
-func TestRandomMinaPublicKeyLength(t *testing.T) {
+func TestRandomMinaPrivateKeyRetriesInvalidScalar(t *testing.T) {
+	reader := bytes.NewReader(append(bytes.Repeat([]byte{0x00}, 32), validSimulationMinaPrivateKeySeed()...))
+
+	privKey, err := randomMinaPrivateKey(reader, types.ActorType_USER)
+
+	require.NoError(t, err)
+	require.NotNil(t, privKey)
+}
+
+func TestRandomMinaPrivateKeyFailsAfterRetries(t *testing.T) {
+	reader := bytes.NewReader(bytes.Repeat([]byte{0x00}, maxMinaPrivateKeyRetries*32))
+
+	privKey, err := randomMinaPrivateKey(reader, types.ActorType_USER)
+
+	require.Error(t, err)
+	require.Nil(t, privKey)
+}
+
+func TestRandomMinaPublicKeyIsValid(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 
 	minaPublicKey := randomMinaPublicKey(r)
 
-	require.Len(t, minaPublicKey, publickey.Size())
+	require.NoError(t, types.ValidateMinaPublicKey(minaPublicKey))
 }
 
 func TestBuildRegisterKeysMsgUsesUserSimulationAccountPublicKey(t *testing.T) {
@@ -40,9 +58,13 @@ func TestBuildRegisterKeysMsgUsesUserSimulationAccountPublicKey(t *testing.T) {
 	require.Equal(t, simAccount.Address.String(), msg.Creator)
 	require.Equal(t, types.ActorType_USER, msg.ActorType)
 	require.Equal(t, simAccount.PubKey.Bytes(), msg.CosmosPublicKey)
-	require.Len(t, msg.MinaPublicKey, publickey.Size())
+	require.NoError(t, types.ValidateMinaPublicKey(msg.MinaPublicKey))
 	require.NotEmpty(t, msg.CosmosSignature)
 	require.NotEmpty(t, msg.MinaSignature)
+
+	resp, err := keeper.NewMsgServerImpl(k).RegisterKeys(ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }
 
 func TestBuildRegisterKeysMsgUsesValidatorConsensusPublicKey(t *testing.T) {
@@ -58,9 +80,57 @@ func TestBuildRegisterKeysMsgUsesValidatorConsensusPublicKey(t *testing.T) {
 	require.Equal(t, types.ActorType_VALIDATOR, msg.ActorType)
 	require.Equal(t, simAccount.ConsKey.PubKey().Bytes(), msg.CosmosPublicKey)
 	require.Len(t, msg.CosmosPublicKey, 32)
-	require.Len(t, msg.MinaPublicKey, publickey.Size())
+	require.NoError(t, types.ValidateMinaPublicKey(msg.MinaPublicKey))
 	require.NotEmpty(t, msg.CosmosSignature)
 	require.NotEmpty(t, msg.MinaSignature)
+
+	resp, err := keeper.NewMsgServerImpl(k).RegisterKeys(ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+}
+
+func TestBuildUpdateKeysMsgUsesRegisteredUserPair(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
+	ctx, k := initSimulationKeeperFixture(t)
+	accs := simtypes.RandomAccounts(r, 1)
+	genesis := registerSimulationKeyPair(t, r, ctx, k, types.ActorType_USER, accs[0])
+
+	msg, simAccount, noOpReason, err := buildUpdateKeysMsg(r, ctx, k, types.ActorType_USER, genesis, accs)
+
+	require.NoError(t, err)
+	require.Empty(t, noOpReason)
+	require.True(t, simAccount.Address.Equals(accs[0].Address))
+	require.Equal(t, types.ActorType_USER, msg.ActorType)
+	require.NoError(t, types.ValidateMinaPublicKey(msg.PrevMinaPublicKey))
+	require.NoError(t, types.ValidateMinaPublicKey(msg.NewMinaPublicKey))
+	require.NotEmpty(t, msg.CosmosSignature)
+	require.NotEmpty(t, msg.NewMinaSignature)
+
+	resp, err := keeper.NewMsgServerImpl(k).UpdateKeys(ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+}
+
+func TestBuildUpdateKeysMsgUsesRegisteredValidatorPair(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
+	ctx, k := initSimulationKeeperFixture(t)
+	accs := simtypes.RandomAccounts(r, 1)
+	genesis := registerSimulationKeyPair(t, r, ctx, k, types.ActorType_VALIDATOR, accs[0])
+
+	msg, simAccount, noOpReason, err := buildUpdateKeysMsg(r, ctx, k, types.ActorType_VALIDATOR, genesis, accs)
+
+	require.NoError(t, err)
+	require.Empty(t, noOpReason)
+	require.True(t, simAccount.Address.Equals(accs[0].Address))
+	require.Equal(t, types.ActorType_VALIDATOR, msg.ActorType)
+	require.NoError(t, types.ValidateMinaPublicKey(msg.PrevMinaPublicKey))
+	require.NoError(t, types.ValidateMinaPublicKey(msg.NewMinaPublicKey))
+	require.NotEmpty(t, msg.CosmosSignature)
+	require.NotEmpty(t, msg.NewMinaSignature)
+
+	resp, err := keeper.NewMsgServerImpl(k).UpdateKeys(ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }
 
 func TestSelectRegisteredUserPairWithSigner(t *testing.T) {
@@ -97,7 +167,7 @@ func TestRandomUniqueMinaPublicKeyRetriesDuplicate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, 2, calls)
-	require.Len(t, minaPublicKey, publickey.Size())
+	require.NoError(t, types.ValidateMinaPublicKey(minaPublicKey))
 }
 
 func TestRandomUniqueMinaPublicKeyStopsAfterRetries(t *testing.T) {
@@ -113,6 +183,35 @@ func TestRandomUniqueMinaPublicKeyStopsAfterRetries(t *testing.T) {
 	require.False(t, ok)
 	require.Nil(t, minaPublicKey)
 	require.Equal(t, maxUniqueMinaKeyRetries, calls)
+}
+
+func registerSimulationKeyPair(
+	t *testing.T,
+	r *rand.Rand,
+	ctx context.Context,
+	k keeper.Keeper,
+	actorType types.ActorType,
+	simAccount simtypes.Account,
+) *types.GenesisState {
+	t.Helper()
+
+	msg, noOpReason, err := buildRegisterKeysMsg(r, ctx, k, actorType, simAccount)
+	require.NoError(t, err)
+	require.Empty(t, noOpReason)
+
+	resp, err := keeper.NewMsgServerImpl(k).RegisterKeys(ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	genesis, err := k.ExportGenesis(ctx)
+	require.NoError(t, err)
+
+	return genesis
+}
+
+func validSimulationMinaPrivateKeySeed() []byte {
+	seed := [32]byte([]byte("7olA5Knafb5E2hJoWFzD+oamtyXIXXUZmYG9+pBMjTGIjqZTVLNGbE7DQ3Zq5YL5NMW31UMMMGgNCeEk+gyzRA=="))
+	return seed[:]
 }
 
 func initSimulationKeeperFixture(t *testing.T) (context.Context, keeper.Keeper) {
