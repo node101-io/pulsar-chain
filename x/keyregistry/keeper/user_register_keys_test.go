@@ -240,7 +240,7 @@ func TestUserInsertSecondaryKeysFail(t *testing.T) {
 	require.NotNil(t, resp)
 
 	// Second registration with the same keys should fail.
-	resp, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
 		Creator:         creatorAddr.String(),
 		CosmosSignature: mockCosmosSignature,
 		MinaSignature:   mockMinaSignature,
