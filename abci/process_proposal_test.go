@@ -78,7 +78,7 @@ func TestProcessProposalRejectsNotEnoughPowerWithoutError(t *testing.T) {
 	firstValidator := newTestBondedValidator(t, 1)
 	secondValidator := newTestBondedValidator(t, 2)
 	firstSecondaryKey := validSecondaryKey()
-	secondSecondaryKey := secondaryKeyFromSeed([32]byte{2})
+	secondSecondaryKey := secondaryKeyFromSeed(t, [32]byte{2})
 	handler := newQuorumTestHandler(t, []stakingtypes.Validator{firstValidator, secondValidator}, map[string]SecondaryKey{
 		string(consensusPubKeyBytes(t, firstValidator)):  firstSecondaryKey,
 		string(consensusPubKeyBytes(t, secondValidator)): secondSecondaryKey,

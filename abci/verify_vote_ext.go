@@ -5,8 +5,6 @@ import (
 
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/node101-io/mina-signer-go/constants"
-	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
@@ -50,7 +48,7 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		if err != nil {
 			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
 		}
-		poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+		poseidonHash := poseidon.NewPoseidon()
 
 		if err := verifyVoteExtSig(poseidonHash, req.VoteExtension, body, minaKey, ActionsReducedRoot); err != nil {
 			if errors.Is(err, keyregistryTypes.ErrValidatorNotRegistered) ||

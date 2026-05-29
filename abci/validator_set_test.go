@@ -11,7 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/node101-io/mina-signer-go/keys"
+	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/stretchr/testify/require"
 )
 
@@ -95,7 +95,7 @@ func TestCalculateValidatorSetRootSuccess(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, root)
-	require.NotEmpty(t, root.Bytes())
+	require.NotEmpty(t, root)
 }
 
 func TestConstructVoteExtBodyUsesVoteExtensionHeightSemantics(t *testing.T) {
@@ -182,12 +182,12 @@ func consensusPubKeyBytes(t *testing.T, validator stakingtypes.Validator) []byte
 func testMinaPublicKey(t *testing.T, seed [32]byte) []byte {
 	t.Helper()
 
-	privateKey := keys.NewPrivateKeyFromBytes(seed)
-	publicKey := privateKey.ToPublicKey()
-	publicKeyBz, err := publicKey.Marshal()
+	privateKey, err := privatekey.NewPrivateKeyFromBytes(seed, NetworkID)
+	require.NoError(t, err)
+	publicKey, err := privateKey.ToPublicKey()
 	require.NoError(t, err)
 
-	return publicKeyBz
+	return publicKey.Bytes()
 }
 
 type validatorSetTestStakingKeeper struct {

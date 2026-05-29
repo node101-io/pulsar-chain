@@ -3,12 +3,23 @@ package abci
 import (
 	"errors"
 
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // ActionsReducedRoot is a temporary bridge-domain placeholder used in vote-extension
 // body signing until the Bridge module provides the real reduced root.
 const ActionsReducedRoot string = "pulsar"
+
+const (
+	// VoteExtBodyHashPrefix domain-separates vote extension body hashes.
+	VoteExtBodyHashPrefix = "pulsar-vote-ext-body"
+	// ValidatorSetEntryHashPrefix domain-separates each validator entry before it
+	// is appended to the validator-set merkle list.
+	ValidatorSetEntryHashPrefix = "pulsar-validator"
+	// ValidatorSetMerklePrefix domain-separates the validator-set merkle list root.
+	ValidatorSetMerklePrefix = "pulsar-validator-set"
+)
 
 // VoteExtMarker reserves the first proposal transaction slot for ABCI vote-extension payloads.
 // Honest proposers prepend exactly one marker-prefixed internal payload before user transactions.
@@ -26,7 +37,7 @@ const MinPulsarVoteExtensionHeight int64 = 2
 
 // TODO: Move this into chain/app configuration before non-local testnets. The
 // Mina signature domain must match on both signing and verification paths.
-const NetworkID string = "testnet"
+const NetworkID mina.NetworkID = mina.TestNet
 
 var (
 	// Consensus parameter errors.
