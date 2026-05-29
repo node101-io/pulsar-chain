@@ -114,19 +114,17 @@ func runVerifyVoteExtensions(args []string, stdout io.Writer) error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-
-	conn, err := grpc.DialContext(
-		ctx,
+	conn, err := grpc.NewClient(
 		*grpcAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 	)
 	if err != nil {
-		return fmt.Errorf("connect to %s: %w", *grpcAddr, err)
+		return fmt.Errorf("create gRPC client for %s: %w", *grpcAddr, err)
 	}
 	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
 
 	votePersistenceClient := votepersistencetypes.NewQueryClient(conn)
 	abciClient := abcitypes.NewQueryClient(conn)
