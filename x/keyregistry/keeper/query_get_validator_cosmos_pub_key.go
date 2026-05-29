@@ -16,6 +16,9 @@ func (q queryServer) GetValidatorCosmosPubKey(ctx context.Context, req *types.Qu
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
+	if err := types.ValidateMinaPublicKey(req.ValidatorMinaPubKey); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 

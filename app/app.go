@@ -97,7 +97,7 @@ type App struct {
 	AuthzKeeper           authzkeeper.Keeper
 	ConsensusParamsKeeper consensuskeeper.Keeper
 	CircuitBreakerKeeper  circuitkeeper.Keeper
-	ParamsKeeper          paramskeeper.Keeper
+	ParamsKeeper          paramskeeper.Keeper //nolint:staticcheck // Legacy params keeper is still required for IBC params migration.
 
 	// ibc keepers
 	IBCKeeper           *ibckeeper.Keeper

@@ -46,7 +46,10 @@ func (k msgServer) persistUserRegistration(ctx context.Context, msg *types.MsgRe
 		return errors.Wrap(types.ErrUserSecondaryKeyExists, "provided cosmos or mina public key is already registered")
 	}
 
-	minaSigValidity := VerifyUserMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey)
+	minaSigValidity, err := VerifyMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey, msg.ActorType)
+	if err != nil {
+		return err
+	}
 	cosmosSigValidity := VerifyUserCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
 	if !minaSigValidity || !cosmosSigValidity {
 		return errors.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")

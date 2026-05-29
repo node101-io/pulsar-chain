@@ -4,19 +4,30 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
+	cometed25519 "github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/crypto/secp256k1"
+	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	minaPrivFixtureA = "7olA5Knafb5E2hJoWFzD+oamtyXIXXUZmYG9+pBMjTGIjqZTVLNGbE7DQ3Zq5YL5NMW31UMMMGgNCeEk+gyzRA=="
+	minaPrivFixtureB = "0GUKibsJSZwgiU7k4cXQQWb2QKEP9/iRFATJEUqf2Pc+GxciLMKRQGTIcInKsTzV09rjDsLmZiBl9Up71bvV6g=="
+)
+
 func TestGenesisState_Validate(t *testing.T) {
-	userCosmosA := testBytes(33, 'a')
-	userCosmosB := testBytes(33, 'b')
-	userMinaX := testBytes(33, 'x')
-	userMinaY := testBytes(33, 'y')
-	validatorConsensusA := testBytes(32, 'a')
-	validatorConsensusB := testBytes(32, 'b')
-	validatorMinaX := testBytes(33, 'x')
-	validatorMinaY := testBytes(33, 'y')
+	userCosmosA := secp256k1.GenPrivKey().PubKey().Bytes()
+	userCosmosB := secp256k1.GenPrivKey().PubKey().Bytes()
+	userMinaX := minaPublicKeyBytes(t, minaPrivFixtureA, types.ActorType_USER)
+	userMinaY := minaPublicKeyBytes(t, minaPrivFixtureB, types.ActorType_USER)
+	malformedMinaKey := testBytes(32, 0xff)
+
+	validatorConsensusA := cometed25519.GenPrivKey().PubKey().Bytes()
+	validatorConsensusB := cometed25519.GenPrivKey().PubKey().Bytes()
+	validatorMinaX := minaPublicKeyBytes(t, minaPrivFixtureA, types.ActorType_VALIDATOR)
+	validatorMinaY := minaPublicKeyBytes(t, minaPrivFixtureB, types.ActorType_VALIDATOR)
 
 	tests := []struct {
 		desc        string
@@ -71,10 +82,28 @@ func TestGenesisState_Validate(t *testing.T) {
 			expectedErr: types.ErrInvalidPublicKey,
 		},
 		{
+			desc: "malformed user mina key is invalid",
+			genState: withDefaultParams(&types.GenesisState{
+				UserKeyPairs: []*types.UserPublicKeyPair{
+					userPair(userCosmosA, malformedMinaKey),
+				},
+			}),
+			expectedErr: types.ErrInvalidPublicKey,
+		},
+		{
 			desc: "invalid validator key length is invalid",
 			genState: withDefaultParams(&types.GenesisState{
 				ValidatorKeyPairs: []*types.ValidatorPublicKeyPair{
 					validatorPair(testBytes(33, 'a'), validatorMinaX),
+				},
+			}),
+			expectedErr: types.ErrInvalidPublicKey,
+		},
+		{
+			desc: "malformed validator mina key is invalid",
+			genState: withDefaultParams(&types.GenesisState{
+				ValidatorKeyPairs: []*types.ValidatorPublicKeyPair{
+					validatorPair(validatorConsensusA, malformedMinaKey),
 				},
 			}),
 			expectedErr: types.ErrInvalidPublicKey,
@@ -130,6 +159,21 @@ func TestGenesisState_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func minaPublicKeyBytes(t *testing.T, seed string, actorType types.ActorType) []byte {
+	t.Helper()
+
+	var privateKeyBytes [32]byte
+	copy(privateKeyBytes[:], []byte(seed))
+
+	privKey, err := privatekey.NewPrivateKeyFromBytes(privateKeyBytes, mina.NetworkID(actorType.String()))
+	require.NoError(t, err)
+
+	pubKey, err := privKey.ToPublicKey()
+	require.NoError(t, err)
+
+	return pubKey.Bytes()
 }
 
 func testBytes(length int, value byte) []byte {

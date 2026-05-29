@@ -18,6 +18,11 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=$(APPNAME) \
 	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT)
 
 BUILD_FLAGS := -ldflags '$(ldflags)'
+GO_BUILD_TAGS ?= purego
+GO_TAGS_FLAG := $(if $(strip $(GO_BUILD_TAGS)),-tags=$(GO_BUILD_TAGS),)
+GOFLAGS_WITH_TAGS := $(strip $(GOFLAGS) $(GO_TAGS_FLAG))
+GOFLAGS_WITH_LINT_TAGS := $(strip $(GOFLAGS_WITH_TAGS) -buildvcs=false)
+GOLANGCI_LINT_CACHE ?= /tmp/golangci-lint-cache
 
 ##############
 ###  Test  ###
@@ -25,25 +30,26 @@ BUILD_FLAGS := -ldflags '$(ldflags)'
 
 test-unit:
 	@echo Running unit tests...
-	@go test -mod=readonly -v -timeout 30m ./...
+	@go test $(GO_TAGS_FLAG) -mod=readonly -v -timeout 30m ./...
 
 test-race:
 	@echo Running unit tests with race condition reporting...
-	@go test -mod=readonly -v -race -timeout 30m ./...
+	@go test $(GO_TAGS_FLAG) -mod=readonly -v -race -timeout 30m ./...
 
 test-cover:
 	@echo Running unit tests and creating coverage report...
-	@go test -mod=readonly -v -timeout 30m -coverprofile=$(COVER_FILE) -covermode=atomic ./...
+	@go test $(GO_TAGS_FLAG) -mod=readonly -v -timeout 30m -coverprofile=$(COVER_FILE) -covermode=atomic ./...
 	@go tool cover -html=$(COVER_FILE) -o $(COVER_HTML_FILE)
 	@rm $(COVER_FILE)
 
 bench:
 	@echo Running unit tests with benchmarking...
-	@go test -mod=readonly -v -timeout 30m -bench=. ./...
+	@go test $(GO_TAGS_FLAG) -mod=readonly -v -timeout 30m -bench=. ./...
 
-test: govet govulncheck test-unit
+test: govet test-unit
+security: govulncheck
 
-.PHONY: test test-unit test-race test-cover bench
+.PHONY: test test-unit test-race test-cover bench security
 
 #################
 ###  Install  ###
@@ -55,7 +61,7 @@ install:
 	@echo "--> ensure dependencies have not been modified"
 	@go mod verify
 	@echo "--> installing $(APPNAME)d"
-	@go install $(BUILD_FLAGS) -mod=readonly ./cmd/$(APPNAME)d
+	@go install $(GO_TAGS_FLAG) $(BUILD_FLAGS) -mod=readonly ./cmd/$(APPNAME)d
 
 .PHONY: all install
 
@@ -81,11 +87,11 @@ proto-gen:
 
 lint:
 	@echo "--> Running linter"
-	@go tool github.com/golangci/golangci-lint/cmd/golangci-lint run ./... --timeout 15m
+	@GOLANGCI_LINT_CACHE="$(GOLANGCI_LINT_CACHE)" GOFLAGS="$(GOFLAGS_WITH_LINT_TAGS)" go tool github.com/golangci/golangci-lint/cmd/golangci-lint run ./... --timeout 15m
 
 lint-fix:
 	@echo "--> Running linter and fixing issues"
-	@go tool github.com/golangci/golangci-lint/cmd/golangci-lint run ./... --fix --timeout 15m
+	@GOLANGCI_LINT_CACHE="$(GOLANGCI_LINT_CACHE)" GOFLAGS="$(GOFLAGS_WITH_LINT_TAGS)" go tool github.com/golangci/golangci-lint/cmd/golangci-lint run ./... --fix --timeout 15m
 
 .PHONY: lint lint-fix
 
@@ -95,10 +101,10 @@ lint-fix:
 
 govet:
 	@echo Running go vet...
-	@go vet ./...
+	@go vet $(GO_TAGS_FLAG) ./...
 
 govulncheck:
 	@echo Running govulncheck...
-	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@GOFLAGS="$(GOFLAGS_WITH_TAGS)" go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 .PHONY: govet govulncheck
