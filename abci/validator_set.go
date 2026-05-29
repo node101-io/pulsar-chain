@@ -3,15 +3,13 @@ package abci
 import (
 	"bytes"
 	"fmt"
-	"math/big"
 	"sort"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/node101-io/mina-signer-go/constants"
-	"github.com/node101-io/mina-signer-go/field"
-	"github.com/node101-io/mina-signer-go/keys"
+	"github.com/node101-io/mina-signer-go/merklelist"
 	"github.com/node101-io/mina-signer-go/poseidon"
+	"github.com/node101-io/mina-signer-go/publickey"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
@@ -89,21 +87,17 @@ func sortValidatorsByPower(validators []stakingTypes.ValidatorI) error {
 	return nil
 }
 
-// TODO: Move this helper to mina-signer-go
-func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []stakingTypes.ValidatorI, poseidonHash *poseidon.Poseidon) (*big.Int, error) {
+func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []stakingTypes.ValidatorI, poseidonHash *poseidon.Poseidon) ([]byte, error) {
 	if poseidonHash == nil {
 		return nil, ErrValidatorSetRootHashFailed
 	}
 
-	input := []*big.Int{big.NewInt(0)}
-	merkleRoot := poseidonHash.Hash(input)
-	if merkleRoot == nil {
-		return nil, ErrValidatorSetRootHashFailed
+	validatorRoot, err := merklelist.NewMerkleList(ValidatorSetMerklePrefix)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrValidatorSetRootHashFailed, err)
 	}
 
 	for _, validator := range valInfo {
-		input = []*big.Int{}
-
 		consAddr, err := validator.GetConsAddr()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read validator consensus address: %w", err)
@@ -132,36 +126,24 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 			return nil, err
 		}
 
-		var minaPublicKey keys.PublicKey
-		err = minaPublicKey.Unmarshal(minaPubKey)
-		if err != nil {
+		if _, err := publickey.NewPublicKeyFromBytes(minaPubKey, NetworkID); err != nil {
 			return nil, err
 		}
 
-		input = append(input, minaPublicKey.X)
-		if minaPublicKey.IsOdd {
-			input = append(input, big.NewInt(1))
-		} else {
-			input = append(input, big.NewInt(0))
+		entryBytes, err := encodeValidatorSetEntryForHash(minaPubKey, validator.GetConsensusPower(sdk.DefaultPowerReduction))
+		if err != nil {
+			return nil, err
 		}
-		power := new(big.Int).SetInt64(validator.GetConsensusPower(sdk.DefaultPowerReduction))
-		input = append(input, power)
-
-		hashOfAddr := poseidonHash.Hash(input)
-		if hashOfAddr == nil {
-			return nil, ErrValidatorSetRootHashFailed
+		entryHash, err := poseidonHash.HashWithPrefix(ValidatorSetEntryHashPrefix, entryBytes)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrValidatorSetRootHashFailed, err)
 		}
-
-		input = []*big.Int{merkleRoot, hashOfAddr}
-
-		merkleRoot = poseidonHash.Hash(input)
-		if merkleRoot == nil {
-			return nil, ErrValidatorSetRootHashFailed
+		if err := validatorRoot.Append(entryHash); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrValidatorSetRootHashFailed, err)
 		}
 	}
 
-	return merkleRoot, nil
-
+	return validatorRoot.Root(), nil
 }
 
 func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, voteExtensionHeight int64) (votepersistenceTypes.VoteExtBody, error) {
@@ -186,7 +168,7 @@ func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, voteExtensionHeight 
 		return votepersistenceTypes.VoteExtBody{}, err
 	}
 
-	poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+	poseidonHash := poseidon.NewPoseidon()
 
 	nextValidatorSetRoot, err := h.calculateValidatorSetRoot(ctx, nextValidatorSet, poseidonHash)
 	if err != nil {
@@ -197,7 +179,7 @@ func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, voteExtensionHeight 
 	}
 
 	return votepersistenceTypes.VoteExtBody{
-		NextValidatorSetHash: nextValidatorSetRoot.Bytes(),
+		NextValidatorSetHash: nextValidatorSetRoot,
 		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
 		CurrentBlockHeight:   signedStateHeight,
 		ActionsReducedRoot:   ActionsReducedRoot,

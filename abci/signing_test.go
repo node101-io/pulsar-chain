@@ -2,13 +2,10 @@ package abci
 
 import (
 	"errors"
-	"math/big"
 	"testing"
 
-	"github.com/node101-io/mina-signer-go/constants"
-	"github.com/node101-io/mina-signer-go/field"
-	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/mina-signer-go/poseidon"
+	"github.com/node101-io/mina-signer-go/privatekey"
 	votepersistencetypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 	"github.com/stretchr/testify/require"
 )
@@ -21,8 +18,7 @@ func TestSignVoteExtBodyRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, signature)
 
-	minaPublicKey, err := secondaryKey.PublicKey.MarshalBytes()
-	require.NoError(t, err)
+	minaPublicKey := secondaryKey.PublicKey.Bytes()
 
 	poseidonHash := testPoseidonHash()
 	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, ActionsReducedRoot))
@@ -33,8 +29,7 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 	body := validVoteExtBody()
 	signature, err := secondaryKey.SignVoteExtBody(body)
 	require.NoError(t, err)
-	minaPublicKey, err := secondaryKey.PublicKey.MarshalBytes()
-	require.NoError(t, err)
+	minaPublicKey := secondaryKey.PublicKey.Bytes()
 
 	tests := []struct {
 		name        string
@@ -112,41 +107,42 @@ func TestSecondaryKeyValidate(t *testing.T) {
 
 	require.ErrorIs(t, (SecondaryKey{}).Validate(), ErrMissingSecondaryKey)
 
-	zeroPrivateKey := keys.PrivateKey{Value: big.NewInt(0)}
-	zeroValueKey := SecondaryKey{
-		SecretKey: &zeroPrivateKey,
-		PublicKey: validKey.PublicKey,
-	}
-	require.ErrorIs(t, zeroValueKey.Validate(), ErrInvalidSecondaryKey)
-
-	otherPrivateKey := keys.NewPrivateKeyFromBytes([32]byte{
+	otherPrivateKey, err := privatekey.NewPrivateKeyFromBytes([32]byte{
 		2, 2, 2, 2, 2, 2, 2, 2,
 		2, 2, 2, 2, 2, 2, 2, 2,
 		2, 2, 2, 2, 2, 2, 2, 2,
 		2, 2, 2, 2, 2, 2, 2, 2,
-	})
-	otherPublicKey := otherPrivateKey.ToPublicKey()
+	}, NetworkID)
+	require.NoError(t, err)
+	otherPublicKey, err := otherPrivateKey.ToPublicKey()
+	require.NoError(t, err)
 	mismatchedKey := SecondaryKey{
 		SecretKey: validKey.SecretKey,
-		PublicKey: &otherPublicKey,
+		PublicKey: otherPublicKey,
 	}
 
-	err := mismatchedKey.Validate()
+	err = mismatchedKey.Validate()
 	require.True(t, errors.Is(err, ErrInvalidSecondaryKey))
 }
 
 func validSecondaryKey() SecondaryKey {
-	privateKey := keys.NewPrivateKeyFromBytes([32]byte{
+	privateKey, err := privatekey.NewPrivateKeyFromBytes([32]byte{
 		1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1,
-	})
-	publicKey := privateKey.ToPublicKey()
+	}, NetworkID)
+	if err != nil {
+		panic(err)
+	}
+	publicKey, err := privateKey.ToPublicKey()
+	if err != nil {
+		panic(err)
+	}
 
 	return SecondaryKey{
-		SecretKey: &privateKey,
-		PublicKey: &publicKey,
+		SecretKey: privateKey,
+		PublicKey: publicKey,
 	}
 }
 
@@ -160,5 +156,5 @@ func validVoteExtBody() votepersistencetypes.VoteExtBody {
 }
 
 func testPoseidonHash() *poseidon.Poseidon {
-	return poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+	return poseidon.NewPoseidon()
 }

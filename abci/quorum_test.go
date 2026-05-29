@@ -9,7 +9,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/node101-io/mina-signer-go/keys"
+	"github.com/node101-io/mina-signer-go/privatekey"
 	keyregistrytypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	votepersistencetypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 	"github.com/stretchr/testify/require"
@@ -19,7 +19,7 @@ func TestValidatePayloadVoteExtensionsReturnsVerifiedVotesAndPower(t *testing.T)
 	firstValidator := newTestBondedValidator(t, 10)
 	secondValidator := newTestBondedValidator(t, 5)
 	firstMinaKey := validSecondaryKey()
-	secondMinaKey := secondaryKeyFromSeed([32]byte{2})
+	secondMinaKey := secondaryKeyFromSeed(t, [32]byte{2})
 	body := validVoteExtBody()
 	handler := newQuorumTestHandler(t, []stakingtypes.Validator{firstValidator, secondValidator}, map[string]SecondaryKey{
 		string(consensusPubKeyBytes(t, firstValidator)):  firstMinaKey,
@@ -184,9 +184,7 @@ func newQuorumTestHandler(t *testing.T, validators []stakingtypes.Validator, key
 
 	cosmosToMina := make(map[string][]byte, len(keyByConsensusPubKey))
 	for consensusPubKey, secondaryKey := range keyByConsensusPubKey {
-		minaPublicKey, err := secondaryKey.PublicKey.Marshal()
-		require.NoError(t, err)
-		cosmosToMina[consensusPubKey] = minaPublicKey
+		cosmosToMina[consensusPubKey] = secondaryKey.PublicKey.Bytes()
 	}
 
 	if votePersistenceKeeper == nil {
@@ -215,23 +213,24 @@ func signedPayloadVoteExtension(t *testing.T, validator stakingtypes.Validator, 
 	}
 }
 
-func secondaryKeyFromSeed(seed [32]byte) SecondaryKey {
-	privateKey := keys.NewPrivateKeyFromBytes(seed)
-	publicKey := privateKey.ToPublicKey()
+func secondaryKeyFromSeed(t *testing.T, seed [32]byte) SecondaryKey {
+	t.Helper()
+
+	privateKey, err := privatekey.NewPrivateKeyFromBytes(seed, NetworkID)
+	require.NoError(t, err)
+	publicKey, err := privateKey.ToPublicKey()
+	require.NoError(t, err)
 
 	return SecondaryKey{
-		SecretKey: &privateKey,
-		PublicKey: &publicKey,
+		SecretKey: privateKey,
+		PublicKey: publicKey,
 	}
 }
 
 func testMinaPublicKeyFromSecondaryKey(t *testing.T, secondaryKey SecondaryKey) []byte {
 	t.Helper()
 
-	publicKeyBz, err := secondaryKey.PublicKey.Marshal()
-	require.NoError(t, err)
-
-	return publicKeyBz
+	return secondaryKey.PublicKey.Bytes()
 }
 
 func markedPayloadTx(t *testing.T, payload Payload) []byte {

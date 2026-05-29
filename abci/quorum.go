@@ -5,8 +5,6 @@ import (
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/node101-io/mina-signer-go/constants"
-	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
@@ -76,7 +74,7 @@ func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, voteExtensi
 		return verifiedPayloadVoteExtensions{}, err
 	}
 
-	poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+	poseidonHash := poseidon.NewPoseidon()
 	seenConsensusPubKeys := make(map[consPubKeyKey]struct{})
 	verifiedVotes := verifiedPayloadVoteExtensions{totalPower: totalPower}
 

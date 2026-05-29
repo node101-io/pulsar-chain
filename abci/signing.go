@@ -1,35 +1,35 @@
 package abci
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
-	"math/big"
 
-	"github.com/node101-io/mina-signer-go/constants"
-	"github.com/node101-io/mina-signer-go/field"
-	"github.com/node101-io/mina-signer-go/keys"
 	"github.com/node101-io/mina-signer-go/poseidon"
+	"github.com/node101-io/mina-signer-go/privatekey"
+	"github.com/node101-io/mina-signer-go/publickey"
 	minasignature "github.com/node101-io/mina-signer-go/signature"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
 type SecondaryKey struct {
-	SecretKey *keys.PrivateKey
-	PublicKey *keys.PublicKey
+	SecretKey *privatekey.PrivateKey
+	PublicKey *publickey.PublicKey
 }
 
 func (s SecondaryKey) Validate() error {
-	if s.SecretKey == nil || s.SecretKey.Value == nil {
+	if s.SecretKey == nil {
 		return ErrMissingSecondaryKey
 	}
-	if s.SecretKey.Value.Sign() == 0 {
-		return fmt.Errorf("%w: private key value must be non-zero", ErrInvalidSecondaryKey)
-	}
-	if s.PublicKey == nil || s.PublicKey.X == nil {
+	if s.PublicKey == nil {
 		return ErrMissingSecondaryKey
 	}
 
-	derivedPublicKey := s.SecretKey.ToPublicKey()
-	if !s.PublicKey.Equal(derivedPublicKey) {
+	derivedPublicKey, err := s.SecretKey.ToPublicKey()
+	if err != nil {
+		return fmt.Errorf("%w: failed to derive public key: %v", ErrInvalidSecondaryKey, err)
+	}
+	if !bytes.Equal(s.PublicKey.Bytes(), derivedPublicKey.Bytes()) {
 		return fmt.Errorf("%w: public key does not match private key", ErrInvalidSecondaryKey)
 	}
 
@@ -37,80 +37,95 @@ func (s SecondaryKey) Validate() error {
 }
 
 func (s SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBody) ([]byte, error) {
-	if s.SecretKey == nil || s.SecretKey.Value == nil {
+	if s.SecretKey == nil {
 		return nil, ErrMissingSecondaryKey
 	}
-	if s.SecretKey.Value.Sign() == 0 {
-		return nil, fmt.Errorf("%w: private key value must be non-zero", ErrInvalidSecondaryKey)
-	}
 
-	poseidonHash := poseidon.CreatePoseidon(*field.Fp, constants.PoseidonParamsKimchiFp)
+	poseidonHash := poseidon.NewPoseidon()
 	msgHash, err := hashVoteExtBody(poseidonHash, voteExtBody)
 	if err != nil {
 		return nil, err
 	}
 
-	sig, err := s.SecretKey.SignFieldElement(msgHash, NetworkID)
+	sig, err := s.SecretKey.SignBytes(msgHash)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrVoteExtSigningFailed, err)
 	}
 
-	bz, err := sig.MarshalBytes()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrVoteExtSignatureMarshalFailed, err)
-	}
-
-	return bz, nil
+	return sig.Bytes(), nil
 }
 
-func verifyVoteExtSig(poseidon *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) error {
+func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) error {
 	if message.ActionsReducedRoot != reducedRoot {
 		return ErrInvalidVoteExtReducedRoot
 	}
 
-	var pubKey keys.PublicKey
-	if err := pubKey.Unmarshal(minaKey); err != nil {
+	pubKey, err := publickey.NewPublicKeyFromBytes(minaKey, NetworkID)
+	if err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidVoteExtMinaPublicKey, err)
 	}
 
-	msgHash, err := hashVoteExtBody(poseidon, message)
+	msgHash, err := hashVoteExtBody(poseidonHash, message)
 	if err != nil {
 		return err
 	}
 
-	var sig minasignature.Signature
-	if err := sig.UnmarshalBytes(signature); err != nil {
+	sig, err := minasignature.NewSignatureFromBytes(signature)
+	if err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidVoteExtSignatureEncoding, err)
 	}
 
-	if !pubKey.VerifyFieldElement(&sig, msgHash, NetworkID) {
+	valid, err := pubKey.VerifyBytes(sig, msgHash)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidVoteExtSignature, err)
+	}
+	if !valid {
 		return ErrInvalidVoteExtSignature
 	}
 
 	return nil
 }
 
-func hashVoteExtBody(poseidonHash *poseidon.Poseidon, voteExtBody votepersistenceTypes.VoteExtBody) (*big.Int, error) {
+func hashVoteExtBody(poseidonHash *poseidon.Poseidon, voteExtBody votepersistenceTypes.VoteExtBody) ([]byte, error) {
 	if poseidonHash == nil {
 		return nil, ErrVoteExtBodyHashFailed
 	}
 
-	innerHash := poseidonHash.Hash([]*big.Int{
-		new(big.Int).SetBytes(voteExtBody.NextValidatorSetHash),
-		new(big.Int).SetBytes(voteExtBody.CurrentStateRoot),
-		big.NewInt(voteExtBody.CurrentBlockHeight),
-	})
-	if innerHash == nil {
-		return nil, ErrVoteExtBodyHashFailed
+	if voteExtBody.CurrentBlockHeight < 0 {
+		return nil, fmt.Errorf("%w: current block height must be non-negative", ErrVoteExtBodyHashFailed)
 	}
 
-	msgHash := poseidonHash.Hash([]*big.Int{
-		innerHash,
-		new(big.Int).SetBytes([]byte(voteExtBody.ActionsReducedRoot)),
-	})
-	if msgHash == nil {
-		return nil, ErrVoteExtBodyHashFailed
+	hash, err := poseidonHash.HashWithPrefix(VoteExtBodyHashPrefix, encodeVoteExtBodyForHash(voteExtBody))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrVoteExtBodyHashFailed, err)
 	}
 
-	return msgHash, nil
+	return hash, nil
+}
+
+func encodeVoteExtBodyForHash(voteExtBody votepersistenceTypes.VoteExtBody) []byte {
+	var bz []byte
+	bz = appendLengthPrefixedBytes(bz, voteExtBody.NextValidatorSetHash)
+	bz = appendLengthPrefixedBytes(bz, voteExtBody.CurrentStateRoot)
+	bz = binary.BigEndian.AppendUint64(bz, uint64(voteExtBody.CurrentBlockHeight))
+	bz = appendLengthPrefixedBytes(bz, []byte(voteExtBody.ActionsReducedRoot))
+
+	return bz
+}
+
+func encodeValidatorSetEntryForHash(minaPublicKey []byte, consensusPower int64) ([]byte, error) {
+	if consensusPower < 0 {
+		return nil, fmt.Errorf("%w: consensus power must be non-negative", ErrValidatorSetRootHashFailed)
+	}
+
+	var bz []byte
+	bz = appendLengthPrefixedBytes(bz, minaPublicKey)
+	bz = binary.BigEndian.AppendUint64(bz, uint64(consensusPower))
+
+	return bz, nil
+}
+
+func appendLengthPrefixedBytes(dst []byte, value []byte) []byte {
+	dst = binary.BigEndian.AppendUint32(dst, uint32(len(value)))
+	return append(dst, value...)
 }
