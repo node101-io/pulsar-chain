@@ -24,7 +24,7 @@ func TestVoteExtBodyByHeightRejectsHeightBelowMinimum(t *testing.T) {
 	handler := &ABCIHandler{}
 
 	response, err := handler.VoteExtBodyByHeight(
-		sdk.WrapSDKContext(sdk.Context{}.WithBlockHeight(10)),
+		sdk.Context{}.WithBlockHeight(10),
 		&QueryVoteExtBodyByHeightRequest{VoteExtensionHeight: MinPulsarVoteExtensionHeight - 1},
 	)
 
@@ -36,7 +36,7 @@ func TestVoteExtBodyByHeightRejectsCurrentOrFutureHeight(t *testing.T) {
 	handler := &ABCIHandler{}
 
 	response, err := handler.VoteExtBodyByHeight(
-		sdk.WrapSDKContext(sdk.Context{}.WithBlockHeight(10)),
+		sdk.Context{}.WithBlockHeight(10),
 		&QueryVoteExtBodyByHeightRequest{VoteExtensionHeight: 10},
 	)
 
@@ -51,7 +51,7 @@ func TestVoteExtBodyByHeightReturnsBodyForMinimumHeight(t *testing.T) {
 	})
 
 	response, err := handler.VoteExtBodyByHeight(
-		sdk.WrapSDKContext(sdk.Context{}.WithBlockHeight(3)),
+		sdk.Context{}.WithBlockHeight(3),
 		&QueryVoteExtBodyByHeightRequest{VoteExtensionHeight: 2},
 	)
 
@@ -70,7 +70,7 @@ func TestVoteExtBodyByHeightReturnsBodyForLaterHeight(t *testing.T) {
 	})
 
 	response, err := handler.VoteExtBodyByHeight(
-		sdk.WrapSDKContext(sdk.Context{}.WithBlockHeight(10)),
+		sdk.Context{}.WithBlockHeight(10),
 		&QueryVoteExtBodyByHeightRequest{VoteExtensionHeight: voteExtensionHeight},
 	)
 
@@ -86,7 +86,7 @@ func TestVoteExtBodyByHeightReturnsNotFoundForMissingMinaKey(t *testing.T) {
 	handler := newVoteExtBodyQueryTestHandler(t, []stakingtypes.Validator{validator}, nil)
 
 	response, err := handler.VoteExtBodyByHeight(
-		sdk.WrapSDKContext(sdk.Context{}.WithBlockHeight(10)),
+		sdk.Context{}.WithBlockHeight(10),
 		&QueryVoteExtBodyByHeightRequest{VoteExtensionHeight: 8},
 	)
 
@@ -101,7 +101,7 @@ func TestVoteExtBodyByHeightReturnsInternalForMalformedMinaKey(t *testing.T) {
 	})
 
 	response, err := handler.VoteExtBodyByHeight(
-		sdk.WrapSDKContext(sdk.Context{}.WithBlockHeight(10)),
+		sdk.Context{}.WithBlockHeight(10),
 		&QueryVoteExtBodyByHeightRequest{VoteExtensionHeight: 8},
 	)
 
@@ -113,7 +113,7 @@ func TestVoteExtBodyByHeightReturnsInternalForStakingReadFailure(t *testing.T) {
 	handler := &ABCIHandler{stakingKeeper: processProposalFailingStakingKeeper{}}
 
 	response, err := handler.VoteExtBodyByHeight(
-		sdk.WrapSDKContext(sdk.Context{}.WithBlockHeight(10)),
+		sdk.Context{}.WithBlockHeight(10),
 		&QueryVoteExtBodyByHeightRequest{VoteExtensionHeight: 8},
 	)
 
