@@ -21,10 +21,15 @@ faucet:
 validators:
 - name: alice
   bonded: 100000000pmina
+  app:
+      vote_extension:
+        priv_key: "OhOfQtGMXqcrbfCRPEe4DjLUNHaOcD3RrWuRPBGO82M="
 - name: validator1
   bonded: 200000000pmina
 - name: validator2
   bonded: 100000000pmina
+
+ 
 
 genesis:
   app_state:
@@ -40,3 +45,7 @@ genesis:
         #- mina_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
           # Validator consensus public key placeholder: ed25519, zero bytes, 32 bytes.
         #  cosmos_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  consensus:
+    params:
+      abci:
+        vote_extensions_enable_height: "1"
