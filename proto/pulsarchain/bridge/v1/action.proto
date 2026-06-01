@@ -1,0 +1,18 @@
+syntax = "proto3";
+package pulsarchain.bridge.v1;
+
+option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
+
+enum ActionType {
+  UNSPECIFIED = 0;
+  DEPOSIT = 1;
+  WITHDRAW = 2;
+}
+
+
+message Action {
+    int64 block_height = 1;
+    bytes fee_payer = 2;
+    ActionType action_type = 3;
+    int64 amount = 4;
+}

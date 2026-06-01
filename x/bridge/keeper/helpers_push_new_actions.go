@@ -11,27 +11,21 @@ import (
 	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-const (
-	UNSPECIFIED = iota
-	DEPOSIT
-	WITHDRAW
-)
-
-func (k *Keeper) isValid(ctx context.Context, act *FetchedAction) (bool, error) {
+func (k *Keeper) isValid(ctx context.Context, act *types.Action) (bool, error) {
 	if k.keyRegistryKeeper == nil {
 		return false, types.ErrKeyRegistryKeeperNotConfigured
 	}
-	switch act.actionType {
-	case DEPOSIT:
+	switch act.ActionType {
+	case types.ActionType_DEPOSIT:
 		return k.isValidDeposit(ctx, act)
-	case WITHDRAW:
+	case types.ActionType_WITHDRAW:
 		return k.isValidWithdrawal(ctx, act)
 	default:
 		return false, types.ErrUnspecified
 	}
 }
 
-func (k *Keeper) isValidDeposit(ctx context.Context, act *FetchedAction) (bool, error) {
+func (k *Keeper) isValidDeposit(ctx context.Context, act *types.Action) (bool, error) {
 
 	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, act.FeePayer)
 	if err != nil {
@@ -43,7 +37,7 @@ func (k *Keeper) isValidDeposit(ctx context.Context, act *FetchedAction) (bool, 
 	return true, nil
 }
 
-func (k *Keeper) isValidWithdrawal(ctx context.Context, act *FetchedAction) (bool, error) {
+func (k *Keeper) isValidWithdrawal(ctx context.Context, act *types.Action) (bool, error) {
 
 	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, act.FeePayer)
 	if err != nil {
@@ -70,23 +64,23 @@ func (k *Keeper) isValidWithdrawal(ctx context.Context, act *FetchedAction) (boo
 	return true, nil
 }
 
-func (k *Keeper) apply(ctx context.Context, act *FetchedAction) error {
+func (k *Keeper) apply(ctx context.Context, act *types.Action) error {
 
 	if k.bankKeeper == nil {
 		return types.ErrBankKeeperNotConfigured
 	}
 
-	switch act.actionType {
-	case DEPOSIT:
+	switch act.ActionType {
+	case types.ActionType_DEPOSIT:
 		return k.applyDeposit(ctx, act)
-	case WITHDRAW:
+	case types.ActionType_WITHDRAW:
 		return k.applyWithdrawal(ctx, act)
 	default:
 		return types.ErrUnspecified
 	}
 }
 
-func (k *Keeper) applyDeposit(ctx context.Context, act *FetchedAction) error {
+func (k *Keeper) applyDeposit(ctx context.Context, act *types.Action) error {
 
 	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, act.FeePayer)
 	if err != nil {
@@ -107,7 +101,7 @@ func (k *Keeper) applyDeposit(ctx context.Context, act *FetchedAction) error {
 	return k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, addr, coins)
 }
 
-func (k *Keeper) applyWithdrawal(ctx context.Context, act *FetchedAction) error {
+func (k *Keeper) applyWithdrawal(ctx context.Context, act *types.Action) error {
 
 	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, act.FeePayer)
 	if err != nil {

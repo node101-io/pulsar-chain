@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/node101-io/mina-signer-go/address"
+	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
 
 var ArchiveGraphQLEndpoint = "https://devnet-archive-node-api.gcp.o1test.net"
@@ -25,13 +26,6 @@ type GraphQLResponse struct {
 
 type GraphQLRequest struct {
 	Query string `json:"query"`
-}
-
-type FetchedAction struct {
-	BlockHeight int
-	FeePayer    []byte
-	actionType  int
-	Amount      int64
 }
 
 const (
@@ -133,7 +127,7 @@ query GetMinaBlockHeights {
 	return int64(result.Data.NetworkState.MaxBlockHeight.PendingMaxBlockHeight), nil
 }
 
-func fetchActions(contractAddress string, start, end int64) ([]FetchedAction, error) {
+func fetchActions(contractAddress string, start, end int64) ([]types.Action, error) {
 	blockLimit := int(end - start + 1)
 	if blockLimit < 1 {
 		blockLimit = 1
@@ -214,7 +208,7 @@ query ($actionInput: ActionFilterOptionsInput!, $blockQuery: BlockQueryInput!, $
 		}
 	}
 
-	actions := make([]FetchedAction, 0)
+	actions := make([]types.Action, 0)
 	for _, block := range result.Data.Actions {
 		for _, actionData := range block.ActionData {
 			fetchedAction, err := fetchedActionFromActionData(
@@ -236,13 +230,13 @@ query ($actionInput: ActionFilterOptionsInput!, $blockQuery: BlockQueryInput!, $
 	return actions, nil
 }
 
-func fetchedActionFromActionData(blockHeight int, feePayer string, data []string) (*FetchedAction, error) {
+func fetchedActionFromActionData(blockHeight int, feePayer string, data []string) (*types.Action, error) {
 	actionType, amount, err := contractActionTypeAndAmountFromActionData(data)
 	if err != nil {
 		return nil, err
 	}
 
-	if actionType == UNSPECIFIED {
+	if actionType == types.ActionType_UNSPECIFIED {
 		return nil, nil
 	}
 
@@ -251,15 +245,15 @@ func fetchedActionFromActionData(blockHeight int, feePayer string, data []string
 		return nil, err
 	}
 
-	return &FetchedAction{
-		BlockHeight: blockHeight,
+	return &types.Action{
+		BlockHeight: int64(blockHeight),
 		FeePayer:    minaAddr,
-		actionType:  actionType,
+		ActionType:  actionType,
 		Amount:      amount,
 	}, nil
 }
 
-func contractActionTypeAndAmountFromActionData(data []string) (int, int64, error) {
+func contractActionTypeAndAmountFromActionData(data []string) (types.ActionType, int64, error) {
 	if len(data) < pulsarActionFieldCount {
 		return 0, 0, fmt.Errorf("invalid action data length: got %d fields, expected at least %d", len(data), pulsarActionFieldCount)
 	}
@@ -278,12 +272,9 @@ func contractActionTypeAndAmountFromActionData(data []string) (int, int64, error
 		return 0, 0, fmt.Errorf("invalid non-positive action amount: %d", amount)
 	}
 
-	switch actionType {
-	case UNSPECIFIED:
-		return actionType, 0, nil
-	case DEPOSIT, WITHDRAW:
-		return actionType, amount, nil
-	default:
-		return UNSPECIFIED, 0, nil
+	if actionType == int(types.ActionType_UNSPECIFIED) {
+		return types.ActionType_UNSPECIFIED, 0, nil
 	}
+
+	return types.ActionType(actionType), amount, nil
 }

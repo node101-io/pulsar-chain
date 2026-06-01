@@ -28,7 +28,7 @@ func TestFetchActions(t *testing.T) {
 
 	for _, act := range actions {
 
-		fmt.Println(act.actionType, act.Amount, act.BlockHeight, act.FeePayer)
+		fmt.Println(act.ActionType, act.Amount, act.BlockHeight, act.FeePayer)
 
 	}
 
