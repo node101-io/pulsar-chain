@@ -3,6 +3,8 @@ package app
 import (
 	"time"
 
+	_ "github.com/node101-io/pulsar-chain/x/bridge/module"
+	bridgemoduletypes "github.com/node101-io/pulsar-chain/x/bridge/types"
 	_ "github.com/node101-io/pulsar-chain/x/keyregistry/module"
 	keyregistrymoduletypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	_ "github.com/node101-io/pulsar-chain/x/pulsar/module"
@@ -88,6 +90,7 @@ var (
 		{Account: nft.ModuleName},
 		{Account: ibctransfertypes.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: icatypes.ModuleName},
+		{Account: bridgemoduletypes.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
 	}
 
 	// blocked account addresses
@@ -98,6 +101,7 @@ var (
 		stakingtypes.BondedPoolName,
 		stakingtypes.NotBondedPoolName,
 		nft.ModuleName,
+		bridgemoduletypes.ModuleName,
 		// We allow the following module accounts to receive funds:
 		// govtypes.ModuleName
 	}
@@ -133,6 +137,7 @@ var (
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
+						bridgemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/beginBlockers
 					},
 					EndBlockers: []string{
@@ -144,6 +149,7 @@ var (
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
+						bridgemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/endBlockers
 					},
 					// The following is mostly only needed when ModuleName != StoreKey name.
@@ -183,6 +189,7 @@ var (
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
+						bridgemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/initGenesis
 					},
 				}),
@@ -278,6 +285,10 @@ var (
 			{
 				Name:   epochstypes.ModuleName,
 				Config: appconfig.WrapAny(&epochsmodulev1.Module{}),
+			},
+			{
+				Name:   bridgemoduletypes.ModuleName,
+				Config: appconfig.WrapAny(&bridgemoduletypes.Module{}),
 			},
 			{
 				Name:   pulsarmoduletypes.ModuleName,
