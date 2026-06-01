@@ -37,7 +37,7 @@ func initFixture(t *testing.T) *fixture {
 
 	authority := authtypes.NewModuleAddress(types.GovModuleName)
 
-	merkleList, err := minasignergo.NewMerkleList("")
+	merkleList, err := minasignergo.NewMerkleList(keeper.MerkleListPrefix)
 	if err != nil {
 		t.Fatal("failed to create merkle list %v", err)
 	}

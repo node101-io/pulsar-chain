@@ -13,6 +13,7 @@ import (
 )
 
 const BridgeStateItemName string = "bridge_state"
+const MerkleListPrefix = ""
 
 type Keeper struct {
 	storeService corestore.KVStoreService

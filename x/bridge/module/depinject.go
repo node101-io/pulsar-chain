@@ -53,7 +53,7 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		authority = authtypes.NewModuleAddressOrBech32Address(in.Config.Authority)
 	}
 
-	merklelist, err := minasignergo.NewMerkleList("")
+	merklelist, err := minasignergo.NewMerkleList(keeper.MerkleListPrefix)
 	if err != nil {
 		return ModuleOutputs{}
 	}
