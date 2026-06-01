@@ -92,10 +92,7 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 		return nil, ErrValidatorSetRootHashFailed
 	}
 
-	validatorRoot, err := merklelist.NewMerkleList(ValidatorSetMerklePrefix)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrValidatorSetRootHashFailed, err)
-	}
+	validatorRoot := merklelist.NewMerkleList(ValidatorSetMerklePrefix)
 
 	for _, validator := range valInfo {
 		consAddr, err := validator.GetConsAddr()

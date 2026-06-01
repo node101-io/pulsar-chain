@@ -1674,6 +1674,8 @@ github.com/nishanths/predeclared v0.2.2 h1:V2EPdZPliZymNAn79T8RkNApBjMmVKh5XRpLm
 github.com/nishanths/predeclared v0.2.2/go.mod h1:RROzoN6TnGQupbC+lqggsOlcgysk3LMK/HI84Mp280c=
 github.com/node101-io/mina-signer-go v0.0.0-20260528161125-58c8e2225973 h1:BcjpAAukbhts/ttAtpzof+Ek91D7Kc5wQ2txPbhZOMI=
 github.com/node101-io/mina-signer-go v0.0.0-20260528161125-58c8e2225973/go.mod h1:vGZaN+qwZwJzSm5WQ4hTs95ULhysLLhz7kV+SLj4Abc=
+github.com/node101-io/mina-signer-go v0.0.0-20260601165332-9dc4888e6819 h1:PYnyy92xzQ8oNjsydAenjPURHvOcTu6lsPiJ0iFYCoI=
+github.com/node101-io/mina-signer-go v0.0.0-20260601165332-9dc4888e6819/go.mod h1:vGZaN+qwZwJzSm5WQ4hTs95ULhysLLhz7kV+SLj4Abc=
 github.com/nunnatsa/ginkgolinter v0.19.1 h1:mjwbOlDQxZi9Cal+KfbEJTCz327OLNfwNvoZ70NJ+c4=
 github.com/nunnatsa/ginkgolinter v0.19.1/go.mod h1:jkQ3naZDmxaZMXPWaS9rblH+i+GWXQCaS/JFIWcOH2s=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=

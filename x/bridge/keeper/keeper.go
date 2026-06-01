@@ -8,12 +8,10 @@ import (
 	"cosmossdk.io/core/address"
 	corestore "cosmossdk.io/core/store"
 	"github.com/cosmos/cosmos-sdk/codec"
-	minasignergo "github.com/node101-io/mina-signer-go/merklelist"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
 
 const BridgeStateItemName string = "bridge_state"
-const MerkleListPrefix = ""
 
 type Keeper struct {
 	storeService corestore.KVStoreService
@@ -27,8 +25,6 @@ type Keeper struct {
 	Params      collections.Item[types.Params]
 	BridgeState collections.Item[types.BridgeState]
 
-	MerkleList *minasignergo.MerkleList
-
 	bankKeeper        types.BankKeeper
 	keyRegistryKeeper types.KeyregistryKeeper
 }
@@ -40,7 +36,6 @@ func NewKeeper(
 	authority []byte,
 	bankKeeper types.BankKeeper,
 	keyRegistryKeeper types.KeyregistryKeeper,
-	merkleList *minasignergo.MerkleList,
 ) Keeper {
 	if _, err := addressCodec.BytesToString(authority); err != nil {
 		panic(fmt.Sprintf("invalid authority address %s: %s", authority, err))
@@ -63,7 +58,6 @@ func NewKeeper(
 		),
 		bankKeeper:        bankKeeper,
 		keyRegistryKeeper: keyRegistryKeeper,
-		MerkleList:        merkleList,
 	}
 
 	schema, err := sb.Build()
