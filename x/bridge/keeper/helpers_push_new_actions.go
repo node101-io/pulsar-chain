@@ -33,7 +33,7 @@ func (k *Keeper) isValid(ctx context.Context, act *FetchedAction) (bool, error) 
 
 func (k *Keeper) isValidDeposit(ctx context.Context, act *FetchedAction) (bool, error) {
 
-	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, []byte(act.FeePayer))
+	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, act.FeePayer)
 	if err != nil {
 		return false, err
 	}
@@ -44,7 +44,8 @@ func (k *Keeper) isValidDeposit(ctx context.Context, act *FetchedAction) (bool, 
 }
 
 func (k *Keeper) isValidWithdrawal(ctx context.Context, act *FetchedAction) (bool, error) {
-	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, []byte(act.FeePayer))
+
+	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, act.FeePayer)
 	if err != nil {
 		return false, err
 	}
@@ -52,7 +53,7 @@ func (k *Keeper) isValidWithdrawal(ctx context.Context, act *FetchedAction) (boo
 		return false, nil
 	}
 
-	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, []byte(act.FeePayer))
+	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, act.FeePayer)
 	if err != nil {
 		return false, err
 	}
@@ -87,7 +88,7 @@ func (k *Keeper) apply(ctx context.Context, act *FetchedAction) error {
 
 func (k *Keeper) applyDeposit(ctx context.Context, act *FetchedAction) error {
 
-	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, []byte(act.FeePayer))
+	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, act.FeePayer)
 	if err != nil {
 		return err
 	}
@@ -108,7 +109,7 @@ func (k *Keeper) applyDeposit(ctx context.Context, act *FetchedAction) error {
 
 func (k *Keeper) applyWithdrawal(ctx context.Context, act *FetchedAction) error {
 
-	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, []byte(act.FeePayer))
+	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, act.FeePayer)
 	if err != nil {
 		return err
 	}

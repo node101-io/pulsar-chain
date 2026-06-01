@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/node101-io/mina-signer-go/address"
 )
 
 var ArchiveGraphQLEndpoint = "https://devnet-archive-node-api.gcp.o1test.net"
@@ -27,7 +29,7 @@ type GraphQLRequest struct {
 
 type FetchedAction struct {
 	BlockHeight int
-	FeePayer    string
+	FeePayer    []byte
 	actionType  int
 	Amount      int64
 }
@@ -244,9 +246,14 @@ func fetchedActionFromActionData(blockHeight int, feePayer string, data []string
 		return nil, nil
 	}
 
+	minaAddr, err := address.NewAddress(feePayer).Marshal()
+	if err != nil {
+		return nil, err
+	}
+
 	return &FetchedAction{
 		BlockHeight: blockHeight,
-		FeePayer:    feePayer,
+		FeePayer:    minaAddr,
 		actionType:  actionType,
 		Amount:      amount,
 	}, nil
