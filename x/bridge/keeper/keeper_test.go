@@ -13,6 +13,7 @@ import (
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
+	minasignergo "github.com/node101-io/mina-signer-go/merklelist"
 	"github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	module "github.com/node101-io/pulsar-chain/x/bridge/module"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
@@ -36,6 +37,11 @@ func initFixture(t *testing.T) *fixture {
 
 	authority := authtypes.NewModuleAddress(types.GovModuleName)
 
+	merkleList, err := minasignergo.NewMerkleList("")
+	if err != nil {
+		t.Fatal("failed to create merkle list %v", err)
+	}
+
 	k := keeper.NewKeeper(
 		storeService,
 		encCfg.Codec,
@@ -43,6 +49,7 @@ func initFixture(t *testing.T) *fixture {
 		authority,
 		nil,
 		nil,
+		merkleList,
 	)
 
 	// Initialize params

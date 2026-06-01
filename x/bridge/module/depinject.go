@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
+	minasignergo "github.com/node101-io/mina-signer-go/merklelist"
 	"github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
@@ -51,6 +52,12 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 	if in.Config.Authority != "" {
 		authority = authtypes.NewModuleAddressOrBech32Address(in.Config.Authority)
 	}
+
+	merklelist, err := minasignergo.NewMerkleList("")
+	if err != nil {
+		return ModuleOutputs{}
+	}
+
 	k := keeper.NewKeeper(
 		in.StoreService,
 		in.Cdc,
@@ -58,6 +65,7 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		authority,
 		in.BankKeeper,
 		in.KeyregistryKeeper,
+		merklelist,
 	)
 	m := NewAppModule(in.Cdc, k, in.AuthKeeper, in.BankKeeper)
 
