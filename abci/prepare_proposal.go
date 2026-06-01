@@ -1,27 +1,29 @@
-package vote_ext
+package abci
 
 import (
-	abci "github.com/cometbft/cometbft/abci/types"
+	"fmt"
+
+	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func (h *AbciHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
+func (h *ABCIHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 
-	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+	return func(ctx sdk.Context, req *cometabci.RequestPrepareProposal) (*cometabci.ResponsePrepareProposal, error) {
 
-		cp := ctx.ConsensusParams()
-		if cp.Abci == nil {
-			return &abci.ResponsePrepareProposal{Txs: req.Txs}, ErrUnableToReadConsensusParams
+		shouldIncludeVoteExtensions, err := shouldRequireProposalPayloadAtHeight(ctx, req.GetHeight())
+		if err != nil {
+			return nil, err
 		}
 
-		if req.Height < cp.Abci.VoteExtensionsEnableHeight+AdditionalVoteExtHeight+1 {
-			return &abci.ResponsePrepareProposal{Txs: req.Txs}, nil
+		if !shouldIncludeVoteExtensions {
+			return &cometabci.ResponsePrepareProposal{Txs: req.Txs}, nil
 		}
 
 		votes := req.LocalLastCommit.Votes
 		pl, err := h.constructPayload(ctx, req.GetHeight(), votes)
 		if err != nil {
-			return &abci.ResponsePrepareProposal{Txs: req.Txs}, err
+			return nil, err
 		}
 
 		bz, err := pl.Marshal()
@@ -29,14 +31,26 @@ func (h *AbciHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 			return nil, err
 		}
 
-		// prefix makes it easier to identify the vote extension
-		extTx := append([]byte(VoteExtMarker), bz...)
+		// The marker reserves the first transaction slot for the internal
+		// vote-extension payload; remaining entries are normal user transactions.
+		extTx := append(voteExtMarkerBytes[:len(voteExtMarkerBytes):len(voteExtMarkerBytes)], bz...)
+		if int64(len(extTx)) > req.MaxTxBytes {
+			return nil, fmt.Errorf("%w: payload tx size %d exceeds max tx bytes %d", ErrVoteExtPayloadTooLarge, len(extTx), req.MaxTxBytes)
+		}
 
-		// prepend to existing txs
 		txs := make([][]byte, 0, len(req.Txs)+1)
 		txs = append(txs, extTx)
-		txs = append(txs, req.Txs...)
 
-		return &abci.ResponsePrepareProposal{Txs: txs}, nil
+		totalBytes := int64(len(extTx))
+		for _, tx := range req.Txs {
+			txSize := int64(len(tx))
+			if totalBytes+txSize > req.MaxTxBytes {
+				break
+			}
+			txs = append(txs, tx)
+			totalBytes += txSize
+		}
+
+		return &cometabci.ResponsePrepareProposal{Txs: txs}, nil
 	}
 }

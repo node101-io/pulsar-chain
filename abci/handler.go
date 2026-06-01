@@ -1,30 +1,51 @@
-package vote_ext
+package abci
 
-import (
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
-	"github.com/node101-io/mina-signer-go/keys"
-	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
-	votepersistence "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
-)
+import "reflect"
 
-type SecondaryKey struct {
-	SecretKey *keys.PrivateKey
-	PublicKey *keys.PublicKey
-}
-
-type AbciHandler struct {
+type ABCIHandler struct {
 	secondaryKey          SecondaryKey
-	stakingKeeper         stakingkeeper.Keeper
-	keyregistryKeeper     keyregistrykeeper.Keeper
-	votePersistenceKeeper votepersistence.Keeper
+	stakingKeeper         StakingKeeper
+	keyregistryKeeper     KeyregistryKeeper
+	votePersistenceKeeper VotePersistenceKeeper
 }
 
-func NewABCIHandler(secondaryKey SecondaryKey, stakingKeeper stakingkeeper.Keeper,
-	keyregistryKeeper keyregistrykeeper.Keeper, votepersistenceKeeper votepersistence.Keeper) *AbciHandler {
-	return &AbciHandler{
+func NewABCIHandler(
+	secondaryKey SecondaryKey,
+	stakingKeeper StakingKeeper,
+	keyregistryKeeper KeyregistryKeeper,
+	votepersistenceKeeper VotePersistenceKeeper,
+) (*ABCIHandler, error) {
+	if err := secondaryKey.Validate(); err != nil {
+		return nil, err
+	}
+	if isNilDependency(stakingKeeper) {
+		return nil, ErrMissingStakingKeeper
+	}
+	if isNilDependency(keyregistryKeeper) {
+		return nil, ErrMissingKeyregistryKeeper
+	}
+	if isNilDependency(votepersistenceKeeper) {
+		return nil, ErrMissingVotePersistenceKeeper
+	}
+
+	return &ABCIHandler{
 		secondaryKey:          secondaryKey,
 		stakingKeeper:         stakingKeeper,
 		keyregistryKeeper:     keyregistryKeeper,
 		votePersistenceKeeper: votepersistenceKeeper,
+	}, nil
+}
+
+func isNilDependency(value any) bool {
+	if value == nil {
+		return true
+	}
+
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return rv.IsNil()
+	default:
+		return false
 	}
 }

@@ -1,79 +1,64 @@
-package vote_ext
+package abci
 
 import (
-	"encoding/hex"
-	"fmt"
-
-	abci "github.com/cometbft/cometbft/abci/types"
+	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func (h *AbciHandler) PreBlocker() sdk.PreBlocker {
-	return func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
+	return func(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 
-		// If height is smaller than 4, we won't have any votes thus skip the proposal
-		if req.GetHeight() < 4 {
+		shouldPersistVoteExtensions, err := shouldRequireProposalPayloadAtHeight(ctx, req.GetHeight())
+		if err != nil {
+			return nil, err
+		}
+		if !shouldPersistVoteExtensions {
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
-		err := h.votePersistenceKeeper.Clear(ctx)
+		pl, payloadFound, err := extractPayload(req.Txs)
+		if err != nil {
+			return nil, err
+		}
+		if !payloadFound {
+			return nil, ErrVoteExtPayloadNotFound
+		}
+
+		proposalHeight := req.GetHeight()
+		// Vote extensions included in a proposal at height N are produced and
+		// requested by consensus at height N-1. That is the height encoded in
+		// Payload.vote_extension_height and used to reconstruct the signed body.
+		voteExtensionHeight := proposalHeight - 1
+		// A vote extension at height N-1 signs the transition from state N-3
+		// to state N-2, so persistence is keyed by the signed source state height.
+		signedStateHeight := voteExtensionHeight - 2
+
+		if err := validatePayloadHeight(pl, voteExtensionHeight); err != nil {
+			return nil, err
+		}
+
+		body, err := h.constructVoteExtBody(ctx, voteExtensionHeight)
 		if err != nil {
 			return nil, err
 		}
 
-		pl, err := extractPayload(req.Txs)
+		verifiedVotes, err := h.validatePayloadVoteExtensions(ctx, voteExtensionHeight, pl, body)
 		if err != nil {
 			return nil, err
 		}
 
-		currentValidatorSet, err := h.getValidatorSet(ctx, req.GetHeight()-2)
-		if err != nil {
+		if !hasAtLeastTwoThirdsPower(verifiedVotes.signedPower, verifiedVotes.totalPower) {
+			return nil, ErrNotEnoughStakePower
+		}
+
+		if err := h.votePersistenceKeeper.Clear(ctx); err != nil {
 			return nil, err
 		}
 
-		currentValidatorSetMap := make(map[string][]byte)
-
-		for _, currentValidator := range currentValidatorSet {
-
-			consAddr, err := currentValidator.GetConsAddr()
-			if err != nil {
-				continue
-			}
-
-			cosmosValidatorPublicKey, err := h.getValidatorPublicKey(ctx, consAddr)
-			if err != nil {
+		for _, vote := range verifiedVotes.votes {
+			if err := h.votePersistenceKeeper.SetVote(ctx, signedStateHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
 				return nil, err
 			}
-
-			currentValidatorSetMap[hex.EncodeToString(cosmosValidatorPublicKey)] = cosmosValidatorPublicKey
-		}
-
-		for _, vote := range pl.Votes {
-
-			cosmosValidatorPublicKey, ok := currentValidatorSetMap[vote.ConsensusPublicKey]
-			if !ok {
-				continue
-			}
-
-			exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, cosmosValidatorPublicKey)
-			if err != nil {
-				return nil, err
-			}
-
-			if !exists {
-				return nil, fmt.Errorf("")
-			}
-
-			minaKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, cosmosValidatorPublicKey)
-			if err != nil {
-				return nil, err
-			}
-
-			err = h.votePersistenceKeeper.SetVote(ctx, req.GetHeight()-2, minaKey, vote.VoteExtension)
-			if err != nil {
-				return nil, err
-			}
-
 		}
 
 		return &sdk.ResponsePreBlock{}, nil

@@ -5,7 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 PYTHON_HELPER="$SCRIPT_DIR/setup_local_testnet_helper.py"
-GO_HELPER="$SCRIPT_DIR/derive_mina_pub.go"
+DEVTOOLS_HELPER="$SCRIPT_DIR/devtools"
+GOFLAGS_WITH_PUREGO="${GOFLAGS:-} -tags=purego"
 
 LEGACY_CHAIN_HOME="${CHAIN_HOME:-$HOME/.pulsar}"
 CHAIN_ID="${CHAIN_ID:-mytestnet}"
@@ -18,9 +19,6 @@ VOTE_EXT_ENABLE_HEIGHT="${VOTE_EXT_ENABLE_HEIGHT:-1}"
 BIN_DIR="${BIN_DIR:-$HOME/go/bin}"
 BINARY_PATH="${BINARY_PATH:-$BIN_DIR/pulsard}"
 COMPAT_BINARY_PATH="${COMPAT_BINARY_PATH:-$BIN_DIR/pulsar-chaind}"
-API_ENABLE="${API_ENABLE:-true}"
-API_BIND_HOST="${API_BIND_HOST:-0.0.0.0}"
-GRPC_BIND_HOST="${GRPC_BIND_HOST:-localhost}"
 DEFAULT_NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
 DEFAULT_NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
 
@@ -39,7 +37,7 @@ require_cmd() {
 }
 
 derive_mina_pub_key() {
-  go run "$GO_HELPER" "$1"
+  GOFLAGS="$GOFLAGS_WITH_PUREGO" go run "$DEVTOOLS_HELPER" derive-mina-pub "$1"
 }
 
 read_consensus_pub_key() {
@@ -88,16 +86,13 @@ configure_node() {
   sed -i.bak 's|addr_book_strict = true|addr_book_strict = false|' "$home/config/config.toml"
   sed -i.bak 's|allow_duplicate_ip = false|allow_duplicate_ip = true|' "$home/config/config.toml"
 
-  sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://${API_BIND_HOST}:${api_port}\"|" "$home/config/app.toml"
-  sed -i.bak "s|address = \"localhost:9090\"|address = \"${GRPC_BIND_HOST}:${grpc_port}\"|" "$home/config/app.toml"
+  sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://localhost:${api_port}\"|" "$home/config/app.toml"
+  sed -i.bak "s|address = \"localhost:9090\"|address = \"0.0.0.0:${grpc_port}\"|" "$home/config/app.toml"
 
   python3 "$PYTHON_HELPER" update-app-config \
     --app "$home/config/app.toml" \
     --min-gas-price "$MIN_GAS_PRICE" \
-    --mina-priv-key "$mina_priv_key" \
-    --api-enable "$API_ENABLE" \
-    --api-address "tcp://${API_BIND_HOST}:${api_port}" \
-    --grpc-address "${GRPC_BIND_HOST}:${grpc_port}"
+    --mina-priv-key "$mina_priv_key"
 }
 
 build_persistent_peers() {
@@ -154,7 +149,7 @@ echo "==> Building binary..."
 mkdir -p "$BIN_DIR"
 (
   cd "$REPO_ROOT"
-  go build -o "$BINARY_PATH" ./cmd/pulsard
+  GOFLAGS="$GOFLAGS_WITH_PUREGO" go build -o "$BINARY_PATH" ./cmd/pulsard
 )
 
 if [[ "$COMPAT_BINARY_PATH" != "$BINARY_PATH" ]]; then
@@ -256,5 +251,6 @@ done
 echo ""
 echo "Validation examples:"
 echo "  curl -s http://localhost:${NODE_RPC_PORTS[PRIMARY_NODE_INDEX]}/validators | python3 -m json.tool | grep total"
-echo "  $BINARY_PATH query votepersistence vote-ext-body-by-height 5 --home $PRIMARY_HOME"
-echo "  curl -s http://${API_BIND_HOST}:${NODE_API_PORTS[PRIMARY_NODE_INDEX]}/node101-io/pulsar-chain/votepersistence/v1/vote_ext_body_by_height/5 | python3 -m json.tool"
+echo "  $BINARY_PATH query votepersistence vote-extensions --home $PRIMARY_HOME"
+echo "  grpcurl -plaintext -d '{\"vote_extension_height\":\"5\"}' localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]} pulsarchain.abci.Query/VoteExtBodyByHeight"
+echo "  GOFLAGS=\"\${GOFLAGS:-} -tags=purego\" go run ./scripts/devtools verify-vote-extensions --grpc-addr localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]}"

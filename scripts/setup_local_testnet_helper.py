@@ -31,23 +31,6 @@ def write_json(path_str: str, payload) -> None:
     write_text(path_str, json.dumps(payload, indent=2) + "\n")
 
 
-def set_section_value(content: str, section: str, key: str, value_repr: str) -> str:
-    pattern = rf"(?ms)^(\[{re.escape(section)}\]\n)(.*?)(?=^\[|\Z)"
-    match = re.search(pattern, content)
-    if not match:
-        raise SystemExit(f"could not find [{section}] section in app config")
-
-    section_body = match.group(2)
-    key_pattern = rf"(?m)^{re.escape(key)}\s*=.*$"
-
-    if re.search(key_pattern, section_body):
-        section_body = re.sub(key_pattern, f"{key} = {value_repr}", section_body, count=1)
-    else:
-        section_body = section_body.rstrip() + f"\n{key} = {value_repr}\n"
-
-    return content[: match.start(2)] + section_body + content[match.end(2) :]
-
-
 def read_mina_priv_key(config_path: str) -> int:
     content = read_text(config_path)
     match = re.search(r'vote_extension:\s*\n\s*priv_key:\s*"([^"]+)"', content)
@@ -156,14 +139,7 @@ def patch_keyregistry(
     return 0
 
 
-def update_app_config(
-    app_path: str,
-    min_gas_price: str,
-    mina_priv_key: str,
-    api_enable: Optional[str] = None,
-    api_address: Optional[str] = None,
-    grpc_address: Optional[str] = None,
-) -> int:
+def update_app_config(app_path: str, min_gas_price: str, mina_priv_key: str) -> int:
     app_toml = read_text(app_path)
     app_toml = app_toml.replace(
         'minimum-gas-prices = ""',
@@ -182,26 +158,6 @@ def update_app_config(
             app_toml = app_toml[:start] + vote_extension_block + app_toml[end + 1 :]
     else:
         app_toml = app_toml.rstrip() + f"\n\n{vote_extension_block}"
-
-    if api_enable is not None:
-        normalized_api_enable = api_enable.strip().lower()
-        if normalized_api_enable not in {"true", "false"}:
-            raise SystemExit(
-                f"--api-enable must be true or false, got: {api_enable}"
-            )
-        app_toml = set_section_value(
-            app_toml, "api", "enable", normalized_api_enable
-        )
-
-    if api_address is not None:
-        app_toml = set_section_value(
-            app_toml, "api", "address", f'"{api_address}"'
-        )
-
-    if grpc_address is not None:
-        app_toml = set_section_value(
-            app_toml, "grpc", "address", f'"{grpc_address}"'
-        )
 
     write_text(app_path, app_toml)
     return 0
@@ -237,9 +193,6 @@ def build_parser() -> argparse.ArgumentParser:
     update_app.add_argument("--app", required=True)
     update_app.add_argument("--min-gas-price", required=True)
     update_app.add_argument("--mina-priv-key", required=True)
-    update_app.add_argument("--api-enable")
-    update_app.add_argument("--api-address")
-    update_app.add_argument("--grpc-address")
 
     return parser
 
@@ -261,14 +214,7 @@ def main() -> int:
     if args.command == "patch-keyregistry":
         return patch_keyregistry(args.genesis, args.mina_pub_key, args.cosmos_key)
     if args.command == "update-app-config":
-        return update_app_config(
-            args.app,
-            args.min_gas_price,
-            args.mina_priv_key,
-            args.api_enable,
-            args.api_address,
-            args.grpc_address,
-        )
+        return update_app_config(args.app, args.min_gas_price, args.mina_priv_key)
 
     parser.print_help(sys.stderr)
     return 1

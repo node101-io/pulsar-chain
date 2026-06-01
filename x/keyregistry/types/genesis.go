@@ -6,8 +6,8 @@ import errorsmod "cosmossdk.io/errors"
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		Params:            DefaultParams(),
-		UserKeyPairs:      DefaultUserPublicKeyPair(),
-		ValidatorKeyPairs: DefaultValidatorPublicKeyPair(),
+		UserKeyPairs:      DefaultUserPublicKeyPairs(),
+		ValidatorKeyPairs: DefaultValidatorPublicKeyPairs(),
 	}
 }
 
