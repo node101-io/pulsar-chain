@@ -4,6 +4,7 @@ import (
 	"context"
 
 	errorsmod "cosmossdk.io/errors"
+	merkle "github.com/node101-io/mina-signer-go/merklelist"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
 
@@ -30,6 +31,12 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 	if err != nil {
 		return nil, err
 	}
+
+	list, err := merkle.NewMerkleListFromRoot(types.MerkleListPrefix, bridgeState.ActionsReducedRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, act := range actions {
 
 		valid, err := k.isValid(ctx, &act)
@@ -43,11 +50,20 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 			return nil, err
 		}
 
+		bz, err := act.Marshal()
+		if err != nil {
+			return nil, err
+		}
+
+		if err := list.Append(bz); err != nil {
+			return nil, err
+		}
+
 	}
 
 	if err := k.Keeper.setBridgeState(ctx, types.BridgeState{
 		LatestFetchedMinaHeight: msg.MinaBlockHeight,
-		ActionsReducedRoot:      []byte(""),
+		ActionsReducedRoot:      list.Root(),
 	}); err != nil {
 		return nil, err
 	}
