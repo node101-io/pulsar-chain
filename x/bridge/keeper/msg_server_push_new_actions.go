@@ -42,13 +42,24 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		if err := k.apply(ctx, &act); err != nil {
 			return nil, err
 		}
-	}
 
-	if err := k.Keeper.setBridgeState(ctx, types.BridgeState{
-		LatestFetchedMinaHeight: msg.MinaBlockHeight,
-		ActionsReducedRoot:      []byte(""),
-	}); err != nil {
-		return nil, err
+		marshalledAction, err := act.Marshal()
+		if err != nil {
+			return nil, err
+		}
+
+		err = k.Keeper.MerkleList.Append(marshalledAction)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := k.Keeper.setBridgeState(ctx, types.BridgeState{
+			LatestFetchedMinaHeight: msg.MinaBlockHeight,
+			ActionsReducedRoot:      k.Keeper.MerkleList.Root(),
+		}); err != nil {
+			return nil, err
+		}
+
 	}
 
 	return &types.MsgPushNewActionsResponse{}, nil
