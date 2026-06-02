@@ -1,8 +1,6 @@
 package keeper
 
-import (
-	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
-)
+import "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 
 var _ types.QueryServer = queryServer{}
 

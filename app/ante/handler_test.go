@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	appante "github.com/node101-io/pulsar-chain/app/ante"
+	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 )
 
 type stubAccountKeeper struct{}
@@ -67,11 +68,7 @@ var (
 	_ authtypes.BankKeeper   = stubBankKeeper{}
 )
 
-type stubMinaAddressResolver struct{}
-
-func (stubMinaAddressResolver) GetCosmosToMina(context.Context, []byte) ([]byte, error) {
-	return nil, nil
-}
+var stubKeyregistryKeeper = &keyregistrykeeper.Keeper{}
 
 // A fully populated HandlerOptions should construct a usable ante chain.
 // This is the baseline success case that all of the stricter validation tests compare against.
@@ -79,12 +76,12 @@ func TestNewAnteHandler(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:       stubAccountKeeper{},
-		BankKeeper:          stubBankKeeper{},
-		SignModeHandler:     &txsigning.HandlerMap{},
-		MinaAddressResolver: stubMinaAddressResolver{},
-		MinaNetworkID:       appante.DefaultMinaNetworkID,
-		Logger:              log.NewNopLogger(),
+		AccountKeeper:     stubAccountKeeper{},
+		BankKeeper:        stubBankKeeper{},
+		SignModeHandler:   &txsigning.HandlerMap{},
+		KeyregistryKeeper: stubKeyregistryKeeper,
+		MinaNetworkID:     appante.DefaultMinaNetworkID,
+		Logger:            log.NewNopLogger(),
 	})
 
 	require.NoError(t, err)
@@ -97,11 +94,11 @@ func TestNewAnteHandlerRequiresAccountKeeper(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		BankKeeper:          stubBankKeeper{},
-		SignModeHandler:     &txsigning.HandlerMap{},
-		MinaAddressResolver: stubMinaAddressResolver{},
-		MinaNetworkID:       appante.DefaultMinaNetworkID,
-		Logger:              log.NewNopLogger(),
+		BankKeeper:        stubBankKeeper{},
+		SignModeHandler:   &txsigning.HandlerMap{},
+		KeyregistryKeeper: stubKeyregistryKeeper,
+		MinaNetworkID:     appante.DefaultMinaNetworkID,
+		Logger:            log.NewNopLogger(),
 	})
 
 	require.ErrorContains(t, err, "account keeper is required for ante builder")
@@ -114,11 +111,11 @@ func TestNewAnteHandlerRequiresBankKeeper(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:       stubAccountKeeper{},
-		SignModeHandler:     &txsigning.HandlerMap{},
-		MinaAddressResolver: stubMinaAddressResolver{},
-		MinaNetworkID:       appante.DefaultMinaNetworkID,
-		Logger:              log.NewNopLogger(),
+		AccountKeeper:     stubAccountKeeper{},
+		SignModeHandler:   &txsigning.HandlerMap{},
+		KeyregistryKeeper: stubKeyregistryKeeper,
+		MinaNetworkID:     appante.DefaultMinaNetworkID,
+		Logger:            log.NewNopLogger(),
 	})
 
 	require.ErrorContains(t, err, "bank keeper is required for ante builder")
@@ -131,20 +128,20 @@ func TestNewAnteHandlerRequiresSignModeHandler(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:       stubAccountKeeper{},
-		BankKeeper:          stubBankKeeper{},
-		MinaAddressResolver: stubMinaAddressResolver{},
-		MinaNetworkID:       appante.DefaultMinaNetworkID,
-		Logger:              log.NewNopLogger(),
+		AccountKeeper:     stubAccountKeeper{},
+		BankKeeper:        stubBankKeeper{},
+		KeyregistryKeeper: stubKeyregistryKeeper,
+		MinaNetworkID:     appante.DefaultMinaNetworkID,
+		Logger:            log.NewNopLogger(),
 	})
 
 	require.ErrorContains(t, err, "sign mode handler is required for ante builder")
 	require.Nil(t, anteHandler)
 }
 
-// MinaAddressResolver is part of the custom verifier contract for Mina-authenticated txs.
+// KeyregistryKeeper is part of the custom verifier contract for Mina-authenticated txs.
 // The constructor should refuse to build an ante handler that can never resolve Mina signers.
-func TestNewAnteHandlerRequiresMinaAddressResolver(t *testing.T) {
+func TestNewAnteHandlerRequiresKeyregistryKeeper(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
@@ -155,7 +152,7 @@ func TestNewAnteHandlerRequiresMinaAddressResolver(t *testing.T) {
 		Logger:          log.NewNopLogger(),
 	})
 
-	require.ErrorContains(t, err, "mina address resolver is required for ante builder")
+	require.ErrorContains(t, err, "keyregistry keeper is required for ante builder")
 	require.Nil(t, anteHandler)
 }
 
@@ -165,11 +162,11 @@ func TestNewAnteHandlerRequiresMinaNetworkID(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:       stubAccountKeeper{},
-		BankKeeper:          stubBankKeeper{},
-		SignModeHandler:     &txsigning.HandlerMap{},
-		MinaAddressResolver: stubMinaAddressResolver{},
-		Logger:              log.NewNopLogger(),
+		AccountKeeper:     stubAccountKeeper{},
+		BankKeeper:        stubBankKeeper{},
+		SignModeHandler:   &txsigning.HandlerMap{},
+		KeyregistryKeeper: stubKeyregistryKeeper,
+		Logger:            log.NewNopLogger(),
 	})
 
 	require.ErrorContains(t, err, "mina network ID is required for ante builder")
@@ -182,11 +179,11 @@ func TestNewAnteHandlerRequiresLogger(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:       stubAccountKeeper{},
-		BankKeeper:          stubBankKeeper{},
-		SignModeHandler:     &txsigning.HandlerMap{},
-		MinaAddressResolver: stubMinaAddressResolver{},
-		MinaNetworkID:       appante.DefaultMinaNetworkID,
+		AccountKeeper:     stubAccountKeeper{},
+		BankKeeper:        stubBankKeeper{},
+		SignModeHandler:   &txsigning.HandlerMap{},
+		KeyregistryKeeper: stubKeyregistryKeeper,
+		MinaNetworkID:     appante.DefaultMinaNetworkID,
 	})
 
 	require.ErrorContains(t, err, "logger is required for ante builder")

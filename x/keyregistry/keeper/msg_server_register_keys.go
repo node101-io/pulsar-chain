@@ -3,91 +3,90 @@ package keeper
 import (
 	"context"
 
-	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/errors"
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/node101-io/mina-signer-go/publickey"
+	"github.com/node101-io/mina-signer-go/signature"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-// TODO: Implement Mina signature verification
-func VerifyMinaSig(sig string, msg, minaPublicKey []byte) bool {
-	return true
+func VerifyMinaSig(sig []byte, msg, minaAddress []byte, actorType types.ActorType) (bool, error) {
+
+	minaPk, err := publickey.NewPublicKeyFromBytes(minaAddress, mina.NetworkID(actorType.String()))
+	if err != nil {
+		return false, errors.Wrapf(types.ErrInvalidPublicKey, "invalid mina public key: %v", err)
+	}
+
+	minaSig, err := signature.NewSignatureFromBytes(sig)
+	if err != nil {
+		return false, errors.Wrapf(types.ErrInvalidSignature, "invalid mina signature: %v", err)
+	}
+
+	valid, err := minaPk.VerifyBytes(minaSig, msg)
+	if err != nil {
+		return false, errors.Wrapf(types.ErrInvalidSignature, "failed to verify mina signature: %v", err)
+	}
+
+	return valid, nil
 }
 
-// TODO: Implement Cosmos signature verification
-func VerifyCosmosSig(sig string, msg, cosmosPublicKey []byte) bool {
-	return true
+func VerifyUserCosmosSig(sig []byte, msg, cosmosAddress []byte) bool {
+
+	cosmosPk := secp256k1.PubKey{
+		Key: cosmosAddress,
+	}
+
+	return cosmosPk.VerifySignature(msg, sig)
 }
 
-// deriveAddressFromPubkey derives a bech32 cosmos address from a compressed secp256k1 public key.
-func deriveAddressFromPubkey(cosmosPublicKey []byte) string {
+func VerifyValidatorCosmosSig(sig []byte, msg, cosmosAddress []byte) bool {
+
+	var cosmosValidatorPubKey ed25519.PubKey = cosmosAddress
+
+	return cosmosValidatorPubKey.VerifySignature(msg, sig)
+}
+
+// deriveAddressFromPubkey derives the expected signer address from the provided
+// key material.
+func deriveAddressFromPubkey(actorType types.ActorType, cosmosPublicKey []byte) (string, error) {
+
+	if actorType != types.ActorType_USER {
+		return "", types.ErrInvalidActorType
+	}
+
 	pubKey := secp256k1.PubKey{
 		Key: cosmosPublicKey,
 	}
+
 	addr := sdk.AccAddress(pubKey.Address())
-	return addr.String()
+	return addr.String(), nil
+
 }
 
 // RegisterKeys registers a Mina and Cosmos public key pair on chain.
 // It verifies that:
 //   - the creator address is valid
-//   - the cosmos public key is a valid compressed secp256k1 key (33 bytes)
-//   - the creator address matches the provided cosmos public key
+//   - the provided public keys match the actor-specific key formats
+//   - the creator address matches the provided cosmos public key for user registrations
 //   - neither the cosmos nor mina public key is already registered
 //   - both the mina and cosmos signatures are valid
 //
 // If all checks pass, the key pair is stored in both the CosmosToMina and MinaToCosmos maps.
 func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys) (*types.MsgRegisterKeysResponse, error) {
-	// Validate the creator address.
-	if _, err := k.addressCodec.StringToBytes(msg.Creator); err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddres, "")
-	}
 
-	// Ensure the cosmos and mina public keys are valid.
-	err := types.ValidateKeyPair(types.KeyPair{
-		MinaKey:   msg.MinaPublicKey,
-		CosmosKey: msg.CosmosPublicKey,
-	})
-	if err != nil {
-		return nil, errorsmod.Wrap(types.ErrInvalidPublicKey, "pubkeys must be valid")
-	}
+	var err error
 
-	// Ensure the creator address matches the provided cosmos public key
-	// to prevent someone from registering a key pair on behalf of another address.
-	derivedAddress := deriveAddressFromPubkey(msg.CosmosPublicKey)
-
-	if derivedAddress != msg.Creator {
-		return nil, errorsmod.Wrap(types.ErrInvalidSigner, "creator does not match provided cosmos public key")
+	switch msg.ActorType {
+	case types.ActorType_USER:
+		err = k.handleUserRegistration(ctx, msg)
+	case types.ActorType_VALIDATOR:
+		err = k.handleValidatorRegistration(ctx, msg)
+	default:
+		return nil, types.ErrInvalidActorType
 	}
-
-	// Check if either key is already registered to prevent duplicate registrations.
-	cosmosKeyExists, err := k.Keeper.cosmosToMina.Has(ctx, msg.CosmosPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	minaKeyExists, err := k.Keeper.minaToCosmos.Has(ctx, msg.MinaPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	if cosmosKeyExists || minaKeyExists {
-		return nil, errorsmod.Wrap(types.ErrSecondaryKeyExists, "")
-	}
-
-	// Verify that the mina key signed the cosmos public key and vice versa.
-	// This proves ownership of both keys.
-	minaSigValidity := VerifyMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey)
-	cosmosSigValidity := VerifyCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
-
-	if !minaSigValidity || !cosmosSigValidity {
-		return nil, errorsmod.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
-	}
-
-	// Store the key pair in both directions to allow lookups by either key.
-	err = k.Keeper.cosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	err = k.Keeper.minaToCosmos.Set(ctx, msg.MinaPublicKey, msg.CosmosPublicKey)
 	if err != nil {
 		return nil, err
 	}

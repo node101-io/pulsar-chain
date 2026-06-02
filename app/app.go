@@ -1,6 +1,8 @@
 package app
 
 import (
+	"encoding/base64"
+	"fmt"
 	"io"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
@@ -47,10 +49,13 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
+	"github.com/node101-io/mina-signer-go/privatekey"
+	abcihandler "github.com/node101-io/pulsar-chain/abci"
 	appante "github.com/node101-io/pulsar-chain/app/ante"
 	"github.com/node101-io/pulsar-chain/docs"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
+	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 )
 
 const (
@@ -95,7 +100,7 @@ type App struct {
 	ConsensusParamsKeeper consensuskeeper.Keeper
 	CircuitBreakerKeeper  circuitkeeper.Keeper
 	FeeGrantKeeper        feegrantkeeper.Keeper
-	ParamsKeeper          paramskeeper.Keeper
+	ParamsKeeper          paramskeeper.Keeper //nolint:staticcheck // Legacy params keeper is still required for IBC params migration.
 
 	// ibc keepers
 	IBCKeeper           *ibckeeper.Keeper
@@ -104,9 +109,12 @@ type App struct {
 	TransferKeeper      ibctransferkeeper.Keeper
 
 	// simulation manager
-	sm                *module.SimulationManager
-	PulsarKeeper      pulsarmodulekeeper.Keeper
-	KeyregistryKeeper keyregistrymodulekeeper.Keeper
+	sm                    *module.SimulationManager
+	PulsarKeeper          pulsarmodulekeeper.Keeper
+	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
+	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
+
+	ABCIHandler *abcihandler.ABCIHandler
 }
 
 func init() {
@@ -189,8 +197,23 @@ func New(
 		&app.ParamsKeeper,
 		&app.PulsarKeeper,
 		&app.KeyregistryKeeper,
+		&app.VotepersistenceKeeper,
 	); err != nil {
 		panic(err)
+	}
+
+	secondaryKey, err := parseSecondaryKey(appOpts)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))
+	}
+	app.ABCIHandler, err = abcihandler.NewABCIHandler(
+		secondaryKey,
+		app.StakingKeeper,
+		app.KeyregistryKeeper,
+		app.VotepersistenceKeeper,
+	)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize ABCI handler: %v", err))
 	}
 
 	appante.RegisterInterfaces(app.interfaceRegistry)
@@ -202,14 +225,14 @@ func New(
 		baseapp.SetOptimisticExecution(),
 		func(bApp *baseapp.BaseApp) {
 			anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-				AccountKeeper:       app.AuthKeeper,
-				BankKeeper:          app.BankKeeper,
-				FeegrantKeeper:      app.FeeGrantKeeper,
-				SignModeHandler:     app.txConfig.SignModeHandler(),
-				SigGasConsumer:      authante.DefaultSigVerificationGasConsumer,
-				MinaAddressResolver: app.KeyregistryKeeper,
-				MinaNetworkID:       appante.DefaultMinaNetworkID,
-				Logger:              logger,
+				AccountKeeper:     app.AuthKeeper,
+				BankKeeper:        app.BankKeeper,
+				FeegrantKeeper:    app.FeeGrantKeeper,
+				SignModeHandler:   app.txConfig.SignModeHandler(),
+				SigGasConsumer:    authante.DefaultSigVerificationGasConsumer,
+				KeyregistryKeeper: &app.KeyregistryKeeper,
+				MinaNetworkID:     appante.DefaultMinaNetworkID,
+				Logger:            logger,
 			})
 			if err != nil {
 				panic(err)
@@ -221,6 +244,13 @@ func New(
 
 	// build app
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+
+	app.SetExtendVoteHandler(app.ABCIHandler.ExtendVoteHandler())
+	app.SetVerifyVoteExtensionHandler(app.ABCIHandler.VerifyVoteExtensionHandler())
+	app.SetPrepareProposal(app.ABCIHandler.PrepareProposalHandler())
+	app.SetProcessProposal(app.ABCIHandler.ProcessProposalHandler())
+	app.SetPreBlocker(app.ABCIHandler.PreBlocker())
+	abcihandler.RegisterQueryServer(app.GRPCQueryRouter(), app.ABCIHandler)
 
 	// register legacy modules
 	if err := app.registerIBCModules(appOpts); err != nil {
@@ -299,6 +329,14 @@ func (app *App) SimulationManager() *module.SimulationManager {
 // API server.
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
+	if err := abcihandler.RegisterQueryHandlerClient(
+		apiSvr.ClientCtx.CmdContext,
+		apiSvr.GRPCGatewayRouter,
+		abcihandler.NewQueryClient(apiSvr.ClientCtx),
+	); err != nil {
+		panic(err)
+	}
+
 	// register swagger API in app.go so that other applications can override easily
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
 		panic(err)
@@ -306,6 +344,39 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig
 
 	// register app's OpenAPI routes.
 	docs.RegisterOpenAPIService(Name, apiSvr.Router)
+}
+
+func parseSecondaryKey(appOpts servertypes.AppOptions) (abcihandler.SecondaryKey, error) {
+	minaPrivKey := appOpts.Get("vote_extension.priv_key")
+	keyStr, ok := minaPrivKey.(string)
+	if !ok {
+		return abcihandler.SecondaryKey{}, fmt.Errorf("vote_extension.priv_key is not a string")
+	}
+
+	keyBytes, err := base64.StdEncoding.DecodeString(keyStr)
+	if err != nil {
+		return abcihandler.SecondaryKey{}, fmt.Errorf("decode base64 private key: %w", err)
+	}
+	if len(keyBytes) != privatekey.Size() {
+		return abcihandler.SecondaryKey{}, fmt.Errorf("invalid private key length: got %d bytes, want %d", len(keyBytes), privatekey.Size())
+	}
+
+	var rawPrivateKey [32]byte
+	copy(rawPrivateKey[:], keyBytes)
+
+	priv, err := privatekey.NewPrivateKeyFromBytes(rawPrivateKey, abcihandler.NetworkID)
+	if err != nil {
+		return abcihandler.SecondaryKey{}, fmt.Errorf("parse mina private key: %w", err)
+	}
+	public, err := priv.ToPublicKey()
+	if err != nil {
+		return abcihandler.SecondaryKey{}, fmt.Errorf("derive mina public key: %w", err)
+	}
+
+	return abcihandler.SecondaryKey{
+		SecretKey: priv,
+		PublicKey: public,
+	}, nil
 }
 
 // GetMaccPerms returns a copy of the module account permissions

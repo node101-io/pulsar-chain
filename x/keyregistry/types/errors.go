@@ -8,9 +8,15 @@ import (
 
 // x/keyregistry module sentinel errors
 var (
-	ErrInvalidSigner        = errors.Register(ModuleName, 1100, "expected gov account as only signer for proposal message")
-	ErrInvalidSignature     = errors.Register(ModuleName, 1101, "invalid signature")
-	ErrSecondaryKeyExists   = errors.Register(ModuleName, 1102, "secondary key already exists")
-	ErrInvalidCreatorAddres = errors.Register(ModuleName, 1103, "invalid creator address")
-	ErrInvalidPublicKey     = errors.Register(ModuleName, 1104, "invalid public key")
+	ErrInvalidSigner               = errors.Register(ModuleName, 1100, "expected gov account as only signer for proposal message")
+	ErrInvalidSignature            = errors.Register(ModuleName, 1101, "invalid signature")
+	ErrUserSecondaryKeyExists      = errors.Register(ModuleName, 1102, "user's secondary key already exists")
+	ErrValidatorSecondaryKeyExists = errors.Register(ModuleName, 1103, "validator's secondary key already exists")
+	ErrInvalidCreatorAddress       = errors.Register(ModuleName, 1104, "invalid creator address")
+	ErrInvalidPublicKey            = errors.Register(ModuleName, 1105, "invalid public key")
+	ErrUserNotRegistered           = errors.Register(ModuleName, 1106, "user has not been registered")
+	ErrValidatorNotRegistered      = errors.Register(ModuleName, 1107, "validator has not been registered")
+	ErrInvalidActorType            = errors.Register(ModuleName, 1108, "invalid actor type")
+	ErrNilKeyPair                  = errors.Register(ModuleName, 1109, "nil keypair")
+	ErrInvalidGenesisState         = errors.Register(ModuleName, 1110, "invalid genesis state")
 )

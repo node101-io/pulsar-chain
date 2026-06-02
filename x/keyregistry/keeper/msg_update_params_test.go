@@ -33,7 +33,7 @@ func TestMsgUpdateParams(t *testing.T) {
 				Params:    params,
 			},
 			expErr:    true,
-			expErrMsg: types.ErrInvalidCreatorAddres.Error(),
+			expErrMsg: types.ErrInvalidCreatorAddress.Error(),
 		},
 		{
 			name: "send enabled param",

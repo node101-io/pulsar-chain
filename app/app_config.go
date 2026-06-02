@@ -7,6 +7,8 @@ import (
 	keyregistrymoduletypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	_ "github.com/node101-io/pulsar-chain/x/pulsar/module"
 	pulsarmoduletypes "github.com/node101-io/pulsar-chain/x/pulsar/types"
+	_ "github.com/node101-io/pulsar-chain/x/votepersistence/module"
+	votepersistencemoduletypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 
 	runtimev1alpha1 "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"
@@ -130,6 +132,7 @@ var (
 						// chain modules
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
+						votepersistencemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/beginBlockers
 					},
 					EndBlockers: []string{
@@ -140,6 +143,7 @@ var (
 						// chain modules
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
+						votepersistencemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/endBlockers
 					},
 					// The following is mostly only needed when ModuleName != StoreKey name.
@@ -178,6 +182,7 @@ var (
 						// chain modules
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
+						votepersistencemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/initGenesis
 					},
 				}),
@@ -281,6 +286,10 @@ var (
 			{
 				Name:   keyregistrymoduletypes.ModuleName,
 				Config: appconfig.WrapAny(&keyregistrymoduletypes.Module{}),
+			},
+			{
+				Name:   votepersistencemoduletypes.ModuleName,
+				Config: appconfig.WrapAny(&votepersistencemoduletypes.Module{}),
 			},
 			// this line is used by starport scaffolding # stargate/app/moduleConfig
 		},

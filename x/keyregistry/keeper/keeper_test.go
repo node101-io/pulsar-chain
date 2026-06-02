@@ -56,34 +56,62 @@ func initFixture(t *testing.T) *fixture {
 	}
 }
 
-// Dummy public keys used in tests.
-var CosmosPubKey = []byte("cosmos")
-var MinaPubKey = []byte("mina")
-
 // TestCosmosToMina verifies that a cosmos public key can be stored in the
 // CosmosToMina map and correctly retrieved using the same cosmos public key.
-func TestCosmosToMina(t *testing.T) {
+func TestUserCosmosToMina(t *testing.T) {
+
 	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	err := f.keeper.SetCosmosToMina(f.ctx, CosmosPubKey, MinaPubKey)
+	cosmosPriv := generateUserCosmosPrivKey()
+	minaPriv, err := generateMinaKey(types.ActorType_USER)
 	require.NoError(t, err)
 
-	pubKey, err := f.keeper.GetCosmosToMina(f.ctx, CosmosPubKey)
+	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signUserRegistration(cosmosPriv, minaPriv)
 	require.NoError(t, err)
 
-	require.Equal(t, MinaPubKey, pubKey)
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   minaSig,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_USER,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	pubKey, err := f.keeper.UserGetCosmosToMina(f.ctx, cosmosPubKey)
+	require.NoError(t, err)
+	require.Equal(t, minaPubKey, pubKey)
 }
 
 // TestMinaToCosmos verifies that a mina public key can be stored in the
 // MinaToCosmos map and correctly retrieved using the same mina public key.
-func TestMinaToCosmos(t *testing.T) {
+func TestUserMinaToCosmos(t *testing.T) {
+
 	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	err := f.keeper.SetMinaToCosmos(f.ctx, MinaPubKey, CosmosPubKey)
+	cosmosPriv := generateUserCosmosPrivKey()
+	minaPriv, err := generateMinaKey(types.ActorType_USER)
 	require.NoError(t, err)
 
-	pubKey, err := f.keeper.GetMinaToCosmos(f.ctx, MinaPubKey)
+	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signUserRegistration(cosmosPriv, minaPriv)
 	require.NoError(t, err)
 
-	require.Equal(t, CosmosPubKey, pubKey)
+	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   minaSig,
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_USER,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	pubKey, err := f.keeper.UserGetMinaToCosmos(f.ctx, minaPubKey)
+	require.NoError(t, err)
+	require.Equal(t, cosmosPubKey, pubKey)
 }
