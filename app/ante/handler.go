@@ -86,6 +86,7 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 		NewRoutedSigGasConsumeDecorator(options.AccountKeeper, cosmosSigGasConsume),
 		NewRoutedSigVerificationDecorator(cosmosSigVerify, minaVerifier),
 		authante.NewIncrementSequenceDecorator(options.AccountKeeper),
+		NewStakingDecorator(options.KeyregistryKeeper),
 	}
 
 	return sdk.ChainAnteDecorators(anteDecorators...), nil
