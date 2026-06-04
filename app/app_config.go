@@ -133,6 +133,7 @@ var (
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
+						votepersistencemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/beginBlockers
 					},
 					EndBlockers: []string{
@@ -143,6 +144,7 @@ var (
 						// chain modules
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
+						votepersistencemoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/endBlockers
 					},
