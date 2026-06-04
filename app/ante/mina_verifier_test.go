@@ -700,20 +700,10 @@ func TestMinaVerifierRejectsCryptographicallyInvalidSignature(t *testing.T) {
 	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
 	signMode := signingtypes.SignMode(encoding.TxConfig.SignModeHandler().DefaultMode())
-	// We first build the real tx shape so the invalid signature targets the exact bytes verifier expects.
-	tx := buildVerifierTestTx(
-		t,
-		encoding.TxConfig,
-		account.GetAddress(),
-		cosmosPrivKey.PubKey(),
-		account.GetSequence(),
-		signMode,
-		nil,
-	)
 
 	// The signature is valid for a different message, so decoding succeeds but verification fails.
 	invalidSignatureBytes := signMinaBytes(t, minaPrivKey, []byte("different-sign-bytes"), DefaultMinaNetworkID)
-	tx = buildVerifierTestTx(
+	tx := buildVerifierTestTx(
 		t,
 		encoding.TxConfig,
 		account.GetAddress(),
