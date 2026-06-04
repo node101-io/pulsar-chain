@@ -218,8 +218,6 @@ func New(
 
 	appante.RegisterInterfaces(app.interfaceRegistry)
 
-	appante.RegisterInterfaces(app.interfaceRegistry)
-
 	// add to default baseapp options
 	// enable optimistic execution
 	baseAppOptions = append(
