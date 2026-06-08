@@ -178,7 +178,7 @@ func (v MinaVerifier) verifySingleSignature(
 		)
 	}
 
-	valid, err := minaPubKey.VerifyString(minaSignature, string(signBytes))
+	valid, err := minaPubKey.VerifyBytes(minaSignature, signBytes)
 	if err != nil {
 		return err
 	}
