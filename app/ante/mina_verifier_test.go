@@ -39,6 +39,9 @@ import (
 	protov2 "google.golang.org/protobuf/proto"
 )
 
+// DefaultMinaNetworkID is used for tests only.
+const DefaultMinaNetworkID = "devnet"
+
 type verifierAccountKeeper struct {
 	account sdk.AccountI
 	params  authtypes.Params

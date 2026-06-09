@@ -15,9 +15,6 @@ import (
 	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 )
 
-// DefaultMinaNetworkID is the default Mina network used by the chain.
-const DefaultMinaNetworkID = "devnet"
-
 // MinaVerifier verifies tx signatures using Mina cryptography.
 type MinaVerifier struct {
 	keyregistryKeeper *keyregistrykeeper.Keeper

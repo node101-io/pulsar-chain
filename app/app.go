@@ -218,6 +218,11 @@ func New(
 
 	appante.RegisterInterfaces(app.interfaceRegistry)
 
+	networkId, ok := appOpts.Get("mina.network_id").(string)
+	if !ok || networkId == "" {
+		panic("mina.network_id is missing or not a string")
+	}
+
 	// add to default baseapp options
 	// enable optimistic execution
 	baseAppOptions = append(
@@ -231,7 +236,7 @@ func New(
 				SignModeHandler:   app.txConfig.SignModeHandler(),
 				SigGasConsumer:    authante.DefaultSigVerificationGasConsumer,
 				KeyregistryKeeper: &app.KeyregistryKeeper,
-				MinaNetworkID:     appante.DefaultMinaNetworkID,
+				MinaNetworkID:     networkId,
 				Logger:            logger,
 			})
 			if err != nil {
