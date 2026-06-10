@@ -21,7 +21,7 @@ func TestSignVoteExtBodyRoundTrip(t *testing.T) {
 	minaPublicKey := secondaryKey.PublicKey.Bytes()
 
 	poseidonHash := testPoseidonHash()
-	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, ActionsReducedRoot))
+	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, ActionsReducedRoot, NetworkID))
 }
 
 func TestVerifyVoteExtSigFailureModes(t *testing.T) {
@@ -94,7 +94,7 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := verifyVoteExtSig(tt.poseidon, tt.signature, tt.message, tt.minaKey, tt.reducedRoot)
+			err := verifyVoteExtSig(tt.poseidon, tt.signature, tt.message, tt.minaKey, tt.reducedRoot, NetworkID)
 
 			require.ErrorIs(t, err, tt.expectedErr)
 		})

@@ -169,6 +169,7 @@ func newVerifyVoteExtensionTestHandler(t *testing.T, validators []stakingtypes.V
 			validatorsByConsAddr: validatorsByConsAddr(t, validators...),
 		},
 		keyregistryKeeper: verifyVoteExtensionTestKeyregistryKeeper{cosmosToMina: cosmosToMina},
+		networkID:         NetworkID,
 	}
 }
 

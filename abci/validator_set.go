@@ -126,7 +126,7 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 			return nil, err
 		}
 
-		if _, err := publickey.NewPublicKeyFromBytes(minaPubKey, NetworkID); err != nil {
+		if _, err := publickey.NewPublicKeyFromBytes(minaPubKey, h.networkID); err != nil {
 			return nil, err
 		}
 

@@ -1,12 +1,17 @@
 package abci
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
+)
 
 type ABCIHandler struct {
 	secondaryKey          SecondaryKey
 	stakingKeeper         StakingKeeper
 	keyregistryKeeper     KeyregistryKeeper
 	votePersistenceKeeper VotePersistenceKeeper
+	networkID             mina.NetworkID
 }
 
 func NewABCIHandler(
@@ -14,6 +19,7 @@ func NewABCIHandler(
 	stakingKeeper StakingKeeper,
 	keyregistryKeeper KeyregistryKeeper,
 	votepersistenceKeeper VotePersistenceKeeper,
+	networkId mina.NetworkID,
 ) (*ABCIHandler, error) {
 	if err := secondaryKey.Validate(); err != nil {
 		return nil, err
@@ -33,6 +39,7 @@ func NewABCIHandler(
 		stakingKeeper:         stakingKeeper,
 		keyregistryKeeper:     keyregistryKeeper,
 		votePersistenceKeeper: votepersistenceKeeper,
+		networkID:             networkId,
 	}, nil
 }
 

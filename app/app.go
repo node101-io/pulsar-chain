@@ -14,6 +14,7 @@ import (
 	feegrantkeeper "cosmossdk.io/x/feegrant/keeper"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -202,26 +203,28 @@ func New(
 		panic(err)
 	}
 
-	secondaryKey, err := parseSecondaryKey(appOpts)
+	networkId, ok := appOpts.Get("mina.network_id").(string)
+	if !ok || networkId == "" {
+		panic("mina.network_id is missing or not a string")
+	}
+
+	secondaryKey, err := parseSecondaryKey(appOpts, mina.NetworkID(networkId))
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))
 	}
+
 	app.ABCIHandler, err = abcihandler.NewABCIHandler(
 		secondaryKey,
 		app.StakingKeeper,
 		app.KeyregistryKeeper,
 		app.VotepersistenceKeeper,
+		mina.NetworkID(networkId),
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize ABCI handler: %v", err))
 	}
 
 	appante.RegisterInterfaces(app.interfaceRegistry)
-
-	networkId, ok := appOpts.Get("mina.network_id").(string)
-	if !ok || networkId == "" {
-		panic("mina.network_id is missing or not a string")
-	}
 
 	// add to default baseapp options
 	// enable optimistic execution
@@ -351,7 +354,8 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig
 	docs.RegisterOpenAPIService(Name, apiSvr.Router)
 }
 
-func parseSecondaryKey(appOpts servertypes.AppOptions) (abcihandler.SecondaryKey, error) {
+func parseSecondaryKey(appOpts servertypes.AppOptions, networkID mina.NetworkID) (abcihandler.SecondaryKey, error) {
+
 	minaPrivKey := appOpts.Get("vote_extension.priv_key")
 	keyStr, ok := minaPrivKey.(string)
 	if !ok {
@@ -369,7 +373,7 @@ func parseSecondaryKey(appOpts servertypes.AppOptions) (abcihandler.SecondaryKey
 	var rawPrivateKey [32]byte
 	copy(rawPrivateKey[:], keyBytes)
 
-	priv, err := privatekey.NewPrivateKeyFromBytes(rawPrivateKey, abcihandler.NetworkID)
+	priv, err := privatekey.NewPrivateKeyFromBytes(rawPrivateKey, networkID)
 	if err != nil {
 		return abcihandler.SecondaryKey{}, fmt.Errorf("parse mina private key: %w", err)
 	}

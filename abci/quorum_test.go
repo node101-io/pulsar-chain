@@ -198,6 +198,7 @@ func newQuorumTestHandler(t *testing.T, validators []stakingtypes.Validator, key
 		},
 		keyregistryKeeper:     quorumTestKeyregistryKeeper{cosmosToMina: cosmosToMina},
 		votePersistenceKeeper: votePersistenceKeeper,
+		networkID:             NetworkID,
 	}
 }
 

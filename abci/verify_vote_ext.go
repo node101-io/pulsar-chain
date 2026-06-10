@@ -50,7 +50,7 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		}
 		poseidonHash := poseidon.NewPoseidon()
 
-		if err := verifyVoteExtSig(poseidonHash, req.VoteExtension, body, minaKey, ActionsReducedRoot); err != nil {
+		if err := verifyVoteExtSig(poseidonHash, req.VoteExtension, body, minaKey, ActionsReducedRoot, h.networkID); err != nil {
 			if errors.Is(err, keyregistryTypes.ErrValidatorNotRegistered) ||
 				errors.Is(err, ErrInvalidVoteExtSignatureEncoding) ||
 				errors.Is(err, ErrInvalidVoteExtSignature) {
