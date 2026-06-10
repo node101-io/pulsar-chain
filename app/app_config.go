@@ -165,6 +165,8 @@ var (
 						slashingtypes.ModuleName,
 						govtypes.ModuleName,
 						minttypes.ModuleName,
+
+						keyregistrymoduletypes.ModuleName,
 						genutiltypes.ModuleName,
 						evidencetypes.ModuleName,
 						authz.ModuleName,
@@ -181,7 +183,6 @@ var (
 						icatypes.ModuleName,
 						// chain modules
 						pulsarmoduletypes.ModuleName,
-						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/initGenesis
 					},
@@ -218,7 +219,7 @@ var (
 			},
 			{
 				Name:   "tx",
-				Config: appconfig.WrapAny(&txconfigv1.Config{}),
+				Config: appconfig.WrapAny(&txconfigv1.Config{SkipAnteHandler: true}),
 			},
 			{
 				Name:   genutiltypes.ModuleName,
