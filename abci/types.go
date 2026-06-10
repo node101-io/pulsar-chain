@@ -35,8 +35,7 @@ var voteExtMarkerBytes = []byte(VoteExtMarker)
 // the first height with both sides of that transition available.
 const MinPulsarVoteExtensionHeight int64 = 2
 
-// TODO: Move this into chain/app configuration before non-local testnets. The
-// Mina signature domain must match on both signing and verification paths.
+// For testing purposes only.
 const NetworkID mina.NetworkID = mina.TestNet
 
 var (

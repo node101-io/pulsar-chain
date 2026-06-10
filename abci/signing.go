@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/mina-signer-go/publickey"
@@ -55,12 +56,12 @@ func (s SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBo
 	return sig.Bytes(), nil
 }
 
-func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string) error {
+func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string, networkID mina.NetworkID) error {
 	if message.ActionsReducedRoot != reducedRoot {
 		return ErrInvalidVoteExtReducedRoot
 	}
 
-	pubKey, err := publickey.NewPublicKeyFromBytes(minaKey, NetworkID)
+	pubKey, err := publickey.NewPublicKeyFromBytes(minaKey, networkID)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidVoteExtMinaPublicKey, err)
 	}
