@@ -1,9 +1,11 @@
 package abci
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
+	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	votepersistencetypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
@@ -146,10 +148,14 @@ func validSecondaryKey() SecondaryKey {
 	}
 }
 
+func testStateRoot32() []byte {
+	return bytes.Repeat([]byte{0x42}, 32)
+}
+
 func validVoteExtBody() votepersistencetypes.VoteExtBody {
 	return votepersistencetypes.VoteExtBody{
-		NextValidatorSetHash: []byte("next-validator-set-hash"),
-		CurrentStateRoot:     []byte("current-state-root"),
+		NextValidatorSetHash: field.NewField().FromUint64(1).Bytes(),
+		CurrentStateRoot:     testStateRoot32(),
 		CurrentBlockHeight:   7,
 		ActionsReducedRoot:   ActionsReducedRoot,
 	}
