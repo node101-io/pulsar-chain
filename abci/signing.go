@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
+	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/mina-signer-go/publickey"
@@ -43,12 +44,14 @@ func (s SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBo
 	}
 
 	poseidonHash := poseidon.NewPoseidon()
-	msgHash, err := hashVoteExtBody(poseidonHash, voteExtBody)
+	minaField := field.NewField()
+
+	msgHash, err := hashVoteExtBody(minaField, poseidonHash, voteExtBody)
 	if err != nil {
 		return nil, err
 	}
 
-	sig, err := s.SecretKey.SignBytes(msgHash)
+	sig, err := s.SecretKey.SignFieldElement(msgHash)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrVoteExtSigningFailed, err)
 	}
@@ -66,7 +69,8 @@ func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message
 		return fmt.Errorf("%w: %v", ErrInvalidVoteExtMinaPublicKey, err)
 	}
 
-	msgHash, err := hashVoteExtBody(poseidonHash, message)
+	minaField := field.NewField()
+	msgHash, err := hashVoteExtBody(minaField, poseidonHash, message)
 	if err != nil {
 		return err
 	}
@@ -76,7 +80,7 @@ func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message
 		return fmt.Errorf("%w: %v", ErrInvalidVoteExtSignatureEncoding, err)
 	}
 
-	valid, err := pubKey.VerifyBytes(sig, msgHash)
+	valid, err := pubKey.VerifyField(sig, msgHash)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidVoteExtSignature, err)
 	}
@@ -87,8 +91,12 @@ func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message
 	return nil
 }
 
-func hashVoteExtBody(poseidonHash *poseidon.Poseidon, voteExtBody votepersistenceTypes.VoteExtBody) ([]byte, error) {
+func hashVoteExtBody(minaField *field.Field, poseidonHash *poseidon.Poseidon, voteExtBody votepersistenceTypes.VoteExtBody) (*field.FieldElement, error) {
 	if poseidonHash == nil {
+		return nil, ErrVoteExtBodyHashFailed
+	}
+
+	if minaField == nil {
 		return nil, ErrVoteExtBodyHashFailed
 	}
 
@@ -96,22 +104,68 @@ func hashVoteExtBody(poseidonHash *poseidon.Poseidon, voteExtBody votepersistenc
 		return nil, fmt.Errorf("%w: current block height must be non-negative", ErrVoteExtBodyHashFailed)
 	}
 
-	hash, err := poseidonHash.HashWithPrefix(VoteExtBodyHashPrefix, encodeVoteExtBodyForHash(voteExtBody))
+	validatorSetRoot, err := minaField.FromBytes(voteExtBody.NextValidatorSetHash)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid validator set root: %v", ErrVoteExtBodyHashFailed, err)
+	}
+
+	voteExtBodyHash, err := encodeVoteExtBodyForHash(poseidonHash, minaField, voteExtBody.CurrentStateRoot)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrVoteExtBodyHashFailed, err)
+	}
+
+	actionsRoot, err := minaField.FromBytesBEReduce([]byte(voteExtBody.ActionsReducedRoot))
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid actions reduced root: %v", ErrVoteExtBodyHashFailed, err)
+	}
+
+	inner, err := poseidonHash.HashFieldElements(
+		validatorSetRoot,
+		voteExtBodyHash,
+		minaField.FromUint64(uint64(voteExtBody.CurrentBlockHeight)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrVoteExtBodyHashFailed, err)
+	}
+
+	root, err := field.NewFieldElement(actionsRoot.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := poseidonHash.HashFieldElements(inner, root)
+	if err != nil {
+		return nil, err
 	}
 
 	return hash, nil
 }
 
-func encodeVoteExtBodyForHash(voteExtBody votepersistenceTypes.VoteExtBody) []byte {
-	var bz []byte
-	bz = appendLengthPrefixedBytes(bz, voteExtBody.NextValidatorSetHash)
-	bz = appendLengthPrefixedBytes(bz, voteExtBody.CurrentStateRoot)
-	bz = binary.BigEndian.AppendUint64(bz, uint64(voteExtBody.CurrentBlockHeight))
-	bz = appendLengthPrefixedBytes(bz, []byte(voteExtBody.ActionsReducedRoot))
+func encodeVoteExtBodyForHash(
+	poseidonHash *poseidon.Poseidon,
+	field *field.Field,
+	appHash []byte,
+) (*field.FieldElement, error) {
+	if len(appHash) != 32 {
+		return nil, fmt.Errorf("current state root must be 32 bytes")
+	}
 
-	return bz
+	hi, err := field.FromBytesBEReduce(appHash[:16])
+	if err != nil {
+		return nil, err
+	}
+
+	lo, err := field.FromBytesBEReduce(appHash[16:])
+	if err != nil {
+		return nil, err
+	}
+
+	hashBytes, err := poseidonHash.HashFieldElements(hi, lo)
+	if err != nil {
+		return nil, err
+	}
+
+	return hashBytes, nil
 }
 
 func encodeValidatorSetEntryForHash(minaPublicKey []byte, consensusPower int64) ([]byte, error) {
