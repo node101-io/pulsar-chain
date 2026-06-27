@@ -2,7 +2,6 @@ package abci
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
@@ -166,21 +165,4 @@ func encodeVoteExtBodyForHash(
 	}
 
 	return hashBytes, nil
-}
-
-func encodeValidatorSetEntryForHash(minaPublicKey []byte, consensusPower int64) ([]byte, error) {
-	if consensusPower < 0 {
-		return nil, fmt.Errorf("%w: consensus power must be non-negative", ErrValidatorSetRootHashFailed)
-	}
-
-	var bz []byte
-	bz = appendLengthPrefixedBytes(bz, minaPublicKey)
-	bz = binary.BigEndian.AppendUint64(bz, uint64(consensusPower))
-
-	return bz, nil
-}
-
-func appendLengthPrefixedBytes(dst []byte, value []byte) []byte {
-	dst = binary.BigEndian.AppendUint32(dst, uint32(len(value)))
-	return append(dst, value...)
 }
