@@ -23,9 +23,9 @@ func TestSortValidatorsByPower(t *testing.T) {
 
 	require.NoError(t, sortValidatorsByPower(validators))
 
-	require.Equal(t, int64(10), validators[0].GetConsensusPower(sdk.DefaultPowerReduction))
+	require.Equal(t, int64(1), validators[0].GetConsensusPower(sdk.DefaultPowerReduction))
 	require.Equal(t, int64(5), validators[1].GetConsensusPower(sdk.DefaultPowerReduction))
-	require.Equal(t, int64(1), validators[2].GetConsensusPower(sdk.DefaultPowerReduction))
+	require.Equal(t, int64(10), validators[2].GetConsensusPower(sdk.DefaultPowerReduction))
 }
 
 func TestSortValidatorsByPowerTiesByConsensusAddress(t *testing.T) {
