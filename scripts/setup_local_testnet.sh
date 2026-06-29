@@ -20,6 +20,8 @@ VOTE_EXT_ENABLE_HEIGHT="${VOTE_EXT_ENABLE_HEIGHT:-1}"
 BIN_DIR="${BIN_DIR:-$HOME/go/bin}"
 BINARY_PATH="${BINARY_PATH:-$BIN_DIR/pulsard}"
 COMPAT_BINARY_PATH="${COMPAT_BINARY_PATH:-$BIN_DIR/pulsar-chaind}"
+API_BIND_HOST="${API_BIND_HOST:-localhost}"
+START_VALIDATORS="${START_VALIDATORS:-0}"
 DEFAULT_NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
 DEFAULT_NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
 
@@ -163,11 +165,11 @@ configure_node() {
 
   sed -i.bak "s|laddr = \"tcp://127.0.0.1:26657\"|laddr = \"tcp://0.0.0.0:${rpc_port}\"|" "$home/config/config.toml"
   sed -i.bak "s|laddr = \"tcp://0.0.0.0:26656\"|laddr = \"tcp://0.0.0.0:${p2p_port}\"|" "$home/config/config.toml"
-  sed -i.bak "s|persistent_peers = \"\"|persistent_peers = \"${persistent_peers}\"|" "$home/config/config.toml"
+  sed -E -i.bak "s|^persistent_peers = \".*\"|persistent_peers = \"${persistent_peers}\"|" "$home/config/config.toml"
   sed -i.bak 's|addr_book_strict = true|addr_book_strict = false|' "$home/config/config.toml"
   sed -i.bak 's|allow_duplicate_ip = false|allow_duplicate_ip = true|' "$home/config/config.toml"
 
-  sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://localhost:${api_port}\"|" "$home/config/app.toml"
+  sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://${API_BIND_HOST}:${api_port}\"|" "$home/config/app.toml"
   sed -i.bak "s|address = \"localhost:9090\"|address = \"0.0.0.0:${grpc_port}\"|" "$home/config/app.toml"
 
   python3 "$PYTHON_HELPER" update-app-config \
@@ -188,11 +190,37 @@ build_persistent_peers() {
       continue
     fi
 
-    peers+=("${NODE_IDS[i]}@127.0.0.1:${NODE_P2P_PORTS[i]}")
+    peers+=("${NODE_IDS[i]}@${NODE_P2P_HOSTS[i]}:${NODE_P2P_PORTS[i]}")
   done
 
   local IFS=,
   printf '%s\n' "${peers[*]}"
+}
+
+cleanup_validators() {
+  trap - EXIT INT TERM
+
+  if (( ${#VALIDATOR_PIDS[@]:-0} == 0 )); then
+    return
+  fi
+
+  kill "${VALIDATOR_PIDS[@]}" 2>/dev/null || true
+  wait "${VALIDATOR_PIDS[@]}" 2>/dev/null || true
+}
+
+monitor_validators() {
+  local pid
+
+  while :; do
+    for pid in "${VALIDATOR_PIDS[@]}"; do
+      if ! kill -0 "$pid" 2>/dev/null; then
+        wait "$pid"
+        return $?
+      fi
+    done
+
+    sleep 1
+  done
 }
 
 require_cmd go
@@ -204,7 +232,7 @@ if ! [[ "$VALIDATOR_COUNT" =~ ^[0-9]+$ ]] || (( VALIDATOR_COUNT < 1 )); then
 fi
 
 declare -a NODE_HOMES NODE_MONIKERS NODE_KEY_NAMES NODE_MINA_PRIV_KEYS NODE_MINA_PUB_KEYS
-declare -a NODE_MINA_NETWORK_IDS
+declare -a NODE_MINA_NETWORK_IDS NODE_P2P_HOSTS
 declare -a NODE_P2P_PORTS NODE_RPC_PORTS NODE_GRPC_PORTS NODE_API_PORTS
 declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS
 declare -a NODE_WRAPPER_GRPC_ADDRESSES
@@ -238,6 +266,7 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   validate_mina_priv_key "$i" "${NODE_MINA_PRIV_KEYS[i]}"
   NODE_MINA_NETWORK_IDS[i]="$(get_node_setting "$i" "MINA_NETWORK_ID" "$DEFAULT_MINA_NETWORK_ID")"
   validate_mina_network_id "$i" "${NODE_MINA_NETWORK_IDS[i]}"
+  NODE_P2P_HOSTS[i]="$(get_node_setting "$i" "P2P_HOST" "127.0.0.1")"
   NODE_P2P_PORTS[i]="$(get_node_setting "$i" "P2P_PORT" "$((26656 + ((i - 1) * 10)))")"
   NODE_RPC_PORTS[i]="$(get_node_setting "$i" "RPC_PORT" "$((26657 + ((i - 1) * 10)))")"
   NODE_GRPC_PORTS[i]="$(get_node_setting "$i" "GRPC_PORT" "$((9090 + i - 1))")"
@@ -363,18 +392,39 @@ echo "  binary:            $BINARY_PATH"
 echo "  compat binary:     $COMPAT_BINARY_PATH"
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   echo "  ${NODE_MONIKERS[i]} home:        ${NODE_HOMES[i]}"
-  echo "  ${NODE_MONIKERS[i]} address:     ${NODE_ADDRS[i]}"
+echo "  ${NODE_MONIKERS[i]} address:     ${NODE_ADDRS[i]}"
   echo "  ${NODE_MONIKERS[i]} cosmos key:  ${NODE_COSMOS_PUB_KEYS[i]}"
   echo "  ${NODE_MONIKERS[i]} mina key:    ${NODE_MINA_PUB_KEYS[i]}"
 done
 echo ""
-echo "Start the nodes in separate terminals:"
-for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
-  echo "  $BINARY_PATH start --home ${NODE_HOMES[i]}"
-done
+if [[ "$START_VALIDATORS" == "1" ]]; then
+  echo "Validators will now be started automatically."
+else
+  echo "Start the nodes in separate terminals:"
+  for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+    echo "  $BINARY_PATH start --home ${NODE_HOMES[i]}"
+  done
+fi
 echo ""
 echo "Validation examples:"
 echo "  curl -s http://localhost:${NODE_RPC_PORTS[PRIMARY_NODE_INDEX]}/validators | python3 -m json.tool | grep total"
 echo "  $BINARY_PATH query votepersistence vote-extensions --home $PRIMARY_HOME"
 echo "  grpcurl -plaintext -d '{\"vote_extension_height\":\"5\"}' localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]} pulsarchain.abci.Query/VoteExtBodyByHeight"
 echo "  GOFLAGS=\"\${GOFLAGS:-} -tags=purego\" go run ./scripts/devtools verify-vote-extensions --grpc-addr localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]}"
+
+if [[ "$START_VALIDATORS" == "1" ]]; then
+  declare -a VALIDATOR_PIDS=()
+
+  trap cleanup_validators EXIT
+  trap 'cleanup_validators; exit 130' INT TERM
+
+  echo ""
+  echo "==> Starting validators..."
+  for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+    echo "  ${NODE_MONIKERS[i]}: $BINARY_PATH start --home ${NODE_HOMES[i]}"
+    "$BINARY_PATH" start --home "${NODE_HOMES[i]}" &
+    VALIDATOR_PIDS+=("$!")
+  done
+
+  monitor_validators
+fi
