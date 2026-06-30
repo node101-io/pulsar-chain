@@ -22,6 +22,9 @@ BINARY_PATH="${BINARY_PATH:-$BIN_DIR/pulsard}"
 COMPAT_BINARY_PATH="${COMPAT_BINARY_PATH:-$BIN_DIR/pulsar-chaind}"
 API_BIND_HOST="${API_BIND_HOST:-localhost}"
 START_VALIDATORS="${START_VALIDATORS:-0}"
+SKIP_BUILD="${SKIP_BUILD:-0}"
+SETUP_CONTEXT="${SETUP_CONTEXT:-host}"
+DEFAULT_VALIDATOR_NAME_PREFIX="validator"
 DEFAULT_NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
 DEFAULT_NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
 
@@ -152,19 +155,40 @@ get_node_setting() {
   printf '%s\n' "${!var_name:-$default_value}"
 }
 
+default_node_moniker() {
+  local index="$1"
+
+  printf '%s%s\n' "$DEFAULT_VALIDATOR_NAME_PREFIX" "$index"
+}
+
+default_node_p2p_host() {
+  local index="$1"
+
+  # Host-started validators talk over localhost. Docker-generated homes use
+  # container names so peers can resolve each other on the Docker network.
+  if [[ "$SETUP_CONTEXT" != "container" || "$START_VALIDATORS" == "1" ]]; then
+    printf '%s\n' "127.0.0.1"
+    return
+  fi
+
+  printf '%s%s\n' "$DEFAULT_VALIDATOR_NAME_PREFIX" "$index"
+}
+
 configure_node() {
   local home="$1"
   local rpc_port="$2"
   local p2p_port="$3"
   local api_port="$4"
   local grpc_port="$5"
-  local persistent_peers="$6"
-  local mina_priv_key="$7"
-  local mina_network_id="$8"
-  local wrapper_grpc_address="$9"
+  local pprof_port="$6"
+  local persistent_peers="$7"
+  local mina_priv_key="$8"
+  local mina_network_id="$9"
+  local wrapper_grpc_address="${10}"
 
   sed -i.bak "s|laddr = \"tcp://127.0.0.1:26657\"|laddr = \"tcp://0.0.0.0:${rpc_port}\"|" "$home/config/config.toml"
   sed -i.bak "s|laddr = \"tcp://0.0.0.0:26656\"|laddr = \"tcp://0.0.0.0:${p2p_port}\"|" "$home/config/config.toml"
+  sed -i.bak "s|pprof_laddr = \"localhost:6060\"|pprof_laddr = \"localhost:${pprof_port}\"|" "$home/config/config.toml"
   sed -E -i.bak "s|^persistent_peers = \".*\"|persistent_peers = \"${persistent_peers}\"|" "$home/config/config.toml"
   sed -i.bak 's|addr_book_strict = true|addr_book_strict = false|' "$home/config/config.toml"
   sed -i.bak 's|allow_duplicate_ip = false|allow_duplicate_ip = true|' "$home/config/config.toml"
@@ -233,7 +257,7 @@ fi
 
 declare -a NODE_HOMES NODE_MONIKERS NODE_KEY_NAMES NODE_MINA_PRIV_KEYS NODE_MINA_PUB_KEYS
 declare -a NODE_MINA_NETWORK_IDS NODE_P2P_HOSTS
-declare -a NODE_P2P_PORTS NODE_RPC_PORTS NODE_GRPC_PORTS NODE_API_PORTS
+declare -a NODE_P2P_PORTS NODE_RPC_PORTS NODE_GRPC_PORTS NODE_API_PORTS NODE_PPROF_PORTS
 declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS
 declare -a NODE_WRAPPER_GRPC_ADDRESSES
 
@@ -260,17 +284,18 @@ validate_positive_int "actions reduced root snapshot window size" "$BRIDGE_ACTIO
 
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_HOMES[i]="$(get_node_setting "$i" "HOME" "$HOME/.pulsar-node${i}")"
-  NODE_MONIKERS[i]="$(get_node_setting "$i" "MONIKER" "node${i}")"
+  NODE_MONIKERS[i]="$(get_node_setting "$i" "MONIKER" "$(default_node_moniker "$i")")"
   NODE_KEY_NAMES[i]="$(get_node_setting "$i" "KEY_NAME" "validator${i}")"
   NODE_MINA_PRIV_KEYS[i]="$(get_node_setting "$i" "MINA_PRIV_KEY" "$(default_node_mina_priv_key "$i")")"
   validate_mina_priv_key "$i" "${NODE_MINA_PRIV_KEYS[i]}"
   NODE_MINA_NETWORK_IDS[i]="$(get_node_setting "$i" "MINA_NETWORK_ID" "$DEFAULT_MINA_NETWORK_ID")"
   validate_mina_network_id "$i" "${NODE_MINA_NETWORK_IDS[i]}"
-  NODE_P2P_HOSTS[i]="$(get_node_setting "$i" "P2P_HOST" "127.0.0.1")"
+  NODE_P2P_HOSTS[i]="$(get_node_setting "$i" "P2P_HOST" "$(default_node_p2p_host "$i")")"
   NODE_P2P_PORTS[i]="$(get_node_setting "$i" "P2P_PORT" "$((26656 + ((i - 1) * 10)))")"
   NODE_RPC_PORTS[i]="$(get_node_setting "$i" "RPC_PORT" "$((26657 + ((i - 1) * 10)))")"
   NODE_GRPC_PORTS[i]="$(get_node_setting "$i" "GRPC_PORT" "$((9090 + i - 1))")"
   NODE_API_PORTS[i]="$(get_node_setting "$i" "API_PORT" "$((1317 + i - 1))")"
+  NODE_PPROF_PORTS[i]="$(get_node_setting "$i" "PPROF_PORT" "$((6060 + i - 1))")"
   NODE_WRAPPER_GRPC_ADDRESSES[i]="$(get_node_setting "$i" "WRAPPER_GRPC_ADDRESS" "$DEFAULT_WRAPPER_GRPC_ADDRESS")"
   if [[ -z "${NODE_WRAPPER_GRPC_ADDRESSES[i]}" ]]; then
     echo "missing wrapper gRPC address for node${i}; set WRAPPER_GRPC_ADDRESS, NODE${i}_WRAPPER_GRPC_ADDRESS, or validators[].app.bridge.wrapper_grpc_address in $CHAIN_CONFIG_PATH" >&2
@@ -287,15 +312,23 @@ PRIMARY_GENESIS_FILE="${NODE_GENESIS_FILES[PRIMARY_NODE_INDEX]}"
 echo "==> Cleaning previous homes..."
 rm -rf "$LEGACY_CHAIN_HOME" "${NODE_HOMES[@]}"
 
-echo "==> Building binary..."
-mkdir -p "$BIN_DIR"
-(
-  cd "$REPO_ROOT"
-  GOFLAGS="$GOFLAGS_WITH_PUREGO" go build -o "$BINARY_PATH" ./cmd/pulsard
-)
+if [[ "$SKIP_BUILD" == "1" ]]; then
+  if [[ ! -x "$BINARY_PATH" ]]; then
+    echo "expected prebuilt binary at $BINARY_PATH" >&2
+    exit 1
+  fi
+  echo "==> Reusing prebuilt binary at $BINARY_PATH..."
+else
+  echo "==> Building binary..."
+  mkdir -p "$BIN_DIR"
+  (
+    cd "$REPO_ROOT"
+    GOFLAGS="$GOFLAGS_WITH_PUREGO" go build -o "$BINARY_PATH" ./cmd/pulsard
+  )
 
-if [[ "$COMPAT_BINARY_PATH" != "$BINARY_PATH" ]]; then
-  cp "$BINARY_PATH" "$COMPAT_BINARY_PATH"
+  if [[ "$COMPAT_BINARY_PATH" != "$BINARY_PATH" ]]; then
+    cp "$BINARY_PATH" "$COMPAT_BINARY_PATH"
+  fi
 fi
 
 echo "==> Initializing nodes..."
@@ -379,6 +412,7 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
     "${NODE_P2P_PORTS[i]}" \
     "${NODE_API_PORTS[i]}" \
     "${NODE_GRPC_PORTS[i]}" \
+    "${NODE_PPROF_PORTS[i]}" \
     "$(build_persistent_peers "$i")" \
     "${NODE_MINA_PRIV_KEYS[i]}" \
     "${NODE_MINA_NETWORK_IDS[i]}" \
@@ -388,11 +422,13 @@ done
 echo ""
 echo "Setup complete."
 echo "  validators:        $VALIDATOR_COUNT"
-echo "  binary:            $BINARY_PATH"
-echo "  compat binary:     $COMPAT_BINARY_PATH"
+if [[ "$SETUP_CONTEXT" != "container" ]]; then
+  echo "  binary:            $BINARY_PATH"
+  echo "  compat binary:     $COMPAT_BINARY_PATH"
+fi
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   echo "  ${NODE_MONIKERS[i]} home:        ${NODE_HOMES[i]}"
-echo "  ${NODE_MONIKERS[i]} address:     ${NODE_ADDRS[i]}"
+  echo "  ${NODE_MONIKERS[i]} address:     ${NODE_ADDRS[i]}"
   echo "  ${NODE_MONIKERS[i]} cosmos key:  ${NODE_COSMOS_PUB_KEYS[i]}"
   echo "  ${NODE_MONIKERS[i]} mina key:    ${NODE_MINA_PUB_KEYS[i]}"
 done
@@ -400,17 +436,23 @@ echo ""
 if [[ "$START_VALIDATORS" == "1" ]]; then
   echo "Validators will now be started automatically."
 else
-  echo "Start the nodes in separate terminals:"
-  for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
-    echo "  $BINARY_PATH start --home ${NODE_HOMES[i]}"
-  done
+  if [[ "$SETUP_CONTEXT" == "container" ]]; then
+    echo "Shared validator homes were generated under $HOME."
+  else
+    echo "Start the nodes in separate terminals:"
+    for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+      echo "  $BINARY_PATH start --home ${NODE_HOMES[i]}"
+    done
+  fi
 fi
-echo ""
-echo "Validation examples:"
-echo "  curl -s http://localhost:${NODE_RPC_PORTS[PRIMARY_NODE_INDEX]}/validators | python3 -m json.tool | grep total"
-echo "  $BINARY_PATH query votepersistence vote-extensions --home $PRIMARY_HOME"
-echo "  grpcurl -plaintext -d '{\"vote_extension_height\":\"5\"}' localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]} pulsarchain.abci.Query/VoteExtBodyByHeight"
-echo "  GOFLAGS=\"\${GOFLAGS:-} -tags=purego\" go run ./scripts/devtools verify-vote-extensions --grpc-addr localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]}"
+if [[ "$SETUP_CONTEXT" != "container" ]]; then
+  echo ""
+  echo "Validation examples:"
+  echo "  curl -s http://localhost:${NODE_RPC_PORTS[PRIMARY_NODE_INDEX]}/validators | python3 -m json.tool | grep total"
+  echo "  grpcurl -plaintext -d '{\"vote_extension_height\":\"5\"}' localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]} pulsarchain.abci.Query/VoteExtBodyByHeight"
+  echo "  $BINARY_PATH query votepersistence vote-extensions --home $PRIMARY_HOME"
+  echo "  GOFLAGS=\"\${GOFLAGS:-} -tags=purego\" go run ./scripts/devtools verify-vote-extensions --grpc-addr localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]}"
+fi
 
 if [[ "$START_VALIDATORS" == "1" ]]; then
   declare -a VALIDATOR_PIDS=()

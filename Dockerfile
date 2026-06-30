@@ -6,21 +6,13 @@ RUN apt-get update \
 
 WORKDIR /app
 
-ENV HOME=/data \
-    BIN_DIR=/data/bin \
-    BINARY_PATH=/data/bin/pulsard \
-    COMPAT_BINARY_PATH=/data/bin/pulsar-chaind \
-    GOCACHE=/tmp/go-build \
-    API_BIND_HOST=0.0.0.0 \
-    START_VALIDATORS=1
-
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-VOLUME ["/data"]
+RUN GOFLAGS="-tags=purego" go build -o /usr/local/bin/pulsard ./cmd/pulsard
+RUN chmod +x /app/scripts/docker_entrypoint.sh /app/scripts/setup_local_testnet.sh
 
-EXPOSE 26656 26657 1317 9090 26666 26667 1318 9091 26676 26677 1319 9092
-
-CMD ["./scripts/setup_local_testnet.sh", "3"]
+ENTRYPOINT ["/app/scripts/docker_entrypoint.sh"]
+CMD ["start", "--home", "/validator"]
