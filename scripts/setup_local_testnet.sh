@@ -437,7 +437,7 @@ if [[ "$START_VALIDATORS" == "1" ]]; then
   echo "Validators will now be started automatically."
 else
   if [[ "$SETUP_CONTEXT" == "container" ]]; then
-    echo "Shared validator homes were generated under $HOME."
+    echo "Shared validator homes were generated under $HOME in the mounted Docker volume."
   else
     echo "Start the nodes in separate terminals:"
     for ((i = 1; i <= VALIDATOR_COUNT; i++)); do

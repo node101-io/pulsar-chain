@@ -15,4 +15,3 @@ RUN GOFLAGS="-tags=purego" go build -o /usr/local/bin/pulsard ./cmd/pulsard
 RUN chmod +x /app/scripts/docker_entrypoint.sh /app/scripts/setup_local_testnet.sh
 
 ENTRYPOINT ["/app/scripts/docker_entrypoint.sh"]
-CMD ["start", "--home", "/validator"]
