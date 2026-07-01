@@ -9,8 +9,8 @@ import {
 } from './request-logic.mjs';
 import {
   decodeBase64,
-  decodeSignerPublicKey,
-  decodeSignerSignature,
+  decodeMinaPublicKey,
+  decodeMinaSignature,
   fieldFromBigEndian,
   stateRootToField,
   verifyVotes,
@@ -18,7 +18,6 @@ import {
 
 const DEFAULT_GRPC_ADDR = '127.0.0.1:9090';
 const DEFAULT_RPC_BASE = 'http://127.0.0.1:26657';
-const TESTNET_NETWORK_ID = 'testnet';
 
 const VOTE_EXTENSIONS_METHOD = 'pulsarchain.votepersistence.v1.Query/VoteExtensions';
 const VOTE_EXT_BODY_BY_HEIGHT_METHOD = 'pulsarchain.abci.Query/VoteExtBodyByHeight';
@@ -27,7 +26,7 @@ const VALIDATOR_MINA_KEY_METHOD = 'pulsarchain.keyregistry.v1.Query/GetValidator
 const ACTIONS_REDUCED_ROOT_STRING = 'pulsar';
 const ACTIONS_REDUCED_ROOT = Field(0x70756c736172n);
 const VALIDATOR_LEAF_PREFIX = 'pulsar-validator';
-const VERIFICATION_MODE = 'verifyLegacy(testnet)';
+const VERIFICATION_MODE = 'Signature.verify([voteExtBodyHash])';
 
 function printUsage() {
   console.log(`Usage:
@@ -37,7 +36,7 @@ What it does:
   1. Queries the current persisted vote extensions
   2. Fetches the matching vote-extension body
   3. Recomputes validatorSetRoot with the attached field-based o1js logic
-  4. Verifies signatures with o1js verify/verifyLegacy using the matching Mina network mode
+  4. Verifies signatures with o1js Signature.verify over the voteExtBody hash field
 
 Examples:
   node verify-vote-extensions.mjs --grpc 127.0.0.1:9090 --rpc http://127.0.0.1:26657
@@ -170,8 +169,8 @@ async function buildReport(options) {
       `voteExtensions[${index}].voteExtension`
     );
     return {
-      publicKey: decodeSignerPublicKey(minaPublicKeyBytes),
-      signature: decodeSignerSignature(voteExtensionBytes),
+      publicKey: decodeMinaPublicKey(minaPublicKeyBytes),
+      signature: decodeMinaSignature(voteExtensionBytes),
     };
   });
 
@@ -180,7 +179,6 @@ async function buildReport(options) {
     body: bodyForVerifier,
     votes: verifierVotes,
     validatorLeafPrefix: VALIDATOR_LEAF_PREFIX,
-    verificationNetworkId: TESTNET_NETWORK_ID,
     verificationMode: VERIFICATION_MODE,
   });
 

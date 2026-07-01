@@ -1,9 +1,4 @@
-import { Bool, Field, Poseidon, PublicKey } from 'o1js';
-import {
-  Bool as SignerBool,
-  Field as SignerField,
-} from './node_modules/o1js/dist/node/mina-signer/src/field-bigint.js';
-import { verifyLegacy } from './node_modules/o1js/dist/node/mina-signer/src/signature.js';
+import { Bool, Field, Poseidon, PublicKey, Signature } from 'o1js';
 
 export function decodeBase64(value, label) {
   if (typeof value !== 'string' || value.length === 0) {
@@ -64,30 +59,15 @@ export function decodeMinaPublicKey(rawBytes) {
   });
 }
 
-export function decodeSignerPublicKey(rawBytes) {
-  if (rawBytes.length !== 32) {
-    throw new Error(`invalid Mina public key length: got ${rawBytes.length}, want 32`);
-  }
-
-  const compressed = Uint8Array.from(rawBytes);
-  const isOdd = (compressed[31] & 0x80) !== 0;
-  compressed[31] &= 0x7f;
-
-  return {
-    x: SignerField(bigIntFromBytesLE(compressed)),
-    isOdd: SignerBool(isOdd),
-  };
-}
-
-export function decodeSignerSignature(rawBytes) {
+export function decodeMinaSignature(rawBytes) {
   if (rawBytes.length !== 64) {
     throw new Error(`invalid Mina signature length: got ${rawBytes.length}, want 64`);
   }
 
-  return {
-    r: SignerField(bigIntFromBytesLE(rawBytes.subarray(0, 32))),
+  return Signature.fromValue({
+    r: bigIntFromBytesLE(rawBytes.subarray(0, 32)),
     s: bigIntFromBytesLE(rawBytes.subarray(32, 64)),
-  };
+  });
 }
 
 function validatorLeaf({ publicKey, power }, validatorLeafPrefix) {
@@ -131,16 +111,8 @@ export function voteExtBodyHash({
   return Poseidon.hash([inner, actionsReducedRoot]);
 }
 
-function verifySignatures(msg, votes, verificationNetworkId) {
-  const signerMsg = SignerField(BigInt(msg.toString()));
-  return votes.map(({ publicKey, signature }) =>
-    verifyLegacy(
-      signature,
-      { fields: [signerMsg], bits: [] },
-      publicKey,
-      verificationNetworkId
-    )
-  );
+function verifySignatures(msg, votes) {
+  return votes.map(({ publicKey, signature }) => signature.verify(publicKey, [msg]).toBoolean());
 }
 
 export function verifyVotes({
@@ -148,7 +120,6 @@ export function verifyVotes({
   body,
   votes,
   validatorLeafPrefix,
-  verificationNetworkId,
   verificationMode,
 }) {
   const recomputedRoot = validatorSetRoot(validators, validatorLeafPrefix);
@@ -157,7 +128,7 @@ export function verifyVotes({
 
   return {
     rootOk,
-    signatures: verifySignatures(msg, votes, verificationNetworkId),
+    signatures: verifySignatures(msg, votes),
     recomputedRoot,
     msg,
     verificationMode,
