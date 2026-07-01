@@ -13,6 +13,8 @@ replace (
 	nhooyr.io/websocket => github.com/coder/websocket v1.8.7
 )
 
+replace github.com/bronlabs/bron-crypto => github.com/korayakpinar/bron-crypto v0.0.0-20260628220036-35fbaccd4e5d
+
 require (
 	cosmossdk.io/api v0.9.2
 	cosmossdk.io/client/v2 v2.0.0-beta.11
@@ -40,7 +42,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/node101-io/mina-signer-go v0.0.0-20260627135741-168d68c469ed
+	github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -118,7 +120,7 @@ require (
 	github.com/bombsimon/wsl/v4 v4.5.0 // indirect
 	github.com/breml/bidichk v0.3.2 // indirect
 	github.com/breml/errchkjson v0.4.0 // indirect
-	github.com/bronlabs/errs-go v0.2.1 // indirect
+	github.com/bronlabs/errs-go v0.2.2 // indirect
 	github.com/bufbuild/buf v1.66.0 // indirect
 	github.com/bufbuild/protocompile v0.14.2-0.20260202185951-d02d3732d113 // indirect
 	github.com/bufbuild/protoplugin v0.0.0-20250218205857-750e09ce93e1 // indirect
