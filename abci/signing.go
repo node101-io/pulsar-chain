@@ -43,9 +43,8 @@ func (s SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBo
 	}
 
 	poseidonHash := poseidon.NewPoseidon()
-	minaField := field.NewField()
 
-	msgHash, err := hashVoteExtBody(minaField, poseidonHash, voteExtBody)
+	msgHash, err := hashVoteExtBody(poseidonHash, voteExtBody)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +67,7 @@ func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message
 		return fmt.Errorf("%w: %v", ErrInvalidVoteExtMinaPublicKey, err)
 	}
 
-	minaField := field.NewField()
-	msgHash, err := hashVoteExtBody(minaField, poseidonHash, message)
+	msgHash, err := hashVoteExtBody(poseidonHash, message)
 	if err != nil {
 		return err
 	}
@@ -90,12 +88,8 @@ func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message
 	return nil
 }
 
-func hashVoteExtBody(minaField *field.Field, poseidonHash *poseidon.Poseidon, voteExtBody votepersistenceTypes.VoteExtBody) (*field.FieldElement, error) {
+func hashVoteExtBody(poseidonHash *poseidon.Poseidon, voteExtBody votepersistenceTypes.VoteExtBody) (*field.FieldElement, error) {
 	if poseidonHash == nil {
-		return nil, ErrVoteExtBodyHashFailed
-	}
-
-	if minaField == nil {
 		return nil, ErrVoteExtBodyHashFailed
 	}
 
@@ -103,12 +97,14 @@ func hashVoteExtBody(minaField *field.Field, poseidonHash *poseidon.Poseidon, vo
 		return nil, fmt.Errorf("%w: current block height must be non-negative", ErrVoteExtBodyHashFailed)
 	}
 
+	minaField := field.NewField()
+
 	validatorSetRoot, err := minaField.FromBytes(voteExtBody.NextValidatorSetHash)
 	if err != nil {
 		return nil, fmt.Errorf("%w: invalid validator set root: %v", ErrVoteExtBodyHashFailed, err)
 	}
 
-	voteExtBodyHash, err := encodeVoteExtBodyForHash(poseidonHash, minaField, voteExtBody.CurrentStateRoot)
+	voteExtBodyHash, err := encodeVoteExtBodyForHash(poseidonHash, voteExtBody.CurrentStateRoot)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrVoteExtBodyHashFailed, err)
 	}
@@ -142,12 +138,13 @@ func hashVoteExtBody(minaField *field.Field, poseidonHash *poseidon.Poseidon, vo
 
 func encodeVoteExtBodyForHash(
 	poseidonHash *poseidon.Poseidon,
-	field *field.Field,
 	appHash []byte,
 ) (*field.FieldElement, error) {
 	if len(appHash) != 32 {
 		return nil, fmt.Errorf("current state root must be 32 bytes")
 	}
+
+	field := field.NewField()
 
 	hi, err := field.FromBytesBEReduce(appHash[:16])
 	if err != nil {

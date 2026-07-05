@@ -6,7 +6,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/node101-io/mina-signer-go/field"
 	minafield "github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	"github.com/node101-io/mina-signer-go/privatekey"
@@ -68,13 +67,10 @@ func TestVoteExtSignatureMatchesFieldVerifierVector(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	minaField := field.NewField()
-	require.NotNil(t, minaField)
-
-	stateRoot, err := encodeVoteExtBodyForHash(poseidonHash, minafield.NewField(), appHash)
+	stateRoot, err := encodeVoteExtBodyForHash(poseidonHash, appHash)
 	require.NoError(t, err)
 
-	bodyHash, err := hashVoteExtBody(minaField, poseidonHash, body)
+	bodyHash, err := hashVoteExtBody(poseidonHash, body)
 	require.NoError(t, err)
 	require.NotNil(t, bodyHash)
 
