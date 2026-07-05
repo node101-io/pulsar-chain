@@ -12,13 +12,9 @@ import (
 const ActionsReducedRoot string = "pulsar"
 
 const (
-	// VoteExtBodyHashPrefix domain-separates vote extension body hashes.
-	VoteExtBodyHashPrefix = "pulsar-vote-ext-body"
 	// ValidatorSetEntryHashPrefix domain-separates each validator entry before it
 	// is appended to the validator-set merkle list.
 	ValidatorSetEntryHashPrefix = "pulsar-validator"
-	// ValidatorSetMerklePrefix domain-separates the validator-set merkle list root.
-	ValidatorSetMerklePrefix = "pulsar-validator-set"
 )
 
 // VoteExtMarker reserves the first proposal transaction slot for ABCI vote-extension payloads.
