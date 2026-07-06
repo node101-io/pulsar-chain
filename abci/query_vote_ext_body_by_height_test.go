@@ -58,7 +58,7 @@ func TestVoteExtBodyByHeightReturnsBodyForMinimumHeight(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, response.GetVoteExtBody())
 	require.Equal(t, int64(0), response.GetVoteExtBody().GetCurrentBlockHeight())
-	require.Equal(t, []byte("app-hash"), response.GetVoteExtBody().GetCurrentStateRoot())
+	require.Equal(t, testStateRoot32(), response.GetVoteExtBody().GetCurrentStateRoot())
 	require.NotEmpty(t, response.GetVoteExtBody().GetNextValidatorSetHash())
 }
 
@@ -77,7 +77,7 @@ func TestVoteExtBodyByHeightReturnsBodyForLaterHeight(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, response.GetVoteExtBody())
 	require.Equal(t, voteExtensionHeight-2, response.GetVoteExtBody().GetCurrentBlockHeight())
-	require.Equal(t, []byte("app-hash"), response.GetVoteExtBody().GetCurrentStateRoot())
+	require.Equal(t, testStateRoot32(), response.GetVoteExtBody().GetCurrentStateRoot())
 	require.NotEmpty(t, response.GetVoteExtBody().GetNextValidatorSetHash())
 }
 

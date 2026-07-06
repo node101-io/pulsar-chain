@@ -1,0 +1,8 @@
+{
+  "name": "vote-ext-verifier",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "o1js": "2.15.0"
+  }
+}

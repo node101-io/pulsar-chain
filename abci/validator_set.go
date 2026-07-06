@@ -7,7 +7,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/node101-io/mina-signer-go/merklelist"
+	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	"github.com/node101-io/mina-signer-go/publickey"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
@@ -77,7 +77,7 @@ func sortValidatorsByPower(validators []stakingTypes.ValidatorI) error {
 			return bytes.Compare(entries[i].consensusAddress, entries[j].consensusAddress) < 0
 		}
 
-		return entries[i].consensusPower > entries[j].consensusPower
+		return entries[i].consensusPower < entries[j].consensusPower
 	})
 
 	for i, entry := range entries {
@@ -92,7 +92,8 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 		return nil, ErrValidatorSetRootHashFailed
 	}
 
-	validatorRoot, err := merklelist.NewMerkleList(ValidatorSetMerklePrefix)
+	minaField := field.NewField()
+	acc, err := poseidonHash.HashFieldElements(minaField.Zero())
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrValidatorSetRootHashFailed, err)
 	}
@@ -121,29 +122,43 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 			return nil, fmt.Errorf("%w: consensus public key %X", ErrValidatorMinaKeyNotFound, cosmosValidatorPubKey.Bytes())
 		}
 
-		minaPubKey, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, cosmosValidatorPubKey.Bytes())
+		minaPubKeyBytes, err := h.keyregistryKeeper.ValidatorGetCosmosToMina(ctx, cosmosValidatorPubKey.Bytes())
 		if err != nil {
 			return nil, err
 		}
 
-		if _, err := publickey.NewPublicKeyFromBytes(minaPubKey, h.networkID); err != nil {
-			return nil, err
-		}
-
-		entryBytes, err := encodeValidatorSetEntryForHash(minaPubKey, validator.GetConsensusPower(sdk.DefaultPowerReduction))
+		minaPubKey, err := publickey.NewPublicKeyFromBytes(minaPubKeyBytes, h.networkID)
 		if err != nil {
 			return nil, err
 		}
-		entryHash, err := poseidonHash.HashWithPrefix(ValidatorSetEntryHashPrefix, entryBytes)
+
+		power := validator.GetConsensusPower(sdk.DefaultPowerReduction)
+		if power < 0 {
+			return nil, fmt.Errorf("%w: consensus power must be non-negative", ErrValidatorSetRootHashFailed)
+		}
+
+		x, isOdd, err := minaPubKey.ToFields()
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrValidatorSetRootHashFailed, err)
 		}
-		if err := validatorRoot.Append(entryHash); err != nil {
+
+		leaf, err := poseidonHash.HashFieldElementsWithPrefix(
+			ValidatorSetEntryHashPrefix,
+			x,
+			isOdd,
+			minaField.FromUint64(uint64(power)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrValidatorSetRootHashFailed, err)
+		}
+
+		acc, err = poseidonHash.HashFieldElements(acc, leaf)
+		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrValidatorSetRootHashFailed, err)
 		}
 	}
 
-	return validatorRoot.Root(), nil
+	return acc.Bytes(), nil
 }
 
 func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, voteExtensionHeight int64) (votepersistenceTypes.VoteExtBody, error) {

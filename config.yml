@@ -25,7 +25,7 @@ validators:
       vote_extension:
         priv_key: "OhOfQtGMXqcrbfCRPEe4DjLUNHaOcD3RrWuRPBGO82M="
       mina:
-        network_id: "devnet"
+        network_id: "testnet"
 - name: validator1
   bonded: 200000000pmina
 - name: validator2

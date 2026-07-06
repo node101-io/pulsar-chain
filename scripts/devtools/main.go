@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"io"
@@ -12,10 +11,12 @@ import (
 	"time"
 
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
+	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/mina-signer-go/publickey"
 	minasignature "github.com/node101-io/mina-signer-go/signature"
+	"github.com/node101-io/pulsar-chain/abci"
 	abcitypes "github.com/node101-io/pulsar-chain/abci"
 	keyregistrytypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	votepersistencetypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
@@ -56,7 +57,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func printUsage(out io.Writer) {
-	fmt.Fprintln(out, "usage: devtools <command> [args]")
+	fmt.Fprintln(out, "usage: go run -tags=purego ./scripts/devtools <command> [args]")
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "commands:")
 	fmt.Fprintln(out, "  derive-mina-pub <mina-private-key-base64>")
@@ -235,12 +236,15 @@ func verifyVoteExtensionSignature(body *votepersistencetypes.VoteExtBody, minaPu
 		return fmt.Errorf("decode vote extension signature: %w", err)
 	}
 
-	messageHash, err := hashVoteExtBody(body)
+	poseidonHash := poseidon.NewPoseidon()
+	minaField := field.NewField()
+
+	messageHash, err := hashVoteExtBody(minaField, poseidonHash, *body)
 	if err != nil {
 		return err
 	}
 
-	valid, err := publicKey.VerifyBytes(signature, messageHash)
+	valid, err := publicKey.VerifyField(signature, messageHash)
 	if err != nil {
 		return fmt.Errorf("verify signature: %w", err)
 	}
@@ -251,31 +255,78 @@ func verifyVoteExtensionSignature(body *votepersistencetypes.VoteExtBody, minaPu
 	return nil
 }
 
-func hashVoteExtBody(body *votepersistencetypes.VoteExtBody) ([]byte, error) {
-	if body.GetCurrentBlockHeight() < 0 {
-		return nil, fmt.Errorf("current block height must be non-negative")
+func hashVoteExtBody(minaField *field.Field, poseidonHash *poseidon.Poseidon, voteExtBody votepersistencetypes.VoteExtBody) (*field.FieldElement, error) {
+	if poseidonHash == nil {
+		return nil, abci.ErrVoteExtBodyHashFailed
 	}
 
-	poseidonHash := poseidon.NewPoseidon()
-	hash, err := poseidonHash.HashWithPrefix(abcitypes.VoteExtBodyHashPrefix, encodeVoteExtBodyForHash(body))
+	if minaField == nil {
+		return nil, abci.ErrVoteExtBodyHashFailed
+	}
+
+	if voteExtBody.CurrentBlockHeight < 0 {
+		return nil, fmt.Errorf("%w: current block height must be non-negative", abci.ErrVoteExtBodyHashFailed)
+	}
+
+	validatorSetRoot, err := minaField.FromBytes(voteExtBody.NextValidatorSetHash)
 	if err != nil {
-		return nil, fmt.Errorf("hash vote extension body: %w", err)
+		return nil, fmt.Errorf("%w: invalid validator set root: %v", abci.ErrVoteExtBodyHashFailed, err)
+	}
+
+	voteExtBodyHash, err := encodeVoteExtBodyForHash(poseidonHash, minaField, voteExtBody.CurrentStateRoot)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", abci.ErrVoteExtBodyHashFailed, err)
+	}
+
+	actionsRoot, err := minaField.FromBytesBEReduce([]byte(voteExtBody.ActionsReducedRoot))
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid actions reduced root: %v", abci.ErrVoteExtBodyHashFailed, err)
+	}
+
+	inner, err := poseidonHash.HashFieldElements(
+		validatorSetRoot,
+		voteExtBodyHash,
+		minaField.FromUint64(uint64(voteExtBody.CurrentBlockHeight)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", abci.ErrVoteExtBodyHashFailed, err)
+	}
+
+	root, err := field.NewFieldElement(actionsRoot.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := poseidonHash.HashFieldElements(inner, root)
+	if err != nil {
+		return nil, err
 	}
 
 	return hash, nil
 }
+func encodeVoteExtBodyForHash(
+	poseidonHash *poseidon.Poseidon,
+	field *field.Field,
+	appHash []byte,
+) (*field.FieldElement, error) {
+	if len(appHash) != 32 {
+		return nil, fmt.Errorf("current state root must be 32 bytes")
+	}
 
-func encodeVoteExtBodyForHash(body *votepersistencetypes.VoteExtBody) []byte {
-	var bz []byte
-	bz = appendLengthPrefixedBytes(bz, body.GetNextValidatorSetHash())
-	bz = appendLengthPrefixedBytes(bz, body.GetCurrentStateRoot())
-	bz = binary.BigEndian.AppendUint64(bz, uint64(body.GetCurrentBlockHeight()))
-	bz = appendLengthPrefixedBytes(bz, []byte(body.GetActionsReducedRoot()))
+	hi, err := field.FromBytesBEReduce(appHash[:16])
+	if err != nil {
+		return nil, err
+	}
 
-	return bz
-}
+	lo, err := field.FromBytesBEReduce(appHash[16:])
+	if err != nil {
+		return nil, err
+	}
 
-func appendLengthPrefixedBytes(dst []byte, value []byte) []byte {
-	dst = binary.BigEndian.AppendUint32(dst, uint32(len(value)))
-	return append(dst, value...)
+	hashBytes, err := poseidonHash.HashFieldElements(hi, lo)
+	if err != nil {
+		return nil, err
+	}
+
+	return hashBytes, nil
 }
