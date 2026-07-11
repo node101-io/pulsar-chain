@@ -135,6 +135,7 @@ func newKeyregistryKeeperForTest(t *testing.T) (sdk.Context, *keyregistrykeeper.
 		storeService,
 		encCfg.Codec,
 		addressCodec,
+		nil,
 		authority,
 	)
 

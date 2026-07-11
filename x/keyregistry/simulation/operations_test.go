@@ -228,6 +228,7 @@ func initSimulationKeeperFixture(t *testing.T) (context.Context, keeper.Keeper) 
 		storeService,
 		cdc,
 		addressCodec,
+		nil,
 		authority,
 	)
 

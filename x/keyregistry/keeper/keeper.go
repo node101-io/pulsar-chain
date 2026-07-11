@@ -18,9 +18,10 @@ const ValidatorCosmosToMinaMapName string = "validator_cosmos_to_mina"
 const ValidatorMinaToCosmosMapName string = "validator_mina_to_cosmos"
 
 type Keeper struct {
-	storeService corestore.KVStoreService
-	cdc          codec.Codec
-	addressCodec address.Codec
+	storeService  corestore.KVStoreService
+	cdc           codec.Codec
+	addressCodec  address.Codec
+	stakingKeeper types.StakingKeeper
 	// Address capable of executing a MsgUpdateParams message.
 	// Typically, this should be the x/gov module account.
 	authority []byte
@@ -39,6 +40,7 @@ func NewKeeper(
 	storeService corestore.KVStoreService,
 	cdc codec.Codec,
 	addressCodec address.Codec,
+	stakingKeeper types.StakingKeeper,
 	authority []byte,
 
 ) Keeper {
@@ -49,10 +51,11 @@ func NewKeeper(
 	sb := collections.NewSchemaBuilder(storeService)
 
 	k := Keeper{
-		storeService: storeService,
-		cdc:          cdc,
-		addressCodec: addressCodec,
-		authority:    authority,
+		storeService:  storeService,
+		cdc:           cdc,
+		addressCodec:  addressCodec,
+		stakingKeeper: stakingKeeper,
+		authority:     authority,
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
 

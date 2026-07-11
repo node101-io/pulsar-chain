@@ -88,6 +88,7 @@ func initFixture(t *testing.T) *fixture {
 		keyregistryStoreService,
 		encCfg.Codec,
 		addressCodec,
+		stakingKeeper,
 		authority,
 	)
 	if err := keyregistryKeeper.Params.Set(ctx, keyregistrytypes.DefaultParams()); err != nil {

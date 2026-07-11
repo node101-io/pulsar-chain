@@ -103,6 +103,7 @@ func initInternalGenesisFixture(t *testing.T) (context.Context, Keeper) {
 		storeService,
 		cdc,
 		addressCodec,
+		nil,
 		authority,
 	)
 
