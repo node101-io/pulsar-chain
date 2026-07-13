@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sort"
 
+	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -28,29 +28,35 @@ func (q queryServer) GetValidatorSetByHeight(
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	var valInfo []stakingTypes.ValidatorI
-
 	if sdkCtx.BlockHeight() == req.BlockHeight {
-		err := q.k.stakingKeeper.IterateLastValidators(ctx, func(index int64, validator stakingTypes.ValidatorI) (stop bool) {
-			valInfo = append(valInfo, validator)
+		var validatorSet []*types.ValidatorSetEntry
+
+		var iterErr error
+
+		err := q.k.stakingKeeper.IterateLastValidators(ctx, func(index int64, validator stakingTypes.ValidatorI) bool {
+			entry, err := q.newValidatorSetEntry(ctx, validator)
+			if err != nil {
+				iterErr = err
+				return true
+			}
+
+			validatorSet = append(validatorSet, entry)
 			return false
 		})
 
 		if err != nil {
 			return nil, err
 		}
-
-		if err := sortValidatorsByPower(valInfo); err != nil {
-			return nil, err
+		if iterErr != nil {
+			return nil, iterErr
 		}
 
-		sortedValidatorSet, err := q.buildValidatorSetEntries(ctx, valInfo)
-		if err != nil {
+		if err := sortValidatorsByPower(validatorSet); err != nil {
 			return nil, err
 		}
 
 		return &types.QueryGetValidatorSetByHeightResponse{
-			Validators: sortedValidatorSet,
+			Validators: validatorSet,
 		}, nil
 	}
 
@@ -58,80 +64,57 @@ func (q queryServer) GetValidatorSetByHeight(
 	if err != nil {
 		return nil, err
 	}
+
+	validatorSet := make([]*types.ValidatorSetEntry, 0, len(historicalData.Valset))
 	for _, validator := range historicalData.Valset {
-		valInfo = append(valInfo, validator)
-	}
-
-	if err := sortValidatorsByPower(valInfo); err != nil {
-		return nil, err
-	}
-
-	sortedValidatorSet, err := q.buildValidatorSetEntries(ctx, valInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.QueryGetValidatorSetByHeightResponse{
-		Validators: sortedValidatorSet,
-	}, nil
-}
-
-func sortValidatorsByPower(validators []stakingTypes.ValidatorI) error {
-	type validatorSortEntry struct {
-		validator        stakingTypes.ValidatorI
-		consensusAddress []byte
-		consensusPower   int64
-	}
-
-	entries := make([]validatorSortEntry, 0, len(validators))
-	for _, validator := range validators {
-		consAddr, err := validator.GetConsAddr()
-		if err != nil {
-			return fmt.Errorf("failed to read validator consensus address: %w", err)
-		}
-
-		entries = append(entries, validatorSortEntry{
-			validator:        validator,
-			consensusAddress: consAddr,
-			consensusPower:   validator.GetConsensusPower(sdk.DefaultPowerReduction),
-		})
-	}
-
-	sort.SliceStable(entries, func(i, j int) bool {
-		if entries[i].consensusPower == entries[j].consensusPower {
-			return bytes.Compare(entries[i].consensusAddress, entries[j].consensusAddress) < 0
-		}
-
-		return entries[i].consensusPower > entries[j].consensusPower
-	})
-
-	for i, entry := range entries {
-		validators[i] = entry.validator
-	}
-
-	return nil
-}
-
-func (q queryServer) buildValidatorSetEntries(ctx context.Context, validators []stakingTypes.ValidatorI) ([]*types.ValidatorSetEntry, error) {
-	entries := make([]*types.ValidatorSetEntry, 0, len(validators))
-
-	for _, validator := range validators {
-		consPubKey, err := validator.ConsPubKey()
-		if err != nil {
-			return nil, fmt.Errorf("failed to read validator consensus public key: %w", err)
-		}
-
-		minaAddr, err := q.k.ValidatorGetCosmosToMina(ctx, consPubKey.Bytes())
+		entry, err := q.newValidatorSetEntry(ctx, validator)
 		if err != nil {
 			return nil, err
 		}
 
-		entries = append(entries, &types.ValidatorSetEntry{
-			ValidatorCosmosPubKey: consPubKey.Bytes(),
-			ValidatorMinaPubKey:   minaAddr,
-			ConsensusPower:        validator.GetConsensusPower(sdk.DefaultPowerReduction),
-		})
+		validatorSet = append(validatorSet, entry)
 	}
 
-	return entries, nil
+	return &types.QueryGetValidatorSetByHeightResponse{
+		Validators: validatorSet,
+	}, nil
+}
+
+func sortValidatorsByPower(validators []*types.ValidatorSetEntry) error {
+
+	sort.SliceStable(validators, func(i, j int) bool {
+		if validators[i].ConsensusPower == validators[j].ConsensusPower {
+
+			cmtPubKeyValidatorA := cmted25519.PubKey(validators[i].ValidatorCosmosPubKey)
+			consAddrValidatorA := sdk.ConsAddress(cmtPubKeyValidatorA.Address())
+
+			cmtPubKeyValidatorB := cmted25519.PubKey(validators[j].ValidatorCosmosPubKey)
+			consAddrValidatorB := sdk.ConsAddress(cmtPubKeyValidatorB.Address())
+
+			return bytes.Compare(consAddrValidatorA, consAddrValidatorB) < 0
+		}
+
+		return validators[i].ConsensusPower > validators[j].ConsensusPower
+	})
+
+	return nil
+}
+
+func (q queryServer) newValidatorSetEntry(ctx context.Context, validator stakingTypes.ValidatorI) (*types.ValidatorSetEntry, error) {
+	consPubKey, err := validator.ConsPubKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read validator consensus public key: %w", err)
+	}
+
+	consPubKeyBytes := consPubKey.Bytes()
+	minaAddr, err := q.k.ValidatorGetCosmosToMina(ctx, consPubKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.ValidatorSetEntry{
+		ValidatorCosmosPubKey: consPubKeyBytes,
+		ValidatorMinaPubKey:   minaAddr,
+		ConsensusPower:        validator.GetConsensusPower(sdk.DefaultPowerReduction),
+	}, nil
 }
