@@ -9,6 +9,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	cmtcrypto "github.com/cometbft/cometbft/crypto"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -150,13 +151,19 @@ func TestValidatorSetHistoricalHeightSuccess(t *testing.T) {
 	lowPowerValidator, lowPowerCosmosKey, lowPowerMinaKey := registerValidatorSetEntry(t, f, ms, 3, 4)
 	highPowerValidator, highPowerCosmosKey, highPowerMinaKey := registerValidatorSetEntry(t, f, ms, 9, 5)
 
-	stakingKeeper.historicalInfo = map[int64]stakingtypes.HistoricalInfo{
-		7: {
-			Valset: []stakingtypes.Validator{
+	historicalInfo := stakingtypes.NewHistoricalInfo(
+		cmtproto.Header{Height: 7},
+		stakingtypes.Validators{
+			Validators: []stakingtypes.Validator{
 				lowPowerValidator,
 				highPowerValidator,
 			},
 		},
+		sdk.DefaultPowerReduction,
+	)
+
+	stakingKeeper.historicalInfo = map[int64]stakingtypes.HistoricalInfo{
+		7: historicalInfo,
 	}
 
 	queryResp, err := qs.GetValidatorSetByHeight(f.ctx, &types.QueryGetValidatorSetByHeightRequest{
