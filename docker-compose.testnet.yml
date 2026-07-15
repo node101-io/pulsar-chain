@@ -1,0 +1,86 @@
+x-pulsar-common: &pulsar-common
+  build:
+    context: /Users/yusuf/Desktop/pulsar-chain
+    dockerfile: Dockerfile
+  image: ${PULSAR_DOCKER_IMAGE:-pulsar-chain:local}
+
+services:
+  setup:
+    <<: *pulsar-common
+    command: ["setup-local-testnet", "3"]
+    restart: "no"
+    volumes:
+      - validator1_data:/testnet/.pulsar-node1
+      - validator2_data:/testnet/.pulsar-node2
+      - validator3_data:/testnet/.pulsar-node3
+
+  validator1:
+    <<: *pulsar-common
+    command: ["start-validator", "1"]
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    volumes:
+      - validator1_data:/testnet/.pulsar-node1
+    ports:
+      - "26656:26656"
+      - "26657:26657"
+      - "1317:1317"
+      - "9090:9090"
+      - "6060:6060"
+    healthcheck:
+      test: ["CMD", "/opt/pulsar/scripts/docker_entrypoint.sh", "healthcheck-validator"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  validator2:
+    <<: *pulsar-common
+    command: ["start-validator", "2"]
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    volumes:
+      - validator2_data:/testnet/.pulsar-node2
+    ports:
+      - "26666:26656"
+      - "26667:26657"
+      - "1318:1317"
+      - "9091:9090"
+      - "6061:6060"
+    healthcheck:
+      test: ["CMD", "/opt/pulsar/scripts/docker_entrypoint.sh", "healthcheck-validator"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  validator3:
+    <<: *pulsar-common
+    command: ["start-validator", "3"]
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    volumes:
+      - validator3_data:/testnet/.pulsar-node3
+    ports:
+      - "26676:26656"
+      - "26677:26657"
+      - "1319:1317"
+      - "9092:9090"
+      - "6062:6060"
+    healthcheck:
+      test: ["CMD", "/opt/pulsar/scripts/docker_entrypoint.sh", "healthcheck-validator"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  validator1_data:
+  validator2_data:
+  validator3_data:

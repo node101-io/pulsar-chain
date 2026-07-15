@@ -5,7 +5,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 PYTHON_HELPER="$SCRIPT_DIR/setup_local_testnet_helper.py"
-DEVTOOLS_HELPER="$SCRIPT_DIR/devtools"
 GOFLAGS_WITH_PUREGO="${GOFLAGS:-} -tags=purego"
 CHAIN_CONFIG_PATH="${CHAIN_CONFIG_PATH:-$REPO_ROOT/config.yml}"
 
@@ -24,16 +23,59 @@ API_BIND_HOST="${API_BIND_HOST:-localhost}"
 START_VALIDATORS="${START_VALIDATORS:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 SETUP_CONTEXT="${SETUP_CONTEXT:-host}"
+RESET_TESTNET="${RESET_TESTNET:-0}"
 DEFAULT_VALIDATOR_NAME_PREFIX="validator"
 DEFAULT_NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
 DEFAULT_NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
+DEVTOOLS_BINARY_PATH="${DEVTOOLS_BINARY_PATH:-$BIN_DIR/pulsar-devtools}"
 
-if (( $# > 1 )); then
-  echo "usage: $0 [validator-count]" >&2
+usage() {
+  echo "usage: $0 [--reset] [validator-count]" >&2
+}
+
+is_truthy() {
+  case "$1" in
+    1|true|TRUE|True|yes|YES|Yes|on|ON|On) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+POSITIONAL_ARGS=()
+while (( $# > 0 )); do
+  case "$1" in
+    --reset)
+      RESET_TESTNET="1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      while (( $# > 0 )); do
+        POSITIONAL_ARGS+=("$1")
+        shift
+      done
+      break
+      ;;
+    -*)
+      echo "unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1")
+      ;;
+  esac
+  shift
+done
+
+if (( ${#POSITIONAL_ARGS[@]} > 1 )); then
+  usage
   exit 1
 fi
 
-VALIDATOR_COUNT="${1:-${VALIDATOR_COUNT:-2}}"
+VALIDATOR_COUNT="${POSITIONAL_ARGS[0]:-${VALIDATOR_COUNT:-2}}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -42,8 +84,18 @@ require_cmd() {
   fi
 }
 
+directory_has_entries() {
+  local path="$1"
+
+  if [[ ! -d "$path" ]]; then
+    return 1
+  fi
+
+  find "$path" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null | grep -q .
+}
+
 derive_mina_pub_key() {
-  GOFLAGS="$GOFLAGS_WITH_PUREGO" go run "$DEVTOOLS_HELPER" derive-mina-pub "$1"
+  "$DEVTOOLS_BINARY_PATH" derive-mina-pub "$1"
 }
 
 read_consensus_pub_key() {
@@ -174,6 +226,23 @@ default_node_p2p_host() {
   printf '%s%s\n' "$DEFAULT_VALIDATOR_NAME_PREFIX" "$index"
 }
 
+use_standard_container_ports() {
+  [[ "$SETUP_CONTEXT" == "container" && "$START_VALIDATORS" != "1" ]]
+}
+
+default_node_port() {
+  local index="$1"
+  local base_port="$2"
+  local host_offset="$3"
+
+  if use_standard_container_ports; then
+    printf '%s\n' "$base_port"
+    return
+  fi
+
+  printf '%s\n' "$((base_port + ((index - 1) * host_offset)))"
+}
+
 configure_node() {
   local home="$1"
   local rpc_port="$2"
@@ -224,7 +293,7 @@ build_persistent_peers() {
 cleanup_validators() {
   trap - EXIT INT TERM
 
-  if (( ${#VALIDATOR_PIDS[@]:-0} == 0 )); then
+  if (( ${#VALIDATOR_PIDS[@]} == 0 )); then
     return
   fi
 
@@ -247,7 +316,6 @@ monitor_validators() {
   done
 }
 
-require_cmd go
 require_cmd python3
 
 if ! [[ "$VALIDATOR_COUNT" =~ ^[0-9]+$ ]] || (( VALIDATOR_COUNT < 1 )); then
@@ -291,17 +359,16 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_MINA_NETWORK_IDS[i]="$(get_node_setting "$i" "MINA_NETWORK_ID" "$DEFAULT_MINA_NETWORK_ID")"
   validate_mina_network_id "$i" "${NODE_MINA_NETWORK_IDS[i]}"
   NODE_P2P_HOSTS[i]="$(get_node_setting "$i" "P2P_HOST" "$(default_node_p2p_host "$i")")"
-  NODE_P2P_PORTS[i]="$(get_node_setting "$i" "P2P_PORT" "$((26656 + ((i - 1) * 10)))")"
-  NODE_RPC_PORTS[i]="$(get_node_setting "$i" "RPC_PORT" "$((26657 + ((i - 1) * 10)))")"
-  NODE_GRPC_PORTS[i]="$(get_node_setting "$i" "GRPC_PORT" "$((9090 + i - 1))")"
-  NODE_API_PORTS[i]="$(get_node_setting "$i" "API_PORT" "$((1317 + i - 1))")"
-  NODE_PPROF_PORTS[i]="$(get_node_setting "$i" "PPROF_PORT" "$((6060 + i - 1))")"
+  NODE_P2P_PORTS[i]="$(get_node_setting "$i" "P2P_PORT" "$(default_node_port "$i" 26656 10)")"
+  NODE_RPC_PORTS[i]="$(get_node_setting "$i" "RPC_PORT" "$(default_node_port "$i" 26657 10)")"
+  NODE_GRPC_PORTS[i]="$(get_node_setting "$i" "GRPC_PORT" "$(default_node_port "$i" 9090 1)")"
+  NODE_API_PORTS[i]="$(get_node_setting "$i" "API_PORT" "$(default_node_port "$i" 1317 1)")"
+  NODE_PPROF_PORTS[i]="$(get_node_setting "$i" "PPROF_PORT" "$(default_node_port "$i" 6060 1)")"
   NODE_WRAPPER_GRPC_ADDRESSES[i]="$(get_node_setting "$i" "WRAPPER_GRPC_ADDRESS" "$DEFAULT_WRAPPER_GRPC_ADDRESS")"
   if [[ -z "${NODE_WRAPPER_GRPC_ADDRESSES[i]}" ]]; then
     echo "missing wrapper gRPC address for node${i}; set WRAPPER_GRPC_ADDRESS, NODE${i}_WRAPPER_GRPC_ADDRESS, or validators[].app.bridge.wrapper_grpc_address in $CHAIN_CONFIG_PATH" >&2
     exit 1
   fi
-  NODE_MINA_PUB_KEYS[i]="$(derive_mina_pub_key "${NODE_MINA_PRIV_KEYS[i]}")"
   NODE_GENESIS_FILES[i]="${NODE_HOMES[i]}/config/genesis.json"
 done
 
@@ -309,27 +376,69 @@ PRIMARY_NODE_INDEX=1
 PRIMARY_HOME="${NODE_HOMES[PRIMARY_NODE_INDEX]}"
 PRIMARY_GENESIS_FILE="${NODE_GENESIS_FILES[PRIMARY_NODE_INDEX]}"
 
-echo "==> Cleaning previous homes..."
-rm -rf "$LEGACY_CHAIN_HOME" "${NODE_HOMES[@]}"
+existing_node_homes=0
+initialized_node_homes=0
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  if [[ -f "${NODE_GENESIS_FILES[i]}" && -f "${NODE_HOMES[i]}/config/priv_validator_key.json" ]]; then
+    ((existing_node_homes += 1))
+    ((initialized_node_homes += 1))
+    continue
+  fi
+
+  if directory_has_entries "${NODE_HOMES[i]}"; then
+    ((existing_node_homes += 1))
+  fi
+done
+
+if (( existing_node_homes > 0 )); then
+  if is_truthy "$RESET_TESTNET"; then
+    echo "==> Resetting existing validator homes..."
+    rm -rf "$LEGACY_CHAIN_HOME" "${NODE_HOMES[@]}"
+  elif (( existing_node_homes == VALIDATOR_COUNT && initialized_node_homes == VALIDATOR_COUNT )); then
+    echo "==> Existing testnet detected; leaving validator homes unchanged."
+    echo "    Use --reset or RESET_TESTNET=1 to recreate the validator state."
+    exit 0
+  else
+    echo "partial validator state detected under the requested homes:" >&2
+    for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+      if [[ -e "${NODE_HOMES[i]}" ]]; then
+        echo "  - ${NODE_HOMES[i]}" >&2
+      fi
+    done
+    echo "rerun with --reset (or RESET_TESTNET=1) to recreate the testnet safely" >&2
+    exit 1
+  fi
+fi
 
 if [[ "$SKIP_BUILD" == "1" ]]; then
   if [[ ! -x "$BINARY_PATH" ]]; then
     echo "expected prebuilt binary at $BINARY_PATH" >&2
     exit 1
   fi
-  echo "==> Reusing prebuilt binary at $BINARY_PATH..."
+  if [[ ! -x "$DEVTOOLS_BINARY_PATH" ]]; then
+    echo "expected prebuilt devtools binary at $DEVTOOLS_BINARY_PATH" >&2
+    exit 1
+  fi
+  echo "==> Reusing prebuilt binaries at $BINARY_PATH and $DEVTOOLS_BINARY_PATH..."
 else
+  require_cmd go
+
   echo "==> Building binary..."
-  mkdir -p "$BIN_DIR"
+  mkdir -p "$BIN_DIR" "$(dirname "$COMPAT_BINARY_PATH")" "$(dirname "$DEVTOOLS_BINARY_PATH")"
   (
     cd "$REPO_ROOT"
     GOFLAGS="$GOFLAGS_WITH_PUREGO" go build -o "$BINARY_PATH" ./cmd/pulsard
+    GOFLAGS="$GOFLAGS_WITH_PUREGO" go build -o "$DEVTOOLS_BINARY_PATH" ./scripts/devtools
   )
 
   if [[ "$COMPAT_BINARY_PATH" != "$BINARY_PATH" ]]; then
     cp "$BINARY_PATH" "$COMPAT_BINARY_PATH"
   fi
 fi
+
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  NODE_MINA_PUB_KEYS[i]="$(derive_mina_pub_key "${NODE_MINA_PRIV_KEYS[i]}")"
+done
 
 echo "==> Initializing nodes..."
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
@@ -437,7 +546,7 @@ if [[ "$START_VALIDATORS" == "1" ]]; then
   echo "Validators will now be started automatically."
 else
   if [[ "$SETUP_CONTEXT" == "container" ]]; then
-    echo "Shared validator homes were generated under $HOME in the mounted Docker volume."
+    echo "Validator homes were generated in their mounted Docker volumes."
   else
     echo "Start the nodes in separate terminals:"
     for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
@@ -451,7 +560,7 @@ if [[ "$SETUP_CONTEXT" != "container" ]]; then
   echo "  curl -s http://localhost:${NODE_RPC_PORTS[PRIMARY_NODE_INDEX]}/validators | python3 -m json.tool | grep total"
   echo "  grpcurl -plaintext -d '{\"vote_extension_height\":\"5\"}' localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]} pulsarchain.abci.Query/VoteExtBodyByHeight"
   echo "  $BINARY_PATH query votepersistence vote-extensions --home $PRIMARY_HOME"
-  echo "  GOFLAGS=\"\${GOFLAGS:-} -tags=purego\" go run ./scripts/devtools verify-vote-extensions --grpc-addr localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]}"
+  echo "  $DEVTOOLS_BINARY_PATH verify-vote-extensions --grpc-addr localhost:${NODE_GRPC_PORTS[PRIMARY_NODE_INDEX]}"
 fi
 
 if [[ "$START_VALIDATORS" == "1" ]]; then
