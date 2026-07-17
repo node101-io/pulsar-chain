@@ -9,6 +9,7 @@ import (
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingTypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	common "github.com/node101-io/pulsar-chain/common"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -35,7 +36,7 @@ func (h *ABCIHandler) GetValidatorSetWithPowers(ctx context.Context, req *QueryG
 	}
 
 	if currentBlockHeight == req.BlockHeight {
-		var validatorSet []*ValidatorEntry
+		var validatorSet []*common.ValidatorEntry
 
 		var iterErr error
 
@@ -71,7 +72,7 @@ func (h *ABCIHandler) GetValidatorSetWithPowers(ctx context.Context, req *QueryG
 		return nil, err
 	}
 
-	validatorSet := make([]*ValidatorEntry, 0, len(historicalData.Valset))
+	validatorSet := make([]*common.ValidatorEntry, 0, len(historicalData.Valset))
 	for _, validator := range historicalData.Valset {
 		entry, err := h.newValidatorSetEntry(validator)
 		if err != nil {
@@ -86,7 +87,7 @@ func (h *ABCIHandler) GetValidatorSetWithPowers(ctx context.Context, req *QueryG
 	}, nil
 }
 
-func sortValidatorsByPowerQuery(validators []*ValidatorEntry) error {
+func sortValidatorsByPowerQuery(validators []*common.ValidatorEntry) error {
 
 	sort.SliceStable(validators, func(i, j int) bool {
 		if validators[i].ConsensusPower == validators[j].ConsensusPower {
@@ -106,13 +107,13 @@ func sortValidatorsByPowerQuery(validators []*ValidatorEntry) error {
 	return nil
 }
 
-func (h *ABCIHandler) newValidatorSetEntry(validator stakingTypes.ValidatorI) (*ValidatorEntry, error) {
+func (h *ABCIHandler) newValidatorSetEntry(validator stakingTypes.ValidatorI) (*common.ValidatorEntry, error) {
 	consPubKey, err := validator.ConsPubKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read validator consensus public key: %w", err)
 	}
 
-	return &ValidatorEntry{
+	return &common.ValidatorEntry{
 		ValidatorCosmosPubKey: consPubKey.Bytes(),
 		ConsensusPower:        validator.GetConsensusPower(sdk.DefaultPowerReduction),
 	}, nil

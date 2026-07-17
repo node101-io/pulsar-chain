@@ -4,7 +4,7 @@ package pulsarchain.abci;
 
 import "google/api/annotations.proto";
 import "pulsarchain/votepersistence/v1/vote_ext_body.proto";
-import "pulsarchain/abci/validator_entry.proto";
+import "pulsarchain/common/validator_entry.proto";
 
 option go_package = "github.com/node101-io/pulsar-chain/abci;abci";
 
@@ -38,5 +38,5 @@ message QueryGetValidatorSetWithPowersRequest {
 }
 
 message QueryGetValidatorSetWithPowersResponse {
-  repeated  ValidatorEntry validator = 1;
+  repeated pulsarchain.common.ValidatorEntry validator = 1;
 }
