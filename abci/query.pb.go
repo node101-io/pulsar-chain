@@ -121,37 +121,128 @@ func (m *QueryVoteExtBodyByHeightResponse) GetVoteExtBody() *types.VoteExtBody {
 	return nil
 }
 
+type QueryGetValidatorSetWithPowersRequest struct {
+	BlockHeight int64 `protobuf:"varint,1,opt,name=block_height,json=blockHeight,proto3" json:"block_height,omitempty"`
+}
+
+func (m *QueryGetValidatorSetWithPowersRequest) Reset()         { *m = QueryGetValidatorSetWithPowersRequest{} }
+func (m *QueryGetValidatorSetWithPowersRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryGetValidatorSetWithPowersRequest) ProtoMessage()    {}
+func (*QueryGetValidatorSetWithPowersRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_de072ebc3dfa9bbd, []int{2}
+}
+func (m *QueryGetValidatorSetWithPowersRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryGetValidatorSetWithPowersRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryGetValidatorSetWithPowersRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryGetValidatorSetWithPowersRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetValidatorSetWithPowersRequest.Merge(m, src)
+}
+func (m *QueryGetValidatorSetWithPowersRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryGetValidatorSetWithPowersRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetValidatorSetWithPowersRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryGetValidatorSetWithPowersRequest proto.InternalMessageInfo
+
+func (m *QueryGetValidatorSetWithPowersRequest) GetBlockHeight() int64 {
+	if m != nil {
+		return m.BlockHeight
+	}
+	return 0
+}
+
+type QueryGetValidatorSetWithPowersResponse struct {
+}
+
+func (m *QueryGetValidatorSetWithPowersResponse) Reset() {
+	*m = QueryGetValidatorSetWithPowersResponse{}
+}
+func (m *QueryGetValidatorSetWithPowersResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryGetValidatorSetWithPowersResponse) ProtoMessage()    {}
+func (*QueryGetValidatorSetWithPowersResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_de072ebc3dfa9bbd, []int{3}
+}
+func (m *QueryGetValidatorSetWithPowersResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryGetValidatorSetWithPowersResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryGetValidatorSetWithPowersResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryGetValidatorSetWithPowersResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetValidatorSetWithPowersResponse.Merge(m, src)
+}
+func (m *QueryGetValidatorSetWithPowersResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryGetValidatorSetWithPowersResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetValidatorSetWithPowersResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryGetValidatorSetWithPowersResponse proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*QueryVoteExtBodyByHeightRequest)(nil), "pulsarchain.abci.QueryVoteExtBodyByHeightRequest")
 	proto.RegisterType((*QueryVoteExtBodyByHeightResponse)(nil), "pulsarchain.abci.QueryVoteExtBodyByHeightResponse")
+	proto.RegisterType((*QueryGetValidatorSetWithPowersRequest)(nil), "pulsarchain.abci.QueryGetValidatorSetWithPowersRequest")
+	proto.RegisterType((*QueryGetValidatorSetWithPowersResponse)(nil), "pulsarchain.abci.QueryGetValidatorSetWithPowersResponse")
 }
 
 func init() { proto.RegisterFile("pulsarchain/abci/query.proto", fileDescriptor_de072ebc3dfa9bbd) }
 
 var fileDescriptor_de072ebc3dfa9bbd = []byte{
-	// 344 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x51, 0x41, 0x4b, 0xeb, 0x40,
-	0x18, 0xec, 0xbe, 0xc7, 0x7b, 0x87, 0x2d, 0x82, 0xa4, 0x08, 0x52, 0x4a, 0x2c, 0x3d, 0x09, 0xda,
-	0x5d, 0x13, 0x8f, 0xde, 0x0a, 0x8a, 0x37, 0x35, 0xa0, 0x88, 0x97, 0x90, 0xa4, 0x1f, 0xc9, 0x42,
-	0xdd, 0x2f, 0xcd, 0x6e, 0x42, 0x83, 0x78, 0xf1, 0x17, 0x08, 0xfe, 0x29, 0x8f, 0x05, 0x41, 0x3c,
-	0x96, 0xd6, 0x1f, 0x22, 0x4d, 0x2a, 0xc6, 0x52, 0x15, 0x2f, 0x81, 0xec, 0xec, 0xcc, 0xec, 0xcc,
-	0xd0, 0x56, 0x9c, 0x0e, 0x94, 0x97, 0x04, 0x91, 0x27, 0x24, 0xf7, 0xfc, 0x40, 0xf0, 0x61, 0x0a,
-	0x49, 0xce, 0xe2, 0x04, 0x35, 0x1a, 0xeb, 0x15, 0x94, 0xcd, 0xd1, 0x66, 0x2b, 0x44, 0x0c, 0x07,
-	0xc0, 0xbd, 0x58, 0x70, 0x4f, 0x4a, 0xd4, 0x9e, 0x16, 0x28, 0x55, 0x79, 0xbf, 0x69, 0x57, 0xd5,
-	0x32, 0xd4, 0x10, 0x43, 0xa2, 0x84, 0xd2, 0x20, 0x03, 0xe0, 0x99, 0x55, 0x1c, 0xb9, 0x30, 0xd2,
-	0xae, 0x8f, 0xfd, 0x85, 0x47, 0xe7, 0x9c, 0x6e, 0x9d, 0xcd, 0x2d, 0x2f, 0x50, 0xc3, 0xe1, 0x48,
-	0xf7, 0xb0, 0x9f, 0xf7, 0xf2, 0x63, 0x10, 0x61, 0xa4, 0x1d, 0x18, 0xa6, 0xa0, 0xb4, 0x61, 0xd3,
-	0x8d, 0x77, 0x26, 0x48, 0x25, 0x50, 0xba, 0x51, 0x81, 0x6f, 0x92, 0x36, 0xd9, 0xfe, 0xeb, 0x34,
-	0xb2, 0x92, 0x5a, 0x62, 0x25, 0xb5, 0xa3, 0x68, 0xfb, 0x6b, 0x59, 0x15, 0xa3, 0x54, 0x60, 0x9c,
-	0xd0, 0xb5, 0x4f, 0x2f, 0x2a, 0xf4, 0xea, 0xf6, 0x0e, 0xab, 0xc6, 0x5e, 0x8a, 0xc1, 0x32, 0x8b,
-	0x55, 0x34, 0x9d, 0x7a, 0xf6, 0xf1, 0x63, 0x4f, 0x08, 0xfd, 0x57, 0xb8, 0x1a, 0xcf, 0x84, 0x36,
-	0x56, 0x58, 0x1b, 0x16, 0x5b, 0xae, 0x94, 0xfd, 0x90, 0xbe, 0x69, 0xff, 0x86, 0x52, 0x26, 0xeb,
-	0x5c, 0xde, 0x3d, 0xbd, 0x3e, 0xfc, 0x71, 0x8c, 0x53, 0x2e, 0xb1, 0x0f, 0xd6, 0x9e, 0xd5, 0x15,
-	0xc8, 0x4b, 0x99, 0x6e, 0x65, 0xeb, 0xe5, 0x49, 0x5c, 0x3f, 0x5f, 0x54, 0xcb, 0x6f, 0x56, 0x36,
-	0x7e, 0xdb, 0x3b, 0x7a, 0x9c, 0x9a, 0x64, 0x3c, 0x35, 0xc9, 0x64, 0x6a, 0x92, 0xfb, 0x99, 0x59,
-	0x1b, 0xcf, 0xcc, 0xda, 0xcb, 0xcc, 0xac, 0x5d, 0xed, 0x86, 0x42, 0x47, 0xa9, 0xcf, 0x02, 0xbc,
-	0xfe, 0xd6, 0xf5, 0x60, 0xfe, 0xf1, 0xff, 0x17, 0xeb, 0xef, 0xbf, 0x05, 0x00, 0x00, 0xff, 0xff,
-	0xff, 0x91, 0x75, 0x94, 0x81, 0x02, 0x00, 0x00,
+	// 450 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x93, 0xcf, 0x6b, 0xd4, 0x40,
+	0x14, 0xc7, 0x37, 0x16, 0x3d, 0xcc, 0x2a, 0xc8, 0x14, 0x41, 0x97, 0x12, 0xeb, 0x82, 0x52, 0xd0,
+	0xce, 0x98, 0x78, 0x50, 0xf0, 0xb6, 0xe0, 0xef, 0x83, 0xed, 0x8a, 0x55, 0xbc, 0x84, 0x49, 0xf6,
+	0xb1, 0x19, 0x5c, 0xe7, 0xa5, 0x99, 0xb7, 0x69, 0x97, 0xd2, 0x8b, 0x7f, 0x81, 0xe0, 0xbf, 0xe4,
+	0xc1, 0x63, 0x41, 0x10, 0x8f, 0xba, 0xeb, 0x1f, 0x22, 0x3b, 0xc9, 0x62, 0x5a, 0x1a, 0xeb, 0x5e,
+	0x02, 0x99, 0xf7, 0xbe, 0xdf, 0xf7, 0x3e, 0x99, 0x6f, 0xd8, 0x5a, 0x36, 0x1e, 0x59, 0x95, 0x27,
+	0xa9, 0xd2, 0x46, 0xaa, 0x38, 0xd1, 0x72, 0x77, 0x0c, 0xf9, 0x44, 0x64, 0x39, 0x12, 0xf2, 0xcb,
+	0xb5, 0xaa, 0x98, 0x57, 0x3b, 0x6b, 0x43, 0xc4, 0xe1, 0x08, 0xa4, 0xca, 0xb4, 0x54, 0xc6, 0x20,
+	0x29, 0xd2, 0x68, 0x6c, 0xd9, 0xdf, 0x09, 0xeb, 0x6e, 0x05, 0x12, 0x64, 0x90, 0x5b, 0x6d, 0x09,
+	0x4c, 0x02, 0xb2, 0x08, 0xdc, 0x51, 0x04, 0xfb, 0x14, 0xc5, 0x38, 0xa8, 0x66, 0x74, 0x5f, 0xb3,
+	0xeb, 0xdb, 0xf3, 0x91, 0x3b, 0x48, 0xf0, 0x68, 0x9f, 0x7a, 0x38, 0x98, 0xf4, 0x26, 0x4f, 0x41,
+	0x0f, 0x53, 0xea, 0xc3, 0xee, 0x18, 0x2c, 0xf1, 0x90, 0x5d, 0x59, 0x28, 0xc1, 0x58, 0x8d, 0x26,
+	0x4a, 0x5d, 0xfd, 0xaa, 0xb7, 0xee, 0x6d, 0xac, 0xf4, 0x57, 0x8b, 0x52, 0x5a, 0xd6, 0x4a, 0x69,
+	0xd7, 0xb2, 0xf5, 0x66, 0x5b, 0x9b, 0xa1, 0xb1, 0xc0, 0x5f, 0xb2, 0x4b, 0xc7, 0x36, 0x72, 0x7e,
+	0xed, 0xf0, 0xb6, 0xa8, 0x63, 0x9f, 0xc0, 0x10, 0x45, 0x20, 0x6a, 0x9e, 0xfd, 0x76, 0xf1, 0xf7,
+	0xa5, 0xfb, 0x9c, 0xdd, 0x74, 0x43, 0x9f, 0x00, 0xed, 0xa8, 0x91, 0x1e, 0x28, 0xc2, 0xfc, 0x15,
+	0xd0, 0x1b, 0x4d, 0xe9, 0x16, 0xee, 0x41, 0x6e, 0x17, 0x44, 0x37, 0xd8, 0xc5, 0x78, 0x84, 0xc9,
+	0xfb, 0xe3, 0x20, 0x6d, 0x77, 0x56, 0x01, 0x6c, 0xb0, 0x5b, 0x67, 0x79, 0x95, 0x18, 0xe1, 0x97,
+	0x15, 0x76, 0xde, 0xb5, 0xf2, 0x5f, 0x1e, 0xbb, 0xd6, 0xd8, 0xcf, 0xef, 0x8b, 0x93, 0xd7, 0x29,
+	0xfe, 0x6b, 0xdb, 0xce, 0x83, 0xe5, 0x85, 0xe5, 0x6a, 0xdd, 0xed, 0x8f, 0xdf, 0x7e, 0x7f, 0x3e,
+	0xf7, 0x82, 0x3f, 0x93, 0x06, 0x07, 0x10, 0xdc, 0x0d, 0x36, 0x35, 0xca, 0xd2, 0x6c, 0xb3, 0x96,
+	0xb9, 0x79, 0x34, 0x16, 0x46, 0x91, 0x05, 0x8a, 0xf6, 0x34, 0xa5, 0x51, 0xe6, 0xbc, 0xe4, 0x41,
+	0xfd, 0x4b, 0x1d, 0xf2, 0xef, 0x1e, 0x5b, 0x3d, 0xe5, 0x52, 0x79, 0xd0, 0xb0, 0x64, 0x73, 0xae,
+	0x3a, 0xe1, 0x32, 0x92, 0x8a, 0xe8, 0xad, 0x23, 0xea, 0xf3, 0xad, 0xb3, 0x89, 0xea, 0xd1, 0x8a,
+	0xe2, 0x49, 0x45, 0x20, 0x0f, 0x4e, 0xcd, 0xf2, 0x61, 0xef, 0xf1, 0xd7, 0xa9, 0xef, 0x1d, 0x4d,
+	0x7d, 0xef, 0xe7, 0xd4, 0xf7, 0x3e, 0xcd, 0xfc, 0xd6, 0xd1, 0xcc, 0x6f, 0xfd, 0x98, 0xf9, 0xad,
+	0x77, 0x77, 0x86, 0x9a, 0xd2, 0x71, 0x2c, 0x12, 0xfc, 0xf0, 0xcf, 0xa9, 0x0f, 0xe7, 0x8f, 0xf8,
+	0x82, 0xfb, 0xaf, 0xee, 0xfd, 0x09, 0x00, 0x00, 0xff, 0xff, 0x40, 0xb6, 0x7d, 0xe6, 0xdb, 0x03,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -166,6 +257,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type QueryClient interface {
+	GetValidatorSetWithPowers(ctx context.Context, in *QueryGetValidatorSetWithPowersRequest, opts ...grpc.CallOption) (*QueryGetValidatorSetWithPowersResponse, error)
 	// VoteExtBodyByHeight queries the vote extension body for a vote-extension
 	// consensus height.
 	VoteExtBodyByHeight(ctx context.Context, in *QueryVoteExtBodyByHeightRequest, opts ...grpc.CallOption) (*QueryVoteExtBodyByHeightResponse, error)
@@ -179,6 +271,15 @@ func NewQueryClient(cc grpc1.ClientConn) QueryClient {
 	return &queryClient{cc}
 }
 
+func (c *queryClient) GetValidatorSetWithPowers(ctx context.Context, in *QueryGetValidatorSetWithPowersRequest, opts ...grpc.CallOption) (*QueryGetValidatorSetWithPowersResponse, error) {
+	out := new(QueryGetValidatorSetWithPowersResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.abci.Query/GetValidatorSetWithPowers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *queryClient) VoteExtBodyByHeight(ctx context.Context, in *QueryVoteExtBodyByHeightRequest, opts ...grpc.CallOption) (*QueryVoteExtBodyByHeightResponse, error) {
 	out := new(QueryVoteExtBodyByHeightResponse)
 	err := c.cc.Invoke(ctx, "/pulsarchain.abci.Query/VoteExtBodyByHeight", in, out, opts...)
@@ -190,6 +291,7 @@ func (c *queryClient) VoteExtBodyByHeight(ctx context.Context, in *QueryVoteExtB
 
 // QueryServer is the server API for Query service.
 type QueryServer interface {
+	GetValidatorSetWithPowers(context.Context, *QueryGetValidatorSetWithPowersRequest) (*QueryGetValidatorSetWithPowersResponse, error)
 	// VoteExtBodyByHeight queries the vote extension body for a vote-extension
 	// consensus height.
 	VoteExtBodyByHeight(context.Context, *QueryVoteExtBodyByHeightRequest) (*QueryVoteExtBodyByHeightResponse, error)
@@ -199,12 +301,33 @@ type QueryServer interface {
 type UnimplementedQueryServer struct {
 }
 
+func (*UnimplementedQueryServer) GetValidatorSetWithPowers(ctx context.Context, req *QueryGetValidatorSetWithPowersRequest) (*QueryGetValidatorSetWithPowersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetValidatorSetWithPowers not implemented")
+}
 func (*UnimplementedQueryServer) VoteExtBodyByHeight(ctx context.Context, req *QueryVoteExtBodyByHeightRequest) (*QueryVoteExtBodyByHeightResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VoteExtBodyByHeight not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
 	s.RegisterService(&_Query_serviceDesc, srv)
+}
+
+func _Query_GetValidatorSetWithPowers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryGetValidatorSetWithPowersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).GetValidatorSetWithPowers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.abci.Query/GetValidatorSetWithPowers",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).GetValidatorSetWithPowers(ctx, req.(*QueryGetValidatorSetWithPowersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Query_VoteExtBodyByHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -230,6 +353,10 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pulsarchain.abci.Query",
 	HandlerType: (*QueryServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetValidatorSetWithPowers",
+			Handler:    _Query_GetValidatorSetWithPowers_Handler,
+		},
 		{
 			MethodName: "VoteExtBodyByHeight",
 			Handler:    _Query_VoteExtBodyByHeight_Handler,
@@ -302,6 +429,57 @@ func (m *QueryVoteExtBodyByHeightResponse) MarshalToSizedBuffer(dAtA []byte) (in
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryGetValidatorSetWithPowersRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryGetValidatorSetWithPowersRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryGetValidatorSetWithPowersRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.BlockHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.BlockHeight))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryGetValidatorSetWithPowersResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryGetValidatorSetWithPowersResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryGetValidatorSetWithPowersResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -335,6 +513,27 @@ func (m *QueryVoteExtBodyByHeightResponse) Size() (n int) {
 		l = m.VoteExtBody.Size()
 		n += 1 + l + sovQuery(uint64(l))
 	}
+	return n
+}
+
+func (m *QueryGetValidatorSetWithPowersRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.BlockHeight != 0 {
+		n += 1 + sovQuery(uint64(m.BlockHeight))
+	}
+	return n
+}
+
+func (m *QueryGetValidatorSetWithPowersResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
 	return n
 }
 
@@ -478,6 +677,125 @@ func (m *QueryVoteExtBodyByHeightResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryGetValidatorSetWithPowersRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryGetValidatorSetWithPowersRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryGetValidatorSetWithPowersRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BlockHeight", wireType)
+			}
+			m.BlockHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BlockHeight |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryGetValidatorSetWithPowersResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryGetValidatorSetWithPowersResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryGetValidatorSetWithPowersResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQuery(dAtA[iNdEx:])

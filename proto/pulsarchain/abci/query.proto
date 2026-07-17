@@ -9,6 +9,10 @@ option go_package = "github.com/node101-io/pulsar-chain/abci;abci";
 
 // Query defines the ABCI proof-related gRPC query service.
 service Query {
+  rpc GetValidatorSetWithPowers(QueryGetValidatorSetWithPowersRequest) returns (QueryGetValidatorSetWithPowersResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/abci/v1/validator_set_with_powers/{block_height}";
+  }
+
   // VoteExtBodyByHeight queries the vote extension body for a vote-extension
   // consensus height.
   rpc VoteExtBodyByHeight(QueryVoteExtBodyByHeightRequest) returns (QueryVoteExtBodyByHeightResponse) {
@@ -27,3 +31,9 @@ message QueryVoteExtBodyByHeightRequest {
 message QueryVoteExtBodyByHeightResponse {
   pulsarchain.votepersistence.v1.VoteExtBody vote_ext_body = 1;
 }
+
+message QueryGetValidatorSetWithPowersRequest {
+  int64 block_height = 1;
+}
+
+message QueryGetValidatorSetWithPowersResponse {}
