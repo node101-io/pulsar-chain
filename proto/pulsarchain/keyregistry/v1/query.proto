@@ -7,6 +7,8 @@ import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "pulsarchain/keyregistry/v1/params.proto";
+import "pulsarchain/common/validator_entry.proto";
+import "pulsarchain/keyregistry/v1/registered_validator_set_entry.proto";
 
 option go_package = "github.com/node101-io/pulsar-chain/x/keyregistry/types";
 
@@ -96,7 +98,11 @@ message QueryGetValidatorCosmosPubKeyResponse {
 }
 
 // QueryGetHistoricalKeyregistryRequest defines the QueryGetHistoricalKeyregistryRequest message.
-message QueryGetHistoricalKeyregistryRequest {}
+message QueryGetHistoricalKeyregistryRequest {
+  repeated pulsarchain.common.ValidatorEntry validator = 1;
+}
 
 // QueryGetHistoricalKeyregistryResponse defines the QueryGetHistoricalKeyregistryResponse message.
-message QueryGetHistoricalKeyregistryResponse {}
+message QueryGetHistoricalKeyregistryResponse {
+  repeated RegisteredValidatorSetEntry registeredValidators = 1;
+}
