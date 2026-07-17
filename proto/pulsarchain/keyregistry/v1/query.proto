@@ -99,7 +99,7 @@ message QueryGetValidatorCosmosPubKeyResponse {
 
 // QueryGetHistoricalKeyregistryRequest defines the QueryGetHistoricalKeyregistryRequest message.
 message QueryGetHistoricalKeyregistryRequest {
-  repeated pulsarchain.common.ValidatorEntry validator = 1;
+  repeated pulsarchain.common.ValidatorEntry validators = 1;
 }
 
 // QueryGetHistoricalKeyregistryResponse defines the QueryGetHistoricalKeyregistryResponse message.

@@ -38,5 +38,5 @@ message QueryGetValidatorSetWithPowersRequest {
 }
 
 message QueryGetValidatorSetWithPowersResponse {
-  repeated pulsarchain.common.ValidatorEntry validator = 1;
+  repeated pulsarchain.common.ValidatorEntry validators = 1;
 }
