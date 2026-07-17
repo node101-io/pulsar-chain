@@ -45,6 +45,13 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_mina_pub_key", Varargs: true}},
 				},
 
+				{
+					RpcMethod:      "GetHistoricalKeyregistry",
+					Use:            "get-historical-keyregistry ",
+					Short:          "Query get-historical-keyregistry",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
+				},
+
 				// this line is used by ignite scaffolding # autocli/query
 			},
 		},

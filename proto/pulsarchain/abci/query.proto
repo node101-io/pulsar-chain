@@ -3,8 +3,8 @@ syntax = "proto3";
 package pulsarchain.abci;
 
 import "google/api/annotations.proto";
-import "pulsarchain/votepersistence/v1/vote_ext_body.proto";
 import "pulsarchain/common/validator_entry.proto";
+import "pulsarchain/votepersistence/v1/vote_ext_body.proto";
 
 option go_package = "github.com/node101-io/pulsar-chain/abci;abci";
 

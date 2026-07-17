@@ -36,6 +36,11 @@ service Query {
   rpc GetValidatorCosmosPubKey(QueryGetValidatorCosmosPubKeyRequest) returns (QueryGetValidatorCosmosPubKeyResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_validator_cosmos_pub_key/{validator_mina_pub_key}";
   }
+
+  // GetHistoricalKeyregistry Queries a list of GetHistoricalKeyregistry items.
+  rpc GetHistoricalKeyregistry(QueryGetHistoricalKeyregistryRequest) returns (QueryGetHistoricalKeyregistryResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_historical_keyregistry";
+  }
 }
 
 // QueryParamsRequest is request type for the Query/Params RPC method.
@@ -89,3 +94,9 @@ message QueryGetValidatorCosmosPubKeyRequest {
 message QueryGetValidatorCosmosPubKeyResponse {
   bytes validator_cosmos_pub_key = 1;
 }
+
+// QueryGetHistoricalKeyregistryRequest defines the QueryGetHistoricalKeyregistryRequest message.
+message QueryGetHistoricalKeyregistryRequest {}
+
+// QueryGetHistoricalKeyregistryResponse defines the QueryGetHistoricalKeyregistryResponse message.
+message QueryGetHistoricalKeyregistryResponse {}
