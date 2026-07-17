@@ -63,7 +63,7 @@ func (h *ABCIHandler) GetValidatorSetWithPowers(ctx context.Context, req *QueryG
 		}
 
 		return &QueryGetValidatorSetWithPowersResponse{
-			Validator: validatorSet,
+			Validators: validatorSet,
 		}, nil
 	}
 
@@ -83,7 +83,7 @@ func (h *ABCIHandler) GetValidatorSetWithPowers(ctx context.Context, req *QueryG
 	}
 
 	return &QueryGetValidatorSetWithPowersResponse{
-		Validator: validatorSet,
+		Validators: validatorSet,
 	}, nil
 }
 
