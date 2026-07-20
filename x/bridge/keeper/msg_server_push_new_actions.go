@@ -61,7 +61,7 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 
 	}
 
-	if err := k.Keeper.setBridgeState(ctx, types.BridgeState{
+	if err := k.Keeper.BridgeState.Set(ctx, types.BridgeState{
 		LatestFetchedMinaHeight: msg.MinaBlockHeight,
 		ActionsReducedRoot:      list.Root(),
 	}); err != nil {
