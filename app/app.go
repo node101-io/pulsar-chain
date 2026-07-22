@@ -50,6 +50,7 @@ import (
 	"github.com/node101-io/mina-signer-go/privatekey"
 	abcihandler "github.com/node101-io/pulsar-chain/abci"
 	"github.com/node101-io/pulsar-chain/docs"
+	bridge "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
 	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
@@ -109,6 +110,7 @@ type App struct {
 	PulsarKeeper          pulsarmodulekeeper.Keeper
 	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
 	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
+	BridgeKeeper          bridge.Keeper
 
 	ABCIHandler *abcihandler.ABCIHandler
 }
@@ -193,6 +195,7 @@ func New(
 		&app.PulsarKeeper,
 		&app.KeyregistryKeeper,
 		&app.VotepersistenceKeeper,
+		&app.BridgeKeeper,
 	); err != nil {
 		panic(err)
 	}
