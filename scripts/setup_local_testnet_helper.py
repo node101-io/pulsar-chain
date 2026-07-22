@@ -43,6 +43,20 @@ def read_mina_priv_key(config_path: str) -> int:
     return 0
 
 
+def read_wrapper_grpc_address(config_path: str) -> int:
+    content = read_text(config_path)
+    match = re.search(
+        r'bridge:\s*\n\s*wrapper_grpc_address:\s*"([^"]+)"', content
+    )
+    if not match:
+        raise SystemExit(
+            f"could not find validators[].app.bridge.wrapper_grpc_address in {config_path}"
+        )
+
+    print(match.group(1))
+    return 0
+
+
 def set_vote_extension_height(genesis_path: str, height: str) -> int:
     genesis = read_json(genesis_path)
     genesis["consensus"]["params"]["abci"]["vote_extensions_enable_height"] = height
@@ -139,7 +153,27 @@ def patch_keyregistry(
     return 0
 
 
-def update_app_config(app_path: str, min_gas_price: str, mina_priv_key: str) -> int:
+def upsert_toml_table(app_toml: str, table_name: str, table_body: str) -> str:
+    table_header = f"[{table_name}]"
+    table_block = f"{table_header}\n{table_body}\n"
+
+    if f"\n{table_header}\n" in app_toml:
+        start = app_toml.index(f"\n{table_header}\n") + 1
+        end = app_toml.find("\n[", start + 1)
+        if end == -1:
+            return app_toml[:start] + table_block
+
+        return app_toml[:start] + table_block + app_toml[end + 1 :]
+
+    return app_toml.rstrip() + f"\n\n{table_block}"
+
+
+def update_app_config(
+    app_path: str,
+    min_gas_price: str,
+    mina_priv_key: str,
+    wrapper_grpc_address: str,
+) -> int:
     app_toml = read_text(app_path)
     app_toml = app_toml.replace(
         'minimum-gas-prices = ""',
@@ -147,17 +181,19 @@ def update_app_config(app_path: str, min_gas_price: str, mina_priv_key: str) -> 
         1,
     )
 
-    vote_extension_block = f'[vote_extension]\npriv_key = "{mina_priv_key}"\n'
+    app_toml = upsert_toml_table(
+        app_toml,
+        "vote_extension",
+        f'priv_key = "{mina_priv_key}"',
+    )
 
-    if "\n[vote_extension]\n" in app_toml:
-        start = app_toml.index("\n[vote_extension]\n") + 1
-        end = app_toml.find("\n[", start + 1)
-        if end == -1:
-            app_toml = app_toml[:start] + vote_extension_block
-        else:
-            app_toml = app_toml[:start] + vote_extension_block + app_toml[end + 1 :]
-    else:
-        app_toml = app_toml.rstrip() + f"\n\n{vote_extension_block}"
+    wrapper_grpc_address = wrapper_grpc_address.strip()
+    if wrapper_grpc_address:
+        app_toml = upsert_toml_table(
+            app_toml,
+            "bridge",
+            f'wrapper_grpc_address = "{wrapper_grpc_address}"',
+        )
 
     write_text(app_path, app_toml)
     return 0
@@ -169,6 +205,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     read_key = subparsers.add_parser("read-mina-priv-key")
     read_key.add_argument("--config", required=True)
+
+    read_wrapper_addr = subparsers.add_parser("read-wrapper-grpc-address")
+    read_wrapper_addr.add_argument("--config", required=True)
 
     read_consensus_key = subparsers.add_parser("read-consensus-pub-key")
     read_consensus_key.add_argument("--priv-validator-key", required=True)
@@ -193,6 +232,7 @@ def build_parser() -> argparse.ArgumentParser:
     update_app.add_argument("--app", required=True)
     update_app.add_argument("--min-gas-price", required=True)
     update_app.add_argument("--mina-priv-key", required=True)
+    update_app.add_argument("--wrapper-grpc-address", default="")
 
     return parser
 
@@ -203,6 +243,8 @@ def main() -> int:
 
     if args.command == "read-mina-priv-key":
         return read_mina_priv_key(args.config)
+    if args.command == "read-wrapper-grpc-address":
+        return read_wrapper_grpc_address(args.config)
     if args.command == "read-consensus-pub-key":
         return read_consensus_pub_key(args.priv_validator_key)
     if args.command == "set-vote-extension-height":
@@ -214,7 +256,12 @@ def main() -> int:
     if args.command == "patch-keyregistry":
         return patch_keyregistry(args.genesis, args.mina_pub_key, args.cosmos_key)
     if args.command == "update-app-config":
-        return update_app_config(args.app, args.min_gas_price, args.mina_priv_key)
+        return update_app_config(
+            args.app,
+            args.min_gas_price,
+            args.mina_priv_key,
+            args.wrapper_grpc_address,
+        )
 
     parser.print_help(sys.stderr)
     return 1

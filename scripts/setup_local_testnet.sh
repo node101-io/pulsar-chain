@@ -7,6 +7,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 PYTHON_HELPER="$SCRIPT_DIR/setup_local_testnet_helper.py"
 DEVTOOLS_HELPER="$SCRIPT_DIR/devtools"
 GOFLAGS_WITH_PUREGO="${GOFLAGS:-} -tags=purego"
+CONFIG_YAML_PATH="${CONFIG_YAML_PATH:-$REPO_ROOT/config.yml}"
 
 LEGACY_CHAIN_HOME="${CHAIN_HOME:-$HOME/.pulsar}"
 CHAIN_ID="${CHAIN_ID:-mytestnet}"
@@ -44,6 +45,10 @@ read_consensus_pub_key() {
   python3 "$PYTHON_HELPER" read-consensus-pub-key --priv-validator-key "$1"
 }
 
+read_wrapper_grpc_address() {
+  python3 "$PYTHON_HELPER" read-wrapper-grpc-address --config "$1"
+}
+
 generate_default_mina_priv_key() {
   python3 "$PYTHON_HELPER" generate-default-mina-priv-key --index "$1"
 }
@@ -79,6 +84,7 @@ configure_node() {
   local grpc_port="$5"
   local persistent_peers="$6"
   local mina_priv_key="$7"
+  local wrapper_grpc_address="$8"
 
   sed -i.bak "s|laddr = \"tcp://127.0.0.1:26657\"|laddr = \"tcp://0.0.0.0:${rpc_port}\"|" "$home/config/config.toml"
   sed -i.bak "s|laddr = \"tcp://0.0.0.0:26656\"|laddr = \"tcp://0.0.0.0:${p2p_port}\"|" "$home/config/config.toml"
@@ -92,7 +98,8 @@ configure_node() {
   python3 "$PYTHON_HELPER" update-app-config \
     --app "$home/config/app.toml" \
     --min-gas-price "$MIN_GAS_PRICE" \
-    --mina-priv-key "$mina_priv_key"
+    --mina-priv-key "$mina_priv_key" \
+    --wrapper-grpc-address "$wrapper_grpc_address"
 }
 
 build_persistent_peers() {
@@ -123,6 +130,12 @@ fi
 declare -a NODE_HOMES NODE_MONIKERS NODE_KEY_NAMES NODE_MINA_PRIV_KEYS NODE_MINA_PUB_KEYS
 declare -a NODE_P2P_PORTS NODE_RPC_PORTS NODE_GRPC_PORTS NODE_API_PORTS
 declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS
+declare -a NODE_WRAPPER_GRPC_ADDRESSES
+
+DEFAULT_WRAPPER_GRPC_ADDRESS="${WRAPPER_GRPC_ADDRESS:-}"
+if [[ -z "$DEFAULT_WRAPPER_GRPC_ADDRESS" && -f "$CONFIG_YAML_PATH" ]]; then
+  DEFAULT_WRAPPER_GRPC_ADDRESS="$(read_wrapper_grpc_address "$CONFIG_YAML_PATH")"
+fi
 
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_HOMES[i]="$(get_node_setting "$i" "HOME" "$HOME/.pulsar-node${i}")"
@@ -134,6 +147,11 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_RPC_PORTS[i]="$(get_node_setting "$i" "RPC_PORT" "$((26657 + ((i - 1) * 10)))")"
   NODE_GRPC_PORTS[i]="$(get_node_setting "$i" "GRPC_PORT" "$((9090 + i - 1))")"
   NODE_API_PORTS[i]="$(get_node_setting "$i" "API_PORT" "$((1317 + i - 1))")"
+  NODE_WRAPPER_GRPC_ADDRESSES[i]="$(get_node_setting "$i" "WRAPPER_GRPC_ADDRESS" "$DEFAULT_WRAPPER_GRPC_ADDRESS")"
+  if [[ -z "${NODE_WRAPPER_GRPC_ADDRESSES[i]}" ]]; then
+    echo "missing wrapper gRPC address for node${i}; set WRAPPER_GRPC_ADDRESS, NODE${i}_WRAPPER_GRPC_ADDRESS, or validators[].app.bridge.wrapper_grpc_address in $CONFIG_YAML_PATH" >&2
+    exit 1
+  fi
   NODE_MINA_PUB_KEYS[i]="$(derive_mina_pub_key "${NODE_MINA_PRIV_KEYS[i]}")"
   NODE_GENESIS_FILES[i]="${NODE_HOMES[i]}/config/genesis.json"
 done
@@ -229,7 +247,8 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
     "${NODE_API_PORTS[i]}" \
     "${NODE_GRPC_PORTS[i]}" \
     "$(build_persistent_peers "$i")" \
-    "${NODE_MINA_PRIV_KEYS[i]}"
+    "${NODE_MINA_PRIV_KEYS[i]}" \
+    "${NODE_WRAPPER_GRPC_ADDRESSES[i]}"
 done
 
 echo ""
