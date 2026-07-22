@@ -1,6 +1,8 @@
 package bridge
 
 import (
+	"strings"
+
 	"cosmossdk.io/core/address"
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/core/store"
@@ -9,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	wrapperquery "github.com/node101-io/archive-wrapper/query"
 
 	"github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
@@ -30,7 +33,7 @@ type ModuleInputs struct {
 	depinject.In
 
 	Config       *types.Module
-	AppOpts      servertypes.AppOptions
+	AppOpts      servertypes.AppOptions `optional:"true"`
 	StoreService store.KVStoreService
 	Cdc          codec.Codec
 	AddressCodec address.Codec
@@ -54,14 +57,18 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		authority = authtypes.NewModuleAddressOrBech32Address(in.Config.Authority)
 	}
 
-	wrapperGRPCAddress, ok := in.AppOpts.Get("bridge.wrapper_grpc_address").(string)
-	if !ok || wrapperGRPCAddress == "" {
-		panic("bridge.wrapper_grpc_address must be set in app.toml")
-	}
+	var archiveWrapperClient wrapperquery.QueryClient
+	if in.AppOpts != nil {
+		wrapperGRPCAddress, _ := in.AppOpts.Get("bridge.wrapper_grpc_address").(string)
+		if strings.TrimSpace(wrapperGRPCAddress) == "" {
+			panic("bridge.wrapper_grpc_address must be set in app.toml")
+		}
 
-	archiveWrapperClient, err := keeper.NewArchiveWrapperQueryClient(wrapperGRPCAddress)
-	if err != nil {
-		panic(err)
+		var err error
+		archiveWrapperClient, err = keeper.NewArchiveWrapperQueryClient(wrapperGRPCAddress)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	k := keeper.NewKeeper(
@@ -75,5 +82,8 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 	)
 	m := NewAppModule(in.Cdc, k, in.AuthKeeper, in.BankKeeper)
 
-	return ModuleOutputs{BridgeKeeper: k, Module: m}
+	return ModuleOutputs{
+		BridgeKeeper: k,
+		Module:       m,
+	}
 }
