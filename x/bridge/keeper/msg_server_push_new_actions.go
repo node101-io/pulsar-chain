@@ -13,7 +13,7 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, errorsmod.Wrap(err, "invalid authority address")
 	}
 
-	currentMinaBlockHeight, err := GetMinaBlockHeight()
+	currentMinaBlockHeight, err := k.getWrapperMinaBlockHeight(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +27,7 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, types.ErrMinaBlockNotFinalized
 	}
 
-	actions, err := fetchActions(types.ContractAddress, bridgeState.LatestFetchedMinaHeight, msg.MinaBlockHeight)
+	actions, err := k.getWrapperActionsInRange(ctx, bridgeState.LatestFetchedMinaHeight, msg.MinaBlockHeight)
 	if err != nil {
 		return nil, err
 	}

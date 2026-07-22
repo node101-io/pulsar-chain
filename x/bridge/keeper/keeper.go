@@ -8,6 +8,8 @@ import (
 	"cosmossdk.io/core/address"
 	corestore "cosmossdk.io/core/store"
 	"github.com/cosmos/cosmos-sdk/codec"
+	wrapperquery "github.com/node101-io/archive-wrapper/query"
+
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
 
@@ -25,8 +27,9 @@ type Keeper struct {
 	Params      collections.Item[types.Params]
 	BridgeState collections.Item[types.BridgeState]
 
-	bankKeeper        types.BankKeeper
-	keyRegistryKeeper types.KeyregistryKeeper
+	bankKeeper                types.BankKeeper
+	keyRegistryKeeper         types.KeyregistryKeeper
+	archiveWrapperQueryClient wrapperquery.QueryClient
 }
 
 func NewKeeper(
@@ -36,6 +39,7 @@ func NewKeeper(
 	authority []byte,
 	bankKeeper types.BankKeeper,
 	keyRegistryKeeper types.KeyregistryKeeper,
+	archiveWrapperQueryClient wrapperquery.QueryClient,
 ) Keeper {
 	if _, err := addressCodec.BytesToString(authority); err != nil {
 		panic(fmt.Sprintf("invalid authority address %s: %s", authority, err))
@@ -56,8 +60,9 @@ func NewKeeper(
 			BridgeStateItemName,
 			codec.CollValue[types.BridgeState](cdc),
 		),
-		bankKeeper:        bankKeeper,
-		keyRegistryKeeper: keyRegistryKeeper,
+		bankKeeper:                bankKeeper,
+		keyRegistryKeeper:         keyRegistryKeeper,
+		archiveWrapperQueryClient: archiveWrapperQueryClient,
 	}
 
 	schema, err := sb.Build()

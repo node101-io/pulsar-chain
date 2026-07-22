@@ -19,7 +19,7 @@ require (
 	cosmossdk.io/collections v1.3.1
 	cosmossdk.io/core v0.11.3
 	cosmossdk.io/depinject v1.2.1
-	cosmossdk.io/errors v1.0.2
+	cosmossdk.io/errors v1.1.0
 	cosmossdk.io/log v1.6.1
 	cosmossdk.io/math v1.5.3
 	cosmossdk.io/store v1.1.2
@@ -39,6 +39,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/node101-io/archive-wrapper v0.0.0-20260720193412-82ed1194a01d
 	github.com/node101-io/mina-signer-go v0.0.0-20260601165332-9dc4888e6819
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
