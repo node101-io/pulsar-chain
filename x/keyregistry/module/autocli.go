@@ -46,9 +46,9 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				},
 
 				{
-					RpcMethod:      "GetHistoricalKeyregistry",
-					Use:            "get-historical-keyregistry ",
-					Short:          "Query get-historical-keyregistry",
+					RpcMethod:      "GetValidatorSetWithMinaKeys",
+					Use:            "get-validator-set-with-mina-keys",
+					Short:          "Query a validator set with registered Mina public keys",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
 				},
 

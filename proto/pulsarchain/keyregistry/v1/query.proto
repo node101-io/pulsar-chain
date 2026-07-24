@@ -39,9 +39,9 @@ service Query {
     option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_validator_cosmos_pub_key/{validator_mina_pub_key}";
   }
 
-  // GetHistoricalKeyregistry Queries a list of GetHistoricalKeyregistry items.
-  rpc GetHistoricalKeyregistry(QueryGetHistoricalKeyregistryRequest) returns (QueryGetHistoricalKeyregistryResponse) {
-    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_historical_keyregistry";
+  // GetValidatorSetWithMinaKeys returns the supplied validator set with each validator's registered Mina public key.
+  rpc GetValidatorSetWithMinaKeys(QueryGetValidatorSetWithMinaKeysRequest) returns (QueryGetValidatorSetWithMinaKeysResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_validator_set_with_mina_keys";
   }
 }
 
@@ -97,12 +97,12 @@ message QueryGetValidatorCosmosPubKeyResponse {
   bytes validator_cosmos_pub_key = 1;
 }
 
-// QueryGetHistoricalKeyregistryRequest defines the QueryGetHistoricalKeyregistryRequest message.
-message QueryGetHistoricalKeyregistryRequest {
+// QueryGetValidatorSetWithMinaKeysRequest defines the request for GetValidatorSetWithMinaKeys.
+message QueryGetValidatorSetWithMinaKeysRequest {
   repeated pulsarchain.common.ValidatorEntry validators = 1;
 }
 
-// QueryGetHistoricalKeyregistryResponse defines the QueryGetHistoricalKeyregistryResponse message.
-message QueryGetHistoricalKeyregistryResponse {
-  repeated RegisteredValidatorSetEntry registeredValidators = 1;
+// QueryGetValidatorSetWithMinaKeysResponse defines the response for GetValidatorSetWithMinaKeys.
+message QueryGetValidatorSetWithMinaKeysResponse {
+  repeated RegisteredValidatorSetEntry registered_validators = 1;
 }

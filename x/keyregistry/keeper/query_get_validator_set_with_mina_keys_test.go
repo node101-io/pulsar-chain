@@ -11,28 +11,28 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func TestHistoricalKeyregistryInvalidArgumentFail(t *testing.T) {
+func TestGetValidatorSetWithMinaKeysInvalidArgumentFail(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	_, err := qs.GetHistoricalKeyregistry(f.ctx, nil)
+	_, err := qs.GetValidatorSetWithMinaKeys(f.ctx, nil)
 	require.Error(t, err)
 
 	st, _ := status.FromError(err)
 	require.Equal(t, codes.InvalidArgument, st.Code())
 }
 
-func TestHistoricalKeyregistryNilValidatorEntry(t *testing.T) {
+func TestGetValidatorSetWithMinaKeysNilValidatorEntry(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	_, err := qs.GetHistoricalKeyregistry(f.ctx, &types.QueryGetHistoricalKeyregistryRequest{
+	_, err := qs.GetValidatorSetWithMinaKeys(f.ctx, &types.QueryGetValidatorSetWithMinaKeysRequest{
 		Validators: []*common.ValidatorEntry{nil},
 	})
 	require.Error(t, err)
@@ -41,14 +41,14 @@ func TestHistoricalKeyregistryNilValidatorEntry(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, st.Code())
 }
 
-func TestHistoricalKeyregistryInvalidCosmosPublicKey(t *testing.T) {
+func TestGetValidatorSetWithMinaKeysInvalidCosmosPublicKey(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	_, err := qs.GetHistoricalKeyregistry(f.ctx, &types.QueryGetHistoricalKeyregistryRequest{
+	_, err := qs.GetValidatorSetWithMinaKeys(f.ctx, &types.QueryGetValidatorSetWithMinaKeysRequest{
 		Validators: []*common.ValidatorEntry{{
 			ValidatorCosmosPubKey: []byte("bad-validator-cosmos-key"),
 			ConsensusPower:        10,
@@ -60,14 +60,14 @@ func TestHistoricalKeyregistryInvalidCosmosPublicKey(t *testing.T) {
 	require.Equal(t, codes.InvalidArgument, st.Code())
 }
 
-func TestHistoricalKeyregistryValidatorPubkeyNotFound(t *testing.T) {
+func TestGetValidatorSetWithMinaKeysValidatorPubkeyNotFound(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	_, err := qs.GetHistoricalKeyregistry(f.ctx, &types.QueryGetHistoricalKeyregistryRequest{
+	_, err := qs.GetValidatorSetWithMinaKeys(f.ctx, &types.QueryGetValidatorSetWithMinaKeysRequest{
 		Validators: []*common.ValidatorEntry{{
 			ValidatorCosmosPubKey: generateValidatorCosmosPrivKey().PubKey().Bytes(),
 			ConsensusPower:        10,
@@ -79,7 +79,7 @@ func TestHistoricalKeyregistryValidatorPubkeyNotFound(t *testing.T) {
 	require.Equal(t, codes.NotFound, st.Code())
 }
 
-func TestHistoricalKeyregistrySuccess(t *testing.T) {
+func TestGetValidatorSetWithMinaKeysSuccess(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
@@ -124,7 +124,7 @@ func TestHistoricalKeyregistrySuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	queryResp, err := qs.GetHistoricalKeyregistry(f.ctx, &types.QueryGetHistoricalKeyregistryRequest{
+	queryResp, err := qs.GetValidatorSetWithMinaKeys(f.ctx, &types.QueryGetValidatorSetWithMinaKeysRequest{
 		Validators: []*common.ValidatorEntry{
 			{
 				ValidatorCosmosPubKey: firstCosmosPubKey,

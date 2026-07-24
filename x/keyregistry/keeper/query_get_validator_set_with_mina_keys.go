@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (q queryServer) GetHistoricalKeyregistry(ctx context.Context, req *types.QueryGetHistoricalKeyregistryRequest) (*types.QueryGetHistoricalKeyregistryResponse, error) {
+func (q queryServer) GetValidatorSetWithMinaKeys(ctx context.Context, req *types.QueryGetValidatorSetWithMinaKeysRequest) (*types.QueryGetValidatorSetWithMinaKeysResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
@@ -51,7 +51,7 @@ func (q queryServer) GetHistoricalKeyregistry(ctx context.Context, req *types.Qu
 		})
 	}
 
-	return &types.QueryGetHistoricalKeyregistryResponse{
+	return &types.QueryGetValidatorSetWithMinaKeysResponse{
 		RegisteredValidators: registeredValidators,
 	}, nil
 }
