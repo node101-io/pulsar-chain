@@ -45,6 +45,13 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator_mina_pub_key", Varargs: true}},
 				},
 
+				{
+					RpcMethod:      "GetValidatorSetWithMinaKeys",
+					Use:            "get-validator-set-with-mina-keys",
+					Short:          "Query a validator set with registered Mina public keys",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
+				},
+
 				// this line is used by ignite scaffolding # autocli/query
 			},
 		},
