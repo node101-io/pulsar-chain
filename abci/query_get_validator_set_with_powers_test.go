@@ -81,7 +81,7 @@ func TestGetValidatorSetWithPowersReturnsHistoricalValidatorSet(t *testing.T) {
 	stakingKeeper := &voteExtBodyTestStakingKeeper{
 		validators: []stakingtypes.Validator{currentValidator},
 		historicalInfo: map[int64]stakingtypes.HistoricalInfo{
-			7: {
+			8: {
 				Valset: []stakingtypes.Validator{
 					firstHistoricalValidator,
 					secondHistoricalValidator,
@@ -98,7 +98,7 @@ func TestGetValidatorSetWithPowersReturnsHistoricalValidatorSet(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	require.Equal(t, []int64{7}, stakingKeeper.requestedHistoricalHeights)
+	require.Equal(t, []int64{8}, stakingKeeper.requestedHistoricalHeights)
 	require.Len(t, response.GetValidators(), 2)
 	require.Equal(t, consensusPubKeyBytes(t, firstHistoricalValidator), response.GetValidators()[0].GetValidatorCosmosPubKey())
 	require.Equal(t, int64(10), response.GetValidators()[0].GetConsensusPower())
@@ -107,89 +107,67 @@ func TestGetValidatorSetWithPowersReturnsHistoricalValidatorSet(t *testing.T) {
 }
 
 func TestGetValidatorSetUsesHeight(t *testing.T) {
-	requestedHistoricalHeight := int64(10)
-	currentHeight := requestedHistoricalHeight + 1
+	const requestedHeight int64 = 10
+	nextHeight := requestedHeight + 1
 
-	// Height 10 has the original validator set A, B, C.
-	height10LowPowerValidator := newTestBondedValidator(t, 1)
-	height10HighPowerValidator := newTestBondedValidator(t, 10)
-	height10MidPowerValidator := newTestBondedValidator(t, 5)
-	height10CurrentIterationOrder := []stakingtypes.Validator{
-		height10LowPowerValidator,
-		height10HighPowerValidator,
-		height10MidPowerValidator,
-	}
-	height10HistoricalValidatorSet := []stakingtypes.Validator{
-		height10HighPowerValidator,
-		height10MidPowerValidator,
-		height10LowPowerValidator,
-	}
+	lowPowerValidator := newTestBondedValidator(t, 1)
+	highPowerValidator := newTestBondedValidator(t, 10)
+	newValidator := newTestBondedValidator(t, 11)
 
-	// Height 11 keeps A, B, C and adds one new validator D.
-	height11NewValidator := newTestBondedValidator(t, 11)
-	height11CurrentIterationOrder := []stakingtypes.Validator{
-		height10MidPowerValidator,
-		height10LowPowerValidator,
-		height11NewValidator,
-		height10HighPowerValidator,
+	initialValidatorSet := []stakingtypes.Validator{
+		highPowerValidator,
+		lowPowerValidator,
+	}
+	validatorSetAfterTx := []stakingtypes.Validator{
+		lowPowerValidator,
+		newValidator,
+		highPowerValidator,
 	}
 
-	height10Handler := &ABCIHandler{
-		stakingKeeper: &voteExtBodyTestStakingKeeper{
-			validators: height10CurrentIterationOrder,
-		},
-	}
-
-	// Querying height 10 while the chain is still at height 10 must read the
-	// current validator set from IterateLastValidators.
-	height10CurrentResponse, err := height10Handler.GetValidatorSetWithPowers(
-		sdk.Context{}.WithBlockHeight(requestedHistoricalHeight),
-		&QueryGetValidatorSetWithPowersRequest{BlockHeight: requestedHistoricalHeight},
-	)
-	require.NoError(t, err)
-	require.NotNil(t, height10CurrentResponse)
-
-	height11StakingKeeper := &voteExtBodyTestStakingKeeper{
-		validators: height11CurrentIterationOrder,
+	stakingKeeper := &voteExtBodyTestStakingKeeper{
+		validators: initialValidatorSet,
 		historicalInfo: map[int64]stakingtypes.HistoricalInfo{
-			requestedHistoricalHeight: {
-				Valset: height10HistoricalValidatorSet,
+			// BeginBlock(N) snapshots the validator set that existed before
+			// transactions and EndBlock validator updates at height N.
+			requestedHeight: {
+				Valset: initialValidatorSet,
 			},
 		},
 	}
-	height11Handler := &ABCIHandler{stakingKeeper: height11StakingKeeper}
+	handler := &ABCIHandler{stakingKeeper: stakingKeeper}
 
-	// After the chain advances to height 11, querying height 10 must still read
-	// the old set from HistoricalInfo(10), not the new current set with D.
-	height10HistoricalResponse, err := height11Handler.GetValidatorSetWithPowers(
-		sdk.Context{}.WithBlockHeight(currentHeight),
-		&QueryGetValidatorSetWithPowersRequest{BlockHeight: requestedHistoricalHeight},
+	// A staking transaction at height N changes the pending validator set.
+	// Staking applies that set to LastValidators during EndBlock(N).
+	stakingKeeper.validators = validatorSetAfterTx
+
+	currentResponse, err := handler.GetValidatorSetWithPowers(
+		sdk.Context{}.WithBlockHeight(requestedHeight),
+		&QueryGetValidatorSetWithPowersRequest{BlockHeight: requestedHeight},
 	)
 	require.NoError(t, err)
-	require.NotNil(t, height10HistoricalResponse)
+	require.NotNil(t, currentResponse)
 
-	// Querying height 11 at height 11 must read the new current set that now
-	// includes D.
-	height11CurrentResponse, err := height11Handler.GetValidatorSetWithPowers(
-		sdk.Context{}.WithBlockHeight(currentHeight),
-		&QueryGetValidatorSetWithPowersRequest{BlockHeight: currentHeight},
+	// BeginBlock(N+1) snapshots the LastValidators produced by EndBlock(N).
+	historicalValidators := append([]stakingtypes.Validator(nil), validatorSetAfterTx...)
+	stakingKeeper.historicalInfo[nextHeight] = stakingtypes.NewHistoricalInfo(
+		sdk.Context{}.WithBlockHeight(nextHeight).BlockHeader(),
+		stakingtypes.Validators{Validators: historicalValidators},
+		sdk.DefaultPowerReduction,
+	)
+
+	historicalResponse, err := handler.GetValidatorSetWithPowers(
+		sdk.Context{}.WithBlockHeight(nextHeight),
+		&QueryGetValidatorSetWithPowersRequest{BlockHeight: requestedHeight},
 	)
 	require.NoError(t, err)
-	require.NotNil(t, height11CurrentResponse)
+	require.NotNil(t, historicalResponse)
 
-	require.Equal(t, []int64{requestedHistoricalHeight}, height11StakingKeeper.requestedHistoricalHeights)
-
-	require.Equal(t, height10CurrentResponse.GetValidators(), height10HistoricalResponse.GetValidators())
-	require.Equal(t, consensusPubKeyBytes(t, height10HighPowerValidator), height10HistoricalResponse.GetValidators()[0].GetValidatorCosmosPubKey())
-	require.Equal(t, consensusPubKeyBytes(t, height10MidPowerValidator), height10HistoricalResponse.GetValidators()[1].GetValidatorCosmosPubKey())
-	require.Equal(t, consensusPubKeyBytes(t, height10LowPowerValidator), height10HistoricalResponse.GetValidators()[2].GetValidatorCosmosPubKey())
-
-	require.NotEqual(t, height10HistoricalResponse.GetValidators(), height11CurrentResponse.GetValidators())
-	require.Len(t, height11CurrentResponse.GetValidators(), 4)
-	require.Equal(t, consensusPubKeyBytes(t, height11NewValidator), height11CurrentResponse.GetValidators()[0].GetValidatorCosmosPubKey())
-	require.Equal(t, consensusPubKeyBytes(t, height10HighPowerValidator), height11CurrentResponse.GetValidators()[1].GetValidatorCosmosPubKey())
-	require.Equal(t, consensusPubKeyBytes(t, height10MidPowerValidator), height11CurrentResponse.GetValidators()[2].GetValidatorCosmosPubKey())
-	require.Equal(t, consensusPubKeyBytes(t, height10LowPowerValidator), height11CurrentResponse.GetValidators()[3].GetValidatorCosmosPubKey())
+	require.Equal(t, []int64{nextHeight}, stakingKeeper.requestedHistoricalHeights)
+	require.Equal(t, currentResponse.GetValidators(), historicalResponse.GetValidators())
+	require.Len(t, historicalResponse.GetValidators(), 3)
+	require.Equal(t, consensusPubKeyBytes(t, newValidator), historicalResponse.GetValidators()[0].GetValidatorCosmosPubKey())
+	require.Equal(t, consensusPubKeyBytes(t, highPowerValidator), historicalResponse.GetValidators()[1].GetValidatorCosmosPubKey())
+	require.Equal(t, consensusPubKeyBytes(t, lowPowerValidator), historicalResponse.GetValidators()[2].GetValidatorCosmosPubKey())
 }
 
 func TestGetValidatorSetWithPowersReturnsIterateLastValidatorsError(t *testing.T) {

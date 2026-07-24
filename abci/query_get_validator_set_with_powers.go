@@ -67,7 +67,9 @@ func (h *ABCIHandler) GetValidatorSetWithPowers(ctx context.Context, req *QueryG
 		}, nil
 	}
 
-	historicalData, err := h.stakingKeeper.GetHistoricalInfo(ctx, req.BlockHeight)
+	// Staking persists LastValidators from EndBlock(H) under HistoricalInfo(H+1) during BeginBlock(H+1).
+	historicalInfoHeight := req.BlockHeight + 1
+	historicalData, err := h.stakingKeeper.GetHistoricalInfo(ctx, historicalInfoHeight)
 	if err != nil {
 		return nil, err
 	}
