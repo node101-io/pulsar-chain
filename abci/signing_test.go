@@ -1,9 +1,11 @@
 package abci
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
+	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	votepersistencetypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
@@ -21,7 +23,7 @@ func TestSignVoteExtBodyRoundTrip(t *testing.T) {
 	minaPublicKey := secondaryKey.PublicKey.Bytes()
 
 	poseidonHash := testPoseidonHash()
-	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, ActionsReducedRoot))
+	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, ActionsReducedRoot, NetworkID))
 }
 
 func TestVerifyVoteExtSigFailureModes(t *testing.T) {
@@ -94,7 +96,7 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := verifyVoteExtSig(tt.poseidon, tt.signature, tt.message, tt.minaKey, tt.reducedRoot)
+			err := verifyVoteExtSig(tt.poseidon, tt.signature, tt.message, tt.minaKey, tt.reducedRoot, NetworkID)
 
 			require.ErrorIs(t, err, tt.expectedErr)
 		})
@@ -146,10 +148,14 @@ func validSecondaryKey() SecondaryKey {
 	}
 }
 
+func testStateRoot32() []byte {
+	return bytes.Repeat([]byte{0x42}, 32)
+}
+
 func validVoteExtBody() votepersistencetypes.VoteExtBody {
 	return votepersistencetypes.VoteExtBody{
-		NextValidatorSetHash: []byte("next-validator-set-hash"),
-		CurrentStateRoot:     []byte("current-state-root"),
+		NextValidatorSetHash: field.NewField().FromUint64(1).Bytes(),
+		CurrentStateRoot:     testStateRoot32(),
 		CurrentBlockHeight:   7,
 		ActionsReducedRoot:   ActionsReducedRoot,
 	}

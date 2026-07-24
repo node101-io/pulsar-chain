@@ -821,10 +821,8 @@ github.com/breml/errchkjson v0.4.0 h1:gftf6uWZMtIa/Is3XJgibewBm2ksAQSY/kABDNFTAd
 github.com/breml/errchkjson v0.4.0/go.mod h1:AuBOSTHyLSaaAFlWsRSuRBIroCh3eh7ZHh5YeelDIk8=
 github.com/brianvoe/gofakeit/v6 v6.28.0 h1:Xib46XXuQfmlLS2EXRuJpqcw8St6qSZz75OUo0tgAW4=
 github.com/brianvoe/gofakeit/v6 v6.28.0/go.mod h1:Xj58BMSnFqcn/fAQeSK+/PLtC5kSb7FJIq4JyGa8vEs=
-github.com/bronlabs/bron-crypto v0.1.1-0.20260413151846-dfce539bca03 h1:hbm7CupqmijQyc6Z4HiTu0YmSY0n2iYRQc+IWFaMol0=
-github.com/bronlabs/bron-crypto v0.1.1-0.20260413151846-dfce539bca03/go.mod h1:81BkZWxtJtXUIh7GxsuJoGDsdTFE2/Ze3sjVNVbkt4g=
-github.com/bronlabs/errs-go v0.2.1 h1:azWEuCFiOSowg84nH1A5+wUwc+v5ROqchkevvnXrXok=
-github.com/bronlabs/errs-go v0.2.1/go.mod h1:Qa7+IPosZUOqcovb5Ny0919yfghJYVo23TTBCYnK0fU=
+github.com/bronlabs/errs-go v0.2.2 h1:W8OQcMkMj2tS0VCERRMQvFqzyVm6ysQq3z7dc7/Ceio=
+github.com/bronlabs/errs-go v0.2.2/go.mod h1:ttS46qH0IDR3Tbe3OD1P+ekqNb3xxDIuH2qOVZozOxM=
 github.com/btcsuite/btcd/btcec/v2 v2.3.5 h1:dpAlnAwmT1yIBm3exhT1/8iUSD98RDJM5vqJVQDQLiU=
 github.com/btcsuite/btcd/btcec/v2 v2.3.5/go.mod h1:m22FrOAiuxl/tht9wIqAoGHcbnCCaPWyauO8y2LGGtQ=
 github.com/btcsuite/btcd/btcutil v1.1.6 h1:zFL2+c3Lb9gEgqKNzowKUPQNb8jV7v5Oaodi/AYFd6c=
@@ -1533,6 +1531,8 @@ github.com/klauspost/pgzip v1.2.6 h1:8RXeL5crjEUFnR2/Sn6GJNWtSQ3Dk8pq4CL3jvdDyjU
 github.com/klauspost/pgzip v1.2.6/go.mod h1:Ch1tH69qFZu15pkjo5kYi6mth2Zzwzt50oCQKQE9RUs=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/konsorten/go-windows-terminal-sequences v1.0.3/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
+github.com/korayakpinar/bron-crypto v0.0.0-20260628220036-35fbaccd4e5d h1:y5U+mmWipSPThWgdO2GhfMWHIV8eFFkkNLX4FMz9P00=
+github.com/korayakpinar/bron-crypto v0.0.0-20260628220036-35fbaccd4e5d/go.mod h1:9RKDmryN5nATe0D/Jfpi4zy3CwLogtCCnc+qgHkQFIw=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
@@ -1674,8 +1674,8 @@ github.com/nishanths/predeclared v0.2.2 h1:V2EPdZPliZymNAn79T8RkNApBjMmVKh5XRpLm
 github.com/nishanths/predeclared v0.2.2/go.mod h1:RROzoN6TnGQupbC+lqggsOlcgysk3LMK/HI84Mp280c=
 github.com/node101-io/archive-wrapper v0.0.0-20260720193412-82ed1194a01d h1:hemmKXNOshmqJE/Aujjo/PdzU2vBnq7HDzvvEv7vL58=
 github.com/node101-io/archive-wrapper v0.0.0-20260720193412-82ed1194a01d/go.mod h1:UbXv0K7K12+DPbb7NMM52+kLeamthZW8azOSs7dTRvU=
-github.com/node101-io/mina-signer-go v0.0.0-20260601165332-9dc4888e6819 h1:PYnyy92xzQ8oNjsydAenjPURHvOcTu6lsPiJ0iFYCoI=
-github.com/node101-io/mina-signer-go v0.0.0-20260601165332-9dc4888e6819/go.mod h1:vGZaN+qwZwJzSm5WQ4hTs95ULhysLLhz7kV+SLj4Abc=
+github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e h1:zrvawdhMkFOLNAUjAzSzEq8IhWaWTuMxGs/Q4LxePoI=
+github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e/go.mod h1:SpMLmGyarqavPzpF5iU+pw0mBOWUsEtjOV/3Oe00Jsg=
 github.com/nunnatsa/ginkgolinter v0.19.1 h1:mjwbOlDQxZi9Cal+KfbEJTCz327OLNfwNvoZ70NJ+c4=
 github.com/nunnatsa/ginkgolinter v0.19.1/go.mod h1:jkQ3naZDmxaZMXPWaS9rblH+i+GWXQCaS/JFIWcOH2s=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=

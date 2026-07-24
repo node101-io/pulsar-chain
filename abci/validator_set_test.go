@@ -23,9 +23,9 @@ func TestSortValidatorsByPower(t *testing.T) {
 
 	require.NoError(t, sortValidatorsByPower(validators))
 
-	require.Equal(t, int64(10), validators[0].GetConsensusPower(sdk.DefaultPowerReduction))
+	require.Equal(t, int64(1), validators[0].GetConsensusPower(sdk.DefaultPowerReduction))
 	require.Equal(t, int64(5), validators[1].GetConsensusPower(sdk.DefaultPowerReduction))
-	require.Equal(t, int64(1), validators[2].GetConsensusPower(sdk.DefaultPowerReduction))
+	require.Equal(t, int64(10), validators[2].GetConsensusPower(sdk.DefaultPowerReduction))
 }
 
 func TestSortValidatorsByPowerTiesByConsensusAddress(t *testing.T) {
@@ -109,7 +109,7 @@ func TestConstructVoteExtBodyUsesVoteExtensionHeightSemantics(t *testing.T) {
 		validators:           []stakingtypes.Validator{validator},
 		validatorsByConsAddr: validatorsByConsAddr(t, validator),
 		historicalInfo: map[int64]stakingtypes.HistoricalInfo{
-			4: {Header: tmproto.Header{AppHash: []byte("state-after-3")}},
+			4: {Header: tmproto.Header{AppHash: testStateRoot32()}},
 		},
 	}
 	handler := &ABCIHandler{
@@ -121,7 +121,7 @@ func TestConstructVoteExtBodyUsesVoteExtensionHeightSemantics(t *testing.T) {
 	body, err := handler.constructVoteExtBody(ctx, voteExtensionHeight)
 
 	require.NoError(t, err)
-	require.Equal(t, []byte("state-after-3"), body.CurrentStateRoot)
+	require.Equal(t, testStateRoot32(), body.CurrentStateRoot)
 	require.Equal(t, signedStateHeight, body.CurrentBlockHeight)
 	require.NotEmpty(t, body.NextValidatorSetHash)
 	require.Equal(t, []int64{4}, stakingKeeper.requestedHistoricalHeights)

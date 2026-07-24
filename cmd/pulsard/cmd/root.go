@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/node101-io/pulsar-chain/app"
+	appante "github.com/node101-io/pulsar-chain/app/ante"
 )
 
 // NewRootCmd creates a new root command for pulsard. It is called once in the main function.
@@ -99,6 +100,8 @@ func ProvideClientContext(
 	txConfigOpts tx.ConfigOptions,
 	legacyAmino *codec.LegacyAmino,
 ) client.Context {
+	appante.RegisterInterfaces(interfaceRegistry)
+
 	clientCtx := client.Context{}.
 		WithCodec(appCodec).
 		WithInterfaceRegistry(interfaceRegistry).

@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewABCIHandlerValidatesSecondaryKey(t *testing.T) {
-	handler, err := NewABCIHandler(SecondaryKey{}, testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{})
+	handler, err := NewABCIHandler(SecondaryKey{}, testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID)
 
 	require.Nil(t, handler)
 	require.ErrorIs(t, err, ErrMissingSecondaryKey)
@@ -51,7 +51,7 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper)
+			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID)
 
 			require.Nil(t, handler)
 			require.ErrorIs(t, err, tt.expectedErr)
@@ -97,7 +97,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper)
+			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID)
 
 			require.Nil(t, handler)
 			require.ErrorIs(t, err, tt.expectedErr)
@@ -106,7 +106,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 }
 
 func TestNewABCIHandlerSuccess(t *testing.T) {
-	handler, err := NewABCIHandler(validSecondaryKey(), testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{})
+	handler, err := NewABCIHandler(validSecondaryKey(), testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID)
 
 	require.NoError(t, err)
 	require.NotNil(t, handler)

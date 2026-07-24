@@ -26,6 +26,8 @@ validators:
         priv_key: "OhOfQtGMXqcrbfCRPEe4DjLUNHaOcD3RrWuRPBGO82M="
       bridge:
         wrapper_grpc_address: "127.0.0.1:9090"
+      mina:
+        network_id: "testnet"
 - name: validator1
   bonded: 200000000pmina
 - name: validator2

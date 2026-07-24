@@ -49,11 +49,22 @@ def read_wrapper_grpc_address(config_path: str) -> int:
         r'bridge:\s*\n\s*wrapper_grpc_address:\s*"([^"]+)"', content
     )
     if not match:
-        raise SystemExit(
-            f"could not find validators[].app.bridge.wrapper_grpc_address in {config_path}"
-        )
+        print("")
+        return 0
 
     print(match.group(1))
+    return 0
+
+
+def read_mina_network_id(config_path: str) -> int:
+    content = read_text(config_path)
+    match = re.search(r'mina:\s*\n\s*network_id:\s*"?([^"\n]+)"?', content)
+    if not match:
+        raise SystemExit(
+            f"could not find validators[].app.mina.network_id in {config_path}"
+        )
+
+    print(match.group(1).strip())
     return 0
 
 
@@ -172,6 +183,7 @@ def update_app_config(
     app_path: str,
     min_gas_price: str,
     mina_priv_key: str,
+    mina_network_id: str,
     wrapper_grpc_address: str,
 ) -> int:
     app_toml = read_text(app_path)
@@ -185,6 +197,12 @@ def update_app_config(
         app_toml,
         "vote_extension",
         f'priv_key = "{mina_priv_key}"',
+    )
+
+    app_toml = upsert_toml_table(
+        app_toml,
+        "mina",
+        f'network_id = "{mina_network_id}"',
     )
 
     wrapper_grpc_address = wrapper_grpc_address.strip()
@@ -205,6 +223,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     read_key = subparsers.add_parser("read-mina-priv-key")
     read_key.add_argument("--config", required=True)
+
+    read_network_id = subparsers.add_parser("read-mina-network-id")
+    read_network_id.add_argument("--config", required=True)
 
     read_wrapper_addr = subparsers.add_parser("read-wrapper-grpc-address")
     read_wrapper_addr.add_argument("--config", required=True)
@@ -233,6 +254,7 @@ def build_parser() -> argparse.ArgumentParser:
     update_app.add_argument("--min-gas-price", required=True)
     update_app.add_argument("--mina-priv-key", required=True)
     update_app.add_argument("--wrapper-grpc-address", default="")
+    update_app.add_argument("--mina-network-id", required=True)
 
     return parser
 
@@ -245,6 +267,8 @@ def main() -> int:
         return read_mina_priv_key(args.config)
     if args.command == "read-wrapper-grpc-address":
         return read_wrapper_grpc_address(args.config)
+    if args.command == "read-mina-network-id":
+        return read_mina_network_id(args.config)
     if args.command == "read-consensus-pub-key":
         return read_consensus_pub_key(args.priv_validator_key)
     if args.command == "set-vote-extension-height":
@@ -260,6 +284,7 @@ def main() -> int:
             args.app,
             args.min_gas_price,
             args.mina_priv_key,
+            args.mina_network_id,
             args.wrapper_grpc_address,
         )
 

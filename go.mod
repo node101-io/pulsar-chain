@@ -13,6 +13,8 @@ replace (
 	nhooyr.io/websocket => github.com/coder/websocket v1.8.7
 )
 
+replace github.com/bronlabs/bron-crypto => github.com/korayakpinar/bron-crypto v0.0.0-20260628220036-35fbaccd4e5d
+
 require (
 	cosmossdk.io/api v0.9.2
 	cosmossdk.io/client/v2 v2.0.0-beta.11
@@ -28,6 +30,7 @@ require (
 	cosmossdk.io/x/evidence v0.1.1
 	cosmossdk.io/x/feegrant v0.1.1
 	cosmossdk.io/x/nft v0.1.0
+	cosmossdk.io/x/tx v0.14.0
 	cosmossdk.io/x/upgrade v0.2.0
 	github.com/bronlabs/bron-crypto v0.1.1-0.20260413151846-dfce539bca03
 	github.com/cometbft/cometbft v0.38.21
@@ -40,7 +43,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/node101-io/archive-wrapper v0.0.0-20260720193412-82ed1194a01d
-	github.com/node101-io/mina-signer-go v0.0.0-20260601165332-9dc4888e6819
+	github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -79,7 +82,6 @@ require (
 	connectrpc.com/connect v1.19.1 // indirect
 	connectrpc.com/otelconnect v0.9.0 // indirect
 	cosmossdk.io/schema v1.1.0 // indirect
-	cosmossdk.io/x/tx v0.14.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/4meepo/tagalign v1.4.2 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
@@ -119,7 +121,7 @@ require (
 	github.com/bombsimon/wsl/v4 v4.5.0 // indirect
 	github.com/breml/bidichk v0.3.2 // indirect
 	github.com/breml/errchkjson v0.4.0 // indirect
-	github.com/bronlabs/errs-go v0.2.1 // indirect
+	github.com/bronlabs/errs-go v0.2.2 // indirect
 	github.com/bufbuild/buf v1.66.0 // indirect
 	github.com/bufbuild/protocompile v0.14.2-0.20260202185951-d02d3732d113 // indirect
 	github.com/bufbuild/protoplugin v0.0.0-20250218205857-750e09ce93e1 // indirect

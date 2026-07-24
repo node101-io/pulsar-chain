@@ -198,6 +198,7 @@ func newQuorumTestHandler(t *testing.T, validators []stakingtypes.Validator, key
 		},
 		keyregistryKeeper:     quorumTestKeyregistryKeeper{cosmosToMina: cosmosToMina},
 		votePersistenceKeeper: votePersistenceKeeper,
+		networkID:             NetworkID,
 	}
 }
 
@@ -267,7 +268,7 @@ func (k quorumTestStakingKeeper) IterateLastValidators(_ context.Context, fn fun
 
 func (k quorumTestStakingKeeper) GetHistoricalInfo(context.Context, int64) (stakingtypes.HistoricalInfo, error) {
 	return stakingtypes.HistoricalInfo{
-		Header: tmproto.Header{AppHash: []byte("app-hash")},
+		Header: tmproto.Header{AppHash: testStateRoot32()},
 		Valset: k.validators,
 	}, nil
 }

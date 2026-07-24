@@ -12,13 +12,9 @@ import (
 const ActionsReducedRoot string = "pulsar"
 
 const (
-	// VoteExtBodyHashPrefix domain-separates vote extension body hashes.
-	VoteExtBodyHashPrefix = "pulsar-vote-ext-body"
 	// ValidatorSetEntryHashPrefix domain-separates each validator entry before it
 	// is appended to the validator-set merkle list.
 	ValidatorSetEntryHashPrefix = "pulsar-validator"
-	// ValidatorSetMerklePrefix domain-separates the validator-set merkle list root.
-	ValidatorSetMerklePrefix = "pulsar-validator-set"
 )
 
 // VoteExtMarker reserves the first proposal transaction slot for ABCI vote-extension payloads.
@@ -35,8 +31,7 @@ var voteExtMarkerBytes = []byte(VoteExtMarker)
 // the first height with both sides of that transition available.
 const MinPulsarVoteExtensionHeight int64 = 2
 
-// TODO: Move this into chain/app configuration before non-local testnets. The
-// Mina signature domain must match on both signing and verification paths.
+// For testing purposes only.
 const NetworkID mina.NetworkID = mina.TestNet
 
 var (

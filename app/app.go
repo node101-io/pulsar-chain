@@ -11,8 +11,10 @@ import (
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
+	feegrantkeeper "cosmossdk.io/x/feegrant/keeper"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -47,8 +49,10 @@ import (
 	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	abcihandler "github.com/node101-io/pulsar-chain/abci"
+	appante "github.com/node101-io/pulsar-chain/app/ante"
 	"github.com/node101-io/pulsar-chain/docs"
 	bridge "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
@@ -97,6 +101,7 @@ type App struct {
 	AuthzKeeper           authzkeeper.Keeper
 	ConsensusParamsKeeper consensuskeeper.Keeper
 	CircuitBreakerKeeper  circuitkeeper.Keeper
+	FeeGrantKeeper        feegrantkeeper.Keeper
 	ParamsKeeper          paramskeeper.Keeper //nolint:staticcheck // Legacy params keeper is still required for IBC params migration.
 
 	// ibc keepers
@@ -191,6 +196,7 @@ func New(
 		&app.AuthzKeeper,
 		&app.ConsensusParamsKeeper,
 		&app.CircuitBreakerKeeper,
+		&app.FeeGrantKeeper,
 		&app.ParamsKeeper,
 		&app.PulsarKeeper,
 		&app.KeyregistryKeeper,
@@ -200,23 +206,52 @@ func New(
 		panic(err)
 	}
 
-	secondaryKey, err := parseSecondaryKey(appOpts)
+	networkId, ok := appOpts.Get("mina.network_id").(string)
+	if !ok || networkId == "" {
+		panic("mina.network_id is missing or not a string")
+	}
+
+	secondaryKey, err := parseSecondaryKey(appOpts, mina.NetworkID(networkId))
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))
 	}
+
 	app.ABCIHandler, err = abcihandler.NewABCIHandler(
 		secondaryKey,
 		app.StakingKeeper,
 		app.KeyregistryKeeper,
 		app.VotepersistenceKeeper,
+		mina.NetworkID(networkId),
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize ABCI handler: %v", err))
 	}
 
+	appante.RegisterInterfaces(app.interfaceRegistry)
+
 	// add to default baseapp options
 	// enable optimistic execution
-	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
+	baseAppOptions = append(
+		baseAppOptions,
+		baseapp.SetOptimisticExecution(),
+		func(bApp *baseapp.BaseApp) {
+			anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
+				AccountKeeper:     app.AuthKeeper,
+				BankKeeper:        app.BankKeeper,
+				FeegrantKeeper:    app.FeeGrantKeeper,
+				SignModeHandler:   app.txConfig.SignModeHandler(),
+				SigGasConsumer:    authante.DefaultSigVerificationGasConsumer,
+				KeyregistryKeeper: &app.KeyregistryKeeper,
+				MinaNetworkID:     networkId,
+				Logger:            logger,
+			})
+			if err != nil {
+				panic(err)
+			}
+
+			bApp.SetAnteHandler(anteHandler)
+		},
+	)
 
 	// build app
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
@@ -322,7 +357,8 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig
 	docs.RegisterOpenAPIService(Name, apiSvr.Router)
 }
 
-func parseSecondaryKey(appOpts servertypes.AppOptions) (abcihandler.SecondaryKey, error) {
+func parseSecondaryKey(appOpts servertypes.AppOptions, networkID mina.NetworkID) (abcihandler.SecondaryKey, error) {
+
 	minaPrivKey := appOpts.Get("vote_extension.priv_key")
 	keyStr, ok := minaPrivKey.(string)
 	if !ok {
@@ -340,7 +376,7 @@ func parseSecondaryKey(appOpts servertypes.AppOptions) (abcihandler.SecondaryKey
 	var rawPrivateKey [32]byte
 	copy(rawPrivateKey[:], keyBytes)
 
-	priv, err := privatekey.NewPrivateKeyFromBytes(rawPrivateKey, abcihandler.NetworkID)
+	priv, err := privatekey.NewPrivateKeyFromBytes(rawPrivateKey, networkID)
 	if err != nil {
 		return abcihandler.SecondaryKey{}, fmt.Errorf("parse mina private key: %w", err)
 	}
