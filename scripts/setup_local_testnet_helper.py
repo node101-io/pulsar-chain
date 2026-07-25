@@ -31,6 +31,38 @@ def write_json(path_str: str, payload) -> None:
     write_text(path_str, json.dumps(payload, indent=2) + "\n")
 
 
+def read_nested_config_value(
+    config_path: str, section_name: str, key_name: str
+) -> Optional[str]:
+    lines = read_text(config_path).splitlines()
+    key_pattern = re.compile(
+        rf'^\s*{re.escape(key_name)}:\s*(?:"([^"]*)"|\'([^\']*)\'|([^#\n]+?))\s*$'
+    )
+
+    for index, line in enumerate(lines):
+        section_match = re.match(rf"^(\s*){re.escape(section_name)}:\s*$", line)
+        if not section_match:
+            continue
+
+        section_indent = len(section_match.group(1))
+        for nested_line in lines[index + 1 :]:
+            if not nested_line.strip():
+                continue
+
+            nested_indent = len(nested_line) - len(nested_line.lstrip(" "))
+            if nested_indent <= section_indent:
+                break
+
+            key_match = key_pattern.match(nested_line)
+            if key_match:
+                for group in key_match.groups():
+                    if group is not None:
+                        return group.strip()
+                return ""
+
+    return None
+
+
 def read_mina_priv_key(config_path: str) -> int:
     content = read_text(config_path)
     match = re.search(r'vote_extension:\s*\n\s*priv_key:\s*"([^"]+)"', content)
@@ -44,27 +76,49 @@ def read_mina_priv_key(config_path: str) -> int:
 
 
 def read_wrapper_grpc_address(config_path: str) -> int:
-    content = read_text(config_path)
-    match = re.search(
-        r'bridge:\s*\n\s*wrapper_grpc_address:\s*"([^"]+)"', content
+    wrapper_grpc_address = read_nested_config_value(
+        config_path, "bridge", "wrapper_grpc_address"
     )
-    if not match:
+    if wrapper_grpc_address is None:
         print("")
         return 0
 
-    print(match.group(1))
+    print(wrapper_grpc_address)
+    return 0
+
+
+def read_contract_address(config_path: str) -> int:
+    contract_address = read_nested_config_value(
+        config_path, "bridge", "contract_address"
+    )
+    if contract_address is None:
+        print("")
+        return 0
+
+    print(contract_address)
+    return 0
+
+
+def read_confirmation_depth(config_path: str) -> int:
+    confirmation_depth = read_nested_config_value(
+        config_path, "bridge", "confirmation_depth"
+    )
+    if confirmation_depth is None:
+        print("")
+        return 0
+
+    print(confirmation_depth)
     return 0
 
 
 def read_mina_network_id(config_path: str) -> int:
-    content = read_text(config_path)
-    match = re.search(r'mina:\s*\n\s*network_id:\s*"?([^"\n]+)"?', content)
-    if not match:
+    network_id = read_nested_config_value(config_path, "mina", "network_id")
+    if network_id is None:
         raise SystemExit(
             f"could not find validators[].app.mina.network_id in {config_path}"
         )
 
-    print(match.group(1).strip())
+    print(network_id)
     return 0
 
 
@@ -164,19 +218,52 @@ def patch_keyregistry(
     return 0
 
 
-def upsert_toml_table(app_toml: str, table_name: str, table_body: str) -> str:
+def upsert_toml_key(
+    app_toml: str,
+    table_name: str,
+    key_name: str,
+    value: str,
+    *,
+    quote_value: bool = True,
+) -> str:
     table_header = f"[{table_name}]"
-    table_block = f"{table_header}\n{table_body}\n"
+    if quote_value:
+        key_line = f'{key_name} = "{value}"'
+    else:
+        key_line = f"{key_name} = {value}"
+    lines = app_toml.rstrip("\n").split("\n")
 
-    if f"\n{table_header}\n" in app_toml:
-        start = app_toml.index(f"\n{table_header}\n") + 1
-        end = app_toml.find("\n[", start + 1)
-        if end == -1:
-            return app_toml[:start] + table_block
+    table_start = None
+    for index, line in enumerate(lines):
+        if line.strip() == table_header:
+            table_start = index
+            break
 
-        return app_toml[:start] + table_block + app_toml[end + 1 :]
+    if table_start is None:
+        if lines and lines[-1].strip():
+            lines.extend(["", table_header, key_line])
+        else:
+            lines.extend([table_header, key_line])
+        return "\n".join(lines) + "\n"
 
-    return app_toml.rstrip() + f"\n\n{table_block}"
+    table_end = len(lines)
+    for index in range(table_start + 1, len(lines)):
+        stripped = lines[index].strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            table_end = index
+            break
+
+    key_pattern = re.compile(rf"^\s*{re.escape(key_name)}\s*=")
+    for index in range(table_start + 1, table_end):
+        if key_pattern.match(lines[index]):
+            lines[index] = key_line
+            break
+    else:
+        while table_end > table_start + 1 and not lines[table_end - 1].strip():
+            table_end -= 1
+        lines.insert(table_end, key_line)
+
+    return "\n".join(lines) + "\n"
 
 
 def update_app_config(
@@ -184,6 +271,8 @@ def update_app_config(
     min_gas_price: str,
     mina_priv_key: str,
     mina_network_id: str,
+    confirmation_depth: str,
+    contract_address: str,
     wrapper_grpc_address: str,
 ) -> int:
     app_toml = read_text(app_path)
@@ -193,24 +282,30 @@ def update_app_config(
         1,
     )
 
-    app_toml = upsert_toml_table(
-        app_toml,
-        "vote_extension",
-        f'priv_key = "{mina_priv_key}"',
-    )
+    app_toml = upsert_toml_key(app_toml, "vote_extension", "priv_key", mina_priv_key)
 
-    app_toml = upsert_toml_table(
-        app_toml,
-        "mina",
-        f'network_id = "{mina_network_id}"',
-    )
+    app_toml = upsert_toml_key(app_toml, "mina", "network_id", mina_network_id)
+
+    confirmation_depth = confirmation_depth.strip()
+    if confirmation_depth:
+        app_toml = upsert_toml_key(
+            app_toml,
+            "bridge",
+            "confirmation_depth",
+            confirmation_depth,
+            quote_value=False,
+        )
+
+    contract_address = contract_address.strip()
+    if contract_address:
+        app_toml = upsert_toml_key(
+            app_toml, "bridge", "contract_address", contract_address
+        )
 
     wrapper_grpc_address = wrapper_grpc_address.strip()
     if wrapper_grpc_address:
-        app_toml = upsert_toml_table(
-            app_toml,
-            "bridge",
-            f'wrapper_grpc_address = "{wrapper_grpc_address}"',
+        app_toml = upsert_toml_key(
+            app_toml, "bridge", "wrapper_grpc_address", wrapper_grpc_address
         )
 
     write_text(app_path, app_toml)
@@ -229,6 +324,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     read_wrapper_addr = subparsers.add_parser("read-wrapper-grpc-address")
     read_wrapper_addr.add_argument("--config", required=True)
+
+    read_contract_addr = subparsers.add_parser("read-contract-address")
+    read_contract_addr.add_argument("--config", required=True)
+
+    read_confirmation_depth_cmd = subparsers.add_parser("read-confirmation-depth")
+    read_confirmation_depth_cmd.add_argument("--config", required=True)
 
     read_consensus_key = subparsers.add_parser("read-consensus-pub-key")
     read_consensus_key.add_argument("--priv-validator-key", required=True)
@@ -253,8 +354,10 @@ def build_parser() -> argparse.ArgumentParser:
     update_app.add_argument("--app", required=True)
     update_app.add_argument("--min-gas-price", required=True)
     update_app.add_argument("--mina-priv-key", required=True)
-    update_app.add_argument("--wrapper-grpc-address", default="")
     update_app.add_argument("--mina-network-id", required=True)
+    update_app.add_argument("--confirmation-depth", default="")
+    update_app.add_argument("--contract-address", default="")
+    update_app.add_argument("--wrapper-grpc-address", default="")
 
     return parser
 
@@ -267,6 +370,10 @@ def main() -> int:
         return read_mina_priv_key(args.config)
     if args.command == "read-wrapper-grpc-address":
         return read_wrapper_grpc_address(args.config)
+    if args.command == "read-contract-address":
+        return read_contract_address(args.config)
+    if args.command == "read-confirmation-depth":
+        return read_confirmation_depth(args.config)
     if args.command == "read-mina-network-id":
         return read_mina_network_id(args.config)
     if args.command == "read-consensus-pub-key":
@@ -285,6 +392,8 @@ def main() -> int:
             args.min_gas_price,
             args.mina_priv_key,
             args.mina_network_id,
+            args.confirmation_depth,
+            args.contract_address,
             args.wrapper_grpc_address,
         )
 
