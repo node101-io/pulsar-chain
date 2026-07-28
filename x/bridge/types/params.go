@@ -17,7 +17,10 @@ func NewParams(confirmationDepth int64, contractAddress string) Params {
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
-	return Params{}
+	return Params{
+		ConfirmationDepth: 32,
+		ContractAddress:   "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf",
+	}
 }
 
 // Validate validates the set of params.

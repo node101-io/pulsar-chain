@@ -1,8 +1,9 @@
 package types
 
 import (
-	"fmt"
+	"bytes"
 
+	errorsmod "cosmossdk.io/errors"
 	minafield "github.com/node101-io/mina-signer-go/field"
 	minasignergo "github.com/node101-io/mina-signer-go/merklelist"
 )
@@ -23,37 +24,11 @@ func (gs GenesisState) Validate() error {
 		return err
 	}
 
-	if gs.BridgeState.LatestFetchedMinaHeight < 0 {
-		return fmt.Errorf("bridge_state.latest_fetched_mina_height must be non-negative")
+	if err := gs.BridgeState.Validate(); err != nil {
+		return err
 	}
 
-	if len(gs.ActionsReducedRootSnapshots) == 0 {
-		return fmt.Errorf("actions_reduced_root_snapshots must not be empty")
-	}
-
-	var prevHeight int64 = -1
-
-	for i, snapshot := range gs.ActionsReducedRootSnapshots {
-		if snapshot.CosmosBlockHeight < 0 {
-			return fmt.Errorf("actions_reduced_root_snapshots[%d]: cosmos_block_height must be non-negative", i)
-		}
-		if len(snapshot.ActionsReducedRoot) == 0 {
-			return fmt.Errorf("actions_reduced_root_snapshots[%d]: actions_reduced_root must not be empty", i)
-		}
-		if _, err := minafield.NewField().FromBytes(snapshot.ActionsReducedRoot); err != nil {
-			return fmt.Errorf("actions_reduced_root_snapshots[%d]: actions_reduced_root must be canonical Mina field bytes: %w", i, err)
-		}
-		if i == 0 && snapshot.CosmosBlockHeight != 0 {
-			return fmt.Errorf("actions_reduced_root_snapshots[0]: cosmos_block_height must be 0")
-		}
-		if i > 0 && snapshot.CosmosBlockHeight <= prevHeight {
-			return fmt.Errorf("actions_reduced_root_snapshots must be strictly increasing by cosmos_block_height")
-		}
-
-		prevHeight = snapshot.CosmosBlockHeight
-	}
-
-	return nil
+	return validateActionsReducedRootSnapshots(gs.ActionsReducedRootSnapshots)
 }
 
 func DefaultBridgeState() BridgeState {
@@ -73,4 +48,81 @@ func DefaultActionsReducedRootSnapshots() []ActionsReducedRootSnapshot {
 			ActionsReducedRoot: DefaultActionsReducedRoot(),
 		},
 	}
+}
+func validateActionsReducedRootSnapshots(snapshots []ActionsReducedRootSnapshot) error {
+	if len(snapshots) == 0 {
+		return ErrEmptyActionsReducedRootSnapshots
+	}
+
+	fieldCodec := minafield.NewField()
+	expectedRootLen := fieldCodec.ElementSize()
+	defaultRoot := DefaultActionsReducedRoot()
+
+	var prevHeight int64 = -1
+
+	for i, snapshot := range snapshots {
+		if snapshot.CosmosBlockHeight < 0 {
+			return errorsmod.Wrapf(
+				ErrInvalidActionsReducedRootSnapshotHeight,
+				"actions_reduced_root_snapshots[%d]",
+				i,
+			)
+		}
+
+		if len(snapshot.ActionsReducedRoot) != expectedRootLen {
+			return errorsmod.Wrapf(
+				ErrInvalidActionsReducedRoot,
+				"actions_reduced_root_snapshots[%d]: expected %d bytes, got %d",
+				i,
+				expectedRootLen,
+				len(snapshot.ActionsReducedRoot),
+			)
+		}
+
+		rootElement, err := fieldCodec.FromBytes(snapshot.ActionsReducedRoot)
+		if err != nil {
+			return errorsmod.Wrapf(
+				ErrInvalidActionsReducedRoot,
+				"actions_reduced_root_snapshots[%d]: %v",
+				i,
+				err,
+			)
+		}
+
+		if !bytes.Equal(rootElement.Bytes(), snapshot.ActionsReducedRoot) {
+			return errorsmod.Wrapf(
+				ErrInvalidActionsReducedRoot,
+				"actions_reduced_root_snapshots[%d]: non-canonical field bytes",
+				i,
+			)
+		}
+
+		if i == 0 {
+			if snapshot.CosmosBlockHeight != 0 {
+				return errorsmod.Wrapf(
+					ErrActionsReducedRootSnapshotsMustStartAtZero,
+					"got %d",
+					snapshot.CosmosBlockHeight,
+				)
+			}
+
+			if !bytes.Equal(snapshot.ActionsReducedRoot, defaultRoot) {
+				return ErrInvalidInitialActionsReducedRoot
+			}
+		}
+
+		if i > 0 && snapshot.CosmosBlockHeight <= prevHeight {
+			return errorsmod.Wrapf(
+				ErrActionsReducedRootSnapshotsMustBeIncreasing,
+				"actions_reduced_root_snapshots[%d]: %d <= %d",
+				i,
+				snapshot.CosmosBlockHeight,
+				prevHeight,
+			)
+		}
+
+		prevHeight = snapshot.CosmosBlockHeight
+	}
+
+	return nil
 }

@@ -1,56 +1,167 @@
 package types_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
+	minafield "github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testConfirmationDepth int64 = 32
-	testContractAddress         = "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf"
-)
-
-func validBridgeParams() types.Params {
-	return types.NewParams(testConfirmationDepth, testContractAddress)
+func validGenesisState() *types.GenesisState {
+	return types.DefaultGenesis()
 }
 
-func TestGenesisState_Validate(t *testing.T) {
+func canonicalRoot(v uint64) []byte {
+	return minafield.NewField().FromUint64(v).Bytes()
+}
+
+func nonCanonicalRoot() []byte {
+	return bytes.Repeat([]byte{0xff}, minafield.NewField().ElementSize())
+}
+
+func TestDefaultGenesisValidate(t *testing.T) {
+	require.NoError(t, types.DefaultGenesis().Validate())
+}
+
+func TestGenesisStateValidate(t *testing.T) {
 	tests := []struct {
-		desc     string
-		genState *types.GenesisState
-		valid    bool
+		name    string
+		mutate  func(*types.GenesisState)
+		wantErr error
 	}{
 		{
-			desc:     "default is invalid",
-			genState: types.DefaultGenesis(),
-			valid:    false,
+			name:   "valid genesis state",
+			mutate: func(gs *types.GenesisState) {},
 		},
 		{
-			desc:     "empty genesis state is invalid",
-			genState: &types.GenesisState{},
-			valid:    false,
-		},
-		{
-			desc: "explicit valid genesis state",
-			genState: &types.GenesisState{
-				Params:                      validBridgeParams(),
-				BridgeState:                 types.DefaultBridgeState(),
-				ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
+			name: "negative latest fetched mina height",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.LatestFetchedMinaHeight = -1
 			},
-			valid: true,
+			wantErr: types.ErrInvalidLatestFetchedMinaHeight,
+		},
+		{
+			name: "empty snapshots",
+			mutate: func(gs *types.GenesisState) {
+				gs.ActionsReducedRootSnapshots = nil
+			},
+			wantErr: types.ErrEmptyActionsReducedRootSnapshots,
+		},
+		{
+			name: "first snapshot height must be zero",
+			mutate: func(gs *types.GenesisState) {
+				gs.ActionsReducedRootSnapshots[0].CosmosBlockHeight = 1
+			},
+			wantErr: types.ErrActionsReducedRootSnapshotsMustStartAtZero,
+		},
+		{
+			name: "first snapshot root must equal default root",
+			mutate: func(gs *types.GenesisState) {
+				gs.ActionsReducedRootSnapshots[0].ActionsReducedRoot = canonicalRoot(42)
+			},
+			wantErr: types.ErrInvalidInitialActionsReducedRoot,
+		},
+		{
+			name: "nil root is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.ActionsReducedRootSnapshots[0].ActionsReducedRoot = nil
+			},
+			wantErr: types.ErrInvalidActionsReducedRoot,
+		},
+		{
+			name: "wrong root length is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.ActionsReducedRootSnapshots[0].ActionsReducedRoot = []byte{1, 2, 3}
+			},
+			wantErr: types.ErrInvalidActionsReducedRoot,
+		},
+		{
+			name: "non canonical root is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.ActionsReducedRootSnapshots = append(
+					gs.ActionsReducedRootSnapshots,
+					types.ActionsReducedRootSnapshot{
+						CosmosBlockHeight:  10,
+						ActionsReducedRoot: nonCanonicalRoot(),
+					},
+				)
+			},
+			wantErr: types.ErrInvalidActionsReducedRoot,
+		},
+		{
+			name: "snapshot heights must be strictly increasing",
+			mutate: func(gs *types.GenesisState) {
+				gs.ActionsReducedRootSnapshots = append(
+					gs.ActionsReducedRootSnapshots,
+					types.ActionsReducedRootSnapshot{
+						CosmosBlockHeight:  0,
+						ActionsReducedRoot: canonicalRoot(42),
+					},
+				)
+			},
+			wantErr: types.ErrActionsReducedRootSnapshotsMustBeIncreasing,
 		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.desc, func(t *testing.T) {
-			err := tc.genState.Validate()
-			if tc.valid {
+		t.Run(tc.name, func(t *testing.T) {
+			gs := validGenesisState()
+			tc.mutate(gs)
+
+			err := gs.Validate()
+			if tc.wantErr == nil {
 				require.NoError(t, err)
 				return
 			}
-			require.Error(t, err)
+
+			require.ErrorIs(t, err, tc.wantErr)
 		})
 	}
+}
+
+func TestGenesisStateValidateAcceptsCustomCanonicalSnapshotRoot(t *testing.T) {
+	gs := validGenesisState()
+	gs.ActionsReducedRootSnapshots = append(
+		gs.ActionsReducedRootSnapshots,
+		types.ActionsReducedRootSnapshot{
+			CosmosBlockHeight:  10,
+			ActionsReducedRoot: canonicalRoot(42),
+		},
+	)
+
+	require.NoError(t, gs.Validate())
+}
+
+func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
+	gs := types.DefaultGenesis()
+
+	bz, err := json.Marshal(gs)
+	require.NoError(t, err)
+
+	var roundTripped types.GenesisState
+	require.NoError(t, json.Unmarshal(bz, &roundTripped))
+	require.Equal(t, *gs, roundTripped)
+	require.NoError(t, roundTripped.Validate())
+}
+
+func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) {
+	gs := validGenesisState()
+	gs.ActionsReducedRootSnapshots = append(
+		gs.ActionsReducedRootSnapshots,
+		types.ActionsReducedRootSnapshot{
+			CosmosBlockHeight:  10,
+			ActionsReducedRoot: canonicalRoot(42),
+		},
+	)
+
+	bz, err := json.Marshal(gs)
+	require.NoError(t, err)
+
+	var roundTripped types.GenesisState
+	require.NoError(t, json.Unmarshal(bz, &roundTripped))
+	require.Equal(t, *gs, roundTripped)
+	require.NoError(t, roundTripped.Validate())
 }

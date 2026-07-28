@@ -29,4 +29,12 @@ var (
 
 	ErrArchiveWrapperQueryTimeout   = errors.Register(ModuleName, 1115, "wrapper query time-out")
 	ErrArchiveWrapperQueryCancelled = errors.Register(ModuleName, 1116, "wrapper query cancelled")
+
+	ErrInvalidLatestFetchedMinaHeight              = errors.Register(ModuleName, 1117, "invalid latest_fetched_mina_height")
+	ErrEmptyActionsReducedRootSnapshots            = errors.Register(ModuleName, 1118, "actions_reduced_root_snapshots must not be empty")
+	ErrInvalidActionsReducedRootSnapshotHeight     = errors.Register(ModuleName, 1119, "invalid actions_reduced_root_snapshot cosmos_block_height")
+	ErrInvalidActionsReducedRoot                   = errors.Register(ModuleName, 1120, "invalid actions_reduced_root")
+	ErrActionsReducedRootSnapshotsMustStartAtZero  = errors.Register(ModuleName, 1121, "actions_reduced_root_snapshots must start at cosmos block height 0")
+	ErrInvalidInitialActionsReducedRoot            = errors.Register(ModuleName, 1122, "invalid initial actions_reduced_root")
+	ErrActionsReducedRootSnapshotsMustBeIncreasing = errors.Register(ModuleName, 1123, "actions_reduced_root_snapshots must be strictly increasing by cosmos_block_height")
 )
