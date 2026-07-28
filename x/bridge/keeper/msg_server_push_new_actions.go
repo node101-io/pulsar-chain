@@ -14,6 +14,15 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, errorsmod.Wrap(err, "invalid authority address")
 	}
 
+	params, err := k.Keeper.Params.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if msg.MinaBlockHeight < params.StartBlockHeight {
+		return nil, types.ErrInvalidMinaBlockRange
+	}
+
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	currentMinaBlockHeight, err := k.archiveWrapperClient.GetMinaBlockHeight(ctx)

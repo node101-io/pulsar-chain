@@ -9,14 +9,11 @@ import (
 
 // GenerateGenesisState creates a randomized GenState of the module.
 func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
-	accs := make([]string, len(simState.Accounts))
-	for i, acc := range simState.Accounts {
-		accs[i] = acc.Address.String()
-	}
+	params := types.DefaultParams()
 
 	bridgeGenesis := types.GenesisState{
-		Params:                      types.DefaultParams(),
-		BridgeState:                 types.DefaultBridgeState(),
+		Params:                      params,
+		BridgeState:                 types.NewInitialBridgeState(params.StartBlockHeight),
 		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
 	}
 	simState.GenState[types.ModuleName] = simState.Cdc.MustMarshalJSON(&bridgeGenesis)

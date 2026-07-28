@@ -10,9 +10,11 @@ import (
 
 // DefaultGenesis returns the default genesis state
 func DefaultGenesis() *GenesisState {
+	params := DefaultParams()
+
 	return &GenesisState{
-		Params:                      DefaultParams(),
-		BridgeState:                 DefaultBridgeState(),
+		Params:                      params,
+		BridgeState:                 NewInitialBridgeState(params.StartBlockHeight),
 		ActionsReducedRootSnapshots: DefaultActionsReducedRootSnapshots(),
 	}
 }
@@ -28,12 +30,26 @@ func (gs GenesisState) Validate() error {
 		return err
 	}
 
+	minLatestFetched := gs.Params.StartBlockHeight - 1
+	if gs.BridgeState.LatestFetchedMinaHeight < minLatestFetched {
+		return errorsmod.Wrapf(
+			ErrLatestFetchedMinaHeightBeforeStartBlock,
+			"latest_fetched_mina_height %d must be >= start_block_height - 1 (%d)",
+			gs.BridgeState.LatestFetchedMinaHeight,
+			minLatestFetched,
+		)
+	}
+
 	return validateActionsReducedRootSnapshots(gs.ActionsReducedRootSnapshots)
 }
 
 func DefaultBridgeState() BridgeState {
+	return NewInitialBridgeState(DefaultParams().StartBlockHeight)
+}
+
+func NewInitialBridgeState(startBlockHeight int64) BridgeState {
 	return BridgeState{
-		LatestFetchedMinaHeight: 0,
+		LatestFetchedMinaHeight: startBlockHeight - 1,
 	}
 }
 

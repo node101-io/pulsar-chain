@@ -37,4 +37,7 @@ var (
 	ErrActionsReducedRootSnapshotsMustStartAtZero  = errors.Register(ModuleName, 1121, "actions_reduced_root_snapshots must start at cosmos block height 0")
 	ErrInvalidInitialActionsReducedRoot            = errors.Register(ModuleName, 1122, "invalid initial actions_reduced_root")
 	ErrActionsReducedRootSnapshotsMustBeIncreasing = errors.Register(ModuleName, 1123, "actions_reduced_root_snapshots must be strictly increasing by cosmos_block_height")
+
+	ErrStartBlockHeightMustBeGreaterThanZero   = errors.Register(ModuleName, 1124, "start_block_height must be greater than 0")
+	ErrLatestFetchedMinaHeightBeforeStartBlock = errors.Register(ModuleName, 1125, "latest_fetched_mina_height must be at or after start_block_height - 1")
 )

@@ -44,6 +44,22 @@ func TestGenesisStateValidate(t *testing.T) {
 			wantErr: types.ErrInvalidLatestFetchedMinaHeight,
 		},
 		{
+			name: "start block height must be positive",
+			mutate: func(gs *types.GenesisState) {
+				gs.Params.StartBlockHeight = 0
+			},
+			wantErr: types.ErrStartBlockHeightMustBeGreaterThanZero,
+		},
+		{
+			name: "latest fetched before start block is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.Params.StartBlockHeight = 500_000
+				gs.BridgeState = types.NewInitialBridgeState(gs.Params.StartBlockHeight)
+				gs.BridgeState.LatestFetchedMinaHeight--
+			},
+			wantErr: types.ErrLatestFetchedMinaHeightBeforeStartBlock,
+		},
+		{
 			name: "empty snapshots",
 			mutate: func(gs *types.GenesisState) {
 				gs.ActionsReducedRootSnapshots = nil
@@ -131,6 +147,14 @@ func TestGenesisStateValidateAcceptsCustomCanonicalSnapshotRoot(t *testing.T) {
 			ActionsReducedRoot: canonicalRoot(42),
 		},
 	)
+
+	require.NoError(t, gs.Validate())
+}
+
+func TestGenesisStateValidateAcceptsCustomStartBlockHeight(t *testing.T) {
+	gs := validGenesisState()
+	gs.Params.StartBlockHeight = 500_000
+	gs.BridgeState = types.NewInitialBridgeState(gs.Params.StartBlockHeight)
 
 	require.NoError(t, gs.Validate())
 }

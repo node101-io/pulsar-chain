@@ -21,10 +21,11 @@ import (
 const (
 	testConfirmationDepth int64 = 32
 	testContractAddress         = "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf"
+	testStartBlockHeight  int64 = 1
 )
 
 func validBridgeParams() types.Params {
-	return types.NewParams(testConfirmationDepth, testContractAddress)
+	return types.NewParams(testConfirmationDepth, testContractAddress, testStartBlockHeight)
 }
 
 type fixture struct {

@@ -7,11 +7,14 @@ import (
 	minaaddress "github.com/node101-io/mina-signer-go/address"
 )
 
+const defaultStartBlockHeight int64 = 1
+
 // NewParams creates a new Params instance.
-func NewParams(confirmationDepth int64, contractAddress string) Params {
+func NewParams(confirmationDepth int64, contractAddress string, startBlockHeight int64) Params {
 	return Params{
 		ConfirmationDepth: confirmationDepth,
 		ContractAddress:   contractAddress,
+		StartBlockHeight:  startBlockHeight,
 	}
 }
 
@@ -20,6 +23,7 @@ func DefaultParams() Params {
 	return Params{
 		ConfirmationDepth: 32,
 		ContractAddress:   "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf",
+		StartBlockHeight:  defaultStartBlockHeight,
 	}
 }
 
@@ -28,6 +32,9 @@ func (p Params) Validate() error {
 
 	if p.ConfirmationDepth <= 0 {
 		return ErrConfirmationDepthMustBeGreaterThanZero
+	}
+	if p.StartBlockHeight <= 0 {
+		return ErrStartBlockHeightMustBeGreaterThanZero
 	}
 	if strings.TrimSpace(p.ContractAddress) == "" {
 		return ErrEmptyContractAddress
