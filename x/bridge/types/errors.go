@@ -23,4 +23,7 @@ var (
 	ErrConfirmationDepthMustBeGreaterThanZero = errors.Register(ModuleName, 1110, "confirmation_depth must be greater than 0")
 	ErrEmptyContractAddress                   = errors.Register(ModuleName, 1111, "contract_address must not be empty")
 	ErrInvalidContractAddress                 = errors.Register(ModuleName, 1112, "invalid contract_address")
+
+	ErrInvalidBridgeStateHeight           = errors.Register(ModuleName, 1113, "bridge state height must be non-negative")
+	ErrActionsReducedRootSnapshotNotFound = errors.Register(ModuleName, 1114, "actions reduced root snapshot not found")
 )

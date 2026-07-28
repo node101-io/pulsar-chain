@@ -6,6 +6,4 @@ option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
 
 message BridgeState {
   int64 latest_fetched_mina_height = 1;
-
-  bytes actions_reduced_root = 2;
 }

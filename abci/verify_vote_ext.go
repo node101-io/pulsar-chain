@@ -50,12 +50,7 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		}
 		poseidonHash := poseidon.NewPoseidon()
 
-		actionsReducedRoot, err := h.bridgeKeeper.GetActionsReducedRoot(ctx)
-		if err != nil {
-			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
-		}
-
-		if err := verifyVoteExtSig(poseidonHash, req.VoteExtension, body, minaKey, actionsReducedRoot, h.networkID); err != nil {
+		if err := verifyVoteExtSig(poseidonHash, req.VoteExtension, body, minaKey, h.networkID); err != nil {
 			if errors.Is(err, keyregistryTypes.ErrValidatorNotRegistered) ||
 				errors.Is(err, ErrInvalidVoteExtSignatureEncoding) ||
 				errors.Is(err, ErrInvalidVoteExtSignature) {

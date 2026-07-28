@@ -56,7 +56,6 @@ var (
 	ErrVoteExtBodyHashFailed           error = errors.New("failed to hash vote extension body")
 	ErrVoteExtSigningFailed            error = errors.New("failed to sign vote extension body")
 	ErrVoteExtSignatureMarshalFailed   error = errors.New("failed to marshal vote extension signature")
-	ErrInvalidVoteExtReducedRoot       error = errors.New("invalid vote extension reduced root")
 	ErrInvalidVoteExtMinaPublicKey     error = errors.New("invalid vote extension mina public key")
 	ErrInvalidVoteExtSignatureEncoding error = errors.New("invalid vote extension signature encoding")
 	ErrInvalidVoteExtSignature         error = errors.New("invalid vote extension signature")

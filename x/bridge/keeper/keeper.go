@@ -13,7 +13,10 @@ import (
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
 
-const BridgeStateItemName string = "bridge_state"
+const (
+	BridgeStateItemName                = "bridge_state"
+	ActionsReducedRootSnapshotsMapName = "actions_reduced_root_snapshots"
+)
 
 type Keeper struct {
 	storeService corestore.KVStoreService
@@ -23,9 +26,11 @@ type Keeper struct {
 	// Typically, this should be the x/gov module account.
 	authority []byte
 
-	Schema      collections.Schema
-	Params      collections.Item[types.Params]
-	BridgeState collections.Item[types.BridgeState]
+	Schema collections.Schema
+	Params collections.Item[types.Params]
+
+	BridgeState                 collections.Item[types.BridgeState]
+	ActionsReducedRootSnapshots collections.Map[int64, []byte]
 
 	bankKeeper                types.BankKeeper
 	keyRegistryKeeper         types.KeyregistryKeeper
@@ -60,6 +65,14 @@ func NewKeeper(
 			BridgeStateItemName,
 			codec.CollValue[types.BridgeState](cdc),
 		),
+		ActionsReducedRootSnapshots: collections.NewMap(
+			sb,
+			types.ActionsReducedRootSnapshotsKey,
+			ActionsReducedRootSnapshotsMapName,
+			collections.Int64Key,
+			collections.BytesValue,
+		),
+
 		bankKeeper:                bankKeeper,
 		keyRegistryKeeper:         keyRegistryKeeper,
 		archiveWrapperQueryClient: archiveWrapperQueryClient,
@@ -83,12 +96,40 @@ func (k Keeper) GetBridgeState(ctx context.Context) (types.BridgeState, error) {
 	return k.BridgeState.Get(ctx)
 }
 
-func (k Keeper) GetActionsReducedRoot(ctx context.Context) ([]byte, error) {
-
-	state, err := k.BridgeState.Get(ctx)
+func (k Keeper) GetLatestActionsReducedRoot(ctx context.Context) ([]byte, error) {
+	iter, err := k.ActionsReducedRootSnapshots.Iterate(
+		ctx,
+		(&collections.Range[int64]{}).Descending(),
+	)
 	if err != nil {
 		return nil, err
 	}
+	defer iter.Close()
 
-	return state.ActionsReducedRoot, nil
+	if !iter.Valid() {
+		return nil, types.ErrActionsReducedRootSnapshotNotFound
+	}
+
+	return iter.Value()
+}
+
+func (k Keeper) GetActionsReducedRootAtHeight(ctx context.Context, height int64) ([]byte, error) {
+	if height < 0 {
+		return nil, types.ErrInvalidBridgeStateHeight
+	}
+
+	iter, err := k.ActionsReducedRootSnapshots.Iterate(
+		ctx,
+		(&collections.Range[int64]{}).EndInclusive(height).Descending(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+
+	if !iter.Valid() {
+		return nil, types.ErrActionsReducedRootSnapshotNotFound
+	}
+
+	return iter.Value()
 }

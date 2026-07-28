@@ -24,5 +24,5 @@ type VotePersistenceKeeper interface {
 }
 
 type BridgeKeeper interface {
-	GetActionsReducedRoot(ctx context.Context) ([]byte, error)
+	GetActionsReducedRootAtHeight(context.Context, int64) ([]byte, error)
 }

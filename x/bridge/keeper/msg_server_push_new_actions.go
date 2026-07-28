@@ -4,6 +4,7 @@ import (
 	"context"
 
 	errorsmod "cosmossdk.io/errors"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	merkle "github.com/node101-io/mina-signer-go/merklelist"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
@@ -12,6 +13,8 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 	if _, err := k.addressCodec.StringToBytes(msg.Creator); err != nil {
 		return nil, errorsmod.Wrap(err, "invalid authority address")
 	}
+
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	currentMinaBlockHeight, err := k.getWrapperMinaBlockHeight(ctx)
 	if err != nil {
@@ -51,13 +54,17 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, err
 	}
 
-	list, err := merkle.NewMerkleListFromRoot(types.MerkleListPrefix, bridgeState.ActionsReducedRoot)
+	currentRoot, err := k.Keeper.GetLatestActionsReducedRoot(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	list, err := merkle.NewMerkleListFromRoot(types.MerkleListPrefix, currentRoot)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, act := range actions {
-
 		valid, err := k.isValidAction(ctx, act)
 		if err != nil {
 			return nil, err
@@ -65,6 +72,7 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		if !valid {
 			continue
 		}
+
 		if err := k.apply(ctx, act); err != nil {
 			return nil, err
 		}
@@ -77,13 +85,17 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		if err := list.Append(bz); err != nil {
 			return nil, err
 		}
-
 	}
+
+	newRoot := list.Root()
 
 	if err := k.Keeper.BridgeState.Set(ctx, types.BridgeState{
 		LatestFetchedMinaHeight: msg.MinaBlockHeight,
-		ActionsReducedRoot:      list.Root(),
 	}); err != nil {
+		return nil, err
+	}
+
+	if err := k.Keeper.ActionsReducedRootSnapshots.Set(ctx, sdkCtx.BlockHeight(), newRoot); err != nil {
 		return nil, err
 	}
 

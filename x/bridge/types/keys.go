@@ -18,3 +18,4 @@ const (
 // ParamsKey is the prefix to retrieve all Params
 var ParamsKey = collections.NewPrefix("p_bridge")
 var BridgeStateKey = collections.NewPrefix("bridge_state")
+var ActionsReducedRootSnapshotsKey = collections.NewPrefix("actions_root_snapshots")
