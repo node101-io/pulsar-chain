@@ -57,7 +57,11 @@ func (k *Keeper) isValidWithdrawal(ctx context.Context, act *types.Action) (bool
 		return false, err
 	}
 
-	if k.bankKeeper.SpendableCoins(ctx, addr).AmountOf(types.Denom).Uint64() < uint64(act.Amount) {
+	// sdk.DefaultBondDenom's default value is "stake"
+	// However, it gets overwritten once the app package starts (init func at app/config.go)
+	// Also added a test for this app/config_external_test.go
+	denom := sdk.DefaultBondDenom
+	if k.bankKeeper.SpendableCoins(ctx, addr).AmountOf(denom).Uint64() < uint64(act.Amount) {
 		return false, nil
 	}
 
@@ -92,7 +96,8 @@ func (k *Keeper) applyDeposit(ctx context.Context, act *types.Action) error {
 		return err
 	}
 
-	coins := sdk.NewCoins(sdk.NewCoin(types.Denom, math.NewInt(act.Amount)))
+	denom := sdk.DefaultBondDenom
+	coins := sdk.NewCoins(sdk.NewCoin(denom, math.NewInt(act.Amount)))
 
 	if err := k.bankKeeper.MintCoins(ctx, types.ModuleName, coins); err != nil {
 		return err
@@ -115,7 +120,8 @@ func (k *Keeper) applyWithdrawal(ctx context.Context, act *types.Action) error {
 
 	spendableCoins := k.bankKeeper.SpendableCoins(ctx, addr)
 
-	minaAmount := spendableCoins.AmountOf(types.Denom)
+	denom := sdk.DefaultBondDenom
+	minaAmount := spendableCoins.AmountOf(denom)
 
 	err = spendableCoins.Validate()
 	if err != nil {
@@ -126,7 +132,7 @@ func (k *Keeper) applyWithdrawal(ctx context.Context, act *types.Action) error {
 		return types.ErrNotEnoughBalance
 	}
 
-	coins := sdk.NewCoins(sdk.NewCoin(types.Denom, math.NewInt(act.Amount)))
+	coins := sdk.NewCoins(sdk.NewCoin(denom, math.NewInt(act.Amount)))
 
 	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, addr, types.ModuleName, coins); err != nil {
 		return err
