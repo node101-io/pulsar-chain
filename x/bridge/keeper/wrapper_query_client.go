@@ -2,17 +2,32 @@ package keeper
 
 import (
 	"context"
+	"errors"
 	"strings"
+	"time"
 
 	wrapperquery "github.com/node101-io/archive-wrapper/query"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
-// NewArchiveWrapperQueryClient constructs the wrapper gRPC client once at app
-// startup and lets the keeper reuse it for requests.
-func NewArchiveWrapperQueryClient(wrapperGRPCAddress string) (wrapperquery.QueryClient, error) {
+const defaultWrapperQueryTimeout = 5 * time.Second
+
+type ArchiveWrapperQueryClient interface {
+	GetMinaBlockHeight(ctx context.Context) (int64, error)
+	GetActionsInRange(ctx context.Context, latestFetchedMinaHeight, targetMinaHeight int64) ([]types.Action, error)
+}
+
+type ArchiveWrapperClient struct {
+	conn         *grpc.ClientConn
+	query        wrapperquery.QueryClient
+	queryTimeout time.Duration
+}
+
+func NewArchiveWrapperQueryClient(wrapperGRPCAddress string) (*ArchiveWrapperClient, error) {
 	wrapperGRPCAddress = strings.TrimSpace(wrapperGRPCAddress)
 	if wrapperGRPCAddress == "" {
 		return nil, nil
@@ -26,31 +41,62 @@ func NewArchiveWrapperQueryClient(wrapperGRPCAddress string) (wrapperquery.Query
 		return nil, err
 	}
 
-	return wrapperquery.NewQueryClient(conn), nil
+	return &ArchiveWrapperClient{
+		conn:         conn,
+		query:        wrapperquery.NewQueryClient(conn),
+		queryTimeout: defaultWrapperQueryTimeout,
+	}, nil
 }
 
-func (k Keeper) getWrapperMinaBlockHeight(ctx context.Context) (int64, error) {
-	if k.archiveWrapperQueryClient == nil {
-		return 0, types.ErrArchiveWrapperQueryClientNotConfigured
+func (c *ArchiveWrapperClient) Close() error {
+	if c == nil || c.conn == nil {
+		return nil
+	}
+	return c.conn.Close()
+}
+
+// TODO: implement a Health endpoint to archive-wrapper to replace this mock one.
+func (c *ArchiveWrapperClient) CheckReady(ctx context.Context) error {
+	if c == nil || c.conn == nil || c.query == nil {
+		return types.ErrArchiveWrapperQueryClientNotConfigured
 	}
 
-	resp, err := k.archiveWrapperQueryClient.GetMinaBlockHeight(
+	_, err := c.query.GetMinaBlockHeight(
 		ctx,
 		&wrapperquery.QueryGetMinaBlockHeightRequest{},
 	)
 	if err != nil {
-		return 0, err
+		return mapArchiveWrapperQueryError(err)
+	}
+
+	return nil
+}
+
+func (c *ArchiveWrapperClient) GetMinaBlockHeight(ctx context.Context) (int64, error) {
+	if c == nil || c.conn == nil || c.query == nil {
+		return 0, types.ErrArchiveWrapperQueryClientNotConfigured
+	}
+
+	rpcCtx, cancel := context.WithTimeout(ctx, c.queryTimeout)
+	defer cancel()
+
+	resp, err := c.query.GetMinaBlockHeight(
+		rpcCtx,
+		&wrapperquery.QueryGetMinaBlockHeightRequest{},
+	)
+	if err != nil {
+		return 0, mapArchiveWrapperQueryError(err)
 	}
 
 	return resp.BlockHeight, nil
 }
 
-func (k Keeper) getWrapperActionsInRange(
+func (c *ArchiveWrapperClient) GetActionsInRange(
 	ctx context.Context,
 	latestFetchedMinaHeight int64,
 	targetMinaHeight int64,
 ) ([]types.Action, error) {
-	if k.archiveWrapperQueryClient == nil {
+	if c == nil || c.conn == nil || c.query == nil {
 		return nil, types.ErrArchiveWrapperQueryClientNotConfigured
 	}
 
@@ -63,15 +109,18 @@ func (k Keeper) getWrapperActionsInRange(
 		return nil, types.ErrInvalidMinaBlockRange
 	}
 
-	resp, err := k.archiveWrapperQueryClient.GetActionsInRange(
-		ctx,
+	rpcCtx, cancel := context.WithTimeout(ctx, c.queryTimeout)
+	defer cancel()
+
+	resp, err := c.query.GetActionsInRange(
+		rpcCtx,
 		&wrapperquery.QueryGetActionsInRangeRequest{
 			StartBlockHeight: startBlockHeight,
 			EndBlockHeight:   targetMinaHeight,
 		},
 	)
 	if err != nil {
-		return nil, err
+		return nil, mapArchiveWrapperQueryError(err)
 	}
 
 	actions := make([]types.Action, 0, len(resp.Actions))
@@ -89,4 +138,26 @@ func (k Keeper) getWrapperActionsInRange(
 	}
 
 	return actions, nil
+}
+
+func mapArchiveWrapperQueryError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	switch status.Code(err) {
+	case codes.DeadlineExceeded:
+		return types.ErrArchiveWrapperQueryTimeout
+	case codes.Canceled:
+		return types.ErrArchiveWrapperQueryCancelled
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) {
+		return types.ErrArchiveWrapperQueryTimeout
+	}
+	if errors.Is(err, context.Canceled) {
+		return types.ErrArchiveWrapperQueryCancelled
+	}
+
+	return err
 }

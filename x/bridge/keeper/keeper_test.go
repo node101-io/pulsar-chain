@@ -52,7 +52,7 @@ func initFixture(t *testing.T) *fixture {
 		authority,
 		nil,
 		nil,
-		nil,
+		&keeper.ArchiveWrapperClient{},
 	)
 
 	if err := k.Params.Set(ctx, validBridgeParams()); err != nil {

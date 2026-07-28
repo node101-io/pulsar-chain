@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 
@@ -117,7 +118,8 @@ type App struct {
 	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
 	BridgeKeeper          bridge.Keeper
 
-	ABCIHandler *abcihandler.ABCIHandler
+	ABCIHandler                *abcihandler.ABCIHandler
+	BridgeArchiveWrapperClient *bridge.ArchiveWrapperClient
 }
 
 func init() {
@@ -202,6 +204,7 @@ func New(
 		&app.KeyregistryKeeper,
 		&app.VotepersistenceKeeper,
 		&app.BridgeKeeper,
+		&app.BridgeArchiveWrapperClient,
 	); err != nil {
 		panic(err)
 	}
@@ -295,6 +298,24 @@ func New(
 	}
 
 	return app
+}
+
+func (app *App) Close() error {
+	var errs []error
+
+	if app.BridgeArchiveWrapperClient != nil {
+		if err := app.BridgeArchiveWrapperClient.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if app.App != nil {
+		if err := app.App.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 // GetSubspace returns a param subspace for a given module name.

@@ -1,7 +1,10 @@
 package bridge
 
 import (
+	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"cosmossdk.io/core/address"
 	"cosmossdk.io/core/appmodule"
@@ -11,15 +14,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	wrapperquery "github.com/node101-io/archive-wrapper/query"
 
 	"github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
 
+const wrapperReadyTimeout = 5 * time.Second
+
 var _ depinject.OnePerModuleType = AppModule{}
 
-// IsOnePerModuleType implements the depinject.OnePerModuleType interface.
 func (AppModule) IsOnePerModuleType() {}
 
 func init() {
@@ -46,18 +49,18 @@ type ModuleInputs struct {
 type ModuleOutputs struct {
 	depinject.Out
 
-	BridgeKeeper keeper.Keeper
-	Module       appmodule.AppModule
+	BridgeKeeper         keeper.Keeper
+	ArchiveWrapperClient *keeper.ArchiveWrapperClient
+	Module               appmodule.AppModule
 }
 
 func ProvideModule(in ModuleInputs) ModuleOutputs {
-	// default to governance authority if not provided
 	authority := authtypes.NewModuleAddress(types.GovModuleName)
 	if in.Config.Authority != "" {
 		authority = authtypes.NewModuleAddressOrBech32Address(in.Config.Authority)
 	}
 
-	var archiveWrapperClient wrapperquery.QueryClient
+	var archiveWrapperClient *keeper.ArchiveWrapperClient
 	if in.AppOpts != nil {
 		wrapperGRPCAddress, _ := in.AppOpts.Get("bridge.wrapper_grpc_address").(string)
 		if strings.TrimSpace(wrapperGRPCAddress) == "" {
@@ -68,6 +71,13 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		archiveWrapperClient, err = keeper.NewArchiveWrapperQueryClient(wrapperGRPCAddress)
 		if err != nil {
 			panic(err)
+		}
+
+		readyCtx, cancel := context.WithTimeout(context.Background(), wrapperReadyTimeout)
+		defer cancel()
+
+		if err := archiveWrapperClient.CheckReady(readyCtx); err != nil {
+			panic(fmt.Errorf("archive wrapper is not reachable at startup: %w", err))
 		}
 	}
 
@@ -83,7 +93,8 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 	m := NewAppModule(in.Cdc, k, in.AuthKeeper, in.BankKeeper)
 
 	return ModuleOutputs{
-		BridgeKeeper: k,
-		Module:       m,
+		BridgeKeeper:         k,
+		ArchiveWrapperClient: archiveWrapperClient,
+		Module:               m,
 	}
 }

@@ -26,4 +26,7 @@ var (
 
 	ErrInvalidBridgeStateHeight           = errors.Register(ModuleName, 1113, "bridge state height must be non-negative")
 	ErrActionsReducedRootSnapshotNotFound = errors.Register(ModuleName, 1114, "actions reduced root snapshot not found")
+
+	ErrArchiveWrapperQueryTimeout   = errors.Register(ModuleName, 1115, "wrapper query time-out")
+	ErrArchiveWrapperQueryCancelled = errors.Register(ModuleName, 1116, "wrapper query cancelled")
 )

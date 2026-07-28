@@ -16,7 +16,7 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	currentMinaBlockHeight, err := k.getWrapperMinaBlockHeight(ctx)
+	currentMinaBlockHeight, err := k.archiveWrapperClient.GetMinaBlockHeight(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, types.ErrMinaBlockNotFinalized
 	}
 
-	actions, err := k.getWrapperActionsInRange(ctx, bridgeState.LatestFetchedMinaHeight, msg.MinaBlockHeight)
+	actions, err := k.archiveWrapperClient.GetActionsInRange(ctx, bridgeState.LatestFetchedMinaHeight, msg.MinaBlockHeight)
 	if err != nil {
 		return nil, err
 	}
