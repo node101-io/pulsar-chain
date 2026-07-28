@@ -19,4 +19,8 @@ var (
 	ErrInvalidMinaBlockHeight     = errors.Register(ModuleName, 1107, "mina block height must be greater than 0")
 	ErrMinaBlockHeightMustAdvance = errors.Register(ModuleName, 1108, "mina block height must advance past latest fetched height")
 	ErrInvalidMinaBlockRange      = errors.Register(ModuleName, 1109, "invalid mina block range")
+
+	ErrConfirmationDepthMustBeGreaterThanZero = errors.Register(ModuleName, 1110, "confirmation_depth must be greater than 0")
+	ErrEmptyContractAddress                   = errors.Register(ModuleName, 1111, "contract_address must not be empty")
+	ErrInvalidContractAddress                 = errors.Register(ModuleName, 1112, "invalid contract_address")
 )

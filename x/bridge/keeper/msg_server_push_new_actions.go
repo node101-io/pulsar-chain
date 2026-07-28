@@ -23,6 +23,11 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, err
 	}
 
+	params, err := k.Keeper.Params.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if msg.MinaBlockHeight <= 0 {
 		return nil, types.ErrInvalidMinaBlockHeight
 	}
@@ -31,11 +36,12 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, types.ErrMinaBlockHeightMustAdvance
 	}
 
-	if currentMinaBlockHeight < types.MINA_HARDFINALITY_BLOCK_DURATION {
+	finalityDepth := params.ConfirmationDepth
+	if currentMinaBlockHeight < finalityDepth {
 		return nil, types.ErrMinaBlockNotFinalized
 	}
 
-	maxFinalizedHeight := currentMinaBlockHeight - types.MINA_HARDFINALITY_BLOCK_DURATION
+	maxFinalizedHeight := currentMinaBlockHeight - finalityDepth
 	if msg.MinaBlockHeight > maxFinalizedHeight {
 		return nil, types.ErrMinaBlockNotFinalized
 	}

@@ -10,4 +10,7 @@ option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
 message Params {
   option (amino.name) = "pulsarchain/x/bridge/Params";
   option (gogoproto.equal) = true;
+
+  int64 confirmation_depth = 1;
+  string contract_address = 2;
 }

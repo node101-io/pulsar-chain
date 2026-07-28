@@ -26,7 +26,7 @@ validators:
         priv_key: "OhOfQtGMXqcrbfCRPEe4DjLUNHaOcD3RrWuRPBGO82M="
       bridge:
         confirmation_depth: 1
-        contract_address: "B62qjTpSX2R4fyqJrC9pzvm5PSZb5GMaYBXh8di3TBn6pPC9XXYFC9k"
+        contract_address: "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf"
         wrapper_grpc_address: "127.0.0.1:9095"
       mina:
         network_id: "testnet"
@@ -51,6 +51,10 @@ genesis:
         #- mina_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
           # Validator consensus public key placeholder: ed25519, zero bytes, 32 bytes.
         #  cosmos_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    bridge:
+      params:
+        confirmation_depth: "1"
+        contract_address: "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf"
   consensus:
     params:
       abci:
