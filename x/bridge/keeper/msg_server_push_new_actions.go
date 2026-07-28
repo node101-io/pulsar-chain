@@ -58,14 +58,14 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 
 	for _, act := range actions {
 
-		valid, err := k.isValid(ctx, &act)
+		valid, err := k.isValidAction(ctx, act)
 		if err != nil {
 			return nil, err
 		}
 		if !valid {
 			continue
 		}
-		if err := k.apply(ctx, &act); err != nil {
+		if err := k.apply(ctx, act); err != nil {
 			return nil, err
 		}
 
