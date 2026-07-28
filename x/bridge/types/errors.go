@@ -15,4 +15,8 @@ var (
 	ErrKeyRegistryKeeperNotConfigured         = errors.Register(ModuleName, 1104, "keyregistry keeper is not configured")
 	ErrMinaBlockNotFinalized                  = errors.Register(ModuleName, 1105, "mina block not finalized")
 	ErrArchiveWrapperQueryClientNotConfigured = errors.Register(ModuleName, 1106, "archive wrapper query client is not configured")
+
+	ErrInvalidMinaBlockHeight     = errors.Register(ModuleName, 1107, "mina block height must be greater than 0")
+	ErrMinaBlockHeightMustAdvance = errors.Register(ModuleName, 1108, "mina block height must advance past latest fetched height")
+	ErrInvalidMinaBlockRange      = errors.Register(ModuleName, 1109, "invalid mina block range")
 )

@@ -23,7 +23,20 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, err
 	}
 
-	if currentMinaBlockHeight-msg.MinaBlockHeight < types.MINA_HARDFINALITY_BLOCK_DURATION {
+	if msg.MinaBlockHeight <= 0 {
+		return nil, types.ErrInvalidMinaBlockHeight
+	}
+
+	if msg.MinaBlockHeight <= bridgeState.LatestFetchedMinaHeight {
+		return nil, types.ErrMinaBlockHeightMustAdvance
+	}
+
+	if currentMinaBlockHeight < types.MINA_HARDFINALITY_BLOCK_DURATION {
+		return nil, types.ErrMinaBlockNotFinalized
+	}
+
+	maxFinalizedHeight := currentMinaBlockHeight - types.MINA_HARDFINALITY_BLOCK_DURATION
+	if msg.MinaBlockHeight > maxFinalizedHeight {
 		return nil, types.ErrMinaBlockNotFinalized
 	}
 

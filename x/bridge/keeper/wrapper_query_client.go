@@ -56,11 +56,11 @@ func (k Keeper) getWrapperActionsInRange(
 
 	startBlockHeight := latestFetchedMinaHeight + 1
 	if startBlockHeight <= 0 {
-		startBlockHeight = 1
+		return nil, types.ErrInvalidMinaBlockRange
 	}
 
 	if targetMinaHeight < startBlockHeight {
-		return []types.Action{}, nil
+		return nil, types.ErrInvalidMinaBlockRange
 	}
 
 	resp, err := k.archiveWrapperQueryClient.GetActionsInRange(
