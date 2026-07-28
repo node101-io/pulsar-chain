@@ -18,6 +18,15 @@ import (
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
 
+const (
+	testConfirmationDepth int64 = 32
+	testContractAddress         = "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf"
+)
+
+func validBridgeParams() types.Params {
+	return types.NewParams(testConfirmationDepth, testContractAddress)
+}
+
 type fixture struct {
 	ctx          context.Context
 	keeper       keeper.Keeper
@@ -46,8 +55,7 @@ func initFixture(t *testing.T) *fixture {
 		nil,
 	)
 
-	// Initialize params
-	if err := k.Params.Set(ctx, types.DefaultParams()); err != nil {
+	if err := k.Params.Set(ctx, validBridgeParams()); err != nil {
 		t.Fatalf("failed to set params: %v", err)
 	}
 

@@ -13,13 +13,14 @@ func TestMsgUpdateParams(t *testing.T) {
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	params := types.DefaultParams()
+	params := validBridgeParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
 	authorityStr, err := f.addressCodec.BytesToString(f.keeper.GetAuthority())
 	require.NoError(t, err)
 
-	// default params
+	updatedParams := types.NewParams(64, testContractAddress)
+
 	testCases := []struct {
 		name      string
 		input     *types.MsgUpdateParams
@@ -30,24 +31,37 @@ func TestMsgUpdateParams(t *testing.T) {
 			name: "invalid authority",
 			input: &types.MsgUpdateParams{
 				Authority: "invalid",
-				Params:    params,
+				Params:    updatedParams,
 			},
 			expErr:    true,
 			expErrMsg: "invalid authority",
 		},
 		{
-			name: "send enabled param",
+			name: "invalid params",
 			input: &types.MsgUpdateParams{
 				Authority: authorityStr,
 				Params:    types.Params{},
 			},
-			expErr: false,
+			expErr:    true,
+			expErrMsg: "confirmation_depth must be greater than 0",
+		},
+		{
+			name: "invalid contract address",
+			input: &types.MsgUpdateParams{
+				Authority: authorityStr,
+				Params: types.NewParams(
+					testConfirmationDepth,
+					"not-a-mina-address",
+				),
+			},
+			expErr:    true,
+			expErrMsg: "invalid contract_address",
 		},
 		{
 			name: "all good",
 			input: &types.MsgUpdateParams{
 				Authority: authorityStr,
-				Params:    params,
+				Params:    updatedParams,
 			},
 			expErr: false,
 		},
@@ -60,9 +74,14 @@ func TestMsgUpdateParams(t *testing.T) {
 			if tc.expErr {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.expErrMsg)
-			} else {
-				require.NoError(t, err)
+				return
 			}
+
+			require.NoError(t, err)
+
+			got, err := f.keeper.Params.Get(f.ctx)
+			require.NoError(t, err)
+			require.Equal(t, tc.input.Params, got)
 		})
 	}
 }

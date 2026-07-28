@@ -13,7 +13,7 @@ func TestParamsQuery(t *testing.T) {
 	f := initFixture(t)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
-	params := types.DefaultParams()
+	params := validBridgeParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
 	response, err := qs.Params(f.ctx, &types.QueryParamsRequest{})
