@@ -27,15 +27,4 @@ type BankKeeper interface {
 type KeyregistryKeeper interface {
 	UserGetMinaToCosmos(context.Context, []byte) ([]byte, error)
 	UserMinaToCosmosHas(context.Context, []byte) (bool, error)
-	UserCosmosToMinaHas(context.Context, []byte) (bool, error)
-
-	ValidatorGetMinaToCosmos(context.Context, []byte) ([]byte, error)
-	ValidatorMinaToCosmosHas(context.Context, []byte) (bool, error)
-	ValidatorCosmosToMinaHas(context.Context, []byte) (bool, error)
-}
-
-// ParamSubspace defines the expected Subspace interface for parameters.
-type ParamSubspace interface {
-	Get(context.Context, []byte, interface{})
-	Set(context.Context, []byte, interface{})
 }

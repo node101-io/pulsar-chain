@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -18,8 +19,6 @@ const (
 )
 
 type Keeper struct {
-	storeService corestore.KVStoreService
-	cdc          codec.Codec
 	addressCodec address.Codec
 	// Address capable of executing a MsgUpdateParams message.
 	// Typically, this should be the x/gov module account.
@@ -52,10 +51,8 @@ func NewKeeper(
 	sb := collections.NewSchemaBuilder(storeService)
 
 	k := Keeper{
-		storeService: storeService,
-		cdc:          cdc,
 		addressCodec: addressCodec,
-		authority:    authority,
+		authority:    bytes.Clone(authority),
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
 		BridgeState: collections.NewItem(
@@ -88,7 +85,7 @@ func NewKeeper(
 
 // GetAuthority returns the module's authority.
 func (k Keeper) GetAuthority() []byte {
-	return k.authority
+	return bytes.Clone(k.authority)
 }
 
 func (k Keeper) GetBridgeState(ctx context.Context) (types.BridgeState, error) {
