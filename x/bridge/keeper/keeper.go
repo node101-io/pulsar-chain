@@ -82,3 +82,13 @@ func (k Keeper) GetAuthority() []byte {
 func (k Keeper) GetBridgeState(ctx context.Context) (types.BridgeState, error) {
 	return k.BridgeState.Get(ctx)
 }
+
+func (k Keeper) GetActionsReducedRoot(ctx context.Context) ([]byte, error) {
+
+	state, err := k.BridgeState.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return state.ActionsReducedRoot, nil
+}

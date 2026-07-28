@@ -78,6 +78,11 @@ func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, voteExtensi
 	seenConsensusPubKeys := make(map[consPubKeyKey]struct{})
 	verifiedVotes := verifiedPayloadVoteExtensions{totalPower: totalPower}
 
+	actionsReducedRoot, err := h.bridgeKeeper.GetActionsReducedRoot(ctx)
+	if err != nil {
+		return verifiedPayloadVoteExtensions{}, err
+	}
+
 	for _, vote := range pl.VoteExtensions {
 		consPubKeyKey := consPubKeyMapKey(vote.ConsensusPublicKey)
 		validatorInfo, ok := validatorVoteIndex[consPubKeyKey]
@@ -104,7 +109,7 @@ func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, voteExtensi
 			return verifiedPayloadVoteExtensions{}, err
 		}
 
-		if err := verifyVoteExtSig(poseidonHash, vote.VoteExtension, body, minaKey, ActionsReducedRoot, h.networkID); err != nil {
+		if err := verifyVoteExtSig(poseidonHash, vote.VoteExtension, body, minaKey, actionsReducedRoot, h.networkID); err != nil {
 			if errors.Is(err, ErrInvalidVoteExtSignatureEncoding) || errors.Is(err, ErrInvalidVoteExtSignature) {
 				return verifiedPayloadVoteExtensions{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
 			}

@@ -222,6 +222,7 @@ func New(
 		app.KeyregistryKeeper,
 		app.VotepersistenceKeeper,
 		mina.NetworkID(networkId),
+		app.BridgeKeeper,
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize ABCI handler: %v", err))

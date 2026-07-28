@@ -57,8 +57,9 @@ func (s SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBo
 	return sig.Bytes(), nil
 }
 
-func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string, networkID mina.NetworkID) error {
-	if message.ActionsReducedRoot != reducedRoot {
+func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot []byte, networkID mina.NetworkID) error {
+
+	if !bytes.Equal(message.ActionsReducedRoot, reducedRoot) {
 		return ErrInvalidVoteExtReducedRoot
 	}
 

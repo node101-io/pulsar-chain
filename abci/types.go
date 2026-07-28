@@ -7,10 +7,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// ActionsReducedRoot is a temporary bridge-domain placeholder used in vote-extension
-// body signing until the Bridge module provides the real reduced root.
-const ActionsReducedRoot string = "pulsar"
-
 const (
 	// ValidatorSetEntryHashPrefix domain-separates each validator entry before it
 	// is appended to the validator-set merkle list.
@@ -54,6 +50,7 @@ var (
 	ErrMissingStakingKeeper         error = errors.New("missing staking keeper")
 	ErrMissingKeyregistryKeeper     error = errors.New("missing keyregistry keeper")
 	ErrMissingVotePersistenceKeeper error = errors.New("missing vote persistence keeper")
+	ErrMissingBridgeKeeper          error = errors.New("missing bridge keeper")
 
 	// Vote-extension signing and verification errors.
 	ErrVoteExtBodyHashFailed           error = errors.New("failed to hash vote extension body")

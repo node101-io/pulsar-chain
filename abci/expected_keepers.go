@@ -22,3 +22,7 @@ type VotePersistenceKeeper interface {
 	Clear(context.Context) error
 	SetVote(context.Context, int64, []byte, []byte) error
 }
+
+type BridgeKeeper interface {
+	GetActionsReducedRoot(ctx context.Context) ([]byte, error)
+}
