@@ -73,6 +73,66 @@ func TestCalculateValidatorSetRootReturnsHashFailureForNilPoseidon(t *testing.T)
 	require.ErrorIs(t, err, ErrValidatorSetRootHashFailed)
 }
 
+func TestConstructVoteExtBodyChangesActionRootWhenBridgeSnapshotAdvances(t *testing.T) {
+	firstVoteExtensionHeight := int64(8)
+	secondVoteExtensionHeight := int64(9)
+
+	firstSignedStateHeight := firstVoteExtensionHeight - 2
+	secondSignedStateHeight := secondVoteExtensionHeight - 2
+
+	validator := newTestBondedValidator(t, 10)
+	cosmosToMina := map[string][]byte{
+		string(consensusPubKeyBytes(t, validator)): testMinaPublicKey(t, [32]byte{1}),
+	}
+
+	firstStateRoot := testStateRoot32()
+	secondStateRoot := bytes.Repeat([]byte{0x43}, 32)
+
+	firstActionsRoot := mustReduceToFieldBytes([]byte("signed-state-height-6-root"))
+	secondActionsRoot := mustReduceToFieldBytes([]byte("signed-state-height-7-root"))
+
+	stakingKeeper := &voteExtBodyTestStakingKeeper{
+		validators:           []stakingtypes.Validator{validator},
+		validatorsByConsAddr: validatorsByConsAddr(t, validator),
+		historicalInfo: map[int64]stakingtypes.HistoricalInfo{
+			firstVoteExtensionHeight - 1:  {Header: tmproto.Header{AppHash: firstStateRoot}},
+			firstVoteExtensionHeight:      {Valset: []stakingtypes.Validator{validator}},
+			secondVoteExtensionHeight - 1: {Header: tmproto.Header{AppHash: secondStateRoot}},
+		},
+	}
+
+	handler := &ABCIHandler{
+		stakingKeeper:     stakingKeeper,
+		keyregistryKeeper: validatorSetTestKeyregistryKeeper{cosmosToMina: cosmosToMina},
+		bridgeKeeper: testBridgeKeeper{
+			rootsByHeight: map[int64][]byte{
+				0:                       testActionsReducedRoot(),
+				firstSignedStateHeight:  firstActionsRoot,
+				secondSignedStateHeight: secondActionsRoot,
+			},
+		},
+	}
+
+	ctx := sdk.Context{}.WithBlockHeight(secondVoteExtensionHeight)
+
+	firstBody, err := handler.constructVoteExtBody(ctx, firstVoteExtensionHeight)
+	require.NoError(t, err)
+
+	secondBody, err := handler.constructVoteExtBody(ctx, secondVoteExtensionHeight)
+	require.NoError(t, err)
+
+	require.Equal(t, firstSignedStateHeight, firstBody.CurrentBlockHeight)
+	require.Equal(t, firstStateRoot, firstBody.CurrentStateRoot)
+	require.Equal(t, firstActionsRoot, firstBody.ActionsReducedRoot)
+
+	require.Equal(t, secondSignedStateHeight, secondBody.CurrentBlockHeight)
+	require.Equal(t, secondStateRoot, secondBody.CurrentStateRoot)
+	require.Equal(t, secondActionsRoot, secondBody.ActionsReducedRoot)
+
+	require.NotEqual(t, firstBody.ActionsReducedRoot, secondBody.ActionsReducedRoot)
+	require.Equal(t, []int64{8, 7, 8}, stakingKeeper.requestedHistoricalHeights)
+}
+
 func TestCalculateValidatorSetRootSuccess(t *testing.T) {
 	firstValidator := newTestBondedValidator(t, 5)
 	secondValidator := newTestBondedValidator(t, 10)

@@ -23,7 +23,7 @@ func TestSignVoteExtBodyRoundTrip(t *testing.T) {
 	minaPublicKey := secondaryKey.PublicKey.Bytes()
 
 	poseidonHash := testPoseidonHash()
-	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, testActionsReducedRoot(), NetworkID))
+	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, NetworkID))
 }
 
 func TestVerifyVoteExtSigFailureModes(t *testing.T) {
@@ -39,25 +39,14 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 		signature   []byte
 		message     votepersistencetypes.VoteExtBody
 		minaKey     []byte
-		reducedRoot []byte
 		expectedErr error
 	}{
-		{
-			name:        "wrong reduced root",
-			poseidon:    testPoseidonHash(),
-			signature:   signature,
-			message:     body,
-			minaKey:     minaPublicKey,
-			reducedRoot: wrongTestActionsReducedRoot(),
-			expectedErr: ErrInvalidVoteExtReducedRoot,
-		},
 		{
 			name:        "malformed mina public key",
 			poseidon:    testPoseidonHash(),
 			signature:   signature,
 			message:     body,
 			minaKey:     []byte("not-a-mina-public-key"),
-			reducedRoot: testActionsReducedRoot(),
 			expectedErr: ErrInvalidVoteExtMinaPublicKey,
 		},
 		{
@@ -66,7 +55,6 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 			signature:   []byte("not-a-signature"),
 			message:     body,
 			minaKey:     minaPublicKey,
-			reducedRoot: testActionsReducedRoot(),
 			expectedErr: ErrInvalidVoteExtSignatureEncoding,
 		},
 		{
@@ -75,7 +63,6 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 			signature:   signature,
 			message:     body,
 			minaKey:     minaPublicKey,
-			reducedRoot: testActionsReducedRoot(),
 			expectedErr: ErrVoteExtBodyHashFailed,
 		},
 		{
@@ -89,15 +76,13 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 				ActionsReducedRoot:   body.ActionsReducedRoot,
 			},
 			minaKey:     minaPublicKey,
-			reducedRoot: testActionsReducedRoot(),
 			expectedErr: ErrInvalidVoteExtSignature,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := verifyVoteExtSig(tt.poseidon, tt.signature, tt.message, tt.minaKey, tt.reducedRoot, NetworkID)
-
+			err := verifyVoteExtSig(tt.poseidon, tt.signature, tt.message, tt.minaKey, NetworkID)
 			require.ErrorIs(t, err, tt.expectedErr)
 		})
 	}

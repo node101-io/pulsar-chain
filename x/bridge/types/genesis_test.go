@@ -35,8 +35,9 @@ func TestGenesisState_Validate(t *testing.T) {
 		{
 			desc: "explicit valid genesis state",
 			genState: &types.GenesisState{
-				Params:      validBridgeParams(),
-				BridgeState: types.DefaultBridgeState(),
+				Params:                      validBridgeParams(),
+				BridgeState:                 types.DefaultBridgeState(),
+				ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
 			},
 			valid: true,
 		},

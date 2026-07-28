@@ -62,7 +62,6 @@ func TestVoteExtSignatureMatchesFieldVerifierVector(t *testing.T) {
 		signature,
 		body,
 		validators[0].secondaryKey.PublicKey.Bytes(),
-		testActionsReducedRoot(),
 		NetworkID,
 	)
 	require.NoError(t, err)
