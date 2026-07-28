@@ -26,11 +26,6 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, err
 	}
 
-	params, err := k.Keeper.Params.Get(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if msg.MinaBlockHeight <= 0 {
 		return nil, types.ErrInvalidMinaBlockHeight
 	}
@@ -39,13 +34,9 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, types.ErrMinaBlockHeightMustAdvance
 	}
 
-	finalityDepth := params.ConfirmationDepth
-	if currentMinaBlockHeight < finalityDepth {
-		return nil, types.ErrMinaBlockNotFinalized
-	}
-
-	maxFinalizedHeight := currentMinaBlockHeight - finalityDepth
-	if msg.MinaBlockHeight > maxFinalizedHeight {
+	// Wrapper height is already the latest confirmed/indexed cursor.
+	// Do not apply confirmation depth a second time in the chain layer.
+	if msg.MinaBlockHeight > currentMinaBlockHeight {
 		return nil, types.ErrMinaBlockNotFinalized
 	}
 
