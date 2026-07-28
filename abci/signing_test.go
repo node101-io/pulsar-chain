@@ -23,7 +23,7 @@ func TestSignVoteExtBodyRoundTrip(t *testing.T) {
 	minaPublicKey := secondaryKey.PublicKey.Bytes()
 
 	poseidonHash := testPoseidonHash()
-	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, ActionsReducedRoot, NetworkID))
+	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, testActionsReducedRoot(), NetworkID))
 }
 
 func TestVerifyVoteExtSigFailureModes(t *testing.T) {
@@ -39,7 +39,7 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 		signature   []byte
 		message     votepersistencetypes.VoteExtBody
 		minaKey     []byte
-		reducedRoot string
+		reducedRoot []byte
 		expectedErr error
 	}{
 		{
@@ -48,7 +48,7 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 			signature:   signature,
 			message:     body,
 			minaKey:     minaPublicKey,
-			reducedRoot: "wrong-root",
+			reducedRoot: wrongTestActionsReducedRoot(),
 			expectedErr: ErrInvalidVoteExtReducedRoot,
 		},
 		{
@@ -57,7 +57,7 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 			signature:   signature,
 			message:     body,
 			minaKey:     []byte("not-a-mina-public-key"),
-			reducedRoot: ActionsReducedRoot,
+			reducedRoot: testActionsReducedRoot(),
 			expectedErr: ErrInvalidVoteExtMinaPublicKey,
 		},
 		{
@@ -66,7 +66,7 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 			signature:   []byte("not-a-signature"),
 			message:     body,
 			minaKey:     minaPublicKey,
-			reducedRoot: ActionsReducedRoot,
+			reducedRoot: testActionsReducedRoot(),
 			expectedErr: ErrInvalidVoteExtSignatureEncoding,
 		},
 		{
@@ -75,7 +75,7 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 			signature:   signature,
 			message:     body,
 			minaKey:     minaPublicKey,
-			reducedRoot: ActionsReducedRoot,
+			reducedRoot: testActionsReducedRoot(),
 			expectedErr: ErrVoteExtBodyHashFailed,
 		},
 		{
@@ -89,7 +89,7 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 				ActionsReducedRoot:   body.ActionsReducedRoot,
 			},
 			minaKey:     minaPublicKey,
-			reducedRoot: ActionsReducedRoot,
+			reducedRoot: testActionsReducedRoot(),
 			expectedErr: ErrInvalidVoteExtSignature,
 		},
 	}
@@ -157,7 +157,7 @@ func validVoteExtBody() votepersistencetypes.VoteExtBody {
 		NextValidatorSetHash: field.NewField().FromUint64(1).Bytes(),
 		CurrentStateRoot:     testStateRoot32(),
 		CurrentBlockHeight:   7,
-		ActionsReducedRoot:   ActionsReducedRoot,
+		ActionsReducedRoot:   testActionsReducedRoot(),
 	}
 }
 

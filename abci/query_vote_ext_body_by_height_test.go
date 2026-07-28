@@ -56,6 +56,7 @@ func TestVoteExtBodyByHeightReturnsBodyForMinimumHeight(t *testing.T) {
 	)
 
 	require.NoError(t, err)
+	require.Equal(t, testActionsReducedRoot(), response.GetVoteExtBody().GetActionsReducedRoot())
 	require.NotNil(t, response.GetVoteExtBody())
 	require.Equal(t, int64(0), response.GetVoteExtBody().GetCurrentBlockHeight())
 	require.Equal(t, testStateRoot32(), response.GetVoteExtBody().GetCurrentStateRoot())
@@ -75,6 +76,7 @@ func TestVoteExtBodyByHeightReturnsBodyForLaterHeight(t *testing.T) {
 	)
 
 	require.NoError(t, err)
+	require.Equal(t, testActionsReducedRoot(), response.GetVoteExtBody().GetActionsReducedRoot())
 	require.NotNil(t, response.GetVoteExtBody())
 	require.Equal(t, voteExtensionHeight-2, response.GetVoteExtBody().GetCurrentBlockHeight())
 	require.Equal(t, testStateRoot32(), response.GetVoteExtBody().GetCurrentStateRoot())
@@ -130,5 +132,6 @@ func newVoteExtBodyQueryTestHandler(t *testing.T, validators []stakingtypes.Vali
 			validatorsByConsAddr: validatorsByConsAddr(t, validators...),
 		},
 		keyregistryKeeper: quorumTestKeyregistryKeeper{cosmosToMina: cosmosToMina},
+		bridgeKeeper:      testBridgeKeeper{},
 	}
 }

@@ -170,6 +170,7 @@ func newVerifyVoteExtensionTestHandler(t *testing.T, validators []stakingtypes.V
 		},
 		keyregistryKeeper: verifyVoteExtensionTestKeyregistryKeeper{cosmosToMina: cosmosToMina},
 		networkID:         NetworkID,
+		bridgeKeeper:      testBridgeKeeper{},
 	}
 }
 

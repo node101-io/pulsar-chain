@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewABCIHandlerValidatesSecondaryKey(t *testing.T) {
-	handler, err := NewABCIHandler(SecondaryKey{}, testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID)
+	handler, err := NewABCIHandler(SecondaryKey{}, testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID, testBridgeKeeper{})
 
 	require.Nil(t, handler)
 	require.ErrorIs(t, err, ErrMissingSecondaryKey)
@@ -24,6 +24,7 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 		stakingKeeper         StakingKeeper
 		keyregistryKeeper     KeyregistryKeeper
 		votePersistenceKeeper VotePersistenceKeeper
+		bridgeKeeper          BridgeKeeper
 		expectedErr           error
 	}{
 		{
@@ -31,6 +32,7 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 			stakingKeeper:         nil,
 			keyregistryKeeper:     testKeyregistryKeeper{},
 			votePersistenceKeeper: testVotePersistenceKeeper{},
+			bridgeKeeper:          testBridgeKeeper{},
 			expectedErr:           ErrMissingStakingKeeper,
 		},
 		{
@@ -38,20 +40,30 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 			stakingKeeper:         testStakingKeeper{},
 			keyregistryKeeper:     nil,
 			votePersistenceKeeper: testVotePersistenceKeeper{},
+			bridgeKeeper:          testBridgeKeeper{},
 			expectedErr:           ErrMissingKeyregistryKeeper,
 		},
 		{
 			name:                  "missing vote persistence keeper",
 			stakingKeeper:         testStakingKeeper{},
 			keyregistryKeeper:     testKeyregistryKeeper{},
+			bridgeKeeper:          testBridgeKeeper{},
 			votePersistenceKeeper: nil,
 			expectedErr:           ErrMissingVotePersistenceKeeper,
+		},
+		{
+			name:                  "missing bridge keeper",
+			stakingKeeper:         testStakingKeeper{},
+			keyregistryKeeper:     testKeyregistryKeeper{},
+			votePersistenceKeeper: testVotePersistenceKeeper{},
+			bridgeKeeper:          nil,
+			expectedErr:           ErrMissingBridgeKeeper,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID)
+			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID, tt.bridgeKeeper)
 
 			require.Nil(t, handler)
 			require.ErrorIs(t, err, tt.expectedErr)
@@ -64,12 +76,14 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 	var typedNilStakingKeeper *testStakingKeeper
 	var typedNilKeyregistryKeeper *testKeyregistryKeeper
 	var typedNilVotePersistenceKeeper *testVotePersistenceKeeper
+	var typedNilBridgeKeeper *testBridgeKeeper
 
 	tests := []struct {
 		name                  string
 		stakingKeeper         StakingKeeper
 		keyregistryKeeper     KeyregistryKeeper
 		votePersistenceKeeper VotePersistenceKeeper
+		bridgeKeeper          BridgeKeeper
 		expectedErr           error
 	}{
 		{
@@ -77,6 +91,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 			stakingKeeper:         typedNilStakingKeeper,
 			keyregistryKeeper:     testKeyregistryKeeper{},
 			votePersistenceKeeper: testVotePersistenceKeeper{},
+			bridgeKeeper:          testBridgeKeeper{},
 			expectedErr:           ErrMissingStakingKeeper,
 		},
 		{
@@ -84,21 +99,30 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 			stakingKeeper:         testStakingKeeper{},
 			keyregistryKeeper:     typedNilKeyregistryKeeper,
 			votePersistenceKeeper: testVotePersistenceKeeper{},
+			bridgeKeeper:          testBridgeKeeper{},
 			expectedErr:           ErrMissingKeyregistryKeeper,
 		},
 		{
 			name:                  "typed nil vote persistence keeper",
 			stakingKeeper:         testStakingKeeper{},
 			keyregistryKeeper:     testKeyregistryKeeper{},
+			bridgeKeeper:          testBridgeKeeper{},
 			votePersistenceKeeper: typedNilVotePersistenceKeeper,
 			expectedErr:           ErrMissingVotePersistenceKeeper,
+		},
+		{
+			name:                  "typed nil bridge keeper",
+			stakingKeeper:         testStakingKeeper{},
+			keyregistryKeeper:     testKeyregistryKeeper{},
+			votePersistenceKeeper: testVotePersistenceKeeper{},
+			bridgeKeeper:          typedNilBridgeKeeper,
+			expectedErr:           ErrMissingBridgeKeeper,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID)
-
+			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID, tt.bridgeKeeper)
 			require.Nil(t, handler)
 			require.ErrorIs(t, err, tt.expectedErr)
 		})
@@ -106,7 +130,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 }
 
 func TestNewABCIHandlerSuccess(t *testing.T) {
-	handler, err := NewABCIHandler(validSecondaryKey(), testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID)
+	handler, err := NewABCIHandler(validSecondaryKey(), testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID, testBridgeKeeper{})
 
 	require.NoError(t, err)
 	require.NotNil(t, handler)

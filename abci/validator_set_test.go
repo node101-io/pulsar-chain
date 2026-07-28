@@ -115,12 +115,14 @@ func TestConstructVoteExtBodyUsesVoteExtensionHeightSemantics(t *testing.T) {
 	handler := &ABCIHandler{
 		stakingKeeper:     stakingKeeper,
 		keyregistryKeeper: validatorSetTestKeyregistryKeeper{cosmosToMina: cosmosToMina},
+		bridgeKeeper:      testBridgeKeeper{},
 	}
 	ctx := sdk.Context{}.WithBlockHeight(voteExtensionHeight)
 
 	body, err := handler.constructVoteExtBody(ctx, voteExtensionHeight)
 
 	require.NoError(t, err)
+	require.Equal(t, testActionsReducedRoot(), body.ActionsReducedRoot)
 	require.Equal(t, testStateRoot32(), body.CurrentStateRoot)
 	require.Equal(t, signedStateHeight, body.CurrentBlockHeight)
 	require.NotEmpty(t, body.NextValidatorSetHash)
