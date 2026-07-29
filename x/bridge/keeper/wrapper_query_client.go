@@ -3,9 +3,11 @@ package keeper
 import (
 	"context"
 	"errors"
+	"net"
 	"strings"
 	"time"
 
+	errorsmod "cosmossdk.io/errors"
 	wrapperquery "github.com/node101-io/archive-wrapper/query"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 	"google.golang.org/grpc"
@@ -27,10 +29,60 @@ type ArchiveWrapperClient struct {
 	queryTimeout time.Duration
 }
 
+func validateLoopbackGRPCAddress(addr string) error {
+	addr = strings.TrimSpace(addr)
+	if addr == "" {
+		return types.ErrInvalidArchiveWrapperGRPCAddress
+	}
+
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return errorsmod.Wrapf(
+			types.ErrInvalidArchiveWrapperGRPCAddress,
+			"expected host:port, got %q: %v",
+			addr,
+			err,
+		)
+	}
+
+	if strings.TrimSpace(port) == "" {
+		return errorsmod.Wrapf(
+			types.ErrInvalidArchiveWrapperGRPCAddress,
+			"missing port in %q",
+			addr,
+		)
+	}
+
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return errorsmod.Wrapf(
+			types.ErrInvalidArchiveWrapperGRPCAddress,
+			"host %q is not a literal IP; only 127.0.0.1 or ::1 are allowed",
+			host,
+		)
+	}
+
+	if !ip.IsLoopback() {
+		return errorsmod.Wrapf(
+			types.ErrInvalidArchiveWrapperGRPCAddress,
+			"host %q is not loopback; only 127.0.0.1 or ::1 are allowed",
+			host,
+		)
+	}
+
+	return nil
+}
+
+// Archive-wrapper and Pulsar must run on the same machine.
+// Hence, wrapperGRPCAddress must be a loopback host:port address (for example 127.0.0.1:9095 or [::1]:9095).
 func NewArchiveWrapperQueryClient(wrapperGRPCAddress string) (*ArchiveWrapperClient, error) {
 	wrapperGRPCAddress = strings.TrimSpace(wrapperGRPCAddress)
 	if wrapperGRPCAddress == "" {
 		return nil, nil
+	}
+
+	if err := validateLoopbackGRPCAddress(wrapperGRPCAddress); err != nil {
+		return nil, err
 	}
 
 	conn, err := grpc.NewClient(

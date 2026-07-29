@@ -43,4 +43,6 @@ var (
 
 	ErrMaxBlockRangeMustBeGreaterThanZero = errors.Register(ModuleName, 1126, "max_block_range must be greater than 0")
 	ErrMinaBlockRangeTooLarge             = errors.Register(ModuleName, 1127, "mina block range exceeds max_block_range")
+
+	ErrInvalidArchiveWrapperGRPCAddress = errors.Register(ModuleName, 1128, "wrapper_grpc_address must be a loopback host:port address")
 )
