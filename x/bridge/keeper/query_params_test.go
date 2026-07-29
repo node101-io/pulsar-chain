@@ -10,7 +10,7 @@ import (
 )
 
 func TestParamsQuery(t *testing.T) {
-	f := initFixture(t, nil, nil)
+	f := initFixture(t, nil, nil, nil)
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 	params := validBridgeParams()

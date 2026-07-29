@@ -32,6 +32,16 @@ type stubArchiveWrapperQueryClient struct {
 	gotTarget        int64
 }
 
+type mockKeyregistryKeeper struct{}
+
+func (m *mockKeyregistryKeeper) UserMinaToCosmosHas(context.Context, []byte) (bool, error) {
+	return false, nil
+}
+
+func (m *mockKeyregistryKeeper) UserGetMinaToCosmos(context.Context, []byte) ([]byte, error) {
+	return nil, nil
+}
+
 func (c *stubArchiveWrapperQueryClient) GetMinaBlockHeight(context.Context) (int64, error) {
 	c.getMinaBlockHeightCalls++
 	return c.minaBlockHeight, c.minaBlockHeightErr
@@ -244,7 +254,7 @@ func TestPushNewActionsRejectsInvalidOrNonAdvancingTargetsWithoutMutatingState(t
 			}
 
 			bankKeeper := NewMockBankKeeper()
-			f := initFixture(t, bankKeeper, client)
+			f := initFixture(t, bankKeeper, client, nil)
 			seedPushNewActionsState(t, f, tc.latestFetchedMinaHeight)
 
 			beforeBalance := append(sdk.Coins(nil), bankKeeper.spendable...)
@@ -330,7 +340,7 @@ func TestPushNewActionsRejectsTargetBeyondMaxBlockRange(t *testing.T) {
 		minaBlockHeight: 1_000_000,
 	}
 
-	f := initFixture(t, nil, client)
+	f := initFixture(t, nil, client, nil)
 	require.NoError(t, f.keeper.Params.Set(
 		f.ctx,
 		bridgetypes.NewParams(
@@ -371,7 +381,7 @@ func TestPushNewActionsAcceptsTargetAtMaxBlockRange(t *testing.T) {
 		minaBlockHeight: 110,
 	}
 
-	f := initFixture(t, nil, client)
+	f := initFixture(t, nil, client, nil)
 	require.NoError(t, f.keeper.Params.Set(
 		f.ctx,
 		bridgetypes.NewParams(
@@ -396,4 +406,89 @@ func TestPushNewActionsAcceptsTargetAtMaxBlockRange(t *testing.T) {
 	require.Equal(t, 1, client.getActionsCalls)
 	require.Equal(t, int64(100), client.gotLatestFetched)
 	require.Equal(t, int64(110), client.gotTarget)
+}
+func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *testing.T) {
+	testCases := []struct {
+		name       string
+		actionType bridgetypes.ActionType
+		amount     int64
+	}{
+		{
+			name:       "deposit zero amount",
+			actionType: bridgetypes.ActionType_DEPOSIT,
+			amount:     0,
+		},
+		{
+			name:       "deposit negative amount",
+			actionType: bridgetypes.ActionType_DEPOSIT,
+			amount:     -1,
+		},
+		{
+			name:       "withdraw zero amount",
+			actionType: bridgetypes.ActionType_WITHDRAW,
+			amount:     0,
+		},
+		{
+			name:       "withdraw negative amount",
+			actionType: bridgetypes.ActionType_WITHDRAW,
+			amount:     -1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &stubArchiveWrapperQueryClient{
+				minaBlockHeight: 11,
+				actions: []bridgetypes.Action{
+					{
+						BlockHeight: 11,
+						FeePayer:    []byte("ignored"),
+						ActionType:  tc.actionType,
+						Amount:      tc.amount,
+					},
+				},
+			}
+
+			bankKeeper := NewMockBankKeeper()
+			keyRegistryKeeper := &mockKeyregistryKeeper{}
+
+			f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
+			seedPushNewActionsState(t, f, 10)
+
+			beforeBalance := append(sdk.Coins(nil), bankKeeper.spendable...)
+
+			beforeState, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+
+			beforeRoot := latestActionsReducedRoot(t, f)
+
+			ms := bridgekeeper.NewMsgServerImpl(f.keeper)
+
+			resp, err := ms.PushNewActions(f.ctx, &bridgetypes.MsgPushNewActions{
+				Creator:         authorityString(t, f.addressCodec),
+				MinaBlockHeight: 11,
+			})
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+
+			afterState, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+			require.Equal(t, int64(11), afterState.LatestFetchedMinaHeight)
+			require.NotEqual(t, beforeState.LatestFetchedMinaHeight, afterState.LatestFetchedMinaHeight)
+
+			afterRoot := latestActionsReducedRoot(t, f)
+			require.Equal(t, beforeRoot, afterRoot)
+
+			require.Equal(t, beforeBalance, bankKeeper.spendable)
+			require.Zero(t, bankKeeper.spendableCalls)
+			require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
+			require.Zero(t, bankKeeper.sendCoinsToModuleCalls)
+			require.Zero(t, bankKeeper.mintCoinsCalls)
+			require.Zero(t, bankKeeper.burnCoinsCalls)
+
+			require.Equal(t, 1, client.getMinaBlockHeightCalls)
+			require.Equal(t, 1, client.getActionsCalls)
+		})
+	}
 }

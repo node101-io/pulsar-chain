@@ -15,7 +15,7 @@ func TestGenesis(t *testing.T) {
 		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
 	}
 
-	f := initFixture(t, nil, nil)
+	f := initFixture(t, nil, nil, nil)
 	err := f.keeper.InitGenesis(f.ctx, genesisState)
 	require.NoError(t, err)
 
@@ -42,7 +42,7 @@ func TestGenesisWithCustomStartBlockHeight(t *testing.T) {
 		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
 	}
 
-	f := initFixture(t, nil, nil)
+	f := initFixture(t, nil, nil, nil)
 	err := f.keeper.InitGenesis(f.ctx, genesisState)
 	require.NoError(t, err)
 

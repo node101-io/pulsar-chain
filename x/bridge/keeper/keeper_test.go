@@ -44,6 +44,7 @@ func initFixture(
 	t *testing.T,
 	bankKeeper types.BankKeeper,
 	client keeper.ArchiveWrapperQueryClient,
+	keyRegistrykeeper types.KeyregistryKeeper,
 ) *fixture {
 	t.Helper()
 
@@ -62,7 +63,7 @@ func initFixture(
 		addressCodec,
 		authority,
 		bankKeeper,
-		nil,
+		keyRegistrykeeper,
 		client,
 	)
 
