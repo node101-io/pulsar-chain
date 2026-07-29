@@ -14,22 +14,6 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, errorsmod.Wrap(err, "invalid authority address")
 	}
 
-	params, err := k.Keeper.Params.Get(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if msg.MinaBlockHeight < params.StartBlockHeight {
-		return nil, types.ErrInvalidMinaBlockRange
-	}
-
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	currentMinaBlockHeight, err := k.archiveWrapperClient.GetMinaBlockHeight(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	bridgeState, err := k.Keeper.GetBridgeState(ctx)
 	if err != nil {
 		return nil, err
@@ -39,8 +23,24 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, types.ErrInvalidMinaBlockHeight
 	}
 
+	params, err := k.Keeper.Params.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if msg.MinaBlockHeight < params.StartBlockHeight {
+		return nil, types.ErrInvalidMinaBlockRange
+	}
+
 	if msg.MinaBlockHeight <= bridgeState.LatestFetchedMinaHeight {
 		return nil, types.ErrMinaBlockHeightMustAdvance
+	}
+
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	currentMinaBlockHeight, err := k.archiveWrapperClient.GetMinaBlockHeight(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	// Wrapper height is already the latest confirmed/indexed cursor.
