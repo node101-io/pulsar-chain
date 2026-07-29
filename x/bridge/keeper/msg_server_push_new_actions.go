@@ -36,6 +36,11 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, types.ErrMinaBlockHeightMustAdvance
 	}
 
+	span := msg.MinaBlockHeight - bridgeState.LatestFetchedMinaHeight
+	if span > params.MaxBlockRange {
+		return nil, types.ErrMinaBlockRangeTooLarge
+	}
+
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	currentMinaBlockHeight, err := k.archiveWrapperClient.GetMinaBlockHeight(ctx)

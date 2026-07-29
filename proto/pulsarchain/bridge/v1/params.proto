@@ -14,4 +14,5 @@ message Params {
   int64 confirmation_depth = 1;
   string contract_address = 2;
   int64 start_block_height = 3;
+  int64 max_block_range = 4;
 }

@@ -36,6 +36,7 @@ func TestGenesisWithCustomStartBlockHeight(t *testing.T) {
 			testConfirmationDepth,
 			testContractAddress,
 			customStartBlockHeight,
+			testMaxBlockRange,
 		),
 		BridgeState:                 types.NewInitialBridgeState(customStartBlockHeight),
 		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),

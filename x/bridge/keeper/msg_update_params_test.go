@@ -19,7 +19,7 @@ func TestMsgUpdateParams(t *testing.T) {
 	authorityStr, err := f.addressCodec.BytesToString(f.keeper.GetAuthority())
 	require.NoError(t, err)
 
-	updatedParams := types.NewParams(64, testContractAddress, testStartBlockHeight)
+	updatedParams := types.NewParams(64, testContractAddress, testStartBlockHeight, 2048)
 
 	testCases := []struct {
 		name      string
@@ -53,6 +53,7 @@ func TestMsgUpdateParams(t *testing.T) {
 					testConfirmationDepth,
 					testContractAddress,
 					0,
+					testMaxBlockRange,
 				),
 			},
 			expErr:    true,
@@ -66,10 +67,25 @@ func TestMsgUpdateParams(t *testing.T) {
 					testConfirmationDepth,
 					"not-a-mina-address",
 					testStartBlockHeight,
+					testMaxBlockRange,
 				),
 			},
 			expErr:    true,
 			expErrMsg: "invalid contract_address",
+		},
+		{
+			name: "invalid max block range",
+			input: &types.MsgUpdateParams{
+				Authority: authorityStr,
+				Params: types.NewParams(
+					testConfirmationDepth,
+					testContractAddress,
+					testStartBlockHeight,
+					0,
+				),
+			},
+			expErr:    true,
+			expErrMsg: "max_block_range must be greater than 0",
 		},
 		{
 			name: "all good",

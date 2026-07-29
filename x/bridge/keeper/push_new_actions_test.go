@@ -177,6 +177,7 @@ func TestPushNewActionsBootstrapStartsFromConfiguredStartBlockHeight(t *testing.
 			testConfirmationDepth,
 			testContractAddress,
 			startBlockHeight,
+			testMaxBlockRange,
 		),
 		BridgeState:                 bridgetypes.NewInitialBridgeState(startBlockHeight),
 		ActionsReducedRootSnapshots: bridgetypes.DefaultActionsReducedRootSnapshots(),
@@ -323,4 +324,76 @@ func TestPushNewActionsRejectsReplayOfAlreadyProcessedTarget(t *testing.T) {
 
 	require.Equal(t, 1, client.getMinaBlockHeightCalls)
 	require.Equal(t, 1, client.getActionsCalls)
+}
+func TestPushNewActionsRejectsTargetBeyondMaxBlockRange(t *testing.T) {
+	client := &stubArchiveWrapperQueryClient{
+		minaBlockHeight: 1_000_000,
+	}
+
+	f := initFixture(t, nil, client)
+	require.NoError(t, f.keeper.Params.Set(
+		f.ctx,
+		bridgetypes.NewParams(
+			testConfirmationDepth,
+			testContractAddress,
+			testStartBlockHeight,
+			10,
+		),
+	))
+	seedPushNewActionsState(t, f, 100)
+
+	beforeState, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+
+	beforeRoot := latestActionsReducedRoot(t, f)
+
+	ms := bridgekeeper.NewMsgServerImpl(f.keeper)
+
+	resp, err := ms.PushNewActions(f.ctx, &bridgetypes.MsgPushNewActions{
+		Creator:         authorityString(t, f.addressCodec),
+		MinaBlockHeight: 111,
+	})
+
+	require.ErrorIs(t, err, bridgetypes.ErrMinaBlockRangeTooLarge)
+	require.Nil(t, resp)
+	require.Zero(t, client.getMinaBlockHeightCalls)
+	require.Zero(t, client.getActionsCalls)
+
+	afterState, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, beforeState, afterState)
+
+	afterRoot := latestActionsReducedRoot(t, f)
+	require.Equal(t, beforeRoot, afterRoot)
+}
+func TestPushNewActionsAcceptsTargetAtMaxBlockRange(t *testing.T) {
+	client := &stubArchiveWrapperQueryClient{
+		minaBlockHeight: 110,
+	}
+
+	f := initFixture(t, nil, client)
+	require.NoError(t, f.keeper.Params.Set(
+		f.ctx,
+		bridgetypes.NewParams(
+			testConfirmationDepth,
+			testContractAddress,
+			testStartBlockHeight,
+			10,
+		),
+	))
+	seedPushNewActionsState(t, f, 100)
+
+	ms := bridgekeeper.NewMsgServerImpl(f.keeper)
+
+	resp, err := ms.PushNewActions(f.ctx, &bridgetypes.MsgPushNewActions{
+		Creator:         authorityString(t, f.addressCodec),
+		MinaBlockHeight: 110,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, 1, client.getMinaBlockHeightCalls)
+	require.Equal(t, 1, client.getActionsCalls)
+	require.Equal(t, int64(100), client.gotLatestFetched)
+	require.Equal(t, int64(110), client.gotTarget)
 }

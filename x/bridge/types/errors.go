@@ -40,4 +40,7 @@ var (
 
 	ErrStartBlockHeightMustBeGreaterThanZero   = errors.Register(ModuleName, 1124, "start_block_height must be greater than 0")
 	ErrLatestFetchedMinaHeightBeforeStartBlock = errors.Register(ModuleName, 1125, "latest_fetched_mina_height must be at or after start_block_height - 1")
+
+	ErrMaxBlockRangeMustBeGreaterThanZero = errors.Register(ModuleName, 1126, "max_block_range must be greater than 0")
+	ErrMinaBlockRangeTooLarge             = errors.Register(ModuleName, 1127, "mina block range exceeds max_block_range")
 )
