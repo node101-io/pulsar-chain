@@ -19,10 +19,6 @@ func testActionsReducedRoot() []byte {
 	return mustReduceToFieldBytes([]byte("pulsar"))
 }
 
-func wrongTestActionsReducedRoot() []byte {
-	return mustReduceToFieldBytes([]byte("wrong-root"))
-}
-
 type testBridgeKeeper struct {
 	rootsByHeight map[int64][]byte
 	err           error
