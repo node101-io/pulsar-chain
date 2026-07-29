@@ -82,12 +82,12 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 			return nil, err
 		}
 
-		bz, err := act.Marshal()
+		fieldElement, err := act.ToFieldElement()
 		if err != nil {
 			return nil, err
 		}
 
-		if err := list.Append(bz); err != nil {
+		if err := list.Append(fieldElement.Bytes()); err != nil {
 			return nil, err
 		}
 	}

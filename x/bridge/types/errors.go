@@ -45,4 +45,11 @@ var (
 	ErrMinaBlockRangeTooLarge             = errors.Register(ModuleName, 1127, "mina block range exceeds max_block_range")
 
 	ErrInvalidArchiveWrapperGRPCAddress = errors.Register(ModuleName, 1128, "wrapper_grpc_address must be a loopback host:port address")
+
+	ErrNilAction                = errors.Register(ModuleName, 1129, "action is nil")
+	ErrInvalidActionBlockHeight = errors.Register(ModuleName, 1130, "invalid action block_height")
+	ErrInvalidActionAmount      = errors.Register(ModuleName, 1131, "invalid action amount")
+	ErrInvalidActionType        = errors.Register(ModuleName, 1132, "invalid action type")
+	ErrInvalidActionFeePayer    = errors.Register(ModuleName, 1133, "invalid action fee_payer")
+	ErrActionToFieldFailed      = errors.Register(ModuleName, 1134, "failed to convert action to field")
 )
