@@ -20,8 +20,9 @@ import (
 )
 
 type stubArchiveWrapperQueryClient struct {
-	minaBlockHeight    int64
-	minaBlockHeightErr error
+	getMinaBlockHeightCalls int
+	minaBlockHeight         int64
+	minaBlockHeightErr      error
 
 	actions    []bridgetypes.Action
 	actionsErr error
@@ -32,7 +33,17 @@ type stubArchiveWrapperQueryClient struct {
 }
 
 func (c *stubArchiveWrapperQueryClient) GetMinaBlockHeight(context.Context) (int64, error) {
+	c.getMinaBlockHeightCalls++
 	return c.minaBlockHeight, c.minaBlockHeightErr
+}
+
+func latestActionsReducedRoot(t *testing.T, f *fixture) []byte {
+	t.Helper()
+
+	root, err := f.keeper.GetLatestActionsReducedRoot(f.ctx)
+	require.NoError(t, err)
+
+	return append([]byte(nil), root...)
 }
 
 func (c *stubArchiveWrapperQueryClient) GetActionsInRange(
@@ -191,4 +202,112 @@ func TestPushNewActionsBootstrapStartsFromConfiguredStartBlockHeight(t *testing.
 	state, err := f.keeper.GetBridgeState(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, targetMinaHeight, state.LatestFetchedMinaHeight)
+}
+func TestPushNewActionsRejectsInvalidOrNonAdvancingTargetsWithoutMutatingState(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		latestFetchedMinaHeight int64
+		targetMinaHeight        int64
+		wantErr                 error
+	}{
+		{
+			name:                    "target below cursor",
+			latestFetchedMinaHeight: 10,
+			targetMinaHeight:        9,
+			wantErr:                 bridgetypes.ErrMinaBlockHeightMustAdvance,
+		},
+		{
+			name:                    "target equal to cursor",
+			latestFetchedMinaHeight: 10,
+			targetMinaHeight:        10,
+			wantErr:                 bridgetypes.ErrMinaBlockHeightMustAdvance,
+		},
+		{
+			name:                    "target zero",
+			latestFetchedMinaHeight: 10,
+			targetMinaHeight:        0,
+			wantErr:                 bridgetypes.ErrInvalidMinaBlockHeight,
+		},
+		{
+			name:                    "target negative",
+			latestFetchedMinaHeight: 10,
+			targetMinaHeight:        -1,
+			wantErr:                 bridgetypes.ErrInvalidMinaBlockHeight,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &stubArchiveWrapperQueryClient{
+				minaBlockHeight: 200,
+			}
+
+			f := initFixtureWithArchiveWrapperClient(t, client)
+			seedPushNewActionsState(t, f, tc.latestFetchedMinaHeight)
+
+			beforeState, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+
+			beforeRoot := latestActionsReducedRoot(t, f)
+
+			ms := bridgekeeper.NewMsgServerImpl(f.keeper)
+
+			resp, err := ms.PushNewActions(f.ctx, &bridgetypes.MsgPushNewActions{
+				Creator:         authorityString(t, f.addressCodec),
+				MinaBlockHeight: tc.targetMinaHeight,
+			})
+
+			require.ErrorIs(t, err, tc.wantErr)
+			require.Nil(t, resp)
+
+			require.Equal(t, 0, client.getMinaBlockHeightCalls)
+			require.Equal(t, 0, client.getActionsCalls)
+
+			afterState, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+			require.Equal(t, beforeState, afterState)
+
+			afterRoot := latestActionsReducedRoot(t, f)
+			require.Equal(t, beforeRoot, afterRoot)
+		})
+	}
+}
+
+func TestPushNewActionsRejectsReplayOfAlreadyProcessedTarget(t *testing.T) {
+	client := &stubArchiveWrapperQueryClient{
+		minaBlockHeight: 10,
+	}
+
+	f := initFixtureWithArchiveWrapperClient(t, client)
+	seedPushNewActionsState(t, f, 9)
+
+	ms := bridgekeeper.NewMsgServerImpl(f.keeper)
+
+	firstResp, err := ms.PushNewActions(f.ctx, &bridgetypes.MsgPushNewActions{
+		Creator:         authorityString(t, f.addressCodec),
+		MinaBlockHeight: 10,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, firstResp)
+
+	stateAfterFirst, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+	rootAfterFirst := latestActionsReducedRoot(t, f)
+
+	secondResp, err := ms.PushNewActions(f.ctx, &bridgetypes.MsgPushNewActions{
+		Creator:         authorityString(t, f.addressCodec),
+		MinaBlockHeight: 10,
+	})
+	require.ErrorIs(t, err, bridgetypes.ErrMinaBlockHeightMustAdvance)
+	require.Nil(t, secondResp)
+
+	stateAfterSecond, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, stateAfterFirst, stateAfterSecond)
+
+	rootAfterSecond := latestActionsReducedRoot(t, f)
+	require.Equal(t, rootAfterFirst, rootAfterSecond)
+
+	require.Equal(t, 1, client.getMinaBlockHeightCalls)
+	require.Equal(t, 1, client.getActionsCalls)
 }
