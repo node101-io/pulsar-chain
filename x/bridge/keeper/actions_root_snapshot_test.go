@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetActionsReducedRootAtHeightReturnsLatestSnapshotAtOrBeforeHeight(t *testing.T) {
-	f := initFixture(t)
+	f := initFixture(t, nil, nil)
 
 	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(f.ctx, 0, []byte("root-0")))
 	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(f.ctx, 5, []byte("root-5")))
@@ -24,7 +24,7 @@ func TestGetActionsReducedRootAtHeightReturnsLatestSnapshotAtOrBeforeHeight(t *t
 }
 
 func TestGetLatestActionsReducedRootReturnsHighestSnapshot(t *testing.T) {
-	f := initFixture(t)
+	f := initFixture(t, nil, nil)
 
 	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(f.ctx, 0, []byte("root-0")))
 	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(f.ctx, 5, []byte("root-5")))
@@ -35,7 +35,7 @@ func TestGetLatestActionsReducedRootReturnsHighestSnapshot(t *testing.T) {
 }
 
 func TestGetActionsReducedRootAtHeightRejectsNegativeHeight(t *testing.T) {
-	f := initFixture(t)
+	f := initFixture(t, nil, nil)
 
 	_, err := f.keeper.GetActionsReducedRootAtHeight(f.ctx, -1)
 	require.ErrorIs(t, err, types.ErrInvalidBridgeStateHeight)

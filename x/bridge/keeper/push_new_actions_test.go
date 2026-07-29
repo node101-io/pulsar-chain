@@ -242,8 +242,11 @@ func TestPushNewActionsRejectsInvalidOrNonAdvancingTargetsWithoutMutatingState(t
 				minaBlockHeight: 200,
 			}
 
-			f := initFixtureWithArchiveWrapperClient(t, client)
+			bankKeeper := NewMockBankKeeper()
+			f := initFixture(t, bankKeeper, client)
 			seedPushNewActionsState(t, f, tc.latestFetchedMinaHeight)
+
+			beforeBalance := append(sdk.Coins(nil), bankKeeper.spendable...)
 
 			beforeState, err := f.keeper.GetBridgeState(f.ctx)
 			require.NoError(t, err)
@@ -269,6 +272,16 @@ func TestPushNewActionsRejectsInvalidOrNonAdvancingTargetsWithoutMutatingState(t
 
 			afterRoot := latestActionsReducedRoot(t, f)
 			require.Equal(t, beforeRoot, afterRoot)
+
+			require.Equal(t, beforeBalance, bankKeeper.spendable)
+			require.Zero(t, bankKeeper.spendableCalls)
+			require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
+			require.Zero(t, bankKeeper.sendCoinsToModuleCalls)
+			require.Zero(t, bankKeeper.mintCoinsCalls)
+			require.Zero(t, bankKeeper.burnCoinsCalls)
+
+			require.Zero(t, client.getMinaBlockHeightCalls)
+			require.Zero(t, client.getActionsCalls)
 		})
 	}
 }

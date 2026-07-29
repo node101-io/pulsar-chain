@@ -10,7 +10,7 @@ import (
 )
 
 func TestMsgUpdateParams(t *testing.T) {
-	f := initFixture(t)
+	f := initFixture(t, nil, nil)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	params := validBridgeParams()

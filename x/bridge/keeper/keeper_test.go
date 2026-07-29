@@ -34,7 +34,11 @@ type fixture struct {
 	addressCodec address.Codec
 }
 
-func initFixture(t *testing.T) *fixture {
+func initFixture(
+	t *testing.T,
+	bankKeeper types.BankKeeper,
+	client keeper.ArchiveWrapperQueryClient,
+) *fixture {
 	t.Helper()
 
 	encCfg := moduletestutil.MakeTestEncodingConfig(module.AppModule{})
@@ -51,9 +55,9 @@ func initFixture(t *testing.T) *fixture {
 		encCfg.Codec,
 		addressCodec,
 		authority,
+		bankKeeper,
 		nil,
-		nil,
-		&keeper.ArchiveWrapperClient{},
+		client,
 	)
 
 	if err := k.Params.Set(ctx, validBridgeParams()); err != nil {
