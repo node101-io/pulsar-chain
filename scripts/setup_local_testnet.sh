@@ -49,12 +49,8 @@ read_wrapper_grpc_address() {
   python3 "$PYTHON_HELPER" read-wrapper-grpc-address --config "$1"
 }
 
-read_contract_address() {
-  python3 "$PYTHON_HELPER" read-contract-address --config "$1"
-}
-
-read_confirmation_depth() {
-  python3 "$PYTHON_HELPER" read-confirmation-depth --config "$1"
+read_bridge_genesis_param() {
+  python3 "$PYTHON_HELPER" read-bridge-genesis-param --config "$1" --key "$2"
 }
 
 generate_default_mina_priv_key() {
@@ -93,32 +89,26 @@ resolve_default_mina_network_id() {
   printf '%s\n' "devnet"
 }
 
-resolve_default_contract_address() {
-  if [[ -n "${CONTRACT_ADDRESS:-}" ]]; then
-    printf '%s\n' "$CONTRACT_ADDRESS"
+resolve_default_bridge_param() {
+  local env_var_name="$1"
+  local config_key="$2"
+  local fallback="$3"
+
+  if [[ -n "${!env_var_name:-}" ]]; then
+    printf '%s\n' "${!env_var_name}"
     return
   fi
 
   if [[ -f "$CHAIN_CONFIG_PATH" ]]; then
-    read_contract_address "$CHAIN_CONFIG_PATH"
-    return
+    local config_value
+    config_value="$(read_bridge_genesis_param "$CHAIN_CONFIG_PATH" "$config_key")"
+    if [[ -n "$config_value" ]]; then
+      printf '%s\n' "$config_value"
+      return
+    fi
   fi
 
-  printf '%s\n' ""
-}
-
-resolve_default_confirmation_depth() {
-  if [[ -n "${CONFIRMATION_DEPTH:-}" ]]; then
-    printf '%s\n' "$CONFIRMATION_DEPTH"
-    return
-  fi
-
-  if [[ -f "$CHAIN_CONFIG_PATH" ]]; then
-    read_confirmation_depth "$CHAIN_CONFIG_PATH"
-    return
-  fi
-
-  printf '%s\n' "1"
+  printf '%s\n' "$fallback"
 }
 
 validate_mina_network_id() {
@@ -131,22 +121,22 @@ validate_mina_network_id() {
   fi
 }
 
-validate_confirmation_depth() {
-  local index="$1"
-  local confirmation_depth="$2"
+validate_positive_int() {
+  local value_name="$1"
+  local value="$2"
 
-  if ! [[ "$confirmation_depth" =~ ^[0-9]+$ ]] || (( confirmation_depth < 1 )); then
-    echo "node${index} confirmation depth must be a positive integer, got: $confirmation_depth" >&2
+  if ! [[ "$value" =~ ^[0-9]+$ ]] || (( value < 1 )); then
+    echo "$value_name must be a positive integer, got: $value" >&2
     exit 1
   fi
 }
 
-validate_contract_address() {
-  local index="$1"
+validate_non_empty() {
+  local value_name="$1"
   local contract_address="$2"
 
   if [[ -z "$contract_address" ]]; then
-    echo "node${index} contract address must not be empty" >&2
+    echo "$value_name must not be empty" >&2
     exit 1
   fi
 }
@@ -169,9 +159,7 @@ configure_node() {
   local persistent_peers="$6"
   local mina_priv_key="$7"
   local mina_network_id="$8"
-  local confirmation_depth="$9"
-  local contract_address="${10}"
-  local wrapper_grpc_address="${11}"
+  local wrapper_grpc_address="$9"
 
   sed -i.bak "s|laddr = \"tcp://127.0.0.1:26657\"|laddr = \"tcp://0.0.0.0:${rpc_port}\"|" "$home/config/config.toml"
   sed -i.bak "s|laddr = \"tcp://0.0.0.0:26656\"|laddr = \"tcp://0.0.0.0:${p2p_port}\"|" "$home/config/config.toml"
@@ -187,8 +175,6 @@ configure_node() {
     --min-gas-price "$MIN_GAS_PRICE" \
     --mina-priv-key "$mina_priv_key" \
     --mina-network-id "$mina_network_id" \
-    --confirmation-depth "$confirmation_depth" \
-    --contract-address "$contract_address" \
     --wrapper-grpc-address "$wrapper_grpc_address"
 }
 
@@ -219,10 +205,8 @@ fi
 
 declare -a NODE_HOMES NODE_MONIKERS NODE_KEY_NAMES NODE_MINA_PRIV_KEYS NODE_MINA_PUB_KEYS
 declare -a NODE_MINA_NETWORK_IDS
-declare -a NODE_CONFIRMATION_DEPTHS
 declare -a NODE_P2P_PORTS NODE_RPC_PORTS NODE_GRPC_PORTS NODE_API_PORTS
 declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS
-declare -a NODE_CONTRACT_ADDRESSES
 declare -a NODE_WRAPPER_GRPC_ADDRESSES
 
 DEFAULT_WRAPPER_GRPC_ADDRESS="${WRAPPER_GRPC_ADDRESS:-}"
@@ -234,8 +218,15 @@ if [[ -z "$DEFAULT_WRAPPER_GRPC_ADDRESS" ]]; then
 fi
 
 DEFAULT_MINA_NETWORK_ID="$(resolve_default_mina_network_id)"
-DEFAULT_CONFIRMATION_DEPTH="$(resolve_default_confirmation_depth)"
-DEFAULT_CONTRACT_ADDRESS="$(resolve_default_contract_address)"
+BRIDGE_CONFIRMATION_DEPTH="$(resolve_default_bridge_param "CONFIRMATION_DEPTH" "confirmation_depth" "32")"
+BRIDGE_CONTRACT_ADDRESS="$(resolve_default_bridge_param "CONTRACT_ADDRESS" "contract_address" "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf")"
+BRIDGE_START_BLOCK_HEIGHT="$(resolve_default_bridge_param "START_BLOCK_HEIGHT" "start_block_height" "1")"
+BRIDGE_MAX_BLOCK_RANGE="$(resolve_default_bridge_param "MAX_BLOCK_RANGE" "max_block_range" "1000")"
+
+validate_positive_int "confirmation depth" "$BRIDGE_CONFIRMATION_DEPTH"
+validate_non_empty "contract address" "$BRIDGE_CONTRACT_ADDRESS"
+validate_positive_int "start block height" "$BRIDGE_START_BLOCK_HEIGHT"
+validate_positive_int "max block range" "$BRIDGE_MAX_BLOCK_RANGE"
 
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_HOMES[i]="$(get_node_setting "$i" "HOME" "$HOME/.pulsar-node${i}")"
@@ -245,14 +236,6 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   validate_mina_priv_key "$i" "${NODE_MINA_PRIV_KEYS[i]}"
   NODE_MINA_NETWORK_IDS[i]="$(get_node_setting "$i" "MINA_NETWORK_ID" "$DEFAULT_MINA_NETWORK_ID")"
   validate_mina_network_id "$i" "${NODE_MINA_NETWORK_IDS[i]}"
-  NODE_CONFIRMATION_DEPTHS[i]="$(get_node_setting "$i" "CONFIRMATION_DEPTH" "$DEFAULT_CONFIRMATION_DEPTH")"
-  validate_confirmation_depth "$i" "${NODE_CONFIRMATION_DEPTHS[i]}"
-  NODE_CONTRACT_ADDRESSES[i]="$(get_node_setting "$i" "CONTRACT_ADDRESS" "$DEFAULT_CONTRACT_ADDRESS")"
-  if [[ -z "${NODE_CONTRACT_ADDRESSES[i]}" ]]; then
-    echo "missing contract address for node${i}; set CONTRACT_ADDRESS, NODE${i}_CONTRACT_ADDRESS, or validators[].app.bridge.contract_address in $CHAIN_CONFIG_PATH" >&2
-    exit 1
-  fi
-  validate_contract_address "$i" "${NODE_CONTRACT_ADDRESSES[i]}"
   NODE_P2P_PORTS[i]="$(get_node_setting "$i" "P2P_PORT" "$((26656 + ((i - 1) * 10)))")"
   NODE_RPC_PORTS[i]="$(get_node_setting "$i" "RPC_PORT" "$((26657 + ((i - 1) * 10)))")"
   NODE_GRPC_PORTS[i]="$(get_node_setting "$i" "GRPC_PORT" "$((9090 + i - 1))")"
@@ -293,6 +276,14 @@ echo "==> Setting vote extension enable height..."
 python3 "$PYTHON_HELPER" set-vote-extension-height \
   --genesis "$PRIMARY_GENESIS_FILE" \
   --height "$VOTE_EXT_ENABLE_HEIGHT"
+
+echo "==> Setting bridge genesis params..."
+python3 "$PYTHON_HELPER" patch-bridge-genesis \
+  --genesis "$PRIMARY_GENESIS_FILE" \
+  --confirmation-depth "$BRIDGE_CONFIRMATION_DEPTH" \
+  --contract-address "$BRIDGE_CONTRACT_ADDRESS" \
+  --start-block-height "$BRIDGE_START_BLOCK_HEIGHT" \
+  --max-block-range "$BRIDGE_MAX_BLOCK_RANGE"
 
 echo "==> Creating validator keys..."
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
@@ -359,8 +350,6 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
     "$(build_persistent_peers "$i")" \
     "${NODE_MINA_PRIV_KEYS[i]}" \
     "${NODE_MINA_NETWORK_IDS[i]}" \
-    "${NODE_CONFIRMATION_DEPTHS[i]}" \
-    "${NODE_CONTRACT_ADDRESSES[i]}" \
     "${NODE_WRAPPER_GRPC_ADDRESSES[i]}"
 done
 

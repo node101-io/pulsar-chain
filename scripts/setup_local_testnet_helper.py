@@ -87,27 +87,105 @@ def read_wrapper_grpc_address(config_path: str) -> int:
     return 0
 
 
-def read_contract_address(config_path: str) -> int:
-    contract_address = read_nested_config_value(
-        config_path, "bridge", "contract_address"
+def read_scalar_in_block(
+    lines: list[str],
+    start_index: int,
+    end_index: int,
+    parent_indent: int,
+    key_name: str,
+) -> Optional[str]:
+    key_pattern = re.compile(
+        rf'^\s*{re.escape(key_name)}:\s*(?:"([^"]*)"|\'([^\']*)\'|([^#\n]+?))\s*$'
     )
-    if contract_address is None:
+
+    for index in range(start_index, end_index):
+        line = lines[index]
+        if not line.strip():
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= parent_indent:
+            break
+
+        key_match = key_pattern.match(line)
+        if not key_match:
+            continue
+
+        for group in key_match.groups():
+            if group is not None:
+                return group.strip()
+        return ""
+
+    return None
+
+
+def find_named_block(
+    lines: list[str],
+    start_index: int,
+    end_index: int,
+    parent_indent: int,
+    block_name: str,
+) -> Optional[tuple[int, int, int]]:
+    block_pattern = re.compile(rf"^(\s*){re.escape(block_name)}:\s*$")
+
+    for index in range(start_index, end_index):
+        line = lines[index]
+        if not line.strip():
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= parent_indent:
+            break
+
+        block_match = block_pattern.match(line)
+        if not block_match:
+            continue
+
+        block_indent = len(block_match.group(1))
+        block_end = end_index
+        for nested_index in range(index + 1, end_index):
+            nested_line = lines[nested_index]
+            if not nested_line.strip():
+                continue
+
+            nested_indent = len(nested_line) - len(nested_line.lstrip(" "))
+            if nested_indent <= block_indent:
+                block_end = nested_index
+                break
+
+        return index + 1, block_end, block_indent
+
+    return None
+
+
+def read_config_path_value(config_path: str, path: list[str]) -> Optional[str]:
+    lines = read_text(config_path).splitlines()
+    start_index = 0
+    end_index = len(lines)
+    parent_indent = -1
+
+    for block_name in path[:-1]:
+        block = find_named_block(
+            lines, start_index, end_index, parent_indent, block_name
+        )
+        if block is None:
+            return None
+
+        start_index, end_index, parent_indent = block
+
+    return read_scalar_in_block(lines, start_index, end_index, parent_indent, path[-1])
+
+
+def read_bridge_genesis_param(config_path: str, key_name: str) -> int:
+    value = read_config_path_value(
+        config_path,
+        ["genesis", "app_state", "bridge", "params", key_name],
+    )
+    if value is None:
         print("")
         return 0
 
-    print(contract_address)
-    return 0
-
-
-def read_confirmation_depth(config_path: str) -> int:
-    confirmation_depth = read_nested_config_value(
-        config_path, "bridge", "confirmation_depth"
-    )
-    if confirmation_depth is None:
-        print("")
-        return 0
-
-    print(confirmation_depth)
+    print(value)
     return 0
 
 
@@ -218,6 +296,59 @@ def patch_keyregistry(
     return 0
 
 
+def patch_bridge_genesis(
+    genesis_path: str,
+    confirmation_depth: str,
+    contract_address: str,
+    start_block_height: str,
+    max_block_range: str,
+) -> int:
+    try:
+        confirmation_depth_int = int(confirmation_depth)
+    except ValueError as exc:
+        raise SystemExit(f"invalid confirmation depth: {confirmation_depth}") from exc
+
+    if confirmation_depth_int <= 0:
+        raise SystemExit("confirmation depth must be greater than 0")
+
+    contract_address = contract_address.strip()
+    if not contract_address:
+        raise SystemExit("contract address must not be empty")
+
+    try:
+        start_block_height_int = int(start_block_height)
+    except ValueError as exc:
+        raise SystemExit(f"invalid start block height: {start_block_height}") from exc
+
+    if start_block_height_int <= 0:
+        raise SystemExit("start block height must be greater than 0")
+
+    try:
+        max_block_range_int = int(max_block_range)
+    except ValueError as exc:
+        raise SystemExit(f"invalid max block range: {max_block_range}") from exc
+
+    if max_block_range_int <= 0:
+        raise SystemExit("max block range must be greater than 0")
+
+    genesis = read_json(genesis_path)
+    app_state = genesis.setdefault("app_state", {})
+    bridge = app_state.setdefault("bridge", {})
+    bridge["params"] = {
+        "confirmation_depth": str(confirmation_depth_int),
+        "contract_address": contract_address,
+        "start_block_height": str(start_block_height_int),
+        "max_block_range": str(max_block_range_int),
+    }
+
+    bridge["bridge_state"] = {
+        "latest_fetched_mina_height": str(start_block_height_int - 1),
+    }
+
+    write_json(genesis_path, genesis)
+    return 0
+
+
 def upsert_toml_key(
     app_toml: str,
     table_name: str,
@@ -271,8 +402,6 @@ def update_app_config(
     min_gas_price: str,
     mina_priv_key: str,
     mina_network_id: str,
-    confirmation_depth: str,
-    contract_address: str,
     wrapper_grpc_address: str,
 ) -> int:
     app_toml = read_text(app_path)
@@ -285,22 +414,6 @@ def update_app_config(
     app_toml = upsert_toml_key(app_toml, "vote_extension", "priv_key", mina_priv_key)
 
     app_toml = upsert_toml_key(app_toml, "mina", "network_id", mina_network_id)
-
-    confirmation_depth = confirmation_depth.strip()
-    if confirmation_depth:
-        app_toml = upsert_toml_key(
-            app_toml,
-            "bridge",
-            "confirmation_depth",
-            confirmation_depth,
-            quote_value=False,
-        )
-
-    contract_address = contract_address.strip()
-    if contract_address:
-        app_toml = upsert_toml_key(
-            app_toml, "bridge", "contract_address", contract_address
-        )
 
     wrapper_grpc_address = wrapper_grpc_address.strip()
     if wrapper_grpc_address:
@@ -325,11 +438,9 @@ def build_parser() -> argparse.ArgumentParser:
     read_wrapper_addr = subparsers.add_parser("read-wrapper-grpc-address")
     read_wrapper_addr.add_argument("--config", required=True)
 
-    read_contract_addr = subparsers.add_parser("read-contract-address")
-    read_contract_addr.add_argument("--config", required=True)
-
-    read_confirmation_depth_cmd = subparsers.add_parser("read-confirmation-depth")
-    read_confirmation_depth_cmd.add_argument("--config", required=True)
+    read_bridge_param_cmd = subparsers.add_parser("read-bridge-genesis-param")
+    read_bridge_param_cmd.add_argument("--config", required=True)
+    read_bridge_param_cmd.add_argument("--key", required=True)
 
     read_consensus_key = subparsers.add_parser("read-consensus-pub-key")
     read_consensus_key.add_argument("--priv-validator-key", required=True)
@@ -350,13 +461,18 @@ def build_parser() -> argparse.ArgumentParser:
     patch_registry.add_argument("--cosmos-key", action="append")
     patch_registry.add_argument("--mina-pub-key", action="append", required=True)
 
+    patch_bridge = subparsers.add_parser("patch-bridge-genesis")
+    patch_bridge.add_argument("--genesis", required=True)
+    patch_bridge.add_argument("--confirmation-depth", required=True)
+    patch_bridge.add_argument("--contract-address", required=True)
+    patch_bridge.add_argument("--start-block-height", required=True)
+    patch_bridge.add_argument("--max-block-range", required=True)
+
     update_app = subparsers.add_parser("update-app-config")
     update_app.add_argument("--app", required=True)
     update_app.add_argument("--min-gas-price", required=True)
     update_app.add_argument("--mina-priv-key", required=True)
     update_app.add_argument("--mina-network-id", required=True)
-    update_app.add_argument("--confirmation-depth", default="")
-    update_app.add_argument("--contract-address", default="")
     update_app.add_argument("--wrapper-grpc-address", default="")
 
     return parser
@@ -370,10 +486,8 @@ def main() -> int:
         return read_mina_priv_key(args.config)
     if args.command == "read-wrapper-grpc-address":
         return read_wrapper_grpc_address(args.config)
-    if args.command == "read-contract-address":
-        return read_contract_address(args.config)
-    if args.command == "read-confirmation-depth":
-        return read_confirmation_depth(args.config)
+    if args.command == "read-bridge-genesis-param":
+        return read_bridge_genesis_param(args.config, args.key)
     if args.command == "read-mina-network-id":
         return read_mina_network_id(args.config)
     if args.command == "read-consensus-pub-key":
@@ -386,14 +500,20 @@ def main() -> int:
         return validate_mina_priv_key(args.index, args.mina_priv_key)
     if args.command == "patch-keyregistry":
         return patch_keyregistry(args.genesis, args.mina_pub_key, args.cosmos_key)
+    if args.command == "patch-bridge-genesis":
+        return patch_bridge_genesis(
+            args.genesis,
+            args.confirmation_depth,
+            args.contract_address,
+            args.start_block_height,
+            args.max_block_range,
+        )
     if args.command == "update-app-config":
         return update_app_config(
             args.app,
             args.min_gas_price,
             args.mina_priv_key,
             args.mina_network_id,
-            args.confirmation_depth,
-            args.contract_address,
             args.wrapper_grpc_address,
         )
 
