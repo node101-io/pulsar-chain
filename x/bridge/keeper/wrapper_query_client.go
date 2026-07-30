@@ -13,10 +13,14 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	grpcHealthV1 "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 )
 
-const defaultWrapperQueryTimeout = 5 * time.Second
+const (
+	defaultWrapperQueryTimeout  = 5 * time.Second
+	wrapperQueryGRPCServiceName = "query.Query"
+)
 
 type ArchiveWrapperQueryClient interface {
 	GetMinaBlockHeight(ctx context.Context) (int64, error)
@@ -26,6 +30,7 @@ type ArchiveWrapperQueryClient interface {
 type ArchiveWrapperClient struct {
 	conn         *grpc.ClientConn
 	query        wrapperquery.QueryClient
+	health       grpcHealthV1.HealthClient
 	queryTimeout time.Duration
 }
 
@@ -96,6 +101,7 @@ func NewArchiveWrapperQueryClient(wrapperGRPCAddress string) (*ArchiveWrapperCli
 	return &ArchiveWrapperClient{
 		conn:         conn,
 		query:        wrapperquery.NewQueryClient(conn),
+		health:       grpcHealthV1.NewHealthClient(conn),
 		queryTimeout: defaultWrapperQueryTimeout,
 	}, nil
 }
@@ -107,18 +113,28 @@ func (c *ArchiveWrapperClient) Close() error {
 	return c.conn.Close()
 }
 
-// TODO: implement a Health endpoint to archive-wrapper to replace this mock one.
 func (c *ArchiveWrapperClient) CheckReady(ctx context.Context) error {
-	if c == nil || c.conn == nil || c.query == nil {
+	if c == nil || c.conn == nil || c.query == nil || c.health == nil {
 		return types.ErrArchiveWrapperQueryClientNotConfigured
 	}
 
-	_, err := c.query.GetMinaBlockHeight(
+	resp, err := c.health.Check(
 		ctx,
-		&wrapperquery.QueryGetMinaBlockHeightRequest{},
+		&grpcHealthV1.HealthCheckRequest{
+			Service: wrapperQueryGRPCServiceName,
+		},
 	)
 	if err != nil {
 		return mapArchiveWrapperQueryError(err)
+	}
+
+	if resp.GetStatus() != grpcHealthV1.HealthCheckResponse_SERVING {
+		return errorsmod.Wrapf(
+			types.ErrArchiveWrapperNotReady,
+			"service %q reported health status %s",
+			wrapperQueryGRPCServiceName,
+			resp.GetStatus().String(),
+		)
 	}
 
 	return nil

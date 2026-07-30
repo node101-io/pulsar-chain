@@ -25,8 +25,6 @@ validators:
       vote_extension:
         priv_key: "OhOfQtGMXqcrbfCRPEe4DjLUNHaOcD3RrWuRPBGO82M="
       bridge:
-        confirmation_depth: 1
-        contract_address: "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf"
         wrapper_grpc_address: "127.0.0.1:9095"
       mina:
         network_id: "testnet"
@@ -53,9 +51,9 @@ genesis:
         #  cosmos_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     bridge:
       params:
-        confirmation_depth: "1"
+        confirmation_depth: "32"
         contract_address: "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf"
-        start_block_height: "1"
+        start_block_height: "541000"
         max_block_range: "1000"
   consensus:
     params:

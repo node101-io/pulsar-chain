@@ -52,4 +52,5 @@ var (
 	ErrInvalidActionType        = errors.Register(ModuleName, 1132, "invalid action type")
 	ErrInvalidActionFeePayer    = errors.Register(ModuleName, 1133, "invalid action fee_payer")
 	ErrActionToFieldFailed      = errors.Register(ModuleName, 1134, "failed to convert action to field")
+	ErrArchiveWrapperNotReady   = errors.Register(ModuleName, 1135, "archive wrapper is not ready")
 )
