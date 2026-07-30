@@ -41,6 +41,10 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, types.ErrMinaBlockRangeTooLarge
 	}
 
+	if k.archiveWrapperClient == nil {
+		return nil, types.ErrArchiveWrapperQueryClientNotConfigured
+	}
+
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	currentMinaBlockHeight, err := k.archiveWrapperClient.GetMinaBlockHeight(ctx)
