@@ -137,7 +137,6 @@ var (
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
-						bridgemoduletypes.ModuleName,
 					},
 					EndBlockers: []string{
 						govtypes.ModuleName,
@@ -148,7 +147,6 @@ var (
 						pulsarmoduletypes.ModuleName,
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
-						bridgemoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/endBlockers
 					},
 					// The following is mostly only needed when ModuleName != StoreKey name.

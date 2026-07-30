@@ -44,7 +44,7 @@ func (gs GenesisState) Validate() error {
 // DefaultBridgeState returns the default bridge state derived from the default
 // genesis parameters.
 func DefaultBridgeState() BridgeState {
-	return NewInitialBridgeState(DefaultParams().StartBlockHeight)
+	return NewInitialBridgeState(defaultStartBlockHeight)
 }
 
 // NewInitialBridgeState initializes the bridge cursor so the first query starts
