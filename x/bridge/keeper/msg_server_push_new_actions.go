@@ -64,7 +64,7 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, err
 	}
 
-	list, err := merkle.NewMerkleListFromRoot(types.MerkleListPrefix, currentRoot)
+	list, err := merkle.NewMerkleListFromRoot(types.ActionsReducedRootMerkleListPrefixV1, currentRoot)
 	if err != nil {
 		return nil, err
 	}

@@ -54,7 +54,7 @@ func NewInitialBridgeState(startBlockHeight int64) BridgeState {
 }
 
 func DefaultActionsReducedRoot() []byte {
-	return minasignergo.NewMerkleList(MerkleListPrefix).Root()
+	return minasignergo.NewMerkleList(ActionsReducedRootMerkleListPrefixV1).Root()
 }
 
 func DefaultActionsReducedRootSnapshots() []ActionsReducedRootSnapshot {

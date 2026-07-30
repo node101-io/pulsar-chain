@@ -111,7 +111,7 @@ func newUserMapping(t *testing.T) ([]byte, []byte, sdk.AccAddress) {
 func expectedActionsReducedRoot(t *testing.T, actions ...bridgetypes.Action) []byte {
 	t.Helper()
 
-	list := merkle.NewMerkleList(bridgetypes.MerkleListPrefix)
+	list := merkle.NewMerkleList(bridgetypes.ActionsReducedRootMerkleListPrefixV1)
 
 	for _, act := range actions {
 		fieldElement, err := act.ToFieldElement()
