@@ -138,7 +138,6 @@ var (
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
 						bridgemoduletypes.ModuleName,
-						// this line is used by starport scaffolding # stargate/app/beginBlockers
 					},
 					EndBlockers: []string{
 						govtypes.ModuleName,

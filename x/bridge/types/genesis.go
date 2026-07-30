@@ -10,11 +10,9 @@ import (
 
 // DefaultGenesis returns the default genesis state
 func DefaultGenesis() *GenesisState {
-	params := DefaultParams()
-
 	return &GenesisState{
-		Params:                      params,
-		BridgeState:                 NewInitialBridgeState(params.StartBlockHeight),
+		Params:                      DefaultParams(),
+		BridgeState:                 DefaultBridgeState(),
 		ActionsReducedRootSnapshots: DefaultActionsReducedRootSnapshots(),
 	}
 }
@@ -43,20 +41,28 @@ func (gs GenesisState) Validate() error {
 	return validateActionsReducedRootSnapshots(gs.ActionsReducedRootSnapshots)
 }
 
+// DefaultBridgeState returns the default bridge state derived from the default
+// genesis parameters.
 func DefaultBridgeState() BridgeState {
 	return NewInitialBridgeState(DefaultParams().StartBlockHeight)
 }
 
+// NewInitialBridgeState initializes the bridge cursor so the first query starts
+// exactly at startBlockHeight.
 func NewInitialBridgeState(startBlockHeight int64) BridgeState {
 	return BridgeState{
 		LatestFetchedMinaHeight: startBlockHeight - 1,
 	}
 }
 
+// DefaultActionsReducedRoot returns the protocol-defined empty root for the
+// versioned actions-reduced-root Merkle list.
 func DefaultActionsReducedRoot() []byte {
 	return minasignergo.NewMerkleList(ActionsReducedRootMerkleListPrefixV1).Root()
 }
 
+// DefaultActionsReducedRootSnapshots returns the required initial snapshot set:
+// cosmos block height 0 with the empty actions reduced root.
 func DefaultActionsReducedRootSnapshots() []ActionsReducedRootSnapshot {
 	return []ActionsReducedRootSnapshot{
 		{

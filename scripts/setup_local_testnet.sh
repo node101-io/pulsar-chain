@@ -214,7 +214,7 @@ if [[ -z "$DEFAULT_WRAPPER_GRPC_ADDRESS" && -f "$CHAIN_CONFIG_PATH" ]]; then
   DEFAULT_WRAPPER_GRPC_ADDRESS="$(read_wrapper_grpc_address "$CHAIN_CONFIG_PATH")"
 fi
 if [[ -z "$DEFAULT_WRAPPER_GRPC_ADDRESS" ]]; then
-  DEFAULT_WRAPPER_GRPC_ADDRESS="localhost:9090"
+  DEFAULT_WRAPPER_GRPC_ADDRESS="127.0.0.1:9095"
 fi
 
 DEFAULT_MINA_NETWORK_ID="$(resolve_default_mina_network_id)"

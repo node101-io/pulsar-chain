@@ -29,6 +29,11 @@ func NewParams(
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
+	return Params{}
+}
+
+// DefaultTestParams returns valid bridge params for tests and simulation.
+func DefaultTestParams() Params {
 	return Params{
 		ConfirmationDepth: 32,
 		ContractAddress:   "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf",

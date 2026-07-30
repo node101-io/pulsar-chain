@@ -9,11 +9,16 @@ import (
 )
 
 func TestGenesis(t *testing.T) {
+
+	params := types.DefaultTestParams()
+
 	genesisState := types.GenesisState{
-		Params:                      types.DefaultParams(),
-		BridgeState:                 types.DefaultBridgeState(),
+		Params:                      params,
+		BridgeState:                 types.NewInitialBridgeState(params.StartBlockHeight),
 		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
 	}
+
+	require.NoError(t, genesisState.Validate())
 
 	f := initFixture(t, nil, nil, nil)
 	err := f.keeper.InitGenesis(f.ctx, genesisState)

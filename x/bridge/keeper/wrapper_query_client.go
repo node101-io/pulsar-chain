@@ -194,6 +194,8 @@ func (c *ArchiveWrapperClient) GetActionsInRange(
 	actions := make([]types.Action, 0, len(resp.Actions))
 	for _, act := range resp.Actions {
 		if act == nil {
+			// Nil actions are intentionally skipped so one malformed entry does not
+			// cause the whole batch to be dropped.
 			continue
 		}
 

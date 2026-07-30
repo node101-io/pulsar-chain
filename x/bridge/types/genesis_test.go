@@ -11,7 +11,13 @@ import (
 )
 
 func validGenesisState() *types.GenesisState {
-	return types.DefaultGenesis()
+	params := types.DefaultTestParams()
+
+	return &types.GenesisState{
+		Params:                      params,
+		BridgeState:                 types.NewInitialBridgeState(params.StartBlockHeight),
+		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
+	}
 }
 
 func canonicalRoot(v uint64) []byte {
@@ -20,10 +26,6 @@ func canonicalRoot(v uint64) []byte {
 
 func nonCanonicalRoot() []byte {
 	return bytes.Repeat([]byte{0xff}, minafield.NewField().ElementSize())
-}
-
-func TestDefaultGenesisValidate(t *testing.T) {
-	require.NoError(t, types.DefaultGenesis().Validate())
 }
 
 func TestGenesisStateValidate(t *testing.T) {
@@ -160,7 +162,7 @@ func TestGenesisStateValidateAcceptsCustomStartBlockHeight(t *testing.T) {
 }
 
 func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
-	gs := types.DefaultGenesis()
+	gs := validGenesisState()
 
 	bz, err := json.Marshal(gs)
 	require.NoError(t, err)

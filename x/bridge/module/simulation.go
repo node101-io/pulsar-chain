@@ -9,7 +9,7 @@ import (
 
 // GenerateGenesisState creates a randomized GenState of the module.
 func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
-	params := types.DefaultParams()
+	params := types.DefaultTestParams()
 
 	bridgeGenesis := types.GenesisState{
 		Params:                      params,
@@ -23,12 +23,10 @@ func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
 func (am AppModule) RegisterStoreDecoder(_ simtypes.StoreDecoderRegistry) {}
 
 // WeightedOperations returns the all the gov module operations with their respective weights.
-func (am AppModule) WeightedOperations(module.SimulationState) []simtypes.WeightedOperation {
-	operations := make([]simtypes.WeightedOperation, 0)
-	return operations
+func (AppModule) WeightedOperations(module.SimulationState) []simtypes.WeightedOperation {
+	return nil
 }
 
-// ProposalMsgs returns msgs used for governance proposals for simulations.
-func (am AppModule) ProposalMsgs(module.SimulationState) []simtypes.WeightedProposalMsg {
-	return []simtypes.WeightedProposalMsg{}
+func (AppModule) ProposalMsgs(module.SimulationState) []simtypes.WeightedProposalMsg {
+	return nil
 }
