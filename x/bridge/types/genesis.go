@@ -12,7 +12,7 @@ import (
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		Params:                      DefaultParams(),
-		BridgeState:                 DefaultBridgeState(),
+		BridgeState:                 DefaultTestBridgeState(),
 		ActionsReducedRootSnapshots: DefaultActionsReducedRootSnapshots(),
 	}
 }
@@ -44,7 +44,14 @@ func (gs GenesisState) Validate() error {
 // DefaultBridgeState returns the default bridge state derived from the default
 // genesis parameters.
 func DefaultBridgeState() BridgeState {
-	return NewInitialBridgeState(defaultStartBlockHeight)
+	return BridgeState{}
+}
+
+// DefaultTestBridgeState returns the initial bridge state for tests and simulation.
+func DefaultTestBridgeState() BridgeState {
+	return BridgeState{
+		LatestFetchedMinaHeight: defaultStartBlockHeight - 1,
+	}
 }
 
 // NewInitialBridgeState initializes the bridge cursor so the first query starts
