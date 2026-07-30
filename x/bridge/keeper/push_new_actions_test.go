@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"cosmossdk.io/core/address"
@@ -674,7 +675,7 @@ func TestPushNewActionsUserWithdrawalHappyPath(t *testing.T) {
 	require.NotEqual(t, beforeRoot, afterRoot)
 	require.Equal(t, expectedActionsReducedRoot(t, action), afterRoot)
 
-	require.Equal(t, 1, bankKeeper.spendableCalls)
+	require.Equal(t, 2, bankKeeper.spendableCalls)
 	require.Equal(t, cosmosAddr, bankKeeper.lastSpendableAddr)
 
 	require.Equal(t, 1, bankKeeper.sendCoinsToModuleCalls)
@@ -688,6 +689,155 @@ func TestPushNewActionsUserWithdrawalHappyPath(t *testing.T) {
 
 	require.Zero(t, bankKeeper.mintCoinsCalls)
 	require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
+}
+
+func TestPushNewActionsRejectsNilArchiveWrapperClientWithoutMutatingState(t *testing.T) {
+	f := initFixture(t, nil, nil, nil)
+	seedPushNewActionsState(t, f, 10)
+
+	beforeState, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+
+	beforeRoot := latestActionsReducedRoot(t, f)
+
+	ms := bridgekeeper.NewMsgServerImpl(f.keeper)
+	resp, err := ms.PushNewActions(f.ctx, &bridgetypes.MsgPushNewActions{
+		Creator:         authorityString(t, f.addressCodec),
+		MinaBlockHeight: 11,
+	})
+
+	require.ErrorIs(t, err, bridgetypes.ErrArchiveWrapperQueryClientNotConfigured)
+	require.Nil(t, resp)
+
+	afterState, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, beforeState, afterState)
+
+	afterRoot := latestActionsReducedRoot(t, f)
+	require.Equal(t, beforeRoot, afterRoot)
+}
+
+func TestPushNewActionsRollsBackStateOnBankKeeperErrors(t *testing.T) {
+	tests := []struct {
+		name                    string
+		actionType              bridgetypes.ActionType
+		configureBankKeeper     func(*mockBankKeeper)
+		wantSpendableCalls      int
+		wantMintCalls           int
+		wantSendFromModuleCalls int
+		wantSendToModuleCalls   int
+		wantBurnCalls           int
+	}{
+		{
+			name:       "deposit mint failure",
+			actionType: bridgetypes.ActionType_DEPOSIT,
+			configureBankKeeper: func(b *mockBankKeeper) {
+				b.mintErr = errors.New("mint failed")
+			},
+			wantSpendableCalls:      0,
+			wantMintCalls:           1,
+			wantSendFromModuleCalls: 0,
+			wantSendToModuleCalls:   0,
+			wantBurnCalls:           0,
+		},
+		{
+			name:       "deposit send failure",
+			actionType: bridgetypes.ActionType_DEPOSIT,
+			configureBankKeeper: func(b *mockBankKeeper) {
+				b.sendFromModuleErr = errors.New("send from module failed")
+			},
+			wantSpendableCalls:      0,
+			wantMintCalls:           1,
+			wantSendFromModuleCalls: 1,
+			wantSendToModuleCalls:   0,
+			wantBurnCalls:           0,
+		},
+		{
+			name:       "withdraw send failure",
+			actionType: bridgetypes.ActionType_WITHDRAW,
+			configureBankKeeper: func(b *mockBankKeeper) {
+				b.spendable = sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 50))
+				b.sendToModuleErr = errors.New("send to module failed")
+			},
+			wantSpendableCalls:      2,
+			wantMintCalls:           0,
+			wantSendFromModuleCalls: 0,
+			wantSendToModuleCalls:   1,
+			wantBurnCalls:           0,
+		},
+		{
+			name:       "withdraw burn failure",
+			actionType: bridgetypes.ActionType_WITHDRAW,
+			configureBankKeeper: func(b *mockBankKeeper) {
+				b.spendable = sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 50))
+				b.burnErr = errors.New("burn failed")
+			},
+			wantSpendableCalls:      2,
+			wantMintCalls:           0,
+			wantSendFromModuleCalls: 0,
+			wantSendToModuleCalls:   1,
+			wantBurnCalls:           1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			feePayer, cosmosPubKey, _ := newUserMapping(t)
+
+			action := bridgetypes.Action{
+				BlockHeight: 11,
+				FeePayer:    feePayer,
+				ActionType:  tt.actionType,
+				Amount:      7,
+			}
+
+			client := &stubArchiveWrapperQueryClient{
+				minaBlockHeight: 11,
+				actions:         []bridgetypes.Action{action},
+			}
+
+			bankKeeper := NewMockBankKeeper()
+			tt.configureBankKeeper(bankKeeper)
+
+			keyRegistryKeeper := NewMockKeyregistryKeeper()
+			keyRegistryKeeper.register(feePayer, cosmosPubKey)
+
+			f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
+			seedPushNewActionsState(t, f, 10)
+
+			beforeState, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+
+			beforeRoot := latestActionsReducedRoot(t, f)
+			beforeBalance := cloneCoins(bankKeeper.spendable)
+
+			ms := bridgekeeper.NewMsgServerImpl(f.keeper)
+			resp, err := ms.PushNewActions(f.ctx, &bridgetypes.MsgPushNewActions{
+				Creator:         authorityString(t, f.addressCodec),
+				MinaBlockHeight: 11,
+			})
+
+			require.Error(t, err)
+			require.Nil(t, resp)
+
+			afterState, getErr := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, getErr)
+			require.Equal(t, beforeState, afterState)
+
+			afterRoot := latestActionsReducedRoot(t, f)
+			require.Equal(t, beforeRoot, afterRoot)
+			require.Equal(t, beforeBalance, bankKeeper.spendable)
+
+			require.Equal(t, 1, client.getMinaBlockHeightCalls)
+			require.Equal(t, 1, client.getActionsCalls)
+
+			require.Equal(t, tt.wantSpendableCalls, bankKeeper.spendableCalls)
+			require.Equal(t, tt.wantMintCalls, bankKeeper.mintCoinsCalls)
+			require.Equal(t, tt.wantSendFromModuleCalls, bankKeeper.sendCoinsFromModuleCalls)
+			require.Equal(t, tt.wantSendToModuleCalls, bankKeeper.sendCoinsToModuleCalls)
+			require.Equal(t, tt.wantBurnCalls, bankKeeper.burnCoinsCalls)
+		})
+	}
 }
 
 func TestPushNewActionsSkipsUnknownDepositButAdvancesCursor(t *testing.T) {
