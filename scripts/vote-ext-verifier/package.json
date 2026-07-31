@@ -2,6 +2,9 @@
   "name": "vote-ext-verifier",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
   "dependencies": {
     "o1js": "2.15.0"
   }

@@ -44,6 +44,19 @@ export function fieldFromBigEndian(bytes) {
   return Field(bigIntFromBytesBE(bytes));
 }
 
+export function fieldFromCanonicalBytes(bytes, label) {
+  if (bytes.length !== 32) {
+    throw new Error(`invalid ${label} length: got ${bytes.length}, want 32`);
+  }
+
+  const value = bigIntFromBytesBE(bytes);
+  if (value >= Field.ORDER) {
+    throw new Error(`invalid ${label}: value is not a canonical Mina field element`);
+  }
+
+  return Field(value);
+}
+
 export function decodeMinaPublicKey(rawBytes) {
   if (rawBytes.length !== 32) {
     throw new Error(`invalid Mina public key length: got ${rawBytes.length}, want 32`);
