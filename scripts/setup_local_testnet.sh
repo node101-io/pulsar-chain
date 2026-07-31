@@ -128,8 +128,24 @@ validate_mina_priv_key() {
   python3 "$PYTHON_HELPER" validate-mina-priv-key --index "$1" --mina-priv-key "$2"
 }
 
+read_mina_priv_key() {
+  python3 "$PYTHON_HELPER" read-mina-priv-key --config "$1"
+}
+
 read_mina_network_id() {
   python3 "$PYTHON_HELPER" read-mina-network-id --config "$1"
+}
+
+read_min_gas_price() {
+  python3 "$PYTHON_HELPER" read-min-gas-price --app "$1"
+}
+
+read_vote_extension_height() {
+  python3 "$PYTHON_HELPER" read-vote-extension-height --genesis "$1"
+}
+
+read_genesis_chain_id() {
+  python3 "$PYTHON_HELPER" read-genesis-chain-id --genesis "$1"
 }
 
 resolve_default_mina_network_id() {
@@ -273,6 +289,70 @@ configure_node() {
     --wrapper-grpc-address "$wrapper_grpc_address"
 }
 
+node_home_has_required_files() {
+  local index="$1"
+  local home="${NODE_HOMES[index]}"
+
+  [[ -f "${NODE_GENESIS_FILES[index]}" ]] &&
+    [[ -f "$home/config/priv_validator_key.json" ]] &&
+    [[ -f "$home/config/app.toml" ]]
+}
+
+node_app_config_matches_expected() {
+  local index="$1"
+  local app_config="${NODE_HOMES[index]}/config/app.toml"
+  local actual_min_gas_price
+  local actual_mina_priv_key
+  local actual_mina_network_id
+
+  actual_min_gas_price="$(read_min_gas_price "$app_config" 2>/dev/null)" || return 1
+  [[ "$actual_min_gas_price" == "$MIN_GAS_PRICE" ]] || return 1
+
+  actual_mina_priv_key="$(read_mina_priv_key "$app_config" 2>/dev/null)" || return 1
+  [[ "$actual_mina_priv_key" == "${NODE_MINA_PRIV_KEYS[index]}" ]] || return 1
+
+  actual_mina_network_id="$(read_mina_network_id "$app_config" 2>/dev/null)" || return 1
+  [[ "$actual_mina_network_id" == "${NODE_MINA_NETWORK_IDS[index]}" ]]
+}
+
+primary_genesis_matches_expected() {
+  local actual_vote_extension_height
+  local actual_chain_id
+  local i
+  local consensus_pub_key
+  local -a verify_keyregistry_args=(verify-validator-key-pairs --genesis "$PRIMARY_GENESIS_FILE")
+
+  actual_vote_extension_height="$(read_vote_extension_height "$PRIMARY_GENESIS_FILE" 2>/dev/null)" || return 1
+  [[ "$actual_vote_extension_height" == "$VOTE_EXT_ENABLE_HEIGHT" ]] || return 1
+
+  actual_chain_id="$(read_genesis_chain_id "$PRIMARY_GENESIS_FILE" 2>/dev/null)" || return 1
+  [[ "$actual_chain_id" == "$CHAIN_ID" ]] || return 1
+
+  for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+    consensus_pub_key="$(read_consensus_pub_key "${NODE_HOMES[i]}/config/priv_validator_key.json" 2>/dev/null)" || return 1
+    verify_keyregistry_args+=(--cosmos-key "$consensus_pub_key")
+  done
+
+  python3 "$PYTHON_HELPER" "${verify_keyregistry_args[@]}" >/dev/null 2>&1
+}
+
+testnet_state_is_complete() {
+  local i
+
+  for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+    node_home_has_required_files "$i" || return 1
+    node_app_config_matches_expected "$i" || return 1
+  done
+
+  primary_genesis_matches_expected || return 1
+
+  for ((i = PRIMARY_NODE_INDEX + 1; i <= VALIDATOR_COUNT; i++)); do
+    cmp -s "$PRIMARY_GENESIS_FILE" "${NODE_GENESIS_FILES[i]}" || return 1
+  done
+
+  return 0
+}
+
 build_persistent_peers() {
   local current_index="$1"
   local i
@@ -377,14 +457,7 @@ PRIMARY_HOME="${NODE_HOMES[PRIMARY_NODE_INDEX]}"
 PRIMARY_GENESIS_FILE="${NODE_GENESIS_FILES[PRIMARY_NODE_INDEX]}"
 
 existing_node_homes=0
-initialized_node_homes=0
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
-  if [[ -f "${NODE_GENESIS_FILES[i]}" && -f "${NODE_HOMES[i]}/config/priv_validator_key.json" ]]; then
-    ((existing_node_homes += 1))
-    ((initialized_node_homes += 1))
-    continue
-  fi
-
   if directory_has_entries "${NODE_HOMES[i]}"; then
     ((existing_node_homes += 1))
   fi
@@ -394,7 +467,7 @@ if (( existing_node_homes > 0 )); then
   if is_truthy "$RESET_TESTNET"; then
     echo "==> Resetting existing validator homes..."
     rm -rf "$LEGACY_CHAIN_HOME" "${NODE_HOMES[@]}"
-  elif (( existing_node_homes == VALIDATOR_COUNT && initialized_node_homes == VALIDATOR_COUNT )); then
+  elif (( existing_node_homes == VALIDATOR_COUNT )) && testnet_state_is_complete; then
     echo "==> Existing testnet detected; leaving validator homes unchanged."
     echo "    Use --reset or RESET_TESTNET=1 to recreate the validator state."
     exit 0

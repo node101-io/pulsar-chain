@@ -63,15 +63,27 @@ def read_nested_config_value(
     return None
 
 
+def read_first_match(content: str, patterns: list[str], error_message: str) -> str:
+    for pattern in patterns:
+        match = re.search(pattern, content, re.MULTILINE)
+        if match:
+            return match.group(1).strip()
+
+    raise SystemExit(error_message)
+
+
 def read_mina_priv_key(config_path: str) -> int:
     content = read_text(config_path)
-    match = re.search(r'vote_extension:\s*\n\s*priv_key:\s*"([^"]+)"', content)
-    if not match:
-        raise SystemExit(
-            f"could not find validators[].app.vote_extension.priv_key in {config_path}"
+    print(
+        read_first_match(
+            content,
+            [
+                r'vote_extension:\s*\n\s*priv_key:\s*"([^"]+)"',
+                r"\[vote_extension\]\s*\npriv_key\s*=\s*\"([^\"]+)\"",
+            ],
+            f"could not find vote extension private key in {config_path}",
         )
-
-    print(match.group(1))
+    )
     return 0
 
 
@@ -190,13 +202,29 @@ def read_bridge_genesis_param(config_path: str, key_name: str) -> int:
 
 
 def read_mina_network_id(config_path: str) -> int:
-    network_id = read_nested_config_value(config_path, "mina", "network_id")
-    if network_id is None:
-        raise SystemExit(
-            f"could not find validators[].app.mina.network_id in {config_path}"
+    content = read_text(config_path)
+    print(
+        read_first_match(
+            content,
+            [
+                r'mina:\s*\n\s*network_id:\s*"?([^"\n]+)"?',
+                r"\[mina\]\s*\nnetwork_id\s*=\s*\"([^\"]+)\"",
+            ],
+            f"could not find mina network id in {config_path}",
         )
+    )
+    return 0
 
-    print(network_id)
+
+def read_min_gas_price(app_path: str) -> int:
+    content = read_text(app_path)
+    print(
+        read_first_match(
+            content,
+            [r'^minimum-gas-prices\s*=\s*"([^"]*)"'],
+            f"could not find minimum-gas-prices in {app_path}",
+        )
+    )
     return 0
 
 
@@ -204,6 +232,18 @@ def set_vote_extension_height(genesis_path: str, height: str) -> int:
     genesis = read_json(genesis_path)
     genesis["consensus"]["params"]["abci"]["vote_extensions_enable_height"] = height
     write_json(genesis_path, genesis)
+    return 0
+
+
+def read_vote_extension_height(genesis_path: str) -> int:
+    genesis = read_json(genesis_path)
+    print(genesis["consensus"]["params"]["abci"]["vote_extensions_enable_height"])
+    return 0
+
+
+def read_genesis_chain_id(genesis_path: str) -> int:
+    genesis = read_json(genesis_path)
+    print(genesis["chain_id"])
     return 0
 
 
@@ -293,6 +333,36 @@ def patch_keyregistry(
 
     write_json(genesis_path, genesis)
     print("\n".join(cosmos_keys))
+    return 0
+
+
+def verify_validator_key_pairs(genesis_path: str, cosmos_keys: list[str]) -> int:
+    genesis = read_json(genesis_path)
+    key_pairs = genesis.get("app_state", {}).get("keyregistry", {}).get(
+        "validator_key_pairs", []
+    )
+
+    if len(key_pairs) != len(cosmos_keys):
+        raise SystemExit(
+            "validator key pair count mismatch: "
+            f"{len(key_pairs)} pairs for {len(cosmos_keys)} validators"
+        )
+
+    for index, (key_pair, expected_cosmos_key) in enumerate(
+        zip(key_pairs, cosmos_keys), start=1
+    ):
+        actual_cosmos_key = key_pair.get("cosmos_key")
+        actual_mina_key = key_pair.get("mina_key")
+
+        if actual_cosmos_key != expected_cosmos_key:
+            raise SystemExit(
+                f"validator key pair {index} cosmos key mismatch: "
+                f"got {actual_cosmos_key!r}, want {expected_cosmos_key!r}"
+            )
+
+        if not actual_mina_key:
+            raise SystemExit(f"validator key pair {index} is missing a mina_key")
+
     return 0
 
 
@@ -467,12 +537,21 @@ def build_parser() -> argparse.ArgumentParser:
     read_bridge_param_cmd.add_argument("--config", required=True)
     read_bridge_param_cmd.add_argument("--key", required=True)
 
+    read_gas_price = subparsers.add_parser("read-min-gas-price")
+    read_gas_price.add_argument("--app", required=True)
+
     read_consensus_key = subparsers.add_parser("read-consensus-pub-key")
     read_consensus_key.add_argument("--priv-validator-key", required=True)
 
     set_height = subparsers.add_parser("set-vote-extension-height")
     set_height.add_argument("--genesis", required=True)
     set_height.add_argument("--height", required=True)
+
+    read_height = subparsers.add_parser("read-vote-extension-height")
+    read_height.add_argument("--genesis", required=True)
+
+    read_chain_id = subparsers.add_parser("read-genesis-chain-id")
+    read_chain_id.add_argument("--genesis", required=True)
 
     generate_mina_key = subparsers.add_parser("generate-default-mina-priv-key")
     generate_mina_key.add_argument("--index", required=True)
@@ -496,6 +575,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--actions-reduced-root-snapshot-window-size", required=True
     )
 
+    verify_registry = subparsers.add_parser("verify-validator-key-pairs")
+    verify_registry.add_argument("--genesis", required=True)
+    verify_registry.add_argument("--cosmos-key", action="append", required=True)
+
     update_app = subparsers.add_parser("update-app-config")
     update_app.add_argument("--app", required=True)
     update_app.add_argument("--min-gas-price", required=True)
@@ -518,10 +601,16 @@ def main() -> int:
         return read_bridge_genesis_param(args.config, args.key)
     if args.command == "read-mina-network-id":
         return read_mina_network_id(args.config)
+    if args.command == "read-min-gas-price":
+        return read_min_gas_price(args.app)
     if args.command == "read-consensus-pub-key":
         return read_consensus_pub_key(args.priv_validator_key)
     if args.command == "set-vote-extension-height":
         return set_vote_extension_height(args.genesis, args.height)
+    if args.command == "read-vote-extension-height":
+        return read_vote_extension_height(args.genesis)
+    if args.command == "read-genesis-chain-id":
+        return read_genesis_chain_id(args.genesis)
     if args.command == "generate-default-mina-priv-key":
         return generate_default_mina_priv_key(args.index)
     if args.command == "validate-mina-priv-key":
@@ -537,6 +626,8 @@ def main() -> int:
             args.max_block_range,
             args.actions_reduced_root_snapshot_window_size,
         )
+    if args.command == "verify-validator-key-pairs":
+        return verify_validator_key_pairs(args.genesis, args.cosmos_key)
     if args.command == "update-app-config":
         return update_app_config(
             args.app,
