@@ -51,7 +51,7 @@ write_compose_file() {
   cat > "$compose_file" <<EOF
 x-pulsar-common: &pulsar-common
   build:
-    context: ${REPO_ROOT}
+    context: ..
     dockerfile: Dockerfile
   image: \${PULSAR_DOCKER_IMAGE:-pulsar-chain:local}
 
