@@ -109,12 +109,13 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 	newRoot := list.Root()
 
 	if err := k.Keeper.BridgeState.Set(ctx, types.BridgeState{
-		LatestFetchedMinaHeight: msg.MinaBlockHeight,
+		LatestFetchedMinaHeight:   bridgeState.LatestFetchedMinaHeight,
+		CurrentActionsReducedRoot: bridgeState.CurrentActionsReducedRoot,
 	}); err != nil {
 		return nil, err
 	}
 
-	if err := k.Keeper.ActionsReducedRootSnapshots.Set(ctx, sdkCtx.BlockHeight(), newRoot); err != nil {
+	if err := k.Keeper.setActionsReducedRootSnapshot(ctx, sdkCtx.BlockHeight(), newRoot); err != nil {
 		return nil, err
 	}
 

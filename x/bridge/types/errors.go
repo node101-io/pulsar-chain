@@ -55,4 +55,7 @@ var (
 	ErrArchiveWrapperNotReady   = errors.Register(ModuleName, 1135, "archive wrapper is not ready")
 
 	ErrActionOutsideRequestedRange = errors.Register(ModuleName, 1136, "action outside the requested range")
+
+	ErrTooManyActionsReducedRootSnapshots = errors.Register(ModuleName, 1137, "too many actions_reduced_root_snapshots")
+	ErrCurrentActionsReducedRootMismatch  = errors.Register(ModuleName, 1138, "bridge_state.current_actions_reduced_root must match latest actions_reduced_root snapshot")
 )

@@ -38,19 +38,25 @@ func (gs GenesisState) Validate() error {
 		)
 	}
 
-	return validateActionsReducedRootSnapshots(gs.ActionsReducedRootSnapshots)
+	return validateActionsReducedRootSnapshots(
+		gs.ActionsReducedRootSnapshots,
+		gs.BridgeState.CurrentActionsReducedRoot,
+	)
 }
 
 // DefaultBridgeState returns the default bridge state derived from the default
 // genesis parameters.
 func DefaultBridgeState() BridgeState {
-	return BridgeState{}
+	return BridgeState{
+		CurrentActionsReducedRoot: DefaultActionsReducedRoot(),
+	}
 }
 
 // DefaultTestBridgeState returns the initial bridge state for tests and simulation.
 func DefaultTestBridgeState() BridgeState {
 	return BridgeState{
-		LatestFetchedMinaHeight: defaultStartBlockHeight - 1,
+		LatestFetchedMinaHeight:   defaultStartBlockHeight - 1,
+		CurrentActionsReducedRoot: DefaultActionsReducedRoot(),
 	}
 }
 
@@ -58,7 +64,8 @@ func DefaultTestBridgeState() BridgeState {
 // exactly at startBlockHeight.
 func NewInitialBridgeState(startBlockHeight int64) BridgeState {
 	return BridgeState{
-		LatestFetchedMinaHeight: startBlockHeight - 1,
+		LatestFetchedMinaHeight:   startBlockHeight - 1,
+		CurrentActionsReducedRoot: DefaultActionsReducedRoot(),
 	}
 }
 
@@ -78,14 +85,19 @@ func DefaultActionsReducedRootSnapshots() []ActionsReducedRootSnapshot {
 		},
 	}
 }
-func validateActionsReducedRootSnapshots(snapshots []ActionsReducedRootSnapshot) error {
+func validateActionsReducedRootSnapshots(snapshots []ActionsReducedRootSnapshot, currentRoot []byte) error {
 	if len(snapshots) == 0 {
 		return ErrEmptyActionsReducedRootSnapshots
 	}
 
-	fieldCodec := minafield.NewField()
-	expectedRootLen := fieldCodec.ElementSize()
-	defaultRoot := DefaultActionsReducedRoot()
+	if len(snapshots) > ActionsReducedRootSnapshotWindowSize {
+		return errorsmod.Wrapf(
+			ErrTooManyActionsReducedRootSnapshots,
+			"got %d, max %d",
+			len(snapshots),
+			ActionsReducedRootSnapshotWindowSize,
+		)
+	}
 
 	var prevHeight int64 = -1
 
@@ -98,46 +110,8 @@ func validateActionsReducedRootSnapshots(snapshots []ActionsReducedRootSnapshot)
 			)
 		}
 
-		if len(snapshot.ActionsReducedRoot) != expectedRootLen {
-			return errorsmod.Wrapf(
-				ErrInvalidActionsReducedRoot,
-				"actions_reduced_root_snapshots[%d]: expected %d bytes, got %d",
-				i,
-				expectedRootLen,
-				len(snapshot.ActionsReducedRoot),
-			)
-		}
-
-		rootElement, err := fieldCodec.FromBytes(snapshot.ActionsReducedRoot)
-		if err != nil {
-			return errorsmod.Wrapf(
-				ErrInvalidActionsReducedRoot,
-				"actions_reduced_root_snapshots[%d]: %v",
-				i,
-				err,
-			)
-		}
-
-		if !bytes.Equal(rootElement.Bytes(), snapshot.ActionsReducedRoot) {
-			return errorsmod.Wrapf(
-				ErrInvalidActionsReducedRoot,
-				"actions_reduced_root_snapshots[%d]: non-canonical field bytes",
-				i,
-			)
-		}
-
-		if i == 0 {
-			if snapshot.CosmosBlockHeight != 0 {
-				return errorsmod.Wrapf(
-					ErrActionsReducedRootSnapshotsMustStartAtZero,
-					"got %d",
-					snapshot.CosmosBlockHeight,
-				)
-			}
-
-			if !bytes.Equal(snapshot.ActionsReducedRoot, defaultRoot) {
-				return ErrInvalidInitialActionsReducedRoot
-			}
+		if err := validateActionsReducedRoot(snapshot.ActionsReducedRoot); err != nil {
+			return err
 		}
 
 		if i > 0 && snapshot.CosmosBlockHeight <= prevHeight {
@@ -151,6 +125,34 @@ func validateActionsReducedRootSnapshots(snapshots []ActionsReducedRootSnapshot)
 		}
 
 		prevHeight = snapshot.CosmosBlockHeight
+	}
+
+	if !bytes.Equal(snapshots[len(snapshots)-1].ActionsReducedRoot, currentRoot) {
+		return ErrCurrentActionsReducedRootMismatch
+	}
+
+	return nil
+}
+
+func validateActionsReducedRoot(root []byte) error {
+	fieldCodec := minafield.NewField()
+
+	if len(root) != fieldCodec.ElementSize() {
+		return errorsmod.Wrapf(
+			ErrInvalidActionsReducedRoot,
+			"expected %d bytes, got %d",
+			fieldCodec.ElementSize(),
+			len(root),
+		)
+	}
+
+	rootElement, err := fieldCodec.FromBytes(root)
+	if err != nil {
+		return errorsmod.Wrap(ErrInvalidActionsReducedRoot, err.Error())
+	}
+
+	if !bytes.Equal(rootElement.Bytes(), root) {
+		return errorsmod.Wrap(ErrInvalidActionsReducedRoot, "non-canonical field bytes")
 	}
 
 	return nil

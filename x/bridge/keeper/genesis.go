@@ -7,6 +7,10 @@ import (
 )
 
 func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) error {
+	if err := genState.Validate(); err != nil {
+		return err
+	}
+
 	if err := k.BridgeState.Set(ctx, genState.BridgeState); err != nil {
 		return err
 	}

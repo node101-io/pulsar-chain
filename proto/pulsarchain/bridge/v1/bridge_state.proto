@@ -8,4 +8,7 @@ option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
 message BridgeState {
   // latest_fetched_mina_height is the latest Mina height processed by the bridge.
   int64 latest_fetched_mina_height = 1;
+
+  // current_actions_reduced_root is the current root at this application state version.
+  bytes current_actions_reduced_root = 2;
 }

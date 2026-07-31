@@ -93,20 +93,16 @@ func (k Keeper) GetBridgeState(ctx context.Context) (types.BridgeState, error) {
 }
 
 func (k Keeper) GetLatestActionsReducedRoot(ctx context.Context) ([]byte, error) {
-	iter, err := k.ActionsReducedRootSnapshots.Iterate(
-		ctx,
-		(&collections.Range[int64]{}).Descending(),
-	)
+	bridgeState, err := k.GetBridgeState(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer iter.Close()
 
-	if !iter.Valid() {
+	if len(bridgeState.CurrentActionsReducedRoot) == 0 {
 		return nil, types.ErrActionsReducedRootSnapshotNotFound
 	}
 
-	return iter.Value()
+	return bridgeState.CurrentActionsReducedRoot, nil
 }
 
 func (k Keeper) GetActionsReducedRootAtHeight(ctx context.Context, height int64) ([]byte, error) {
@@ -128,4 +124,56 @@ func (k Keeper) GetActionsReducedRootAtHeight(ctx context.Context, height int64)
 	}
 
 	return iter.Value()
+}
+
+func (k Keeper) SetActionsReducedRoot(ctx context.Context, height int64, root []byte) error {
+	bridgeState, err := k.GetBridgeState(ctx)
+	if err != nil {
+		return err
+	}
+
+	bridgeState.CurrentActionsReducedRoot = root
+	if err := k.BridgeState.Set(ctx, bridgeState); err != nil {
+		return err
+	}
+
+	return k.setActionsReducedRootSnapshot(ctx, height, root)
+}
+
+func (k Keeper) setActionsReducedRootSnapshot(ctx context.Context, height int64, root []byte) error {
+	if height < 0 {
+		return types.ErrInvalidBridgeStateHeight
+	}
+
+	if err := k.ActionsReducedRootSnapshots.Set(ctx, height, root); err != nil {
+		return err
+	}
+
+	return k.pruneActionsReducedRootSnapshots(ctx)
+}
+
+func (k Keeper) pruneActionsReducedRootSnapshots(ctx context.Context) error {
+	iter, err := k.ActionsReducedRootSnapshots.Iterate(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer iter.Close()
+
+	heights := make([]int64, 0, types.ActionsReducedRootSnapshotWindowSize+1)
+	for ; iter.Valid(); iter.Next() {
+		height, err := iter.Key()
+		if err != nil {
+			return err
+		}
+		heights = append(heights, height)
+	}
+
+	for len(heights) > types.ActionsReducedRootSnapshotWindowSize {
+		if err := k.ActionsReducedRootSnapshots.Remove(ctx, heights[0]); err != nil {
+			return err
+		}
+		heights = heights[1:]
+	}
+
+	return nil
 }
