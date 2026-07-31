@@ -1,12 +1,14 @@
-x-pulsar-common: &pulsar-common
+x-pulsar-image: &pulsar-image
+  image: ${PULSAR_DOCKER_IMAGE:-pulsar-chain:local}
+
+x-pulsar-build: &pulsar-build
   build:
     context: .
     dockerfile: Dockerfile
-  image: ${PULSAR_DOCKER_IMAGE:-pulsar-chain:local}
 
 services:
   setup:
-    <<: *pulsar-common
+    <<: [*pulsar-image, *pulsar-build]
     command: ["setup-local-testnet", "3"]
     restart: "no"
     volumes:
@@ -15,7 +17,7 @@ services:
       - validator3_data:/testnet/.pulsar-node3
 
   validator1:
-    <<: *pulsar-common
+    <<: *pulsar-image
     command: ["start-validator", "1"]
     depends_on:
       setup:
@@ -37,7 +39,7 @@ services:
       start_period: 20s
 
   validator2:
-    <<: *pulsar-common
+    <<: *pulsar-image
     command: ["start-validator", "2"]
     depends_on:
       setup:
@@ -59,7 +61,7 @@ services:
       start_period: 20s
 
   validator3:
-    <<: *pulsar-common
+    <<: *pulsar-image
     command: ["start-validator", "3"]
     depends_on:
       setup:

@@ -49,15 +49,17 @@ write_compose_file() {
   mkdir -p "$(dirname "$compose_file")"
 
   cat > "$compose_file" <<EOF
-x-pulsar-common: &pulsar-common
+x-pulsar-image: &pulsar-image
+  image: \${PULSAR_DOCKER_IMAGE:-pulsar-chain:local}
+
+x-pulsar-build: &pulsar-build
   build:
     context: ..
     dockerfile: Dockerfile
-  image: \${PULSAR_DOCKER_IMAGE:-pulsar-chain:local}
 
 services:
   setup:
-    <<: *pulsar-common
+    <<: [*pulsar-image, *pulsar-build]
     command: ["setup-local-testnet", "${validator_count}"]
     restart: "no"
     volumes:
@@ -73,7 +75,7 @@ EOF
     cat >> "$compose_file" <<EOF
 
   validator${i}:
-    <<: *pulsar-common
+    <<: *pulsar-image
     command: ["start-validator", "${i}"]
     depends_on:
       setup:
@@ -139,7 +141,8 @@ run_compose() {
 
 case "$COMMAND" in
   up)
-    run_compose up --build -d
+    run_compose build setup
+    run_compose up --no-build -d
     run_compose ps
     ;;
   down)
