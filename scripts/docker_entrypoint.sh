@@ -3,6 +3,7 @@
 set -euo pipefail
 
 TESTNET_ROOT="${DOCKER_TESTNET_ROOT:-/testnet}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 if (( $# == 0 )); then
   echo "explicit command required" >&2
@@ -27,17 +28,14 @@ if [[ "${1:-}" == "setup-local-testnet" ]]; then
   export SETUP_CONTEXT="container"
   export START_VALIDATORS="0"
 
-  exec /opt/pulsar/scripts/setup_local_testnet.sh "$@"
+  exec "$SCRIPT_DIR/setup_local_testnet.sh" "$@"
 fi
 
 if [[ "${1:-}" == "healthcheck-validator" ]]; then
   RPC_PORT="${RPC_PORT:-26657}"
   STATUS_JSON="$(curl -fsS "http://127.0.0.1:${RPC_PORT}/status")" || exit 1
 
-  if [[ ! "$STATUS_JSON" =~ \"catching_up\"[[:space:]]*:[[:space:]]*false ]]; then
-    echo "validator is not yet synchronized on rpc port ${RPC_PORT}" >&2
-    exit 1
-  fi
+  printf '%s\n' "$STATUS_JSON" | python3 "$SCRIPT_DIR/setup_local_testnet_helper.py" check-validator-status || exit 1
 
   exit 0
 fi

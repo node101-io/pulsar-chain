@@ -366,6 +366,31 @@ def verify_validator_key_pairs(genesis_path: str, cosmos_keys: list[str]) -> int
     return 0
 
 
+def check_validator_status(status_json: Optional[str]) -> int:
+    if status_json is None:
+        status_json = sys.stdin.read()
+
+    if not status_json.strip():
+        raise SystemExit("validator status JSON must not be empty")
+
+    try:
+        sync_info = json.loads(status_json)["result"]["sync_info"]
+        catching_up = sync_info["catching_up"]
+        latest_block_height = int(sync_info["latest_block_height"])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"unable to parse validator status response: {exc}")
+
+    if catching_up:
+        raise SystemExit("validator is still catching up")
+
+    if latest_block_height <= 0:
+        raise SystemExit(
+            f"validator has not produced a positive block height yet: {latest_block_height}"
+        )
+
+    return 0
+
+
 def patch_bridge_genesis(
     genesis_path: str,
     confirmation_depth: str,
@@ -579,6 +604,9 @@ def build_parser() -> argparse.ArgumentParser:
     verify_registry.add_argument("--genesis", required=True)
     verify_registry.add_argument("--cosmos-key", action="append", required=True)
 
+    check_status = subparsers.add_parser("check-validator-status")
+    check_status.add_argument("--status-json")
+
     update_app = subparsers.add_parser("update-app-config")
     update_app.add_argument("--app", required=True)
     update_app.add_argument("--min-gas-price", required=True)
@@ -628,6 +656,8 @@ def main() -> int:
         )
     if args.command == "verify-validator-key-pairs":
         return verify_validator_key_pairs(args.genesis, args.cosmos_key)
+    if args.command == "check-validator-status":
+        return check_validator_status(args.status_json)
     if args.command == "update-app-config":
         return update_app_config(
             args.app,
