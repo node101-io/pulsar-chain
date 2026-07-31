@@ -131,6 +131,12 @@ fi
 
 COMPOSE_FILE="${COMPOSE_FILE:-$REPO_ROOT/.docker/docker-compose.testnet.${VALIDATOR_COUNT}.yml}"
 PROJECT_NAME="${PULSAR_DOCKER_PROJECT:-pulsar-testnet-${VALIDATOR_COUNT}}"
+VALIDATOR_STARTUP_TIMEOUT="${VALIDATOR_STARTUP_TIMEOUT:-60}"
+
+if ! [[ "$VALIDATOR_STARTUP_TIMEOUT" =~ ^[0-9]+$ ]] || (( VALIDATOR_STARTUP_TIMEOUT < 1 )); then
+  echo "validator startup timeout must be a positive integer, got: $VALIDATOR_STARTUP_TIMEOUT" >&2
+  exit 1
+fi
 
 write_compose_file "$COMPOSE_FILE" "$VALIDATOR_COUNT"
 
@@ -145,10 +151,30 @@ run_compose() {
   docker compose --project-name "$PROJECT_NAME" -f "$COMPOSE_FILE" "$@"
 }
 
+declare -a VALIDATOR_SERVICES=()
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  VALIDATOR_SERVICES+=("validator${i}")
+done
+
+cleanup_partial_environment() {
+  echo "startup failed; partial compose state before cleanup:" >&2
+  run_compose ps -a >&2 || true
+  echo "cleaning up containers and network; preserving named volumes." >&2
+  run_compose down --remove-orphans >/dev/null 2>&1 || true
+  echo "named volumes were preserved; run '$0 reset ${VALIDATOR_COUNT}' to remove them." >&2
+}
+
 case "$COMMAND" in
   up)
     run_compose build setup
-    run_compose up --no-build -d
+    if ! run_compose up --no-build --abort-on-container-failure --exit-code-from setup setup; then
+      cleanup_partial_environment
+      exit 1
+    fi
+    if ! run_compose up --no-build -d --wait --wait-timeout "$VALIDATOR_STARTUP_TIMEOUT" "${VALIDATOR_SERVICES[@]}"; then
+      cleanup_partial_environment
+      exit 1
+    fi
     run_compose ps
     ;;
   down)
