@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/core/address"
+	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cometbft/cometbft/crypto/secp256k1"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
@@ -935,6 +936,59 @@ func TestPushNewActionsSkipsWithdrawalWithInsufficientBalanceButAdvancesCursor(t
 	require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
 	require.Zero(t, bankKeeper.sendCoinsToModuleCalls)
 	require.Zero(t, bankKeeper.burnCoinsCalls)
+}
+
+func TestPushNewActionsWithdrawalBalanceAboveUint64DoesNotPanic(t *testing.T) {
+	feePayer, cosmosPubKey, cosmosAddr := newUserMapping(t)
+
+	action := bridgetypes.Action{
+		BlockHeight: 11,
+		FeePayer:    feePayer,
+		ActionType:  bridgetypes.ActionType_WITHDRAW,
+		Amount:      1,
+	}
+
+	client := &stubArchiveWrapperQueryClient{
+		minaBlockHeight: 11,
+		actions:         []bridgetypes.Action{action},
+	}
+
+	// 18446744073709551616 = 2^64
+	largeBalance, ok := math.NewIntFromString("18446744073709551616")
+	require.True(t, ok)
+
+	bankKeeper := NewMockBankKeeper()
+	bankKeeper.spendable = sdk.NewCoins(
+		sdk.NewCoin(sdk.DefaultBondDenom, largeBalance),
+	)
+
+	keyRegistryKeeper := NewMockKeyregistryKeeper()
+	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+
+	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
+	seedPushNewActionsState(t, f, 10)
+
+	resp, err := bridgekeeper.NewMsgServerImpl(f.keeper).PushNewActions(
+		f.ctx,
+		&bridgetypes.MsgPushNewActions{
+			Creator:         authorityString(t, f.addressCodec),
+			MinaBlockHeight: 11,
+		},
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	state, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
+
+	require.Equal(t, 2, bankKeeper.spendableCalls)
+	require.Equal(t, cosmosAddr, bankKeeper.lastSpendableAddr)
+	require.Equal(t, 1, bankKeeper.sendCoinsToModuleCalls)
+	require.Equal(t, 1, bankKeeper.burnCoinsCalls)
+	require.Zero(t, bankKeeper.mintCoinsCalls)
+	require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
 }
 
 func TestPushNewActionsPreservesWrapperActionOrderingInRoot(t *testing.T) {
