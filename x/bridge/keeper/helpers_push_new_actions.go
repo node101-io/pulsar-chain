@@ -77,7 +77,8 @@ func (k *Keeper) isValidWithdrawal(ctx context.Context, act types.Action) (bool,
 	// However, it gets overwritten once the app package starts (init func at app/config.go)
 	// Also added a test for this app/config_external_test.go
 	denom := sdk.DefaultBondDenom
-	if k.bankKeeper.SpendableCoins(ctx, addr).AmountOf(denom).Uint64() < uint64(act.Amount) {
+	required := math.NewInt(act.Amount)
+	if k.bankKeeper.SpendableCoins(ctx, addr).AmountOf(denom).LT(required) {
 		return false, nil
 	}
 
@@ -144,7 +145,8 @@ func (k *Keeper) applyWithdrawal(ctx context.Context, act types.Action) error {
 		return err
 	}
 
-	if minaAmount.Uint64() < uint64(act.Amount) {
+	required := math.NewInt(act.Amount)
+	if minaAmount.LT(required) {
 		return types.ErrNotEnoughBalance
 	}
 
