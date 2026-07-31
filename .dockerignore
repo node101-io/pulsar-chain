@@ -14,3 +14,4 @@ tmp
 coverage
 *.out
 node_modules
+.docker/
