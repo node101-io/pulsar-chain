@@ -26,11 +26,22 @@ services:
     volumes:
       - validator1_data:/testnet/.pulsar-node1
     ports:
-      - "26656:26656"
-      - "26657:26657"
-      - "1317:1317"
-      - "9090:9090"
-      - "6060:6060"
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 26657
+        published: "${VALIDATOR1_HOST_RPC_PORT:-26657}"
+        protocol: tcp
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 1317
+        published: "${VALIDATOR1_HOST_API_PORT:-1317}"
+        protocol: tcp
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 9090
+        published: "${VALIDATOR1_HOST_GRPC_PORT:-9090}"
+        protocol: tcp
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 6060
+        published: "${VALIDATOR1_HOST_PPROF_PORT:-6060}"
+        protocol: tcp
     healthcheck:
       test: ["CMD", "/opt/pulsar/scripts/docker_entrypoint.sh", "healthcheck-validator"]
       interval: 5s
@@ -48,11 +59,22 @@ services:
     volumes:
       - validator2_data:/testnet/.pulsar-node2
     ports:
-      - "26666:26656"
-      - "26667:26657"
-      - "1318:1317"
-      - "9091:9090"
-      - "6061:6060"
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 26657
+        published: "${VALIDATOR2_HOST_RPC_PORT:-26667}"
+        protocol: tcp
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 1317
+        published: "${VALIDATOR2_HOST_API_PORT:-1318}"
+        protocol: tcp
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 9090
+        published: "${VALIDATOR2_HOST_GRPC_PORT:-9091}"
+        protocol: tcp
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 6060
+        published: "${VALIDATOR2_HOST_PPROF_PORT:-6061}"
+        protocol: tcp
     healthcheck:
       test: ["CMD", "/opt/pulsar/scripts/docker_entrypoint.sh", "healthcheck-validator"]
       interval: 5s
@@ -70,11 +92,22 @@ services:
     volumes:
       - validator3_data:/testnet/.pulsar-node3
     ports:
-      - "26676:26656"
-      - "26677:26657"
-      - "1319:1317"
-      - "9092:9090"
-      - "6062:6060"
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 26657
+        published: "${VALIDATOR3_HOST_RPC_PORT:-26677}"
+        protocol: tcp
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 1317
+        published: "${VALIDATOR3_HOST_API_PORT:-1319}"
+        protocol: tcp
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 9090
+        published: "${VALIDATOR3_HOST_GRPC_PORT:-9092}"
+        protocol: tcp
+      - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 6060
+        published: "${VALIDATOR3_HOST_PPROF_PORT:-6062}"
+        protocol: tcp
     healthcheck:
       test: ["CMD", "/opt/pulsar/scripts/docker_entrypoint.sh", "healthcheck-validator"]
       interval: 5s

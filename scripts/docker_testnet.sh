@@ -16,11 +16,6 @@ require_cmd() {
   fi
 }
 
-host_p2p_port() {
-  local index="$1"
-  printf '%s\n' "$((26656 + ((index - 1) * 10)))"
-}
-
 host_rpc_port() {
   local index="$1"
   printf '%s\n' "$((26657 + ((index - 1) * 10)))"
@@ -84,11 +79,22 @@ EOF
     volumes:
       - validator${i}_data:/testnet/.pulsar-node${i}
     ports:
-      - "$(host_p2p_port "$i"):26656"
-      - "$(host_rpc_port "$i"):26657"
-      - "$(host_api_port "$i"):1317"
-      - "$(host_grpc_port "$i"):9090"
-      - "$(host_pprof_port "$i"):6060"
+      - host_ip: "\${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 26657
+        published: "\${VALIDATOR${i}_HOST_RPC_PORT:-$(host_rpc_port "$i")}"
+        protocol: tcp
+      - host_ip: "\${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 1317
+        published: "\${VALIDATOR${i}_HOST_API_PORT:-$(host_api_port "$i")}"
+        protocol: tcp
+      - host_ip: "\${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 9090
+        published: "\${VALIDATOR${i}_HOST_GRPC_PORT:-$(host_grpc_port "$i")}"
+        protocol: tcp
+      - host_ip: "\${PULSAR_BIND_HOST:-127.0.0.1}"
+        target: 6060
+        published: "\${VALIDATOR${i}_HOST_PPROF_PORT:-$(host_pprof_port "$i")}"
+        protocol: tcp
     healthcheck:
       test: ["CMD", "/opt/pulsar/scripts/docker_entrypoint.sh", "healthcheck-validator"]
       interval: 5s
