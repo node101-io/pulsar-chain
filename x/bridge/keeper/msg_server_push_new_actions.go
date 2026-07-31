@@ -58,9 +58,19 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, types.ErrMinaBlockNotFinalized
 	}
 
-	actions, err := k.archiveWrapperClient.GetActionsInRange(ctx, bridgeState.LatestFetchedMinaHeight, msg.MinaBlockHeight)
+	target := msg.MinaBlockHeight
+	actions, err := k.archiveWrapperClient.GetActionsInRange(ctx, bridgeState.LatestFetchedMinaHeight, target)
 	if err != nil {
 		return nil, err
+	}
+
+	// An out-of-range action makes the wrapper response untrustworthy.
+	// Reject the batch before applying actions or advancing the cursor.
+	for _, act := range actions {
+		if act.BlockHeight <= bridgeState.LatestFetchedMinaHeight ||
+			act.BlockHeight > target {
+			return nil, types.ErrActionOutsideRequestedRange
+		}
 	}
 
 	currentRoot, err := k.Keeper.GetLatestActionsReducedRoot(ctx)
