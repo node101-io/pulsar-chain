@@ -26,10 +26,14 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // Params defines the parameters for the module.
 type Params struct {
-	ConfirmationDepth int64  `protobuf:"varint,1,opt,name=confirmation_depth,json=confirmationDepth,proto3" json:"confirmation_depth,omitempty"`
-	ContractAddress   string `protobuf:"bytes,2,opt,name=contract_address,json=contractAddress,proto3" json:"contract_address,omitempty"`
-	StartBlockHeight  int64  `protobuf:"varint,3,opt,name=start_block_height,json=startBlockHeight,proto3" json:"start_block_height,omitempty"`
-	MaxBlockRange     int64  `protobuf:"varint,4,opt,name=max_block_range,json=maxBlockRange,proto3" json:"max_block_range,omitempty"`
+	// confirmation_depth is the Mina finality depth used by the archive wrapper.
+	ConfirmationDepth int64 `protobuf:"varint,1,opt,name=confirmation_depth,json=confirmationDepth,proto3" json:"confirmation_depth,omitempty"`
+	// contract_address is the Mina bridge contract address.
+	ContractAddress string `protobuf:"bytes,2,opt,name=contract_address,json=contractAddress,proto3" json:"contract_address,omitempty"`
+	// start_block_height is the first Mina block indexed by the bridge.
+	StartBlockHeight int64 `protobuf:"varint,3,opt,name=start_block_height,json=startBlockHeight,proto3" json:"start_block_height,omitempty"`
+	// max_block_range is the maximum Mina height span processed by one request.
+	MaxBlockRange int64 `protobuf:"varint,4,opt,name=max_block_range,json=maxBlockRange,proto3" json:"max_block_range,omitempty"`
 }
 
 func (m *Params) Reset()         { *m = Params{} }

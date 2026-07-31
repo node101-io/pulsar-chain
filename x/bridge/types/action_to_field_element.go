@@ -29,7 +29,7 @@ func (act *Action) ToFieldElement() (*field.FieldElement, error) {
 	}
 
 	switch act.ActionType {
-	case ActionType_DEPOSIT, ActionType_WITHDRAW:
+	case ActionType_ACTION_TYPE_DEPOSIT, ActionType_ACTION_TYPE_WITHDRAW:
 	default:
 		return nil, errorsmod.Wrapf(
 			ErrInvalidActionType,

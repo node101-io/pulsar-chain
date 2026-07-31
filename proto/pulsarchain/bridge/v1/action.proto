@@ -3,16 +3,24 @@ package pulsarchain.bridge.v1;
 
 option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
 
+// ActionType identifies the bridge operation represented by an action.
 enum ActionType {
-  UNSPECIFIED = 0;
-  DEPOSIT = 1;
-  WITHDRAW = 2;
+  // ACTION_TYPE_UNSPECIFIED represents an invalid or unknown action type.
+  ACTION_TYPE_UNSPECIFIED = 0;
+  // ACTION_TYPE_DEPOSIT credits pmina to the registered Cosmos account.
+  ACTION_TYPE_DEPOSIT = 1;
+  // ACTION_TYPE_WITHDRAW debits and burns pmina from the registered Cosmos account.
+  ACTION_TYPE_WITHDRAW = 2;
 }
 
-
+// Action represents one finalized Mina bridge action.
 message Action {
-    int64 block_height = 1;
-    bytes fee_payer = 2;
-    ActionType action_type = 3;
-    int64 amount = 4;
+  // block_height is the Mina block height containing the action.
+  int64 block_height = 1;
+  // fee_payer is the serialized Mina public key associated with the action.
+  bytes fee_payer = 2;
+  // action_type identifies the bridge operation to execute.
+  ActionType action_type = 3;
+  // amount is the pmina amount handled by the action.
+  int64 amount = 4;
 }

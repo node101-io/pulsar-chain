@@ -46,7 +46,9 @@ message MsgUpdateParamsResponse {}
 // MsgPushNewActions defines the MsgPushNewActions message.
 message MsgPushNewActions {
   option (cosmos.msg.v1.signer) = "creator";
+  // creator is the account submitting the target Mina height.
   string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // mina_block_height is the latest indexed Mina height to process.
   int64 mina_block_height = 2;
 }
 

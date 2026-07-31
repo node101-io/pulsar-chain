@@ -126,8 +126,10 @@ var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
 // MsgPushNewActions defines the MsgPushNewActions message.
 type MsgPushNewActions struct {
-	Creator         string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
-	MinaBlockHeight int64  `protobuf:"varint,2,opt,name=mina_block_height,json=minaBlockHeight,proto3" json:"mina_block_height,omitempty"`
+	// creator is the account submitting the target Mina height.
+	Creator string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	// mina_block_height is the latest indexed Mina height to process.
+	MinaBlockHeight int64 `protobuf:"varint,2,opt,name=mina_block_height,json=minaBlockHeight,proto3" json:"mina_block_height,omitempty"`
 }
 
 func (m *MsgPushNewActions) Reset()         { *m = MsgPushNewActions{} }

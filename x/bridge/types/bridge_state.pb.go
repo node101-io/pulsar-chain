@@ -22,7 +22,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// BridgeState stores the bridge's processed Mina cursor.
 type BridgeState struct {
+	// latest_fetched_mina_height is the latest Mina height processed by the bridge.
 	LatestFetchedMinaHeight int64 `protobuf:"varint,1,opt,name=latest_fetched_mina_height,json=latestFetchedMinaHeight,proto3" json:"latest_fetched_mina_height,omitempty"`
 }
 

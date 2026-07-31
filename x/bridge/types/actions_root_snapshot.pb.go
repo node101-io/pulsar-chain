@@ -24,8 +24,11 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// ActionsReducedRootSnapshot stores the actions root committed at a Cosmos height.
 type ActionsReducedRootSnapshot struct {
-	CosmosBlockHeight  int64  `protobuf:"varint,1,opt,name=cosmos_block_height,json=cosmosBlockHeight,proto3" json:"cosmos_block_height,omitempty"`
+	// cosmos_block_height is the chain height at which the root was committed.
+	CosmosBlockHeight int64 `protobuf:"varint,1,opt,name=cosmos_block_height,json=cosmosBlockHeight,proto3" json:"cosmos_block_height,omitempty"`
+	// actions_reduced_root is the canonical Pallas field encoding of the root.
 	ActionsReducedRoot []byte `protobuf:"bytes,2,opt,name=actions_reduced_root,json=actionsReducedRoot,proto3" json:"actions_reduced_root,omitempty"`
 }
 

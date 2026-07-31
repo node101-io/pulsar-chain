@@ -497,22 +497,22 @@ func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *te
 	}{
 		{
 			name:       "deposit zero amount",
-			actionType: bridgetypes.ActionType_DEPOSIT,
+			actionType: bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
 			amount:     0,
 		},
 		{
 			name:       "deposit negative amount",
-			actionType: bridgetypes.ActionType_DEPOSIT,
+			actionType: bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
 			amount:     -1,
 		},
 		{
 			name:       "withdraw zero amount",
-			actionType: bridgetypes.ActionType_WITHDRAW,
+			actionType: bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
 			amount:     0,
 		},
 		{
 			name:       "withdraw negative amount",
-			actionType: bridgetypes.ActionType_WITHDRAW,
+			actionType: bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
 			amount:     -1,
 		},
 	}
@@ -580,7 +580,7 @@ func TestPushNewActionsUserDepositHappyPath(t *testing.T) {
 	action := bridgetypes.Action{
 		BlockHeight: 11,
 		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_DEPOSIT,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
 		Amount:      7,
 	}
 
@@ -637,7 +637,7 @@ func TestPushNewActionsUserWithdrawalHappyPath(t *testing.T) {
 	action := bridgetypes.Action{
 		BlockHeight: 11,
 		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_WITHDRAW,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
 		Amount:      7,
 	}
 
@@ -731,7 +731,7 @@ func TestPushNewActionsRollsBackStateOnBankKeeperErrors(t *testing.T) {
 	}{
 		{
 			name:       "deposit mint failure",
-			actionType: bridgetypes.ActionType_DEPOSIT,
+			actionType: bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
 			configureBankKeeper: func(b *mockBankKeeper) {
 				b.mintErr = errors.New("mint failed")
 			},
@@ -743,7 +743,7 @@ func TestPushNewActionsRollsBackStateOnBankKeeperErrors(t *testing.T) {
 		},
 		{
 			name:       "deposit send failure",
-			actionType: bridgetypes.ActionType_DEPOSIT,
+			actionType: bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
 			configureBankKeeper: func(b *mockBankKeeper) {
 				b.sendFromModuleErr = errors.New("send from module failed")
 			},
@@ -755,7 +755,7 @@ func TestPushNewActionsRollsBackStateOnBankKeeperErrors(t *testing.T) {
 		},
 		{
 			name:       "withdraw send failure",
-			actionType: bridgetypes.ActionType_WITHDRAW,
+			actionType: bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
 			configureBankKeeper: func(b *mockBankKeeper) {
 				b.spendable = sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 50))
 				b.sendToModuleErr = errors.New("send to module failed")
@@ -768,7 +768,7 @@ func TestPushNewActionsRollsBackStateOnBankKeeperErrors(t *testing.T) {
 		},
 		{
 			name:       "withdraw burn failure",
-			actionType: bridgetypes.ActionType_WITHDRAW,
+			actionType: bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
 			configureBankKeeper: func(b *mockBankKeeper) {
 				b.spendable = sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 50))
 				b.burnErr = errors.New("burn failed")
@@ -847,7 +847,7 @@ func TestPushNewActionsSkipsUnknownDepositButAdvancesCursor(t *testing.T) {
 	action := bridgetypes.Action{
 		BlockHeight: 11,
 		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_DEPOSIT,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
 		Amount:      7,
 	}
 
@@ -893,7 +893,7 @@ func TestPushNewActionsSkipsWithdrawalWithInsufficientBalanceButAdvancesCursor(t
 	action := bridgetypes.Action{
 		BlockHeight: 11,
 		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_WITHDRAW,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
 		Amount:      7,
 	}
 
@@ -944,7 +944,7 @@ func TestPushNewActionsWithdrawalBalanceAboveUint64DoesNotPanic(t *testing.T) {
 	action := bridgetypes.Action{
 		BlockHeight: 11,
 		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_WITHDRAW,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
 		Amount:      1,
 	}
 
@@ -997,13 +997,13 @@ func TestPushNewActionsPreservesWrapperActionOrderingInRoot(t *testing.T) {
 	action1 := bridgetypes.Action{
 		BlockHeight: 11,
 		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_DEPOSIT,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
 		Amount:      5,
 	}
 	action2 := bridgetypes.Action{
 		BlockHeight: 11,
 		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_DEPOSIT,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
 		Amount:      9,
 	}
 

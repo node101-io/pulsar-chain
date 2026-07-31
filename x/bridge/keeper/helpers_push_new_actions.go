@@ -32,9 +32,9 @@ func (k *Keeper) isValidAction(ctx context.Context, act types.Action) (bool, err
 	}
 
 	switch act.ActionType {
-	case types.ActionType_DEPOSIT:
+	case types.ActionType_ACTION_TYPE_DEPOSIT:
 		return k.isValidDeposit(ctx, act)
-	case types.ActionType_WITHDRAW:
+	case types.ActionType_ACTION_TYPE_WITHDRAW:
 		return k.isValidWithdrawal(ctx, act)
 	default:
 		return false, nil
@@ -92,9 +92,9 @@ func (k *Keeper) apply(ctx context.Context, act types.Action) error {
 	}
 
 	switch act.ActionType {
-	case types.ActionType_DEPOSIT:
+	case types.ActionType_ACTION_TYPE_DEPOSIT:
 		return k.applyDeposit(ctx, act)
-	case types.ActionType_WITHDRAW:
+	case types.ActionType_ACTION_TYPE_WITHDRAW:
 		return k.applyWithdrawal(ctx, act)
 	default:
 		return types.ErrUnspecified

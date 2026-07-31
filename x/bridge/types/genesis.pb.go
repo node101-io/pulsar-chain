@@ -26,8 +26,11 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // GenesisState defines the bridge module's genesis state.
 type GenesisState struct {
-	Params                      Params                       `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
-	BridgeState                 BridgeState                  `protobuf:"bytes,2,opt,name=bridge_state,json=bridgeState,proto3" json:"bridge_state"`
+	// params contains the consensus parameters for the bridge module.
+	Params Params `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
+	// bridge_state contains the initial processed Mina cursor.
+	BridgeState BridgeState `protobuf:"bytes,2,opt,name=bridge_state,json=bridgeState,proto3" json:"bridge_state"`
+	// actions_reduced_root_snapshots contains the initial historical root snapshots.
 	ActionsReducedRootSnapshots []ActionsReducedRootSnapshot `protobuf:"bytes,3,rep,name=actions_reduced_root_snapshots,json=actionsReducedRootSnapshots,proto3" json:"actions_reduced_root_snapshots"`
 }
 
