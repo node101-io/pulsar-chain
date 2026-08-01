@@ -222,11 +222,13 @@ BRIDGE_CONFIRMATION_DEPTH="$(resolve_default_bridge_param "CONFIRMATION_DEPTH" "
 BRIDGE_CONTRACT_ADDRESS="$(resolve_default_bridge_param "CONTRACT_ADDRESS" "contract_address" "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf")"
 BRIDGE_START_BLOCK_HEIGHT="$(resolve_default_bridge_param "START_BLOCK_HEIGHT" "start_block_height" "1")"
 BRIDGE_MAX_BLOCK_RANGE="$(resolve_default_bridge_param "MAX_BLOCK_RANGE" "max_block_range" "1000")"
+BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE="$(resolve_default_bridge_param "ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE" "actions_reduced_root_snapshot_window_size" "4")"
 
 validate_positive_int "confirmation depth" "$BRIDGE_CONFIRMATION_DEPTH"
 validate_non_empty "contract address" "$BRIDGE_CONTRACT_ADDRESS"
 validate_positive_int "start block height" "$BRIDGE_START_BLOCK_HEIGHT"
 validate_positive_int "max block range" "$BRIDGE_MAX_BLOCK_RANGE"
+validate_positive_int "actions reduced root snapshot window size" "$BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE"
 
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_HOMES[i]="$(get_node_setting "$i" "HOME" "$HOME/.pulsar-node${i}")"
@@ -283,7 +285,8 @@ python3 "$PYTHON_HELPER" patch-bridge-genesis \
   --confirmation-depth "$BRIDGE_CONFIRMATION_DEPTH" \
   --contract-address "$BRIDGE_CONTRACT_ADDRESS" \
   --start-block-height "$BRIDGE_START_BLOCK_HEIGHT" \
-  --max-block-range "$BRIDGE_MAX_BLOCK_RANGE"
+  --max-block-range "$BRIDGE_MAX_BLOCK_RANGE" \
+  --actions-reduced-root-snapshot-window-size "$BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE"
 
 echo "==> Creating validator keys..."
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do

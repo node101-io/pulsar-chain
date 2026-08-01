@@ -302,6 +302,7 @@ def patch_bridge_genesis(
     contract_address: str,
     start_block_height: str,
     max_block_range: str,
+    actions_reduced_root_snapshot_window_size: str,
 ) -> int:
     try:
         confirmation_depth_int = int(confirmation_depth)
@@ -331,6 +332,19 @@ def patch_bridge_genesis(
     if max_block_range_int <= 0:
         raise SystemExit("max block range must be greater than 0")
 
+    try:
+        snapshot_window_size_int = int(actions_reduced_root_snapshot_window_size)
+    except ValueError as exc:
+        raise SystemExit(
+            "invalid actions reduced root snapshot window size: "
+            f"{actions_reduced_root_snapshot_window_size}"
+        ) from exc
+
+    if snapshot_window_size_int <= 0:
+        raise SystemExit(
+            "actions reduced root snapshot window size must be greater than 0"
+        )
+
     genesis = read_json(genesis_path)
     app_state = genesis.setdefault("app_state", {})
     bridge = app_state.setdefault("bridge", {})
@@ -339,11 +353,22 @@ def patch_bridge_genesis(
         "contract_address": contract_address,
         "start_block_height": str(start_block_height_int),
         "max_block_range": str(max_block_range_int),
+        "actions_reduced_root_snapshot_window_size": str(snapshot_window_size_int),
     }
 
     bridge["bridge_state"] = {
         "latest_fetched_mina_height": str(start_block_height_int - 1),
     }
+
+    bridge.setdefault(
+        "actions_reduced_root_snapshots",
+        [
+            {
+                "cosmos_block_height": "0",
+                "actions_reduced_root": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            }
+        ],
+    )
 
     write_json(genesis_path, genesis)
     return 0
@@ -467,6 +492,9 @@ def build_parser() -> argparse.ArgumentParser:
     patch_bridge.add_argument("--contract-address", required=True)
     patch_bridge.add_argument("--start-block-height", required=True)
     patch_bridge.add_argument("--max-block-range", required=True)
+    patch_bridge.add_argument(
+        "--actions-reduced-root-snapshot-window-size", required=True
+    )
 
     update_app = subparsers.add_parser("update-app-config")
     update_app.add_argument("--app", required=True)
@@ -507,6 +535,7 @@ def main() -> int:
             args.contract_address,
             args.start_block_height,
             args.max_block_range,
+            args.actions_reduced_root_snapshot_window_size,
         )
     if args.command == "update-app-config":
         return update_app_config(
