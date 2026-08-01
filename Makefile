@@ -42,14 +42,18 @@ test-cover:
 	@go tool cover -html=$(COVER_FILE) -o $(COVER_HTML_FILE)
 	@rm $(COVER_FILE)
 
+test-scripts:
+	@echo Running script unit tests...
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p 'test_*.py'
+
 bench:
 	@echo Running unit tests with benchmarking...
 	@go test $(GO_TAGS_FLAG) -mod=readonly -v -timeout 30m -bench=. ./...
 
-test: govet test-unit
+test: govet test-unit test-scripts
 security: govulncheck
 
-.PHONY: test test-unit test-race test-cover bench security
+.PHONY: test test-unit test-race test-cover test-scripts bench security
 
 #################
 ###  Install  ###

@@ -6,12 +6,18 @@ import hashlib
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 
 MINA_SCALAR_FIELD = int(
     "40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001", 16
+)
+RFC3339_TIMESTAMP_PATTERN = re.compile(
+    r"^(?P<date>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"
+    r"(?:\.(?P<fraction>\d+))?"
+    r"(?P<timezone>Z|[+-]\d{2}:\d{2})$"
 )
 
 
@@ -368,7 +374,47 @@ def verify_validator_key_pairs(genesis_path: str, cosmos_keys: list[str]) -> int
     return 0
 
 
-def check_validator_status(status_json: Optional[str]) -> int:
+def parse_positive_int(value: str) -> int:
+    if re.fullmatch(r"[0-9]+", value) is None:
+        raise argparse.ArgumentTypeError("value must be a positive integer")
+
+    parsed_value = int(value)
+    if parsed_value < 1:
+        raise argparse.ArgumentTypeError("value must be a positive integer")
+
+    return parsed_value
+
+
+def parse_rfc3339_timestamp(timestamp: str) -> datetime:
+    if not isinstance(timestamp, str) or not timestamp:
+        raise ValueError("timestamp must be a non-empty string")
+
+    match = RFC3339_TIMESTAMP_PATTERN.fullmatch(timestamp)
+    if match is None:
+        raise ValueError("timestamp must use RFC3339 format with a timezone")
+
+    fraction = (match.group("fraction") or "")[:6].ljust(6, "0")
+    timezone_suffix = "+00:00" if match.group("timezone") == "Z" else match.group("timezone")
+    normalized_timestamp = (
+        f"{match.group('date')}.{fraction}{timezone_suffix}"
+    )
+
+    try:
+        parsed_timestamp = datetime.fromisoformat(normalized_timestamp)
+    except ValueError as exc:
+        raise ValueError(f"invalid RFC3339 timestamp: {timestamp}") from exc
+
+    return parsed_timestamp.astimezone(timezone.utc)
+
+
+def check_validator_status(
+    status_json: Optional[str],
+    max_block_age_seconds: int,
+    now: Optional[datetime] = None,
+) -> int:
+    if max_block_age_seconds < 1:
+        raise SystemExit("maximum block age must be a positive integer")
+
     if status_json is None:
         status_json = sys.stdin.read()
 
@@ -379,6 +425,7 @@ def check_validator_status(status_json: Optional[str]) -> int:
         sync_info = json.loads(status_json)["result"]["sync_info"]
         catching_up = sync_info["catching_up"]
         latest_block_height = int(sync_info["latest_block_height"])
+        latest_block_time = sync_info["latest_block_time"]
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise SystemExit(f"unable to parse validator status response: {exc}")
 
@@ -388,6 +435,30 @@ def check_validator_status(status_json: Optional[str]) -> int:
     if latest_block_height <= 0:
         raise SystemExit(
             f"validator has not produced a positive block height yet: {latest_block_height}"
+        )
+
+    try:
+        latest_block_datetime = parse_rfc3339_timestamp(latest_block_time)
+    except ValueError as exc:
+        raise SystemExit(f"unable to parse validator latest block time: {exc}")
+
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None or current_time.utcoffset() is None:
+        raise SystemExit("current time must include a timezone")
+
+    current_time = current_time.astimezone(timezone.utc)
+    block_age_seconds = max(
+        0.0,
+        (current_time - latest_block_datetime).total_seconds(),
+    )
+
+    if block_age_seconds > max_block_age_seconds:
+        raise SystemExit(
+            "validator latest block is stale: "
+            f"height={latest_block_height}, "
+            f"latest_block_time={latest_block_time}, "
+            f"age_seconds={block_age_seconds:.6f}, "
+            f"max_age_seconds={max_block_age_seconds}"
         )
 
     return 0
@@ -608,6 +679,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     check_status = subparsers.add_parser("check-validator-status")
     check_status.add_argument("--status-json")
+    check_status.add_argument(
+        "--max-block-age-seconds",
+        required=True,
+        type=parse_positive_int,
+    )
 
     update_app = subparsers.add_parser("update-app-config")
     update_app.add_argument("--app", required=True)
@@ -659,7 +735,10 @@ def main() -> int:
     if args.command == "verify-validator-key-pairs":
         return verify_validator_key_pairs(args.genesis, args.cosmos_key)
     if args.command == "check-validator-status":
-        return check_validator_status(args.status_json)
+        return check_validator_status(
+            args.status_json,
+            args.max_block_age_seconds,
+        )
     if args.command == "update-app-config":
         return update_app_config(
             args.app,

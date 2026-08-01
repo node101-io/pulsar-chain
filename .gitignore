@@ -9,3 +9,5 @@ release/
 *.log
 *.ign
 .docker/
+__pycache__/
+*.py[cod]

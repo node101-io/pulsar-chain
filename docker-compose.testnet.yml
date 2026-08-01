@@ -25,6 +25,8 @@ services:
     restart: unless-stopped
     volumes:
       - validator1_data:/testnet/.pulsar-node1
+    environment:
+      PULSAR_MAX_BLOCK_AGE_SECONDS: "${PULSAR_MAX_BLOCK_AGE_SECONDS-30}"
     ports:
       - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
         target: 26657
@@ -58,6 +60,8 @@ services:
     restart: unless-stopped
     volumes:
       - validator2_data:/testnet/.pulsar-node2
+    environment:
+      PULSAR_MAX_BLOCK_AGE_SECONDS: "${PULSAR_MAX_BLOCK_AGE_SECONDS-30}"
     ports:
       - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
         target: 26657
@@ -91,6 +95,8 @@ services:
     restart: unless-stopped
     volumes:
       - validator3_data:/testnet/.pulsar-node3
+    environment:
+      PULSAR_MAX_BLOCK_AGE_SECONDS: "${PULSAR_MAX_BLOCK_AGE_SECONDS-30}"
     ports:
       - host_ip: "${PULSAR_BIND_HOST:-127.0.0.1}"
         target: 26657

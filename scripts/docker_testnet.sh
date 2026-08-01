@@ -78,6 +78,8 @@ EOF
     restart: unless-stopped
     volumes:
       - validator${i}_data:/testnet/.pulsar-node${i}
+    environment:
+      PULSAR_MAX_BLOCK_AGE_SECONDS: "\${PULSAR_MAX_BLOCK_AGE_SECONDS-30}"
     ports:
       - host_ip: "\${PULSAR_BIND_HOST:-127.0.0.1}"
         target: 26657
@@ -171,7 +173,8 @@ case "$COMMAND" in
       cleanup_partial_environment
       exit 1
     fi
-    if ! run_compose up --no-build -d --wait --wait-timeout "$VALIDATOR_STARTUP_TIMEOUT" "${VALIDATOR_SERVICES[@]}"; then
+    if ! run_compose up --no-build --no-deps -d --wait \
+      --wait-timeout "$VALIDATOR_STARTUP_TIMEOUT" "${VALIDATOR_SERVICES[@]}"; then
       cleanup_partial_environment
       exit 1
     fi
