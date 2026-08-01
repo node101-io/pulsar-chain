@@ -14,6 +14,7 @@ const (
 	defaultActionsReducedRootSnapshotWindowSize int64 = 4
 )
 
+// TODO: Research for implementing a limit for the number of actions to process, and memory usage.
 // NewParams creates a new Params instance.
 func NewParams(
 	confirmationDepth int64,
