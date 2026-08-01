@@ -360,6 +360,8 @@ def verify_validator_key_pairs(genesis_path: str, cosmos_keys: list[str]) -> int
                 f"got {actual_cosmos_key!r}, want {expected_cosmos_key!r}"
             )
 
+        # TODO: Compare this value with the expected Mina public key once a
+        # canonical, trusted Mina key validation implementation is available.
         if not actual_mina_key:
             raise SystemExit(f"validator key pair {index} is missing a mina_key")
 
