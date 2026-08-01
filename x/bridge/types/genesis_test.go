@@ -69,18 +69,20 @@ func TestGenesisStateValidate(t *testing.T) {
 			wantErr: types.ErrEmptyActionsReducedRootSnapshots,
 		},
 		{
-			name: "first snapshot height must be zero",
+			name: "too many snapshots",
 			mutate: func(gs *types.GenesisState) {
-				gs.ActionsReducedRootSnapshots[0].CosmosBlockHeight = 1
+				gs.ActionsReducedRootSnapshots = nil
+				for i := int64(1); i <= gs.Params.ActionsReducedRootSnapshotWindowSize+1; i++ {
+					gs.ActionsReducedRootSnapshots = append(
+						gs.ActionsReducedRootSnapshots,
+						types.ActionsReducedRootSnapshot{
+							CosmosBlockHeight:  i,
+							ActionsReducedRoot: canonicalRoot(uint64(i)),
+						},
+					)
+				}
 			},
-			wantErr: types.ErrActionsReducedRootSnapshotsMustStartAtZero,
-		},
-		{
-			name: "first snapshot root must equal default root",
-			mutate: func(gs *types.GenesisState) {
-				gs.ActionsReducedRootSnapshots[0].ActionsReducedRoot = canonicalRoot(42)
-			},
-			wantErr: types.ErrInvalidInitialActionsReducedRoot,
+			wantErr: types.ErrTooManyActionsReducedRootSnapshots,
 		},
 		{
 			name: "nil root is invalid",
@@ -149,6 +151,18 @@ func TestGenesisStateValidateAcceptsCustomCanonicalSnapshotRoot(t *testing.T) {
 			ActionsReducedRoot: canonicalRoot(42),
 		},
 	)
+
+	require.NoError(t, gs.Validate())
+}
+
+func TestGenesisStateValidateAcceptsRollingWindowWithoutHeightZero(t *testing.T) {
+	gs := validGenesisState()
+	gs.ActionsReducedRootSnapshots = []types.ActionsReducedRootSnapshot{
+		{CosmosBlockHeight: 10, ActionsReducedRoot: canonicalRoot(10)},
+		{CosmosBlockHeight: 11, ActionsReducedRoot: canonicalRoot(11)},
+		{CosmosBlockHeight: 12, ActionsReducedRoot: canonicalRoot(12)},
+		{CosmosBlockHeight: 13, ActionsReducedRoot: canonicalRoot(13)},
+	}
 
 	require.NoError(t, gs.Validate())
 }

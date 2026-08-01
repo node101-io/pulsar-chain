@@ -19,10 +19,11 @@ import (
 )
 
 const (
-	testConfirmationDepth int64 = 32
-	testContractAddress         = "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf"
-	testStartBlockHeight  int64 = 1
-	testMaxBlockRange     int64 = 1000
+	testConfirmationDepth                    int64 = 32
+	testContractAddress                            = "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf"
+	testStartBlockHeight                     int64 = 1
+	testMaxBlockRange                        int64 = 1000
+	testActionsReducedRootSnapshotWindowSize int64 = 4
 )
 
 func validBridgeParams() types.Params {
@@ -31,6 +32,7 @@ func validBridgeParams() types.Params {
 		testContractAddress,
 		testStartBlockHeight,
 		testMaxBlockRange,
+		testActionsReducedRootSnapshotWindowSize,
 	)
 }
 

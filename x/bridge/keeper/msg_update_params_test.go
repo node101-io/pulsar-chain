@@ -19,7 +19,13 @@ func TestMsgUpdateParams(t *testing.T) {
 	authorityStr, err := f.addressCodec.BytesToString(f.keeper.GetAuthority())
 	require.NoError(t, err)
 
-	updatedParams := types.NewParams(64, testContractAddress, testStartBlockHeight, 2048)
+	updatedParams := types.NewParams(
+		64,
+		testContractAddress,
+		testStartBlockHeight,
+		2048,
+		testActionsReducedRootSnapshotWindowSize,
+	)
 
 	testCases := []struct {
 		name      string
@@ -54,6 +60,7 @@ func TestMsgUpdateParams(t *testing.T) {
 					testContractAddress,
 					0,
 					testMaxBlockRange,
+					testActionsReducedRootSnapshotWindowSize,
 				),
 			},
 			expErr:    true,
@@ -68,6 +75,7 @@ func TestMsgUpdateParams(t *testing.T) {
 					"not-a-mina-address",
 					testStartBlockHeight,
 					testMaxBlockRange,
+					testActionsReducedRootSnapshotWindowSize,
 				),
 			},
 			expErr:    true,
@@ -82,10 +90,26 @@ func TestMsgUpdateParams(t *testing.T) {
 					testContractAddress,
 					testStartBlockHeight,
 					0,
+					testActionsReducedRootSnapshotWindowSize,
 				),
 			},
 			expErr:    true,
 			expErrMsg: "max_block_range must be greater than 0",
+		},
+		{
+			name: "invalid snapshot window size",
+			input: &types.MsgUpdateParams{
+				Authority: authorityStr,
+				Params: types.NewParams(
+					testConfirmationDepth,
+					testContractAddress,
+					testStartBlockHeight,
+					testMaxBlockRange,
+					0,
+				),
+			},
+			expErr:    true,
+			expErrMsg: "actions_reduced_root_snapshot_window_size must be greater than 0",
 		},
 		{
 			name: "all good",

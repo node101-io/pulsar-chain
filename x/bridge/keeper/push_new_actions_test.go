@@ -230,6 +230,42 @@ func TestPushNewActionsAcceptsTargetAtIndexedCursor(t *testing.T) {
 	require.Equal(t, int64(10), client.gotTarget)
 }
 
+func TestPushNewActionsKeepsOnlyRollingRootWindow(t *testing.T) {
+	client := &stubArchiveWrapperQueryClient{}
+
+	f := initFixtureWithArchiveWrapperClient(t, client)
+	seedPushNewActionsState(t, f, 9)
+	windowSize := validBridgeParams().ActionsReducedRootSnapshotWindowSize
+
+	ms := bridgekeeper.NewMsgServerImpl(f.keeper)
+
+	for i := int64(0); i < windowSize+1; i++ {
+		target := int64(10 + i)
+		client.minaBlockHeight = target
+		f.ctx = sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(100 + i)
+
+		resp, err := ms.PushNewActions(f.ctx, &bridgetypes.MsgPushNewActions{
+			Creator:         authorityString(t, f.addressCodec),
+			MinaBlockHeight: target,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	}
+
+	iter, err := f.keeper.ActionsReducedRootSnapshots.Iterate(f.ctx, nil)
+	require.NoError(t, err)
+	defer iter.Close()
+
+	var heights []int64
+	for ; iter.Valid(); iter.Next() {
+		height, err := iter.Key()
+		require.NoError(t, err)
+		heights = append(heights, height)
+	}
+
+	require.Equal(t, []int64{101, 102, 103, 104}, heights)
+}
+
 func TestPushNewActionsRejectsTargetAboveIndexedCursor(t *testing.T) {
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 10,
@@ -270,6 +306,7 @@ func TestPushNewActionsBootstrapStartsFromConfiguredStartBlockHeight(t *testing.
 			testContractAddress,
 			startBlockHeight,
 			testMaxBlockRange,
+			testActionsReducedRootSnapshotWindowSize,
 		),
 		BridgeState:                 bridgetypes.NewInitialBridgeState(startBlockHeight),
 		ActionsReducedRootSnapshots: bridgetypes.DefaultActionsReducedRootSnapshots(),
@@ -430,6 +467,7 @@ func TestPushNewActionsRejectsTargetBeyondMaxBlockRange(t *testing.T) {
 			testContractAddress,
 			testStartBlockHeight,
 			10,
+			testActionsReducedRootSnapshotWindowSize,
 		),
 	))
 	seedPushNewActionsState(t, f, 100)
@@ -471,6 +509,7 @@ func TestPushNewActionsAcceptsTargetAtMaxBlockRange(t *testing.T) {
 			testContractAddress,
 			testStartBlockHeight,
 			10,
+			testActionsReducedRootSnapshotWindowSize,
 		),
 	))
 	seedPushNewActionsState(t, f, 100)
