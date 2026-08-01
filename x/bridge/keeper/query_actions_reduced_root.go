@@ -10,6 +10,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ActionsReducedRoot returns the actions reduced root visible in the current
+// SDK query context.
+//
+// Historical queries must use the standard Cosmos SDK block-height metadata:
+//
+//	x-cosmos-block-height: <height>
+//
+// If the node still retains the requested application state version, the
+// response returns the root committed at that height. If the version has been
+// pruned or no root exists in that version, the query must return NotFound and
+// must not fall back to the latest available root.
 func (q queryServer) ActionsReducedRoot(ctx context.Context, req *types.QueryActionsReducedRootRequest) (*types.QueryActionsReducedRootResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
