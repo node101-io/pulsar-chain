@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test verifier-logic.test.mjs"
   },
   "dependencies": {
     "o1js": "2.15.0"

@@ -3,6 +3,9 @@ package abci
 import (
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -18,18 +21,29 @@ type fieldVerifierValidator struct {
 	power        int64
 }
 
-const (
-	preComputedValidatorSetRoot = "28268229887385077809518158266483127416536537714268800272951471493872741302582"
-	preComputedStateRoot        = "13804078167964076827860295044345828310151277215339982145024802239006146310463"
-	preComputedVoteExtBodyHash  = "27597929105583874691902559413948775124877758774604548537116974868579425858141"
-)
+type voteExtBodyVector struct {
+	AppHashBase64            string `json:"appHashBase64"`
+	BlockHeight              int64  `json:"blockHeight"`
+	ValidatorSetRootDecimal  string `json:"validatorSetRootDecimal"`
+	ActionsReducedRootBase64 string `json:"actionsReducedRootBase64"`
+	StateRootDecimal         string `json:"stateRootDecimal"`
+	BodyHashDecimal          string `json:"bodyHashDecimal"`
+}
 
-const (
-	appHashB64  = "kLjv6/1CeuJ6aGKQYXusYfxtZlN2iKIzIwi7oEnOcPA="
-	blockHeight = 176770
-)
+func loadVoteExtBodyVector(t *testing.T) voteExtBodyVector {
+	t.Helper()
+
+	path := filepath.Join("..", "scripts", "vote-ext-verifier", "vote-ext-body-vector.json")
+	bz, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	var vector voteExtBodyVector
+	require.NoError(t, json.Unmarshal(bz, &vector))
+	return vector
+}
 
 func TestVoteExtSignatureMatchesFieldVerifierVector(t *testing.T) {
+	vector := loadVoteExtBodyVector(t)
 	validators := []fieldVerifierValidator{
 		{secondaryKey: secondaryKeyFromScalarUint64(t, 1), power: 100},
 		{secondaryKey: secondaryKeyFromScalarUint64(t, 2), power: 101},
@@ -39,15 +53,18 @@ func TestVoteExtSignatureMatchesFieldVerifierVector(t *testing.T) {
 	validatorSetRoot := validatorSetRootForFieldVerifier(t, validators)
 	require.NotNil(t, validatorSetRoot)
 
-	appHash, err := base64.StdEncoding.DecodeString(appHashB64)
+	appHash, err := base64.StdEncoding.DecodeString(vector.AppHashBase64)
 	require.NoError(t, err)
 	require.NotNil(t, appHash)
+	actionsReducedRoot, err := base64.StdEncoding.DecodeString(vector.ActionsReducedRootBase64)
+	require.NoError(t, err)
+	require.Equal(t, testActionsReducedRoot(), actionsReducedRoot)
 
 	body := votepersistence.VoteExtBody{
 		NextValidatorSetHash: validatorSetRoot.Bytes(),
 		CurrentStateRoot:     appHash,
-		CurrentBlockHeight:   blockHeight,
-		ActionsReducedRoot:   testActionsReducedRoot(),
+		CurrentBlockHeight:   vector.BlockHeight,
+		ActionsReducedRoot:   actionsReducedRoot,
 	}
 
 	signature, err := validators[0].secondaryKey.SignVoteExtBody(body)
@@ -73,9 +90,9 @@ func TestVoteExtSignatureMatchesFieldVerifierVector(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, bodyHash)
 
-	require.Equal(t, validatorSetRoot.String(), preComputedValidatorSetRoot)
-	require.Equal(t, stateRoot.String(), preComputedStateRoot)
-	require.Equal(t, bodyHash.String(), preComputedVoteExtBodyHash)
+	require.Equal(t, vector.ValidatorSetRootDecimal, validatorSetRoot.String())
+	require.Equal(t, vector.StateRootDecimal, stateRoot.String())
+	require.Equal(t, vector.BodyHashDecimal, bodyHash.String())
 }
 
 func secondaryKeyFromScalarUint64(t *testing.T, scalar uint64) SecondaryKey {
