@@ -1,8 +1,10 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
 
@@ -64,4 +66,26 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	}
 
 	return genesis, nil
+}
+
+// PrepareForZeroHeightGenesis resets the Cosmos-height-indexed snapshot window
+// while preserving the cumulative actions root and Mina cursor.
+func (k Keeper) PrepareForZeroHeightGenesis(ctx context.Context) error {
+	currentRoot, err := k.GetLatestActionsReducedRoot(ctx)
+	if err != nil {
+		return err
+	}
+
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	cacheCtx, write := sdkCtx.CacheContext()
+
+	if err := k.ActionsReducedRootSnapshots.Clear(cacheCtx, nil); err != nil {
+		return err
+	}
+	if err := k.ActionsReducedRootSnapshots.Set(cacheCtx, 0, bytes.Clone(currentRoot)); err != nil {
+		return err
+	}
+
+	write()
+	return nil
 }

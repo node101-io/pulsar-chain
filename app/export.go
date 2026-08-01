@@ -27,6 +27,9 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool, jailAllowedAddrs
 	if forZeroHeight {
 		height = 0
 		app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
+		if err := app.BridgeKeeper.PrepareForZeroHeightGenesis(ctx); err != nil {
+			return servertypes.ExportedApp{}, fmt.Errorf("prepare bridge zero-height genesis: %w", err)
+		}
 	}
 
 	genState, err := app.ModuleManager.ExportGenesisForModules(ctx, app.appCodec, modulesToExport)
