@@ -114,36 +114,125 @@ func (m *QueryParamsResponse) GetParams() Params {
 	return Params{}
 }
 
+// QueryActionsReducedRootRequest defines the QueryActionsReducedRootRequest message.
+type QueryActionsReducedRootRequest struct {
+}
+
+func (m *QueryActionsReducedRootRequest) Reset()         { *m = QueryActionsReducedRootRequest{} }
+func (m *QueryActionsReducedRootRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryActionsReducedRootRequest) ProtoMessage()    {}
+func (*QueryActionsReducedRootRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f0aa4d5eadeeb7a5, []int{2}
+}
+func (m *QueryActionsReducedRootRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryActionsReducedRootRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryActionsReducedRootRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryActionsReducedRootRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryActionsReducedRootRequest.Merge(m, src)
+}
+func (m *QueryActionsReducedRootRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryActionsReducedRootRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryActionsReducedRootRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryActionsReducedRootRequest proto.InternalMessageInfo
+
+// QueryActionsReducedRootResponse defines the QueryActionsReducedRootResponse message.
+type QueryActionsReducedRootResponse struct {
+	ActionsReducedRoot []byte `protobuf:"bytes,1,opt,name=actions_reduced_root,json=actionsReducedRoot,proto3" json:"actions_reduced_root,omitempty"`
+}
+
+func (m *QueryActionsReducedRootResponse) Reset()         { *m = QueryActionsReducedRootResponse{} }
+func (m *QueryActionsReducedRootResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryActionsReducedRootResponse) ProtoMessage()    {}
+func (*QueryActionsReducedRootResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f0aa4d5eadeeb7a5, []int{3}
+}
+func (m *QueryActionsReducedRootResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryActionsReducedRootResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryActionsReducedRootResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryActionsReducedRootResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryActionsReducedRootResponse.Merge(m, src)
+}
+func (m *QueryActionsReducedRootResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryActionsReducedRootResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryActionsReducedRootResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryActionsReducedRootResponse proto.InternalMessageInfo
+
+func (m *QueryActionsReducedRootResponse) GetActionsReducedRoot() []byte {
+	if m != nil {
+		return m.ActionsReducedRoot
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*QueryParamsRequest)(nil), "pulsarchain.bridge.v1.QueryParamsRequest")
 	proto.RegisterType((*QueryParamsResponse)(nil), "pulsarchain.bridge.v1.QueryParamsResponse")
+	proto.RegisterType((*QueryActionsReducedRootRequest)(nil), "pulsarchain.bridge.v1.QueryActionsReducedRootRequest")
+	proto.RegisterType((*QueryActionsReducedRootResponse)(nil), "pulsarchain.bridge.v1.QueryActionsReducedRootResponse")
 }
 
 func init() { proto.RegisterFile("pulsarchain/bridge/v1/query.proto", fileDescriptor_f0aa4d5eadeeb7a5) }
 
 var fileDescriptor_f0aa4d5eadeeb7a5 = []byte{
-	// 333 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x90, 0xc1, 0x4a, 0x33, 0x31,
-	0x14, 0x85, 0x27, 0x3f, 0xfc, 0x05, 0xc7, 0x95, 0x63, 0x05, 0x29, 0x3a, 0xea, 0xac, 0x6c, 0xa5,
-	0x73, 0x4d, 0x7d, 0x01, 0xe9, 0xd6, 0x8d, 0x76, 0x23, 0xb8, 0xcb, 0xb4, 0x21, 0x0d, 0x74, 0x72,
-	0xd3, 0x49, 0xa6, 0xd8, 0xad, 0x4f, 0x20, 0xba, 0xf5, 0x01, 0x5c, 0xfa, 0x18, 0x5d, 0x16, 0xdc,
-	0xb8, 0x12, 0x69, 0x05, 0x5f, 0x43, 0x3a, 0x19, 0x41, 0xb1, 0x05, 0x37, 0xe1, 0x72, 0xf2, 0x9d,
-	0x93, 0x93, 0xeb, 0x1f, 0xe8, 0x7c, 0x60, 0x58, 0xd6, 0xed, 0x33, 0xa9, 0x20, 0xc9, 0x64, 0x4f,
-	0x70, 0x18, 0x51, 0x18, 0xe6, 0x3c, 0x1b, 0xc7, 0x3a, 0x43, 0x8b, 0xc1, 0xd6, 0x37, 0x24, 0x76,
-	0x48, 0x3c, 0xa2, 0xb5, 0x0d, 0x96, 0x4a, 0x85, 0x50, 0x9c, 0x8e, 0xac, 0x35, 0xba, 0x68, 0x52,
-	0x34, 0x90, 0x30, 0xc3, 0x5d, 0x04, 0x8c, 0x68, 0xc2, 0x2d, 0xa3, 0xa0, 0x99, 0x90, 0x8a, 0x59,
-	0x89, 0xaa, 0x64, 0xab, 0x02, 0x05, 0x16, 0x23, 0x2c, 0xa6, 0x52, 0xdd, 0x11, 0x88, 0x62, 0xc0,
-	0x81, 0x69, 0x09, 0x4c, 0x29, 0xb4, 0x85, 0xc5, 0x94, 0xb7, 0xd1, 0xf2, 0xb2, 0x9a, 0x65, 0x2c,
-	0x2d, 0x99, 0xa8, 0xea, 0x07, 0x17, 0x8b, 0x97, 0xcf, 0x0b, 0xb1, 0xc3, 0x87, 0x39, 0x37, 0x36,
-	0xba, 0xf4, 0x37, 0x7f, 0xa8, 0x46, 0xa3, 0x32, 0x3c, 0x38, 0xf5, 0x2b, 0xce, 0xbc, 0x4d, 0xf6,
-	0xc9, 0xe1, 0x7a, 0x6b, 0x37, 0x5e, 0xfa, 0xd7, 0xd8, 0xd9, 0xda, 0x6b, 0x93, 0xd7, 0x3d, 0xef,
-	0xf1, 0xe3, 0xa9, 0x41, 0x3a, 0xa5, 0xaf, 0xf5, 0x40, 0xfc, 0xff, 0x45, 0x72, 0x70, 0x47, 0xfc,
-	0x8a, 0xe3, 0x82, 0xfa, 0x8a, 0x98, 0xdf, 0xc5, 0x6a, 0x8d, 0xbf, 0xa0, 0xae, 0x6d, 0x44, 0x6f,
-	0x9e, 0xdf, 0xef, 0xff, 0x1d, 0x05, 0x75, 0x50, 0xd8, 0xe3, 0xf4, 0x98, 0x36, 0x25, 0x82, 0xb3,
-	0x37, 0x97, 0xef, 0xa4, 0x7d, 0x36, 0x99, 0x85, 0x64, 0x3a, 0x0b, 0xc9, 0xdb, 0x2c, 0x24, 0xb7,
-	0xf3, 0xd0, 0x9b, 0xce, 0x43, 0xef, 0x65, 0x1e, 0x7a, 0x57, 0x54, 0x48, 0xdb, 0xcf, 0x93, 0xb8,
-	0x8b, 0xe9, 0xca, 0xb8, 0xeb, 0xaf, 0x40, 0x3b, 0xd6, 0xdc, 0x24, 0x95, 0x62, 0xc3, 0x27, 0x9f,
-	0x01, 0x00, 0x00, 0xff, 0xff, 0x17, 0xc3, 0xc9, 0x81, 0x34, 0x02, 0x00, 0x00,
+	// 414 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x92, 0xc1, 0xaa, 0xd3, 0x40,
+	0x14, 0x86, 0x33, 0x17, 0x2c, 0x38, 0xba, 0x71, 0xac, 0x20, 0x41, 0x73, 0xaf, 0x59, 0x79, 0x2b,
+	0x37, 0x73, 0xe7, 0x8a, 0x8a, 0x2b, 0xb5, 0x5b, 0x37, 0x1a, 0x17, 0x82, 0x9b, 0x32, 0x49, 0x86,
+	0x74, 0xa0, 0x99, 0x93, 0x66, 0x26, 0xc5, 0x6e, 0x7d, 0x02, 0xd1, 0x97, 0x70, 0xe9, 0x43, 0xb8,
+	0xe8, 0xb2, 0xe0, 0xc6, 0x95, 0x48, 0x23, 0xf8, 0x1a, 0xd2, 0x99, 0x14, 0x94, 0x26, 0x52, 0x37,
+	0x61, 0x38, 0xe7, 0xff, 0xff, 0xf3, 0xcd, 0xc9, 0xe0, 0x3b, 0x65, 0x3d, 0xd3, 0xbc, 0x4a, 0xa7,
+	0x5c, 0x2a, 0x9a, 0x54, 0x32, 0xcb, 0x05, 0x5d, 0x30, 0x3a, 0xaf, 0x45, 0xb5, 0x8c, 0xca, 0x0a,
+	0x0c, 0x90, 0x1b, 0x7f, 0x48, 0x22, 0x27, 0x89, 0x16, 0xcc, 0xbf, 0xc6, 0x0b, 0xa9, 0x80, 0xda,
+	0xaf, 0x53, 0xfa, 0xa3, 0x14, 0x74, 0x01, 0x9a, 0x26, 0x5c, 0x0b, 0x17, 0x41, 0x17, 0x2c, 0x11,
+	0x86, 0x33, 0x5a, 0xf2, 0x5c, 0x2a, 0x6e, 0x24, 0xa8, 0x56, 0x3b, 0xcc, 0x21, 0x07, 0x7b, 0xa4,
+	0xdb, 0x53, 0x5b, 0xbd, 0x95, 0x03, 0xe4, 0x33, 0x41, 0x79, 0x29, 0x29, 0x57, 0x0a, 0x8c, 0xb5,
+	0xe8, 0xb6, 0x1b, 0x76, 0xc3, 0x96, 0xbc, 0xe2, 0x45, 0xab, 0x09, 0x87, 0x98, 0xbc, 0xdc, 0x4e,
+	0x7e, 0x61, 0x8b, 0xb1, 0x98, 0xd7, 0x42, 0x9b, 0xf0, 0x35, 0xbe, 0xfe, 0x57, 0x55, 0x97, 0xa0,
+	0xb4, 0x20, 0x4f, 0xf1, 0xc0, 0x99, 0x6f, 0xa2, 0x13, 0x74, 0xf7, 0xca, 0xc5, 0xed, 0xa8, 0xf3,
+	0xae, 0x91, 0xb3, 0x8d, 0x2f, 0xaf, 0xbe, 0x1f, 0x7b, 0x9f, 0x7e, 0x7d, 0x1e, 0xa1, 0xb8, 0xf5,
+	0x85, 0x27, 0x38, 0xb0, 0xc1, 0xcf, 0x52, 0x0b, 0x1a, 0x8b, 0xac, 0x4e, 0x45, 0x16, 0x03, 0x98,
+	0xdd, 0xe8, 0x57, 0xf8, 0xb8, 0x57, 0xd1, 0x62, 0x9c, 0xe3, 0x21, 0x77, 0xdd, 0x49, 0xe5, 0xda,
+	0x93, 0x0a, 0xc0, 0x58, 0xa8, 0xab, 0x31, 0xe1, 0x7b, 0xce, 0x8b, 0xe6, 0x08, 0x5f, 0xb2, 0xa9,
+	0xe4, 0x03, 0xc2, 0x03, 0x87, 0x47, 0x4e, 0x7b, 0xe8, 0xf7, 0xf7, 0xe1, 0x8f, 0x0e, 0x91, 0x3a,
+	0xba, 0x90, 0xbd, 0xfb, 0xfa, 0xf3, 0xe3, 0xd1, 0x3d, 0x72, 0x4a, 0x15, 0x64, 0x82, 0x9d, 0xb3,
+	0x33, 0x09, 0xd4, 0xd9, 0xcf, 0xba, 0x7f, 0x05, 0xf9, 0x82, 0x30, 0xd9, 0xbf, 0x2f, 0x79, 0xf0,
+	0xaf, 0xa9, 0xbd, 0x1b, 0xf4, 0x1f, 0xfe, 0xaf, 0xad, 0x05, 0x7f, 0x62, 0xc1, 0x1f, 0x93, 0x47,
+	0x07, 0x80, 0x77, 0xed, 0x7f, 0xfc, 0x7c, 0xb5, 0x09, 0xd0, 0x7a, 0x13, 0xa0, 0x1f, 0x9b, 0x00,
+	0xbd, 0x6f, 0x02, 0x6f, 0xdd, 0x04, 0xde, 0xb7, 0x26, 0xf0, 0xde, 0xb0, 0x5c, 0x9a, 0x69, 0x9d,
+	0x44, 0x29, 0x14, 0xbd, 0xe1, 0x6f, 0x77, 0xf1, 0x66, 0x59, 0x0a, 0x9d, 0x0c, 0xec, 0xfb, 0xbc,
+	0xff, 0x3b, 0x00, 0x00, 0xff, 0xff, 0x3b, 0x79, 0x25, 0xe0, 0x72, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -160,6 +249,8 @@ const _ = grpc.SupportPackageIsVersion4
 type QueryClient interface {
 	// Parameters queries the parameters of the module.
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
+	// ActionsReducedRoot Queries a list of ActionsReducedRoot items.
+	ActionsReducedRoot(ctx context.Context, in *QueryActionsReducedRootRequest, opts ...grpc.CallOption) (*QueryActionsReducedRootResponse, error)
 }
 
 type queryClient struct {
@@ -179,10 +270,21 @@ func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts .
 	return out, nil
 }
 
+func (c *queryClient) ActionsReducedRoot(ctx context.Context, in *QueryActionsReducedRootRequest, opts ...grpc.CallOption) (*QueryActionsReducedRootResponse, error) {
+	out := new(QueryActionsReducedRootResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.bridge.v1.Query/ActionsReducedRoot", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Parameters queries the parameters of the module.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
+	// ActionsReducedRoot Queries a list of ActionsReducedRoot items.
+	ActionsReducedRoot(context.Context, *QueryActionsReducedRootRequest) (*QueryActionsReducedRootResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -191,6 +293,9 @@ type UnimplementedQueryServer struct {
 
 func (*UnimplementedQueryServer) Params(ctx context.Context, req *QueryParamsRequest) (*QueryParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
+}
+func (*UnimplementedQueryServer) ActionsReducedRoot(ctx context.Context, req *QueryActionsReducedRootRequest) (*QueryActionsReducedRootResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ActionsReducedRoot not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -215,6 +320,24 @@ func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_ActionsReducedRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryActionsReducedRootRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).ActionsReducedRoot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.bridge.v1.Query/ActionsReducedRoot",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).ActionsReducedRoot(ctx, req.(*QueryActionsReducedRootRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pulsarchain.bridge.v1.Query",
@@ -223,6 +346,10 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Params",
 			Handler:    _Query_Params_Handler,
+		},
+		{
+			MethodName: "ActionsReducedRoot",
+			Handler:    _Query_ActionsReducedRoot_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -285,6 +412,59 @@ func (m *QueryParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryActionsReducedRootRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryActionsReducedRootRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryActionsReducedRootRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryActionsReducedRootResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryActionsReducedRootResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryActionsReducedRootResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ActionsReducedRoot) > 0 {
+		i -= len(m.ActionsReducedRoot)
+		copy(dAtA[i:], m.ActionsReducedRoot)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ActionsReducedRoot)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -313,6 +493,28 @@ func (m *QueryParamsResponse) Size() (n int) {
 	_ = l
 	l = m.Params.Size()
 	n += 1 + l + sovQuery(uint64(l))
+	return n
+}
+
+func (m *QueryActionsReducedRootRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryActionsReducedRootResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ActionsReducedRoot)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
 	return n
 }
 
@@ -432,6 +634,140 @@ func (m *QueryParamsResponse) Unmarshal(dAtA []byte) error {
 			}
 			if err := m.Params.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryActionsReducedRootRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryActionsReducedRootRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryActionsReducedRootRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryActionsReducedRootResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryActionsReducedRootResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryActionsReducedRootResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ActionsReducedRoot", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ActionsReducedRoot = append(m.ActionsReducedRoot[:0], dAtA[iNdEx:postIndex]...)
+			if m.ActionsReducedRoot == nil {
+				m.ActionsReducedRoot = []byte{}
 			}
 			iNdEx = postIndex
 		default:
