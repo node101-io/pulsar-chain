@@ -138,6 +138,26 @@ func latestActionsReducedRoot(t *testing.T, f *fixture) []byte {
 	return append([]byte(nil), root...)
 }
 
+func actionsReducedRootSnapshots(t *testing.T, f *fixture) map[int64][]byte {
+	t.Helper()
+
+	iter, err := f.keeper.ActionsReducedRootSnapshots.Iterate(f.ctx, nil)
+	require.NoError(t, err)
+	defer iter.Close()
+
+	snapshots := make(map[int64][]byte)
+	for ; iter.Valid(); iter.Next() {
+		height, err := iter.Key()
+		require.NoError(t, err)
+
+		root, err := iter.Value()
+		require.NoError(t, err)
+		snapshots[height] = append([]byte(nil), root...)
+	}
+
+	return snapshots
+}
+
 func (c *stubArchiveWrapperQueryClient) GetActionsInRange(
 	_ context.Context,
 	latestFetchedMinaHeight int64,
@@ -528,6 +548,92 @@ func TestPushNewActionsAcceptsTargetAtMaxBlockRange(t *testing.T) {
 	require.Equal(t, int64(100), client.gotLatestFetched)
 	require.Equal(t, int64(110), client.gotTarget)
 }
+
+func TestPushNewActionsRejectsActionsOutsideRequestedRangeBeforeMutation(t *testing.T) {
+	const (
+		latestFetchedMinaHeight int64 = 10
+		targetMinaHeight        int64 = 12
+	)
+
+	testCases := []struct {
+		name          string
+		actionHeights []int64
+	}{
+		{
+			name:          "action at current cursor",
+			actionHeights: []int64{latestFetchedMinaHeight},
+		},
+		{
+			name:          "action above target",
+			actionHeights: []int64{targetMinaHeight + 1},
+		},
+		{
+			name:          "valid action precedes out of range action",
+			actionHeights: []int64{latestFetchedMinaHeight + 1, targetMinaHeight + 1},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			feePayer, cosmosPubKey, _ := newUserMapping(t)
+			actions := make([]bridgetypes.Action, 0, len(tc.actionHeights))
+			for _, height := range tc.actionHeights {
+				actions = append(actions, bridgetypes.Action{
+					BlockHeight: height,
+					FeePayer:    feePayer,
+					ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
+					Amount:      7,
+				})
+			}
+
+			client := &stubArchiveWrapperQueryClient{
+				minaBlockHeight: targetMinaHeight,
+				actions:         actions,
+			}
+
+			bankKeeper := NewMockBankKeeper()
+			keyRegistryKeeper := NewMockKeyregistryKeeper()
+			keyRegistryKeeper.register(feePayer, cosmosPubKey)
+
+			f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
+			seedPushNewActionsState(t, f, latestFetchedMinaHeight)
+
+			beforeState, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+			beforeSnapshots := actionsReducedRootSnapshots(t, f)
+			beforeBalance := cloneCoins(bankKeeper.spendable)
+
+			resp, err := bridgekeeper.NewMsgServerImpl(f.keeper).PushNewActions(
+				f.ctx,
+				&bridgetypes.MsgPushNewActions{
+					Creator:         authorityString(t, f.addressCodec),
+					MinaBlockHeight: targetMinaHeight,
+				},
+			)
+
+			require.ErrorIs(t, err, bridgetypes.ErrActionOutsideRequestedRange)
+			require.Nil(t, resp)
+
+			require.Equal(t, 1, client.getMinaBlockHeightCalls)
+			require.Equal(t, 1, client.getActionsCalls)
+			require.Equal(t, latestFetchedMinaHeight, client.gotLatestFetched)
+			require.Equal(t, targetMinaHeight, client.gotTarget)
+
+			afterState, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+			require.Equal(t, beforeState, afterState)
+			require.Equal(t, beforeSnapshots, actionsReducedRootSnapshots(t, f))
+			require.Equal(t, beforeBalance, bankKeeper.spendable)
+
+			require.Zero(t, bankKeeper.spendableCalls)
+			require.Zero(t, bankKeeper.mintCoinsCalls)
+			require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
+			require.Zero(t, bankKeeper.sendCoinsToModuleCalls)
+			require.Zero(t, bankKeeper.burnCoinsCalls)
+		})
+	}
+}
+
 func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *testing.T) {
 	testCases := []struct {
 		name       string
@@ -1076,6 +1182,59 @@ func TestPushNewActionsPreservesWrapperActionOrderingInRoot(t *testing.T) {
 
 	require.Equal(t, 2, bankKeeper.mintCoinsCalls)
 	require.Equal(t, 2, bankKeeper.sendCoinsFromModuleCalls)
+	require.Zero(t, bankKeeper.sendCoinsToModuleCalls)
+	require.Zero(t, bankKeeper.burnCoinsCalls)
+}
+
+func TestPushNewActionsProcessesIdenticalActionOccurrences(t *testing.T) {
+	feePayer, cosmosPubKey, _ := newUserMapping(t)
+
+	action := bridgetypes.Action{
+		BlockHeight: 11,
+		FeePayer:    feePayer,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
+		Amount:      7,
+	}
+
+	client := &stubArchiveWrapperQueryClient{
+		minaBlockHeight: 11,
+		actions:         []bridgetypes.Action{action, action},
+	}
+
+	bankKeeper := NewMockBankKeeper()
+	keyRegistryKeeper := NewMockKeyregistryKeeper()
+	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+
+	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
+	seedPushNewActionsState(t, f, 10)
+
+	resp, err := bridgekeeper.NewMsgServerImpl(f.keeper).PushNewActions(
+		f.ctx,
+		&bridgetypes.MsgPushNewActions{
+			Creator:         authorityString(t, f.addressCodec),
+			MinaBlockHeight: 11,
+		},
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	require.Equal(t, 1, client.getMinaBlockHeightCalls)
+	require.Equal(t, 1, client.getActionsCalls)
+	require.Equal(t, int64(10), client.gotLatestFetched)
+	require.Equal(t, int64(11), client.gotTarget)
+
+	state, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
+
+	gotRoot := latestActionsReducedRoot(t, f)
+	require.Equal(t, expectedActionsReducedRoot(t, action, action), gotRoot)
+	require.NotEqual(t, expectedActionsReducedRoot(t, action), gotRoot)
+
+	require.Equal(t, 2, bankKeeper.mintCoinsCalls)
+	require.Equal(t, 2, bankKeeper.sendCoinsFromModuleCalls)
+	require.Zero(t, bankKeeper.spendableCalls)
 	require.Zero(t, bankKeeper.sendCoinsToModuleCalls)
 	require.Zero(t, bankKeeper.burnCoinsCalls)
 }
