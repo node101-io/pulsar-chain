@@ -10,6 +10,8 @@ import (
 const (
 	defaultStartBlockHeight int64 = 1
 	defaultMaxBlockRange    int64 = 1000
+	// Four covers the N-2/N-3 vote-extension lookback with one spare slot.
+	defaultActionsReducedRootSnapshotWindowSize int64 = 4
 )
 
 // NewParams creates a new Params instance.
@@ -18,12 +20,14 @@ func NewParams(
 	contractAddress string,
 	startBlockHeight int64,
 	maxBlockRange int64,
+	actionsReducedRootSnapshotWindowSize int64,
 ) Params {
 	return Params{
-		ConfirmationDepth: confirmationDepth,
-		ContractAddress:   contractAddress,
-		StartBlockHeight:  startBlockHeight,
-		MaxBlockRange:     maxBlockRange,
+		ConfirmationDepth:                    confirmationDepth,
+		ContractAddress:                      contractAddress,
+		StartBlockHeight:                     startBlockHeight,
+		MaxBlockRange:                        maxBlockRange,
+		ActionsReducedRootSnapshotWindowSize: actionsReducedRootSnapshotWindowSize,
 	}
 }
 
@@ -35,10 +39,11 @@ func DefaultParams() Params {
 // DefaultTestParams returns valid bridge params for tests and simulation.
 func DefaultTestParams() Params {
 	return Params{
-		ConfirmationDepth: 32,
-		ContractAddress:   "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf",
-		StartBlockHeight:  defaultStartBlockHeight,
-		MaxBlockRange:     defaultMaxBlockRange,
+		ConfirmationDepth:                    32,
+		ContractAddress:                      "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf",
+		StartBlockHeight:                     defaultStartBlockHeight,
+		MaxBlockRange:                        defaultMaxBlockRange,
+		ActionsReducedRootSnapshotWindowSize: defaultActionsReducedRootSnapshotWindowSize,
 	}
 }
 
@@ -53,6 +58,9 @@ func (p Params) Validate() error {
 	}
 	if p.MaxBlockRange <= 0 {
 		return ErrMaxBlockRangeMustBeGreaterThanZero
+	}
+	if p.ActionsReducedRootSnapshotWindowSize <= 0 {
+		return ErrActionsReducedRootSnapshotWindowSizeMustBeGreaterThanZero
 	}
 	if strings.TrimSpace(p.ContractAddress) == "" {
 		return ErrEmptyContractAddress

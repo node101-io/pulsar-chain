@@ -38,9 +38,11 @@ func (gs GenesisState) Validate() error {
 		)
 	}
 
+	// Genesis carries only the current root plus the recent consensus window.
 	return validateActionsReducedRootSnapshots(
 		gs.ActionsReducedRootSnapshots,
 		gs.BridgeState.CurrentActionsReducedRoot,
+		gs.Params.ActionsReducedRootSnapshotWindowSize,
 	)
 }
 
@@ -85,17 +87,21 @@ func DefaultActionsReducedRootSnapshots() []ActionsReducedRootSnapshot {
 		},
 	}
 }
-func validateActionsReducedRootSnapshots(snapshots []ActionsReducedRootSnapshot, currentRoot []byte) error {
+func validateActionsReducedRootSnapshots(
+	snapshots []ActionsReducedRootSnapshot,
+	currentRoot []byte,
+	windowSize int64,
+) error {
 	if len(snapshots) == 0 {
 		return ErrEmptyActionsReducedRootSnapshots
 	}
 
-	if len(snapshots) > ActionsReducedRootSnapshotWindowSize {
+	if int64(len(snapshots)) > windowSize {
 		return errorsmod.Wrapf(
 			ErrTooManyActionsReducedRootSnapshots,
 			"got %d, max %d",
 			len(snapshots),
-			ActionsReducedRootSnapshotWindowSize,
+			windowSize,
 		)
 	}
 
@@ -127,6 +133,7 @@ func validateActionsReducedRootSnapshots(snapshots []ActionsReducedRootSnapshot,
 		prevHeight = snapshot.CosmosBlockHeight
 	}
 
+	// The newest snapshot must be the same root BridgeState exposes as current.
 	if !bytes.Equal(snapshots[len(snapshots)-1].ActionsReducedRoot, currentRoot) {
 		return ErrCurrentActionsReducedRootMismatch
 	}

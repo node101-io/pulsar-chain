@@ -19,4 +19,6 @@ message Params {
   int64 start_block_height = 3;
   // max_block_range is the maximum Mina height span processed by one request.
   int64 max_block_range = 4;
+  // actions_reduced_root_snapshot_window_size is the retained consensus root window.
+  int64 actions_reduced_root_snapshot_window_size = 5;
 }

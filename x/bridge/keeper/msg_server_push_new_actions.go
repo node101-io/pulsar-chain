@@ -108,14 +108,20 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 
 	newRoot := list.Root()
 
-	if err := k.Keeper.BridgeState.Set(ctx, types.BridgeState{
-		LatestFetchedMinaHeight:   bridgeState.LatestFetchedMinaHeight,
-		CurrentActionsReducedRoot: bridgeState.CurrentActionsReducedRoot,
-	}); err != nil {
+	// A successful batch advances both the Mina cursor and the current root.
+	bridgeState.LatestFetchedMinaHeight = msg.MinaBlockHeight
+	bridgeState.CurrentActionsReducedRoot = newRoot
+	if err := k.Keeper.BridgeState.Set(ctx, bridgeState); err != nil {
 		return nil, err
 	}
 
-	if err := k.Keeper.setActionsReducedRootSnapshot(ctx, sdkCtx.BlockHeight(), newRoot); err != nil {
+	// Vote extensions read recent roots from this bounded consensus window.
+	if err := k.Keeper.setActionsReducedRootSnapshot(
+		ctx,
+		sdkCtx.BlockHeight(),
+		newRoot,
+		params.ActionsReducedRootSnapshotWindowSize,
+	); err != nil {
 		return nil, err
 	}
 

@@ -105,6 +105,7 @@ func (k Keeper) GetLatestActionsReducedRoot(ctx context.Context) ([]byte, error)
 	return bridgeState.CurrentActionsReducedRoot, nil
 }
 
+// GetActionsReducedRootAtHeight returns the newest snapshot at or before height.
 func (k Keeper) GetActionsReducedRootAtHeight(ctx context.Context, height int64) ([]byte, error) {
 	if height < 0 {
 		return nil, types.ErrInvalidBridgeStateHeight
@@ -126,6 +127,8 @@ func (k Keeper) GetActionsReducedRootAtHeight(ctx context.Context, height int64)
 	return iter.Value()
 }
 
+// SetActionsReducedRoot stores the current root on BridgeState and also records
+// it in the recent snapshot window used by consensus-time lookups.
 func (k Keeper) SetActionsReducedRoot(ctx context.Context, height int64, root []byte) error {
 	bridgeState, err := k.GetBridgeState(ctx)
 	if err != nil {
@@ -137,29 +140,40 @@ func (k Keeper) SetActionsReducedRoot(ctx context.Context, height int64, root []
 		return err
 	}
 
-	return k.setActionsReducedRootSnapshot(ctx, height, root)
+	// Window size is a bridge param, so validators prune with the same value.
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	return k.setActionsReducedRootSnapshot(ctx, height, root, params.ActionsReducedRootSnapshotWindowSize)
 }
 
-func (k Keeper) setActionsReducedRootSnapshot(ctx context.Context, height int64, root []byte) error {
+// setActionsReducedRootSnapshot writes one height-root pair and prunes anything
+// outside the configured rolling window.
+func (k Keeper) setActionsReducedRootSnapshot(ctx context.Context, height int64, root []byte, windowSize int64) error {
 	if height < 0 {
 		return types.ErrInvalidBridgeStateHeight
+	}
+	if windowSize <= 0 {
+		return types.ErrActionsReducedRootSnapshotWindowSizeMustBeGreaterThanZero
 	}
 
 	if err := k.ActionsReducedRootSnapshots.Set(ctx, height, root); err != nil {
 		return err
 	}
 
-	return k.pruneActionsReducedRootSnapshots(ctx)
+	return k.pruneActionsReducedRootSnapshots(ctx, windowSize)
 }
 
-func (k Keeper) pruneActionsReducedRootSnapshots(ctx context.Context) error {
+func (k Keeper) pruneActionsReducedRootSnapshots(ctx context.Context, windowSize int64) error {
 	iter, err := k.ActionsReducedRootSnapshots.Iterate(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer iter.Close()
 
-	heights := make([]int64, 0, types.ActionsReducedRootSnapshotWindowSize+1)
+	heights := make([]int64, 0, int(windowSize)+1)
 	for ; iter.Valid(); iter.Next() {
 		height, err := iter.Key()
 		if err != nil {
@@ -168,7 +182,8 @@ func (k Keeper) pruneActionsReducedRootSnapshots(ctx context.Context) error {
 		heights = append(heights, height)
 	}
 
-	for len(heights) > types.ActionsReducedRootSnapshotWindowSize {
+	// Heights are iterated in ascending order, so the front is the oldest entry.
+	for int64(len(heights)) > windowSize {
 		if err := k.ActionsReducedRootSnapshots.Remove(ctx, heights[0]); err != nil {
 			return err
 		}
