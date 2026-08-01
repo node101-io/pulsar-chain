@@ -5,5 +5,5 @@ func (s BridgeState) Validate() error {
 		return ErrInvalidLatestFetchedMinaHeight
 	}
 
-	return validateActionsReducedRoot(s.CurrentActionsReducedRoot)
+	return nil
 }

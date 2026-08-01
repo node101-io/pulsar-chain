@@ -108,9 +108,8 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 
 	newRoot := list.Root()
 
-	// A successful batch advances both the Mina cursor and the current root.
+	// A successful batch advances the Mina cursor.
 	bridgeState.LatestFetchedMinaHeight = msg.MinaBlockHeight
-	bridgeState.CurrentActionsReducedRoot = newRoot
 	if err := k.Keeper.BridgeState.Set(ctx, bridgeState); err != nil {
 		return nil, err
 	}

@@ -93,16 +93,20 @@ func (k Keeper) GetBridgeState(ctx context.Context) (types.BridgeState, error) {
 }
 
 func (k Keeper) GetLatestActionsReducedRoot(ctx context.Context) ([]byte, error) {
-	bridgeState, err := k.GetBridgeState(ctx)
+	iter, err := k.ActionsReducedRootSnapshots.Iterate(
+		ctx,
+		(&collections.Range[int64]{}).Descending(),
+	)
 	if err != nil {
 		return nil, err
 	}
+	defer iter.Close()
 
-	if len(bridgeState.CurrentActionsReducedRoot) == 0 {
+	if !iter.Valid() {
 		return nil, types.ErrActionsReducedRootSnapshotNotFound
 	}
 
-	return bridgeState.CurrentActionsReducedRoot, nil
+	return iter.Value()
 }
 
 // GetActionsReducedRootAtHeight returns the newest snapshot at or before height.
@@ -127,19 +131,9 @@ func (k Keeper) GetActionsReducedRootAtHeight(ctx context.Context, height int64)
 	return iter.Value()
 }
 
-// SetActionsReducedRoot stores the current root on BridgeState and also records
-// it in the recent snapshot window used by consensus-time lookups.
+// SetActionsReducedRoot records the root in the recent snapshot window. The
+// newest snapshot is the current root.
 func (k Keeper) SetActionsReducedRoot(ctx context.Context, height int64, root []byte) error {
-	bridgeState, err := k.GetBridgeState(ctx)
-	if err != nil {
-		return err
-	}
-
-	bridgeState.CurrentActionsReducedRoot = root
-	if err := k.BridgeState.Set(ctx, bridgeState); err != nil {
-		return err
-	}
-
 	// Window size is a bridge param, so validators prune with the same value.
 	params, err := k.Params.Get(ctx)
 	if err != nil {

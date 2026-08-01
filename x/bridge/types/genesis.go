@@ -38,27 +38,22 @@ func (gs GenesisState) Validate() error {
 		)
 	}
 
-	// Genesis carries only the current root plus the recent consensus window.
+	// Genesis carries the recent consensus window; its newest snapshot is current.
 	return validateActionsReducedRootSnapshots(
 		gs.ActionsReducedRootSnapshots,
-		gs.BridgeState.CurrentActionsReducedRoot,
 		gs.Params.ActionsReducedRootSnapshotWindowSize,
 	)
 }
 
-// DefaultBridgeState returns the default bridge state derived from the default
-// genesis parameters.
+// DefaultBridgeState returns the default bridge state.
 func DefaultBridgeState() BridgeState {
-	return BridgeState{
-		CurrentActionsReducedRoot: DefaultActionsReducedRoot(),
-	}
+	return BridgeState{}
 }
 
 // DefaultTestBridgeState returns the initial bridge state for tests and simulation.
 func DefaultTestBridgeState() BridgeState {
 	return BridgeState{
-		LatestFetchedMinaHeight:   defaultStartBlockHeight - 1,
-		CurrentActionsReducedRoot: DefaultActionsReducedRoot(),
+		LatestFetchedMinaHeight: defaultStartBlockHeight - 1,
 	}
 }
 
@@ -66,8 +61,7 @@ func DefaultTestBridgeState() BridgeState {
 // exactly at startBlockHeight.
 func NewInitialBridgeState(startBlockHeight int64) BridgeState {
 	return BridgeState{
-		LatestFetchedMinaHeight:   startBlockHeight - 1,
-		CurrentActionsReducedRoot: DefaultActionsReducedRoot(),
+		LatestFetchedMinaHeight: startBlockHeight - 1,
 	}
 }
 
@@ -89,7 +83,6 @@ func DefaultActionsReducedRootSnapshots() []ActionsReducedRootSnapshot {
 }
 func validateActionsReducedRootSnapshots(
 	snapshots []ActionsReducedRootSnapshot,
-	currentRoot []byte,
 	windowSize int64,
 ) error {
 	if len(snapshots) == 0 {
@@ -131,11 +124,6 @@ func validateActionsReducedRootSnapshots(
 		}
 
 		prevHeight = snapshot.CosmosBlockHeight
-	}
-
-	// The newest snapshot must be the same root BridgeState exposes as current.
-	if !bytes.Equal(snapshots[len(snapshots)-1].ActionsReducedRoot, currentRoot) {
-		return ErrCurrentActionsReducedRootMismatch
 	}
 
 	return nil
