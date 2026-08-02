@@ -1,4 +1,5 @@
 vue/node_modules
+scripts/vote-ext-verifier/node_modules/
 vue/dist
 release/
 .idea/

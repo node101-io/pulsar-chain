@@ -45,6 +45,14 @@ read_consensus_pub_key() {
   python3 "$PYTHON_HELPER" read-consensus-pub-key --priv-validator-key "$1"
 }
 
+read_wrapper_grpc_address() {
+  python3 "$PYTHON_HELPER" read-wrapper-grpc-address --config "$1"
+}
+
+read_bridge_genesis_param() {
+  python3 "$PYTHON_HELPER" read-bridge-genesis-param --config "$1" --key "$2"
+}
+
 generate_default_mina_priv_key() {
   python3 "$PYTHON_HELPER" generate-default-mina-priv-key --index "$1"
 }
@@ -81,12 +89,54 @@ resolve_default_mina_network_id() {
   printf '%s\n' "devnet"
 }
 
+resolve_default_bridge_param() {
+  local env_var_name="$1"
+  local config_key="$2"
+  local fallback="$3"
+
+  if [[ -n "${!env_var_name:-}" ]]; then
+    printf '%s\n' "${!env_var_name}"
+    return
+  fi
+
+  if [[ -f "$CHAIN_CONFIG_PATH" ]]; then
+    local config_value
+    config_value="$(read_bridge_genesis_param "$CHAIN_CONFIG_PATH" "$config_key")"
+    if [[ -n "$config_value" ]]; then
+      printf '%s\n' "$config_value"
+      return
+    fi
+  fi
+
+  printf '%s\n' "$fallback"
+}
+
 validate_mina_network_id() {
   local index="$1"
   local mina_network_id="$2"
 
   if [[ -z "$mina_network_id" ]]; then
     echo "node${index} mina network id must not be empty" >&2
+    exit 1
+  fi
+}
+
+validate_positive_int() {
+  local value_name="$1"
+  local value="$2"
+
+  if ! [[ "$value" =~ ^[0-9]+$ ]] || (( value < 1 )); then
+    echo "$value_name must be a positive integer, got: $value" >&2
+    exit 1
+  fi
+}
+
+validate_non_empty() {
+  local value_name="$1"
+  local contract_address="$2"
+
+  if [[ -z "$contract_address" ]]; then
+    echo "$value_name must not be empty" >&2
     exit 1
   fi
 }
@@ -109,6 +159,7 @@ configure_node() {
   local persistent_peers="$6"
   local mina_priv_key="$7"
   local mina_network_id="$8"
+  local wrapper_grpc_address="$9"
 
   sed -i.bak "s|laddr = \"tcp://127.0.0.1:26657\"|laddr = \"tcp://0.0.0.0:${rpc_port}\"|" "$home/config/config.toml"
   sed -i.bak "s|laddr = \"tcp://0.0.0.0:26656\"|laddr = \"tcp://0.0.0.0:${p2p_port}\"|" "$home/config/config.toml"
@@ -123,7 +174,8 @@ configure_node() {
     --app "$home/config/app.toml" \
     --min-gas-price "$MIN_GAS_PRICE" \
     --mina-priv-key "$mina_priv_key" \
-    --mina-network-id "$mina_network_id"
+    --mina-network-id "$mina_network_id" \
+    --wrapper-grpc-address "$wrapper_grpc_address"
 }
 
 build_persistent_peers() {
@@ -155,8 +207,28 @@ declare -a NODE_HOMES NODE_MONIKERS NODE_KEY_NAMES NODE_MINA_PRIV_KEYS NODE_MINA
 declare -a NODE_MINA_NETWORK_IDS
 declare -a NODE_P2P_PORTS NODE_RPC_PORTS NODE_GRPC_PORTS NODE_API_PORTS
 declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS
+declare -a NODE_WRAPPER_GRPC_ADDRESSES
+
+DEFAULT_WRAPPER_GRPC_ADDRESS="${WRAPPER_GRPC_ADDRESS:-}"
+if [[ -z "$DEFAULT_WRAPPER_GRPC_ADDRESS" && -f "$CHAIN_CONFIG_PATH" ]]; then
+  DEFAULT_WRAPPER_GRPC_ADDRESS="$(read_wrapper_grpc_address "$CHAIN_CONFIG_PATH")"
+fi
+if [[ -z "$DEFAULT_WRAPPER_GRPC_ADDRESS" ]]; then
+  DEFAULT_WRAPPER_GRPC_ADDRESS="127.0.0.1:9095"
+fi
 
 DEFAULT_MINA_NETWORK_ID="$(resolve_default_mina_network_id)"
+BRIDGE_CONFIRMATION_DEPTH="$(resolve_default_bridge_param "CONFIRMATION_DEPTH" "confirmation_depth" "32")"
+BRIDGE_CONTRACT_ADDRESS="$(resolve_default_bridge_param "CONTRACT_ADDRESS" "contract_address" "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf")"
+BRIDGE_START_BLOCK_HEIGHT="$(resolve_default_bridge_param "START_BLOCK_HEIGHT" "start_block_height" "1")"
+BRIDGE_MAX_BLOCK_RANGE="$(resolve_default_bridge_param "MAX_BLOCK_RANGE" "max_block_range" "1000")"
+BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE="$(resolve_default_bridge_param "ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE" "actions_reduced_root_snapshot_window_size" "4")"
+
+validate_positive_int "confirmation depth" "$BRIDGE_CONFIRMATION_DEPTH"
+validate_non_empty "contract address" "$BRIDGE_CONTRACT_ADDRESS"
+validate_positive_int "start block height" "$BRIDGE_START_BLOCK_HEIGHT"
+validate_positive_int "max block range" "$BRIDGE_MAX_BLOCK_RANGE"
+validate_positive_int "actions reduced root snapshot window size" "$BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE"
 
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_HOMES[i]="$(get_node_setting "$i" "HOME" "$HOME/.pulsar-node${i}")"
@@ -170,6 +242,11 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_RPC_PORTS[i]="$(get_node_setting "$i" "RPC_PORT" "$((26657 + ((i - 1) * 10)))")"
   NODE_GRPC_PORTS[i]="$(get_node_setting "$i" "GRPC_PORT" "$((9090 + i - 1))")"
   NODE_API_PORTS[i]="$(get_node_setting "$i" "API_PORT" "$((1317 + i - 1))")"
+  NODE_WRAPPER_GRPC_ADDRESSES[i]="$(get_node_setting "$i" "WRAPPER_GRPC_ADDRESS" "$DEFAULT_WRAPPER_GRPC_ADDRESS")"
+  if [[ -z "${NODE_WRAPPER_GRPC_ADDRESSES[i]}" ]]; then
+    echo "missing wrapper gRPC address for node${i}; set WRAPPER_GRPC_ADDRESS, NODE${i}_WRAPPER_GRPC_ADDRESS, or validators[].app.bridge.wrapper_grpc_address in $CHAIN_CONFIG_PATH" >&2
+    exit 1
+  fi
   NODE_MINA_PUB_KEYS[i]="$(derive_mina_pub_key "${NODE_MINA_PRIV_KEYS[i]}")"
   NODE_GENESIS_FILES[i]="${NODE_HOMES[i]}/config/genesis.json"
 done
@@ -201,6 +278,15 @@ echo "==> Setting vote extension enable height..."
 python3 "$PYTHON_HELPER" set-vote-extension-height \
   --genesis "$PRIMARY_GENESIS_FILE" \
   --height "$VOTE_EXT_ENABLE_HEIGHT"
+
+echo "==> Setting bridge genesis params..."
+python3 "$PYTHON_HELPER" patch-bridge-genesis \
+  --genesis "$PRIMARY_GENESIS_FILE" \
+  --confirmation-depth "$BRIDGE_CONFIRMATION_DEPTH" \
+  --contract-address "$BRIDGE_CONTRACT_ADDRESS" \
+  --start-block-height "$BRIDGE_START_BLOCK_HEIGHT" \
+  --max-block-range "$BRIDGE_MAX_BLOCK_RANGE" \
+  --actions-reduced-root-snapshot-window-size "$BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE"
 
 echo "==> Creating validator keys..."
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
@@ -266,7 +352,8 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
     "${NODE_GRPC_PORTS[i]}" \
     "$(build_persistent_peers "$i")" \
     "${NODE_MINA_PRIV_KEYS[i]}" \
-    "${NODE_MINA_NETWORK_IDS[i]}"
+    "${NODE_MINA_NETWORK_IDS[i]}" \
+    "${NODE_WRAPPER_GRPC_ADDRESSES[i]}"
 done
 
 echo ""

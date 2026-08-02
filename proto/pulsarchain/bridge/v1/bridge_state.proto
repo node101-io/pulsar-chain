@@ -1,0 +1,14 @@
+// proto/pulsarchain/bridge/v1/state.proto
+syntax = "proto3";
+package pulsarchain.bridge.v1;
+
+option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
+
+// BridgeState stores the bridge's processed Mina cursor.
+message BridgeState {
+  reserved 2;
+  reserved "current_actions_reduced_root";
+
+  // latest_fetched_mina_height is the latest Mina height processed by the bridge.
+  int64 latest_fetched_mina_height = 1;
+}

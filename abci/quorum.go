@@ -104,7 +104,7 @@ func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, voteExtensi
 			return verifiedPayloadVoteExtensions{}, err
 		}
 
-		if err := verifyVoteExtSig(poseidonHash, vote.VoteExtension, body, minaKey, ActionsReducedRoot, h.networkID); err != nil {
+		if err := verifyVoteExtSig(poseidonHash, vote.VoteExtension, body, minaKey, h.networkID); err != nil {
 			if errors.Is(err, ErrInvalidVoteExtSignatureEncoding) || errors.Is(err, ErrInvalidVoteExtSignature) {
 				return verifiedPayloadVoteExtensions{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
 			}

@@ -7,6 +7,9 @@ on:
       - "go.sum"
       - "**/go.mod"
       - "**/go.sum"
+      - "proto/pulsarchain/bridge/v1/**"
+      - "buf.yaml"
+      - "buf.lock"
   merge_group:
 permissions:
   contents: read
@@ -23,3 +26,14 @@ jobs:
       - name: run linting
         run: |
           make lint
+  bridge-proto:
+    name: bridge-proto-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.70.0"
+      - name: lint bridge protobuf API
+        run: |
+          buf lint --path proto/pulsarchain/bridge/v1

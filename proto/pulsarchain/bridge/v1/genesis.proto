@@ -1,0 +1,28 @@
+syntax = "proto3";
+package pulsarchain.bridge.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "pulsarchain/bridge/v1/actions_root_snapshot.proto";
+import "pulsarchain/bridge/v1/bridge_state.proto";
+import "pulsarchain/bridge/v1/params.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
+
+// GenesisState defines the bridge module's genesis state.
+message GenesisState {
+  // params contains the consensus parameters for the bridge module.
+  Params params = 1 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+
+  // bridge_state contains the initial processed Mina cursor.
+  BridgeState bridge_state = 2 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+
+  // actions_reduced_root_snapshots contains the initial historical root snapshots.
+  repeated ActionsReducedRootSnapshot actions_reduced_root_snapshots = 3 [(gogoproto.nullable) = false];
+}

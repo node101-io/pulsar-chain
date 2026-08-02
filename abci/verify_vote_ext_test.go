@@ -170,6 +170,7 @@ func newVerifyVoteExtensionTestHandler(t *testing.T, validators []stakingtypes.V
 		},
 		keyregistryKeeper: verifyVoteExtensionTestKeyregistryKeeper{cosmosToMina: cosmosToMina},
 		networkID:         NetworkID,
+		bridgeKeeper:      testBridgeKeeper{},
 	}
 }
 
@@ -203,4 +204,48 @@ func (k verifyVoteExtensionTestKeyregistryKeeper) ValidatorGetCosmosToMina(_ con
 	}
 
 	return k.cosmosToMina[string(cosmosPubKey)], nil
+}
+func TestVerifyVoteExtensionRejectsSignatureSignedAgainstOldHistoricalRoot(t *testing.T) {
+	reqHeight := int64(10)
+	signedStateHeight := reqHeight - 2
+	validator := newTestBondedValidator(t, 10)
+	secondaryKey := validSecondaryKey()
+	minaPublicKey := testMinaPublicKeyFromSecondaryKey(t, secondaryKey)
+
+	handler := newVerifyVoteExtensionTestHandler(t, []stakingtypes.Validator{validator}, map[string][]byte{
+		string(consensusPubKeyBytes(t, validator)): minaPublicKey,
+	})
+
+	oldRoot := mustReduceToFieldBytes([]byte("old-historical-root"))
+	newRoot := mustReduceToFieldBytes([]byte("new-historical-root"))
+
+	handler.bridgeKeeper = testBridgeKeeper{
+		rootsByHeight: map[int64][]byte{
+			0:                 testActionsReducedRoot(),
+			signedStateHeight: oldRoot,
+		},
+	}
+
+	ctx := prepareProposalTestContext(reqHeight)
+	body, err := handler.constructVoteExtBody(ctx, reqHeight)
+	require.NoError(t, err)
+
+	signature, err := secondaryKey.SignVoteExtBody(body)
+	require.NoError(t, err)
+
+	handler.bridgeKeeper = testBridgeKeeper{
+		rootsByHeight: map[int64][]byte{
+			0:                 testActionsReducedRoot(),
+			signedStateHeight: newRoot,
+		},
+	}
+
+	response, err := handler.VerifyVoteExtensionHandler()(ctx, &cometabci.RequestVerifyVoteExtension{
+		Height:           reqHeight,
+		ValidatorAddress: consensusAddress(t, validator),
+		VoteExtension:    signature,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, cometabci.ResponseVerifyVoteExtension_REJECT, response.Status)
 }

@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-import { Field } from 'o1js';
-
 import {
   fetchPersistedVoteExtensions,
   fetchVoteExtBody,
@@ -12,6 +10,7 @@ import {
   decodeMinaPublicKey,
   decodeMinaSignature,
   fieldFromBigEndian,
+  fieldFromCanonicalBytes,
   stateRootToField,
   verifyVotes,
 } from './verifier-logic.mjs';
@@ -23,8 +22,6 @@ const VOTE_EXTENSIONS_METHOD = 'pulsarchain.votepersistence.v1.Query/VoteExtensi
 const VOTE_EXT_BODY_BY_HEIGHT_METHOD = 'pulsarchain.abci.Query/VoteExtBodyByHeight';
 const VALIDATOR_MINA_KEY_METHOD = 'pulsarchain.keyregistry.v1.Query/GetValidatorMinaPubKey';
 
-const ACTIONS_REDUCED_ROOT_STRING = 'pulsar';
-const ACTIONS_REDUCED_ROOT = Field(0x70756c736172n);
 const VALIDATOR_LEAF_PREFIX = 'pulsar-validator';
 const VERIFICATION_MODE = 'Signature.verify([voteExtBodyHash])';
 
@@ -139,11 +136,14 @@ async function buildReport(options) {
     body.currentStateRoot,
     'voteExtBody.currentStateRoot'
   );
-  if (body.actionsReducedRoot !== ACTIONS_REDUCED_ROOT_STRING) {
-    throw new Error(
-      `unexpected actions_reduced_root: got ${JSON.stringify(body.actionsReducedRoot)}, want ${JSON.stringify(ACTIONS_REDUCED_ROOT_STRING)}`
-    );
-  }
+  const actionsReducedRootBytes = decodeBase64(
+    body.actionsReducedRoot,
+    'voteExtBody.actionsReducedRoot'
+  );
+  const actionsReducedRoot = fieldFromCanonicalBytes(
+    actionsReducedRootBytes,
+    'voteExtBody.actionsReducedRoot'
+  );
 
   const reference = await recomputeReferenceRoot({
     grpcAddr: options.grpcAddr,
@@ -156,7 +156,7 @@ async function buildReport(options) {
     validatorSetRoot: fieldFromBigEndian(nextValidatorSetHashBytes),
     stateRoot: stateRootToField(currentStateRootBytes),
     blockHeight: bodyCurrentBlockHeight,
-    actionsReducedRoot: ACTIONS_REDUCED_ROOT,
+    actionsReducedRoot,
   };
 
   const verifierVotes = votes.map((vote, index) => {
@@ -208,9 +208,10 @@ async function buildReport(options) {
       currentBlockHeight: bodyCurrentBlockHeight.toString(),
       currentStateRootBase64: body.currentStateRoot,
       nextValidatorSetHashBase64: body.nextValidatorSetHash,
-      actionsReducedRoot: body.actionsReducedRoot,
+      actionsReducedRootBase64: body.actionsReducedRoot,
       validatorSetRootField: bodyForVerifier.validatorSetRoot.toString(),
       stateRootField: bodyForVerifier.stateRoot.toString(),
+      actionsReducedRootField: bodyForVerifier.actionsReducedRoot.toString(),
       voteExtBodyHashField: verification.msg.toString(),
     },
     verification: {
@@ -236,9 +237,12 @@ function printTextReport(report) {
   console.log(
     `body.next_validator_set_hash(base64): ${report.body.nextValidatorSetHashBase64}`
   );
-  console.log(`body.actions_reduced_root: ${report.body.actionsReducedRoot}`);
+  console.log(
+    `body.actions_reduced_root(base64): ${report.body.actionsReducedRootBase64}`
+  );
   console.log(`body.validator_set_root(field): ${report.body.validatorSetRootField}`);
   console.log(`body.state_root(field): ${report.body.stateRootField}`);
+  console.log(`body.actions_reduced_root(field): ${report.body.actionsReducedRootField}`);
   console.log(`body.vote_ext_body_hash(field): ${report.body.voteExtBodyHashField}`);
   console.log('');
   console.log(`reference_root_check: ${report.verification.rootOk ? 'match' : 'mismatch'}`);

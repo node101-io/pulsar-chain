@@ -8,5 +8,5 @@ message VoteExtBody {
   bytes next_validator_set_hash = 1;
   bytes current_state_root = 2;
   int64 current_block_height = 3;
-  string actions_reduced_root = 4;
+  bytes actions_reduced_root = 4;
 }
