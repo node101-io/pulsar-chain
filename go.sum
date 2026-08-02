@@ -1676,6 +1676,8 @@ github.com/node101-io/archive-wrapper v0.0.0-20260730135652-f1c66cb78457 h1:SjzL
 github.com/node101-io/archive-wrapper v0.0.0-20260730135652-f1c66cb78457/go.mod h1:UbXv0K7K12+DPbb7NMM52+kLeamthZW8azOSs7dTRvU=
 github.com/node101-io/archive-wrapper v0.0.0-20260801161657-d8efc6635a15 h1:7y9Vcf0ZRbqeaSKdT1P/rB1G/YCtMX7vy4D0td9j9sg=
 github.com/node101-io/archive-wrapper v0.0.0-20260801161657-d8efc6635a15/go.mod h1:UbXv0K7K12+DPbb7NMM52+kLeamthZW8azOSs7dTRvU=
+github.com/node101-io/archive-wrapper v0.0.0-20260802150551-7beb81024f0a h1:eEU6gUWVrhxddHEhWub/Ci9W8N87e6wLuP0/3uDPUUs=
+github.com/node101-io/archive-wrapper v0.0.0-20260802150551-7beb81024f0a/go.mod h1:UbXv0K7K12+DPbb7NMM52+kLeamthZW8azOSs7dTRvU=
 github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e h1:zrvawdhMkFOLNAUjAzSzEq8IhWaWTuMxGs/Q4LxePoI=
 github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e/go.mod h1:SpMLmGyarqavPzpF5iU+pw0mBOWUsEtjOV/3Oe00Jsg=
 github.com/nunnatsa/ginkgolinter v0.19.1 h1:mjwbOlDQxZi9Cal+KfbEJTCz327OLNfwNvoZ70NJ+c4=
