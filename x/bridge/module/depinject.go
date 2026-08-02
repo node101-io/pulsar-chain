@@ -1,10 +1,7 @@
 package bridge
 
 import (
-	"context"
-	"fmt"
 	"strings"
-	"time"
 
 	"cosmossdk.io/core/address"
 	"cosmossdk.io/core/appmodule"
@@ -18,8 +15,6 @@ import (
 	"github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
-
-const wrapperReadyTimeout = 5 * time.Second
 
 var _ depinject.OnePerModuleType = AppModule{}
 
@@ -72,13 +67,7 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		if err != nil {
 			panic(err)
 		}
-
-		readyCtx, cancel := context.WithTimeout(context.Background(), wrapperReadyTimeout)
-		defer cancel()
-
-		if err := archiveWrapperClient.CheckReady(readyCtx); err != nil {
-			panic(fmt.Errorf("archive wrapper is not reachable at startup: %w", err))
-		}
+		// The gRPC client connects lazily. Deployment readiness must not block app construction or offline commands.
 	}
 
 	k := keeper.NewKeeper(

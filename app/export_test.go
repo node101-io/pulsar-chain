@@ -27,7 +27,10 @@ import (
 	grpcHealthV1 "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-func startArchiveWrapperHealthServer(t *testing.T) string {
+func startArchiveWrapperHealthServer(
+	t *testing.T,
+	status grpcHealthV1.HealthCheckResponse_ServingStatus,
+) string {
 	t.Helper()
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -35,7 +38,7 @@ func startArchiveWrapperHealthServer(t *testing.T) string {
 
 	server := grpc.NewServer()
 	healthServer := health.NewServer()
-	healthServer.SetServingStatus("query.Query", grpcHealthV1.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("query.Query", status)
 	grpcHealthV1.RegisterHealthServer(server, healthServer)
 
 	go func() {
@@ -48,6 +51,16 @@ func startArchiveWrapperHealthServer(t *testing.T) string {
 	})
 
 	return listener.Addr().String()
+}
+
+func TestAppConstructionDoesNotRequireReadyArchiveWrapper(t *testing.T) {
+	wrapperAddress := startArchiveWrapperHealthServer(
+		t,
+		grpcHealthV1.HealthCheckResponse_NOT_SERVING,
+	)
+
+	app := newZeroHeightExportTestApp(t, wrapperAddress)
+	require.NotNil(t, app.BridgeArchiveWrapperClient)
 }
 
 func newZeroHeightExportTestApp(t *testing.T, wrapperAddress string) *App {
@@ -98,7 +111,10 @@ func bridgeGenesisFromExport(t *testing.T, app *App, appState []byte) bridgetype
 }
 
 func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
-	wrapperAddress := startArchiveWrapperHealthServer(t)
+	wrapperAddress := startArchiveWrapperHealthServer(
+		t,
+		grpcHealthV1.HealthCheckResponse_NOT_SERVING,
+	)
 	oldApp := newZeroHeightExportTestApp(t, wrapperAddress)
 
 	validatorSet, err := simtestutil.CreateRandomValidatorSet()
