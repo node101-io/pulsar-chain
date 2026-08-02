@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,9 +37,18 @@ type ArchiveWrapperClient struct {
 }
 
 func validateLoopbackGRPCAddress(addr string) error {
-	addr = strings.TrimSpace(addr)
+	if addr != strings.TrimSpace(addr) {
+		return errorsmod.Wrap(
+			types.ErrInvalidArchiveWrapperGRPCAddress,
+			"surrounding whitespace is not allowed",
+		)
+	}
+
 	if addr == "" {
-		return types.ErrInvalidArchiveWrapperGRPCAddress
+		return errorsmod.Wrap(
+			types.ErrInvalidArchiveWrapperGRPCAddress,
+			"address is required",
+		)
 	}
 
 	host, port, err := net.SplitHostPort(addr)
@@ -50,19 +61,20 @@ func validateLoopbackGRPCAddress(addr string) error {
 		)
 	}
 
-	if strings.TrimSpace(port) == "" {
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
 		return errorsmod.Wrapf(
 			types.ErrInvalidArchiveWrapperGRPCAddress,
-			"missing port in %q",
-			addr,
+			"host %q must be a literal IP address: %v",
+			host,
+			err,
 		)
 	}
 
-	ip := net.ParseIP(host)
-	if ip == nil {
+	if ip.Zone() != "" {
 		return errorsmod.Wrapf(
 			types.ErrInvalidArchiveWrapperGRPCAddress,
-			"host %q is not a literal IP; only 127.0.0.1 or ::1 are allowed",
+			"scoped IPv6 host %q is not allowed",
 			host,
 		)
 	}
@@ -70,8 +82,17 @@ func validateLoopbackGRPCAddress(addr string) error {
 	if !ip.IsLoopback() {
 		return errorsmod.Wrapf(
 			types.ErrInvalidArchiveWrapperGRPCAddress,
-			"host %q is not loopback; only 127.0.0.1 or ::1 are allowed",
+			"host %q is not loopback",
 			host,
+		)
+	}
+
+	parsedPort, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || parsedPort == 0 {
+		return errorsmod.Wrapf(
+			types.ErrInvalidArchiveWrapperGRPCAddress,
+			"port %q must be between 1 and 65535",
+			port,
 		)
 	}
 
@@ -82,10 +103,6 @@ func validateLoopbackGRPCAddress(addr string) error {
 // Hence, wrapperGRPCAddress must be a loopback host:port address (for example 127.0.0.1:9095 or [::1]:9095).
 func NewArchiveWrapperQueryClient(wrapperGRPCAddress string) (*ArchiveWrapperClient, error) {
 	wrapperGRPCAddress = strings.TrimSpace(wrapperGRPCAddress)
-	if wrapperGRPCAddress == "" {
-		return nil, nil
-	}
-
 	if err := validateLoopbackGRPCAddress(wrapperGRPCAddress); err != nil {
 		return nil, err
 	}

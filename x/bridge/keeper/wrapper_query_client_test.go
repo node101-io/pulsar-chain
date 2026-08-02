@@ -28,6 +28,21 @@ func TestValidateLoopbackGRPCAddress(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "ipv4 loopback range",
+			addr:    "127.20.30.40:9095",
+			wantErr: false,
+		},
+		{
+			name:    "empty address is rejected",
+			addr:    "",
+			wantErr: true,
+		},
+		{
+			name:    "surrounding whitespace is rejected",
+			addr:    " 127.0.0.1:9095 ",
+			wantErr: true,
+		},
+		{
 			name:    "localhost is rejected",
 			addr:    "localhost:9095",
 			wantErr: true,
@@ -38,8 +53,18 @@ func TestValidateLoopbackGRPCAddress(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "ipv6 wildcard is rejected",
+			addr:    "[::]:9095",
+			wantErr: true,
+		},
+		{
 			name:    "lan address is rejected",
 			addr:    "192.168.1.10:9095",
+			wantErr: true,
+		},
+		{
+			name:    "public address is rejected",
+			addr:    "8.8.8.8:9095",
 			wantErr: true,
 		},
 		{
@@ -50,6 +75,26 @@ func TestValidateLoopbackGRPCAddress(t *testing.T) {
 		{
 			name:    "missing port is rejected",
 			addr:    "127.0.0.1",
+			wantErr: true,
+		},
+		{
+			name:    "zero port is rejected",
+			addr:    "127.0.0.1:0",
+			wantErr: true,
+		},
+		{
+			name:    "port above range is rejected",
+			addr:    "127.0.0.1:65536",
+			wantErr: true,
+		},
+		{
+			name:    "service name port is rejected",
+			addr:    "127.0.0.1:http",
+			wantErr: true,
+		},
+		{
+			name:    "zoned ipv6 is rejected",
+			addr:    "[::1%lo]:9095",
 			wantErr: true,
 		},
 	}
@@ -67,10 +112,30 @@ func TestValidateLoopbackGRPCAddress(t *testing.T) {
 	}
 }
 
-func TestNewArchiveWrapperQueryClientRejectsNonLoopbackAddress(t *testing.T) {
-	client, err := NewArchiveWrapperQueryClient("192.168.1.10:9095")
-	require.Nil(t, client)
-	require.ErrorIs(t, err, types.ErrInvalidArchiveWrapperGRPCAddress)
+func TestNewArchiveWrapperQueryClientRejectsInvalidAddress(t *testing.T) {
+	testCases := []struct {
+		name string
+		addr string
+	}{
+		{name: "empty", addr: ""},
+		{name: "malformed", addr: "127.0.0.1"},
+		{name: "non-loopback", addr: "192.168.1.10:9095"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			client, err := NewArchiveWrapperQueryClient(tc.addr)
+			require.Nil(t, client)
+			require.ErrorIs(t, err, types.ErrInvalidArchiveWrapperGRPCAddress)
+		})
+	}
+}
+
+func TestNewArchiveWrapperQueryClientNormalizesAddress(t *testing.T) {
+	client, err := NewArchiveWrapperQueryClient(" 127.0.0.1:9095 ")
+	require.NoError(t, err)
+	require.NotNil(t, client)
+	require.NoError(t, client.Close())
 }
 
 func TestArchiveWrapperClientMethodsRejectUnconfiguredClient(t *testing.T) {
