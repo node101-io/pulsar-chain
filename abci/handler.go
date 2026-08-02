@@ -12,6 +12,7 @@ type ABCIHandler struct {
 	keyregistryKeeper     KeyregistryKeeper
 	votePersistenceKeeper VotePersistenceKeeper
 	networkID             mina.NetworkID
+	bridgeKeeper          BridgeKeeper
 }
 
 func NewABCIHandler(
@@ -20,6 +21,7 @@ func NewABCIHandler(
 	keyregistryKeeper KeyregistryKeeper,
 	votepersistenceKeeper VotePersistenceKeeper,
 	networkId mina.NetworkID,
+	bridgeKeeper BridgeKeeper,
 ) (*ABCIHandler, error) {
 	if err := secondaryKey.Validate(); err != nil {
 		return nil, err
@@ -33,6 +35,9 @@ func NewABCIHandler(
 	if isNilDependency(votepersistenceKeeper) {
 		return nil, ErrMissingVotePersistenceKeeper
 	}
+	if isNilDependency(bridgeKeeper) {
+		return nil, ErrMissingBridgeKeeper
+	}
 
 	return &ABCIHandler{
 		secondaryKey:          secondaryKey,
@@ -40,6 +45,7 @@ func NewABCIHandler(
 		keyregistryKeeper:     keyregistryKeeper,
 		votePersistenceKeeper: votepersistenceKeeper,
 		networkID:             networkId,
+		bridgeKeeper:          bridgeKeeper,
 	}, nil
 }
 

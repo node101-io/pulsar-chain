@@ -57,11 +57,7 @@ func (s SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBo
 	return sig.Bytes(), nil
 }
 
-func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, reducedRoot string, networkID mina.NetworkID) error {
-	if message.ActionsReducedRoot != reducedRoot {
-		return ErrInvalidVoteExtReducedRoot
-	}
-
+func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, networkID mina.NetworkID) error {
 	pubKey, err := publickey.NewPublicKeyFromBytes(minaKey, networkID)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidVoteExtMinaPublicKey, err)
@@ -109,7 +105,7 @@ func hashVoteExtBody(poseidonHash *poseidon.Poseidon, voteExtBody votepersistenc
 		return nil, fmt.Errorf("%w: %v", ErrVoteExtBodyHashFailed, err)
 	}
 
-	actionsRoot, err := minaField.FromBytesBEReduce([]byte(voteExtBody.ActionsReducedRoot))
+	actionsRoot, err := minaField.FromBytes(voteExtBody.ActionsReducedRoot)
 	if err != nil {
 		return nil, fmt.Errorf("%w: invalid actions reduced root: %v", ErrVoteExtBodyHashFailed, err)
 	}

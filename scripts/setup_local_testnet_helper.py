@@ -31,6 +31,38 @@ def write_json(path_str: str, payload) -> None:
     write_text(path_str, json.dumps(payload, indent=2) + "\n")
 
 
+def read_nested_config_value(
+    config_path: str, section_name: str, key_name: str
+) -> Optional[str]:
+    lines = read_text(config_path).splitlines()
+    key_pattern = re.compile(
+        rf'^\s*{re.escape(key_name)}:\s*(?:"([^"]*)"|\'([^\']*)\'|([^#\n]+?))\s*$'
+    )
+
+    for index, line in enumerate(lines):
+        section_match = re.match(rf"^(\s*){re.escape(section_name)}:\s*$", line)
+        if not section_match:
+            continue
+
+        section_indent = len(section_match.group(1))
+        for nested_line in lines[index + 1 :]:
+            if not nested_line.strip():
+                continue
+
+            nested_indent = len(nested_line) - len(nested_line.lstrip(" "))
+            if nested_indent <= section_indent:
+                break
+
+            key_match = key_pattern.match(nested_line)
+            if key_match:
+                for group in key_match.groups():
+                    if group is not None:
+                        return group.strip()
+                return ""
+
+    return None
+
+
 def read_mina_priv_key(config_path: str) -> int:
     content = read_text(config_path)
     match = re.search(r'vote_extension:\s*\n\s*priv_key:\s*"([^"]+)"', content)
@@ -43,15 +75,128 @@ def read_mina_priv_key(config_path: str) -> int:
     return 0
 
 
+def read_wrapper_grpc_address(config_path: str) -> int:
+    wrapper_grpc_address = read_nested_config_value(
+        config_path, "bridge", "wrapper_grpc_address"
+    )
+    if wrapper_grpc_address is None:
+        print("")
+        return 0
+
+    print(wrapper_grpc_address)
+    return 0
+
+
+def read_scalar_in_block(
+    lines: list[str],
+    start_index: int,
+    end_index: int,
+    parent_indent: int,
+    key_name: str,
+) -> Optional[str]:
+    key_pattern = re.compile(
+        rf'^\s*{re.escape(key_name)}:\s*(?:"([^"]*)"|\'([^\']*)\'|([^#\n]+?))\s*$'
+    )
+
+    for index in range(start_index, end_index):
+        line = lines[index]
+        if not line.strip():
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= parent_indent:
+            break
+
+        key_match = key_pattern.match(line)
+        if not key_match:
+            continue
+
+        for group in key_match.groups():
+            if group is not None:
+                return group.strip()
+        return ""
+
+    return None
+
+
+def find_named_block(
+    lines: list[str],
+    start_index: int,
+    end_index: int,
+    parent_indent: int,
+    block_name: str,
+) -> Optional[tuple[int, int, int]]:
+    block_pattern = re.compile(rf"^(\s*){re.escape(block_name)}:\s*$")
+
+    for index in range(start_index, end_index):
+        line = lines[index]
+        if not line.strip():
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= parent_indent:
+            break
+
+        block_match = block_pattern.match(line)
+        if not block_match:
+            continue
+
+        block_indent = len(block_match.group(1))
+        block_end = end_index
+        for nested_index in range(index + 1, end_index):
+            nested_line = lines[nested_index]
+            if not nested_line.strip():
+                continue
+
+            nested_indent = len(nested_line) - len(nested_line.lstrip(" "))
+            if nested_indent <= block_indent:
+                block_end = nested_index
+                break
+
+        return index + 1, block_end, block_indent
+
+    return None
+
+
+def read_config_path_value(config_path: str, path: list[str]) -> Optional[str]:
+    lines = read_text(config_path).splitlines()
+    start_index = 0
+    end_index = len(lines)
+    parent_indent = -1
+
+    for block_name in path[:-1]:
+        block = find_named_block(
+            lines, start_index, end_index, parent_indent, block_name
+        )
+        if block is None:
+            return None
+
+        start_index, end_index, parent_indent = block
+
+    return read_scalar_in_block(lines, start_index, end_index, parent_indent, path[-1])
+
+
+def read_bridge_genesis_param(config_path: str, key_name: str) -> int:
+    value = read_config_path_value(
+        config_path,
+        ["genesis", "app_state", "bridge", "params", key_name],
+    )
+    if value is None:
+        print("")
+        return 0
+
+    print(value)
+    return 0
+
+
 def read_mina_network_id(config_path: str) -> int:
-    content = read_text(config_path)
-    match = re.search(r'mina:\s*\n\s*network_id:\s*"?([^"\n]+)"?', content)
-    if not match:
+    network_id = read_nested_config_value(config_path, "mina", "network_id")
+    if network_id is None:
         raise SystemExit(
             f"could not find validators[].app.mina.network_id in {config_path}"
         )
 
-    print(match.group(1).strip())
+    print(network_id)
     return 0
 
 
@@ -151,21 +296,138 @@ def patch_keyregistry(
     return 0
 
 
-def replace_or_append_toml_block(app_toml: str, block_name: str, block_content: str) -> str:
-    header = f"\n[{block_name}]\n"
+def patch_bridge_genesis(
+    genesis_path: str,
+    confirmation_depth: str,
+    contract_address: str,
+    start_block_height: str,
+    max_block_range: str,
+    actions_reduced_root_snapshot_window_size: str,
+) -> int:
+    try:
+        confirmation_depth_int = int(confirmation_depth)
+    except ValueError as exc:
+        raise SystemExit(f"invalid confirmation depth: {confirmation_depth}") from exc
 
-    if header in app_toml:
-        start = app_toml.index(header) + 1
-        end = app_toml.find("\n[", start + 1)
-        if end == -1:
-            return app_toml[:start] + block_content
-        return app_toml[:start] + block_content + app_toml[end + 1 :]
+    if confirmation_depth_int <= 0:
+        raise SystemExit("confirmation depth must be greater than 0")
 
-    return app_toml.rstrip() + f"\n\n{block_content}"
+    contract_address = contract_address.strip()
+    if not contract_address:
+        raise SystemExit("contract address must not be empty")
+
+    try:
+        start_block_height_int = int(start_block_height)
+    except ValueError as exc:
+        raise SystemExit(f"invalid start block height: {start_block_height}") from exc
+
+    if start_block_height_int <= 0:
+        raise SystemExit("start block height must be greater than 0")
+
+    try:
+        max_block_range_int = int(max_block_range)
+    except ValueError as exc:
+        raise SystemExit(f"invalid max block range: {max_block_range}") from exc
+
+    if max_block_range_int <= 0:
+        raise SystemExit("max block range must be greater than 0")
+
+    try:
+        snapshot_window_size_int = int(actions_reduced_root_snapshot_window_size)
+    except ValueError as exc:
+        raise SystemExit(
+            "invalid actions reduced root snapshot window size: "
+            f"{actions_reduced_root_snapshot_window_size}"
+        ) from exc
+
+    if snapshot_window_size_int <= 0:
+        raise SystemExit(
+            "actions reduced root snapshot window size must be greater than 0"
+        )
+
+    genesis = read_json(genesis_path)
+    app_state = genesis.setdefault("app_state", {})
+    bridge = app_state.setdefault("bridge", {})
+    bridge["params"] = {
+        "confirmation_depth": str(confirmation_depth_int),
+        "contract_address": contract_address,
+        "start_block_height": str(start_block_height_int),
+        "max_block_range": str(max_block_range_int),
+        "actions_reduced_root_snapshot_window_size": str(snapshot_window_size_int),
+    }
+
+    bridge["bridge_state"] = {
+        "latest_fetched_mina_height": str(start_block_height_int - 1),
+    }
+
+    bridge.setdefault(
+        "actions_reduced_root_snapshots",
+        [
+            {
+                "cosmos_block_height": "0",
+                "actions_reduced_root": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            }
+        ],
+    )
+
+    write_json(genesis_path, genesis)
+    return 0
+
+
+def upsert_toml_key(
+    app_toml: str,
+    table_name: str,
+    key_name: str,
+    value: str,
+    *,
+    quote_value: bool = True,
+) -> str:
+    table_header = f"[{table_name}]"
+    if quote_value:
+        key_line = f'{key_name} = "{value}"'
+    else:
+        key_line = f"{key_name} = {value}"
+    lines = app_toml.rstrip("\n").split("\n")
+
+    table_start = None
+    for index, line in enumerate(lines):
+        if line.strip() == table_header:
+            table_start = index
+            break
+
+    if table_start is None:
+        if lines and lines[-1].strip():
+            lines.extend(["", table_header, key_line])
+        else:
+            lines.extend([table_header, key_line])
+        return "\n".join(lines) + "\n"
+
+    table_end = len(lines)
+    for index in range(table_start + 1, len(lines)):
+        stripped = lines[index].strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            table_end = index
+            break
+
+    key_pattern = re.compile(rf"^\s*{re.escape(key_name)}\s*=")
+    for index in range(table_start + 1, table_end):
+        if key_pattern.match(lines[index]):
+            lines[index] = key_line
+            break
+    else:
+        while table_end > table_start + 1 and not lines[table_end - 1].strip():
+            table_end -= 1
+        lines.insert(table_end, key_line)
+
+    return "\n".join(lines) + "\n"
 
 
 def update_app_config(
-    app_path: str, min_gas_price: str, mina_priv_key: str, mina_network_id: str
+    app_path: str,
+    min_gas_price: str,
+    mina_priv_key: str,
+    mina_network_id: str,
+    wrapper_grpc_address: str,
 ) -> int:
     app_toml = read_text(app_path)
     app_toml = app_toml.replace(
@@ -174,11 +436,15 @@ def update_app_config(
         1,
     )
 
-    vote_extension_block = f'[vote_extension]\npriv_key = "{mina_priv_key}"\n'
-    mina_block = f'[mina]\nnetwork_id = "{mina_network_id}"\n'
+    app_toml = upsert_toml_key(app_toml, "vote_extension", "priv_key", mina_priv_key)
 
-    app_toml = replace_or_append_toml_block(app_toml, "vote_extension", vote_extension_block)
-    app_toml = replace_or_append_toml_block(app_toml, "mina", mina_block)
+    app_toml = upsert_toml_key(app_toml, "mina", "network_id", mina_network_id)
+
+    wrapper_grpc_address = wrapper_grpc_address.strip()
+    if wrapper_grpc_address:
+        app_toml = upsert_toml_key(
+            app_toml, "bridge", "wrapper_grpc_address", wrapper_grpc_address
+        )
 
     write_text(app_path, app_toml)
     return 0
@@ -193,6 +459,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     read_network_id = subparsers.add_parser("read-mina-network-id")
     read_network_id.add_argument("--config", required=True)
+
+    read_wrapper_addr = subparsers.add_parser("read-wrapper-grpc-address")
+    read_wrapper_addr.add_argument("--config", required=True)
+
+    read_bridge_param_cmd = subparsers.add_parser("read-bridge-genesis-param")
+    read_bridge_param_cmd.add_argument("--config", required=True)
+    read_bridge_param_cmd.add_argument("--key", required=True)
 
     read_consensus_key = subparsers.add_parser("read-consensus-pub-key")
     read_consensus_key.add_argument("--priv-validator-key", required=True)
@@ -213,11 +486,22 @@ def build_parser() -> argparse.ArgumentParser:
     patch_registry.add_argument("--cosmos-key", action="append")
     patch_registry.add_argument("--mina-pub-key", action="append", required=True)
 
+    patch_bridge = subparsers.add_parser("patch-bridge-genesis")
+    patch_bridge.add_argument("--genesis", required=True)
+    patch_bridge.add_argument("--confirmation-depth", required=True)
+    patch_bridge.add_argument("--contract-address", required=True)
+    patch_bridge.add_argument("--start-block-height", required=True)
+    patch_bridge.add_argument("--max-block-range", required=True)
+    patch_bridge.add_argument(
+        "--actions-reduced-root-snapshot-window-size", required=True
+    )
+
     update_app = subparsers.add_parser("update-app-config")
     update_app.add_argument("--app", required=True)
     update_app.add_argument("--min-gas-price", required=True)
     update_app.add_argument("--mina-priv-key", required=True)
     update_app.add_argument("--mina-network-id", required=True)
+    update_app.add_argument("--wrapper-grpc-address", default="")
 
     return parser
 
@@ -228,6 +512,10 @@ def main() -> int:
 
     if args.command == "read-mina-priv-key":
         return read_mina_priv_key(args.config)
+    if args.command == "read-wrapper-grpc-address":
+        return read_wrapper_grpc_address(args.config)
+    if args.command == "read-bridge-genesis-param":
+        return read_bridge_genesis_param(args.config, args.key)
     if args.command == "read-mina-network-id":
         return read_mina_network_id(args.config)
     if args.command == "read-consensus-pub-key":
@@ -240,12 +528,22 @@ def main() -> int:
         return validate_mina_priv_key(args.index, args.mina_priv_key)
     if args.command == "patch-keyregistry":
         return patch_keyregistry(args.genesis, args.mina_pub_key, args.cosmos_key)
+    if args.command == "patch-bridge-genesis":
+        return patch_bridge_genesis(
+            args.genesis,
+            args.confirmation_depth,
+            args.contract_address,
+            args.start_block_height,
+            args.max_block_range,
+            args.actions_reduced_root_snapshot_window_size,
+        )
     if args.command == "update-app-config":
         return update_app_config(
             args.app,
             args.min_gas_price,
             args.mina_priv_key,
             args.mina_network_id,
+            args.wrapper_grpc_address,
         )
 
     parser.print_help(sys.stderr)

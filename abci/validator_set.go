@@ -193,11 +193,16 @@ func (h *ABCIHandler) constructVoteExtBody(ctx sdk.Context, voteExtensionHeight 
 		return votepersistenceTypes.VoteExtBody{}, ErrValidatorSetRootHashFailed
 	}
 
+	actionsReducedRoot, err := h.bridgeKeeper.GetActionsReducedRootAtHeight(ctx, signedStateHeight)
+	if err != nil {
+		return votepersistenceTypes.VoteExtBody{}, err
+	}
+
 	return votepersistenceTypes.VoteExtBody{
 		NextValidatorSetHash: nextValidatorSetRoot,
 		CurrentStateRoot:     currentBlockInfo.Header.AppHash,
 		CurrentBlockHeight:   signedStateHeight,
-		ActionsReducedRoot:   ActionsReducedRoot,
+		ActionsReducedRoot:   actionsReducedRoot,
 	}, nil
 }
 

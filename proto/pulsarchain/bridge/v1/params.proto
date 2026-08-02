@@ -1,0 +1,24 @@
+syntax = "proto3";
+package pulsarchain.bridge.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
+
+// Params defines the parameters for the module.
+message Params {
+  option (amino.name) = "pulsarchain/x/bridge/Params";
+  option (gogoproto.equal) = true;
+
+  // confirmation_depth is the Mina finality depth used by the archive wrapper.
+  int64 confirmation_depth = 1;
+  // contract_address is the Mina bridge contract address.
+  string contract_address = 2;
+  // start_block_height is the first Mina block indexed by the bridge.
+  int64 start_block_height = 3;
+  // max_block_range is the maximum Mina height span processed by one request.
+  int64 max_block_range = 4;
+  // actions_reduced_root_snapshot_window_size is the retained consensus root window.
+  int64 actions_reduced_root_snapshot_window_size = 5;
+}

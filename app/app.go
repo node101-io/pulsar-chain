@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 
@@ -54,6 +55,7 @@ import (
 	abcihandler "github.com/node101-io/pulsar-chain/abci"
 	appante "github.com/node101-io/pulsar-chain/app/ante"
 	"github.com/node101-io/pulsar-chain/docs"
+	bridge "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
 	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
@@ -114,8 +116,10 @@ type App struct {
 	PulsarKeeper          pulsarmodulekeeper.Keeper
 	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
 	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
+	BridgeKeeper          bridge.Keeper
 
-	ABCIHandler *abcihandler.ABCIHandler
+	ABCIHandler                *abcihandler.ABCIHandler
+	BridgeArchiveWrapperClient *bridge.ArchiveWrapperClient
 }
 
 func init() {
@@ -199,6 +203,8 @@ func New(
 		&app.PulsarKeeper,
 		&app.KeyregistryKeeper,
 		&app.VotepersistenceKeeper,
+		&app.BridgeKeeper,
+		&app.BridgeArchiveWrapperClient,
 	); err != nil {
 		panic(err)
 	}
@@ -219,6 +225,7 @@ func New(
 		app.KeyregistryKeeper,
 		app.VotepersistenceKeeper,
 		mina.NetworkID(networkId),
+		app.BridgeKeeper,
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize ABCI handler: %v", err))
@@ -291,6 +298,24 @@ func New(
 	}
 
 	return app
+}
+
+func (app *App) Close() error {
+	var errs []error
+
+	if app.BridgeArchiveWrapperClient != nil {
+		if err := app.BridgeArchiveWrapperClient.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if app.App != nil {
+		if err := app.App.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 // GetSubspace returns a param subspace for a given module name.
