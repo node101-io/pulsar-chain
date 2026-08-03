@@ -52,6 +52,8 @@ test-docker-topologies:
 
 test-wrapper-e2e:
 	@./scripts/test_archive_wrapper_deployment.sh shared
+	@./scripts/test_archive_wrapper_deployment.sh per-validator
+	@./scripts/test_archive_wrapper_deployment.sh external
 
 bench:
 	@echo Running unit tests with benchmarking...

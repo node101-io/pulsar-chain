@@ -19,6 +19,11 @@ E2E_USER_MINA_PRIV_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
 POSTGRES_URI="postgres://archive:e2e-secret@postgres:5432/archive?sslmode=disable"
 VALIDATOR_COUNT=3
 COMPOSE_STARTED=0
+EXTERNAL_WRAPPER_NAME="${PROJECT}-external-wrapper"
+EXTERNAL_NETWORK="${PROJECT}-external"
+EXTERNAL_DATA_VOLUME="${PROJECT}-external-wrapper-data"
+EXTERNAL_WRAPPER_STARTED=0
+EXTERNAL_NETWORK_CREATED=0
 PORT_BASE="$((30000 + ($$ % 10000)))"
 
 declare -a HOST_RPC_PORTS HOST_GRPC_PORTS
@@ -50,8 +55,15 @@ cleanup() {
     compose ps -a >&2 || true
     compose logs --no-color 2>&1 | sed -E 's#postgres://[^ @]+@#postgres://[REDACTED]@#g' >&2 || true
   fi
+  if (( EXTERNAL_WRAPPER_STARTED == 1 )); then
+    docker rm -f "$EXTERNAL_WRAPPER_NAME" >/dev/null 2>&1 || true
+  fi
   if (( COMPOSE_STARTED == 1 )); then
     compose down --volumes --remove-orphans >/dev/null 2>&1 || true
+  fi
+  docker volume rm "$EXTERNAL_DATA_VOLUME" >/dev/null 2>&1 || true
+  if (( EXTERNAL_NETWORK_CREATED == 1 )); then
+    docker network rm "$EXTERNAL_NETWORK" >/dev/null 2>&1 || true
   fi
   rm -rf "$TMP_DIR"
   exit "$status"
@@ -83,10 +95,25 @@ validator_health() {
   compose exec -T "$1" /opt/pulsar/scripts/docker_entrypoint.sh healthcheck-validator
 }
 
-if [[ "$MODE" != "shared" ]]; then
-  echo "this commit currently implements the shared E2E scenario" >&2
-  exit 2
-fi
+wait_for_container_health() {
+  local container="$1"
+  for _ in $(seq 1 60); do
+    if [[ "$(docker inspect --format '{{.State.Health.Status}}' "$container" 2>/dev/null || true)" == "healthy" ]]; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "container did not become healthy: $container" >&2
+  return 1
+}
+
+case "$MODE" in
+  shared | per-validator | external) ;;
+  *)
+    echo "usage: $0 <shared|per-validator|external>" >&2
+    exit 2
+    ;;
+esac
 
 require_cmd docker
 require_cmd git
@@ -111,12 +138,18 @@ python3 "$SCRIPT_DIR/setup_local_testnet_helper.py" render-e2e-seed \
   --template "$SCRIPT_DIR/e2e/archive-wrapper-seed.sql.tmpl" \
   --output "$SEED_FILE" \
   --mina-public-key "$MINA_PUBLIC_KEY"
-python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" render-postgres-compose \
+postgres_args=(render-postgres-compose \
   --output "$POSTGRES_COMPOSE_FILE" \
   --schema "$WRAPPER_SOURCE/fetchmina/sql/schema.sql" \
-  --seed "$SEED_FILE"
+  --seed "$SEED_FILE")
+if [[ "$MODE" == "external" ]]; then
+  docker network create "$EXTERNAL_NETWORK" >/dev/null
+  EXTERNAL_NETWORK_CREATED=1
+  postgres_args+=(--network-key archive-wrapper-external)
+fi
+python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" "${postgres_args[@]}"
 
-export ARCHIVE_WRAPPER_MODE=shared
+export ARCHIVE_WRAPPER_MODE="$MODE"
 export ARCHIVE_WRAPPER_IMAGE="$WRAPPER_IMAGE"
 export PULSAR_DOCKER_IMAGE="$PULSAR_IMAGE"
 export POSTGRES_URI
@@ -129,19 +162,72 @@ export PULSAR_DOCKER_PROJECT="$PROJECT"
 export COMPOSE_FILE
 export GENERATED_DIR
 
+if [[ "$MODE" == "external" ]]; then
+  export ARCHIVE_WRAPPER_EXTERNAL_ADDRESS="external-wrapper:9095"
+  export ARCHIVE_WRAPPER_EXTERNAL_TRANSPORT_MODE="trusted-network"
+  export ARCHIVE_WRAPPER_EXTERNAL_NETWORK="$EXTERNAL_NETWORK"
+fi
+
 bash "$SCRIPT_DIR/docker_testnet.sh" config "$VALIDATOR_COUNT" >/dev/null
 COMPOSE_STARTED=1
 compose up -d --wait postgres
 compose up --no-build --abort-on-container-failure --exit-code-from setup setup
+
+if [[ "$MODE" == "external" ]]; then
+  if compose run --rm --no-deps validator1 >/dev/null 2>&1; then
+    echo "validator start unexpectedly succeeded before the external wrapper was ready" >&2
+    exit 1
+  fi
+
+  EXTERNAL_CONFIG="$GENERATED_DIR/external-wrapper.yaml"
+  mkdir -p "$GENERATED_DIR"
+  python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" render-wrapper-config \
+    --output "$EXTERNAL_CONFIG" \
+    --network-id testnet
+  docker volume create "$EXTERNAL_DATA_VOLUME" >/dev/null
+  docker run -d \
+    --name "$EXTERNAL_WRAPPER_NAME" \
+    --network "$EXTERNAL_NETWORK" \
+    --network-alias external-wrapper \
+    --read-only \
+    --restart unless-stopped \
+    --env "POSTGRES_URI=$POSTGRES_URI" \
+    --mount "type=bind,src=$EXTERNAL_CONFIG,dst=/etc/archive-wrapper/config.yaml,readonly" \
+    --mount "type=volume,src=${PROJECT}_validator1_data,dst=/var/lib/pulsar,readonly" \
+    --mount "type=volume,src=$EXTERNAL_DATA_VOLUME,dst=/var/lib/archive-wrapper" \
+    --tmpfs /run/archive-wrapper:rw,uid=65532,gid=65532,mode=0700 \
+    "$WRAPPER_IMAGE" >/dev/null
+  EXTERNAL_WRAPPER_STARTED=1
+  wait_for_container_health "$EXTERNAL_WRAPPER_NAME"
+fi
+
 compose up --no-build -d --wait --wait-timeout 240 validator1 validator2 validator3
 
-compose exec -T validator1 pulsar-devtools query-archive-wrapper \
-  --address archive-wrapper:9095 \
-  --transport-mode trusted-network \
-  --latest 9 \
-  --target 12 >"$TMP_DIR/wrapper-query.json"
-python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" assert-wrapper-query \
-  --input "$TMP_DIR/wrapper-query.json"
+case "$MODE" in
+  shared) wrapper_endpoints=(archive-wrapper:9095) ;;
+  per-validator)
+    wrapper_endpoints=(
+      archive-wrapper-validator1:9095
+      archive-wrapper-validator2:9095
+      archive-wrapper-validator3:9095
+    )
+    ;;
+  external) wrapper_endpoints=(external-wrapper:9095) ;;
+esac
+
+for query_index in "${!wrapper_endpoints[@]}"; do
+  compose exec -T validator1 pulsar-devtools query-archive-wrapper \
+    --address "${wrapper_endpoints[query_index]}" \
+    --transport-mode trusted-network \
+    --latest 9 \
+    --target 12 >"$TMP_DIR/wrapper-query-${query_index}.json"
+  python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" assert-wrapper-query \
+    --input "$TMP_DIR/wrapper-query-${query_index}.json"
+done
+if [[ "$MODE" == "per-validator" ]]; then
+  cmp "$TMP_DIR/wrapper-query-0.json" "$TMP_DIR/wrapper-query-1.json"
+  cmp "$TMP_DIR/wrapper-query-0.json" "$TMP_DIR/wrapper-query-2.json"
+fi
 
 VALIDATOR1_ADDRESS="$(
   compose exec -T validator1 pulsard keys show validator1 \
@@ -200,18 +286,54 @@ APP_HASH_3="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value --inpu
     --rpc "http://127.0.0.1:${HOST_RPC_PORTS[1]}" >/dev/null
 )
 
-compose stop archive-wrapper
-for validator in validator1 validator2 validator3; do
-  if validator_health "$validator" >/dev/null 2>&1; then
-    echo "$validator remained healthy while the shared wrapper was stopped" >&2
-    exit 1
-  fi
-done
+case "$MODE" in
+  shared)
+    compose stop archive-wrapper
+    for validator in validator1 validator2 validator3; do
+      if validator_health "$validator" >/dev/null 2>&1; then
+        echo "$validator remained healthy while the shared wrapper was stopped" >&2
+        exit 1
+      fi
+    done
+    compose start archive-wrapper
+    compose up --no-build -d --wait --wait-timeout 120 archive-wrapper
+    ;;
+  per-validator)
+    compose stop archive-wrapper-validator2
+    validator_health validator1 >/dev/null
+    validator_health validator3 >/dev/null
+    if validator_health validator2 >/dev/null 2>&1; then
+      echo "validator2 remained healthy while wrapper2 was stopped" >&2
+      exit 1
+    fi
+    compose start archive-wrapper-validator2
+    compose up --no-build -d --wait --wait-timeout 120 archive-wrapper-validator2
 
-compose start archive-wrapper
-compose up --no-build -d --wait --wait-timeout 120 archive-wrapper
+    LOCK_PROBE_NAME="${PROJECT}-lock-probe"
+    set +e
+    docker run --name "$LOCK_PROBE_NAME" \
+      --network "${PROJECT}_default" \
+      --read-only \
+      --env "POSTGRES_URI=$POSTGRES_URI" \
+      --mount "type=bind,src=$GENERATED_DIR/archive-wrapper-validator2.yaml,dst=/etc/archive-wrapper/config.yaml,readonly" \
+      --mount "type=volume,src=${PROJECT}_validator2_data,dst=/var/lib/pulsar,readonly" \
+      --mount "type=volume,src=${PROJECT}_archive-wrapper-validator2_data,dst=/var/lib/archive-wrapper" \
+      --tmpfs /run/archive-wrapper:rw,uid=65532,gid=65532,mode=0700 \
+      "$WRAPPER_IMAGE" >"$TMP_DIR/lock-probe.log" 2>&1
+    lock_status=$?
+    set -e
+    docker rm "$LOCK_PROBE_NAME" >/dev/null 2>&1 || true
+    if (( lock_status == 0 )) || ! grep -Fq "database is locked" "$TMP_DIR/lock-probe.log"; then
+      echo "second wrapper did not fail with the expected LevelDB lock error" >&2
+      exit 1
+    fi
+    ;;
+  external)
+    ;;
+esac
+
 for validator in validator1 validator2 validator3; do
   validator_health "$validator" >/dev/null
 done
 
-echo "shared archive-wrapper deployment E2E passed"
+echo "$MODE archive-wrapper deployment E2E passed"

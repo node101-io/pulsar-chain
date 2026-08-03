@@ -9,7 +9,9 @@ from pathlib import Path
 POSTGRES_IMAGE = "postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394"
 
 
-def render_postgres_compose(output: str, schema: str, seed: str) -> int:
+def render_postgres_compose(
+    output: str, schema: str, seed: str, network_key: str | None
+) -> int:
     compose = {
         "services": {
             "postgres": {
@@ -32,7 +34,26 @@ def render_postgres_compose(output: str, schema: str, seed: str) -> int:
             }
         }
     }
+    if network_key:
+        compose["services"]["postgres"]["networks"] = [network_key]
     Path(output).write_text(json.dumps(compose, indent=2) + "\n", encoding="utf-8")
+    return 0
+
+
+def render_wrapper_config(output: str, network_id: str) -> int:
+    config = {
+        "block_height_database_key": "archive-wrapper",
+        "db_path": "/var/lib/archive-wrapper/data/leveldb",
+        "grpc_listen_address": "0.0.0.0:9095",
+        "grpc_transport_mode": "trusted-network",
+        "control_socket_path": "/run/archive-wrapper/control.sock",
+        "deployment_metadata_key": "archive-wrapper:deployment",
+        "deployment_metadata": {
+            "schema_version": 1,
+            "mina_network_id": network_id,
+        },
+    }
+    Path(output).write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     return 0
 
 
@@ -98,6 +119,11 @@ def build_parser() -> argparse.ArgumentParser:
     postgres.add_argument("--output", required=True)
     postgres.add_argument("--schema", required=True)
     postgres.add_argument("--seed", required=True)
+    postgres.add_argument("--network-key")
+
+    wrapper = subparsers.add_parser("render-wrapper-config")
+    wrapper.add_argument("--output", required=True)
+    wrapper.add_argument("--network-id", required=True)
 
     value = subparsers.add_parser("json-value")
     value.add_argument("--input", required=True)
@@ -115,7 +141,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     if args.command == "render-postgres-compose":
-        return render_postgres_compose(args.output, args.schema, args.seed)
+        return render_postgres_compose(
+            args.output, args.schema, args.seed, args.network_key
+        )
+    if args.command == "render-wrapper-config":
+        return render_wrapper_config(args.output, args.network_id)
     if args.command == "json-value":
         return json_value(args.input, args.path)
     if args.command == "bank-balance":
