@@ -24,6 +24,7 @@ EXTERNAL_NETWORK="${PROJECT}-external"
 EXTERNAL_DATA_VOLUME="${PROJECT}-external-wrapper-data"
 EXTERNAL_WRAPPER_STARTED=0
 EXTERNAL_NETWORK_CREATED=0
+ARTIFACT_DIR="${E2E_ARTIFACT_DIR:-}"
 PORT_BASE="$((30000 + ($$ % 10000)))"
 
 declare -a HOST_RPC_PORTS HOST_GRPC_PORTS
@@ -48,12 +49,41 @@ compose() {
     "$@"
 }
 
+redact_output() {
+  sed -E \
+    -e 's#postgres://[^ @]+@#postgres://[REDACTED]@#g' \
+    -e 's/e2e-secret/[REDACTED]/g'
+}
+
+capture_failure_artifacts() {
+  [[ -n "$ARTIFACT_DIR" ]] || return 0
+
+  mkdir -p "$ARTIFACT_DIR"
+  compose ps -a >"$ARTIFACT_DIR/${MODE}-compose-ps.txt" 2>&1 || true
+  compose logs --no-color 2>&1 \
+    | redact_output >"$ARTIFACT_DIR/${MODE}-compose.log" || true
+  docker image inspect \
+    --format '{{json .Id}} {{json .RepoTags}} {{json .Config.Labels}}' \
+    "$PULSAR_IMAGE" "$WRAPPER_IMAGE" \
+    >"$ARTIFACT_DIR/${MODE}-image-metadata.txt" 2>&1 || true
+  if (( EXTERNAL_WRAPPER_STARTED == 1 )); then
+    docker logs "$EXTERNAL_WRAPPER_NAME" 2>&1 \
+      | redact_output >"$ARTIFACT_DIR/${MODE}-external-wrapper.log" || true
+  fi
+
+  for artifact in "$TMP_DIR"/wrapper-query-*.json "$TMP_DIR"/tx-result.json \
+    "$TMP_DIR"/root-*.json "$TMP_DIR"/block-*.json; do
+    [[ -f "$artifact" ]] && cp "$artifact" "$ARTIFACT_DIR/${MODE}-$(basename "$artifact")"
+  done
+}
+
 cleanup() {
   local status=$?
   trap - EXIT INT TERM
   if (( status != 0 && COMPOSE_STARTED == 1 )); then
+    capture_failure_artifacts
     compose ps -a >&2 || true
-    compose logs --no-color 2>&1 | sed -E 's#postgres://[^ @]+@#postgres://[REDACTED]@#g' >&2 || true
+    compose logs --no-color 2>&1 | redact_output >&2 || true
   fi
   if (( EXTERNAL_WRAPPER_STARTED == 1 )); then
     docker rm -f "$EXTERNAL_WRAPPER_NAME" >/dev/null 2>&1 || true

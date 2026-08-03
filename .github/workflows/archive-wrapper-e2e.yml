@@ -1,0 +1,121 @@
+name: Archive-wrapper deployments
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Integration prerequisites
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out Pulsar
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          check-latest: true
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Set up Buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.70.0"
+
+      - name: Validate Pulsar and topology generation
+        run: |
+          make test
+          make test-race
+          make lint
+          make test-docker-topologies
+          buf lint --path proto/pulsarchain/bridge/v1
+
+  deployment-e2e:
+    name: ${{ matrix.mode }} topology
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: pulsar-chain
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - shared
+          - per-validator
+          - external
+    steps:
+      - name: Check out Pulsar
+        uses: actions/checkout@v4
+        with:
+          path: pulsar-chain
+
+      - name: Check out archive-wrapper contract
+        uses: actions/checkout@v4
+        with:
+          repository: node101-io/archive-wrapper
+          ref: 6141249715c539cb3f16142d12e494af10684baf
+          path: archive-wrapper
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          check-latest: true
+          cache: true
+          cache-dependency-path: pulsar-chain/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: pulsar-chain/scripts/vote-ext-verifier/package-lock.json
+
+      - name: Verify pinned wrapper checkout
+        run: |
+          test "$(git -C "$GITHUB_WORKSPACE/archive-wrapper" rev-parse HEAD)" = \
+            "6141249715c539cb3f16142d12e494af10684baf"
+
+      - name: Run deployment E2E
+        env:
+          ARCHIVE_WRAPPER_SOURCE: ${{ github.workspace }}/archive-wrapper
+          E2E_ARTIFACT_DIR: ${{ github.workspace }}/pulsar-chain/e2e-artifacts
+        run: |
+          set -o pipefail
+          ./scripts/test_archive_wrapper_deployment.sh "${{ matrix.mode }}" 2>&1 \
+            | sed -E \
+                -e 's#postgres://[^ @]+@#postgres://[REDACTED]@#g' \
+                -e 's/e2e-secret/[REDACTED]/g' \
+            | tee "${{ matrix.mode }}-e2e.log"
+
+      - name: Check E2E output for fixture secrets
+        if: always()
+        run: |
+          if grep -R -q -E 'e2e-secret|postgres://[^ @]+@' \
+            -- "${{ matrix.mode }}-e2e.log" e2e-artifacts 2>/dev/null; then
+            echo "E2E artifacts contain a PostgreSQL credential" >&2
+            exit 1
+          fi
+
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-wrapper-${{ matrix.mode }}-failure
+          if-no-files-found: ignore
+          path: |
+            pulsar-chain/${{ matrix.mode }}-e2e.log
+            pulsar-chain/e2e-artifacts/
