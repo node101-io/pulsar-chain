@@ -63,7 +63,10 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		}
 
 		var err error
-		archiveWrapperClient, err = keeper.NewArchiveWrapperQueryClient(wrapperGRPCAddress)
+		archiveWrapperClient, err = keeper.NewArchiveWrapperQueryClient(
+			wrapperGRPCAddress,
+			keeper.ArchiveWrapperTransportModeLoopback,
+		)
 		if err != nil {
 			panic(err)
 		}

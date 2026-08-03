@@ -44,7 +44,7 @@ var (
 	ErrMaxBlockRangeMustBeGreaterThanZero = errors.Register(ModuleName, 1126, "max_block_range must be greater than 0")
 	ErrMinaBlockRangeTooLarge             = errors.Register(ModuleName, 1127, "mina block range exceeds max_block_range")
 
-	ErrInvalidArchiveWrapperGRPCAddress = errors.Register(ModuleName, 1128, "wrapper_grpc_address must be a loopback host:port address")
+	ErrInvalidArchiveWrapperGRPCAddress = errors.Register(ModuleName, 1128, "invalid archive wrapper gRPC address")
 
 	ErrNilAction                = errors.Register(ModuleName, 1129, "action is nil")
 	ErrInvalidActionBlockHeight = errors.Register(ModuleName, 1130, "invalid action block_height")
@@ -57,5 +57,6 @@ var (
 	ErrActionOutsideRequestedRange = errors.Register(ModuleName, 1136, "action outside the requested range")
 
 	ErrTooManyActionsReducedRootSnapshots                        = errors.Register(ModuleName, 1137, "too many actions_reduced_root_snapshots")
+	ErrInvalidArchiveWrapperGRPCTransportMode                    = errors.Register(ModuleName, 1138, "invalid archive wrapper gRPC transport mode")
 	ErrActionsReducedRootSnapshotWindowSizeMustBeGreaterThanZero = errors.Register(ModuleName, 1139, "actions_reduced_root_snapshot_window_size must be greater than 0")
 )
