@@ -80,6 +80,7 @@ EOF
       - validator${i}_data:/testnet/.pulsar-node${i}
     environment:
       PULSAR_MAX_BLOCK_AGE_SECONDS: "\${PULSAR_MAX_BLOCK_AGE_SECONDS-30}"
+      VALIDATOR_HOME: "/testnet/.pulsar-node${i}"
     ports:
       - host_ip: "\${PULSAR_BIND_HOST:-127.0.0.1}"
         target: 26657

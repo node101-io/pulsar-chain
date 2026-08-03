@@ -23,6 +23,7 @@ func initAppConfig() (string, interface{}) {
 	// The following code snippet is just for reference.
 	type CustomAppConfig struct {
 		serverconfig.Config `mapstructure:",squash"`
+		Bridge              bridgeConfig `mapstructure:"bridge"`
 	}
 
 	// Optionally allow the chain developer to overwrite the SDK's default
@@ -44,9 +45,10 @@ func initAppConfig() (string, interface{}) {
 
 	customAppConfig := CustomAppConfig{
 		Config: *srvCfg,
+		Bridge: bridgeConfig{},
 	}
 
-	customAppTemplate := serverconfig.DefaultConfigTemplate
+	customAppTemplate := serverconfig.DefaultConfigTemplate + bridgeConfigTemplate
 	// Edit the default template file
 	//
 	// customAppTemplate := serverconfig.DefaultConfigTemplate + `
@@ -59,3 +61,19 @@ func initAppConfig() (string, interface{}) {
 
 	return customAppTemplate, customAppConfig
 }
+
+type bridgeConfig struct {
+	WrapperGRPCAddress       string `mapstructure:"wrapper_grpc_address"`
+	WrapperGRPCTransportMode string `mapstructure:"wrapper_grpc_transport_mode"`
+}
+
+const bridgeConfigTemplate = `
+
+###############################################################################
+###                              Bridge Configuration                       ###
+###############################################################################
+
+[bridge]
+wrapper_grpc_address = "{{ .Bridge.WrapperGRPCAddress }}"
+wrapper_grpc_transport_mode = "{{ .Bridge.WrapperGRPCTransportMode }}"
+`

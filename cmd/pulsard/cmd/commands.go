@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -25,7 +28,11 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
 	"github.com/node101-io/pulsar-chain/app"
+	bridgekeeper "github.com/node101-io/pulsar-chain/x/bridge/keeper"
+	bridgetypes "github.com/node101-io/pulsar-chain/x/bridge/types"
 )
+
+const archiveWrapperReadinessTimeout = 5 * time.Second
 
 func initRootCmd(
 	rootCmd *cobra.Command,
@@ -53,11 +60,80 @@ func initRootCmd(
 		queryCommand(),
 		txCommand(),
 		keys.Commands(),
+		healthcheckCommand(),
 	)
 }
 
 // addModuleInitFlags adds more flags to the start command.
 func addModuleInitFlags(startCmd *cobra.Command) {
+	existingPreRunE := startCmd.PreRunE
+	startCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if existingPreRunE != nil {
+			if err := existingPreRunE(cmd, args); err != nil {
+				return err
+			}
+		}
+
+		return checkConfiguredArchiveWrapperReady(cmd)
+	}
+}
+
+func healthcheckCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "healthcheck",
+		Short: "Check required node dependencies",
+		Args:  cobra.NoArgs,
+	}
+
+	cmd.AddCommand(&cobra.Command{
+		Use:          "archive-wrapper",
+		Short:        "Check archive-wrapper query readiness",
+		Args:         cobra.NoArgs,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return checkConfiguredArchiveWrapperReady(cmd)
+		},
+	})
+
+	return cmd
+}
+
+func checkConfiguredArchiveWrapperReady(cmd *cobra.Command) error {
+	serverCtx := server.GetServerContextFromCmd(cmd)
+	if serverCtx == nil || serverCtx.Viper == nil {
+		return errors.New("server configuration is unavailable")
+	}
+
+	address := serverCtx.Viper.GetString(bridgetypes.WrapperGRPCAddressConfigKey)
+	modeValue := serverCtx.Viper.GetString(bridgetypes.WrapperGRPCTransportModeConfigKey)
+	mode, err := bridgekeeper.ParseArchiveWrapperTransportMode(modeValue)
+	if err != nil {
+		return fmt.Errorf("invalid archive-wrapper configuration: %w", err)
+	}
+
+	return checkArchiveWrapperReady(cmd.Context(), address, mode, archiveWrapperReadinessTimeout)
+}
+
+func checkArchiveWrapperReady(
+	ctx context.Context,
+	address string,
+	mode bridgekeeper.ArchiveWrapperTransportMode,
+	timeout time.Duration,
+) error {
+	client, err := bridgekeeper.NewArchiveWrapperQueryClient(address, mode)
+	if err != nil {
+		return fmt.Errorf("invalid archive-wrapper configuration: %w", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	checkCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	if err := client.CheckReady(checkCtx); err != nil {
+		return fmt.Errorf("archive-wrapper is not ready: %w", err)
+	}
+
+	return nil
 }
 
 func queryCommand() *cobra.Command {

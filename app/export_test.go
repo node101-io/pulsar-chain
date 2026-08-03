@@ -69,10 +69,11 @@ func newZeroHeightExportTestApp(t *testing.T, wrapperAddress string) *App {
 	privateKey := make([]byte, 32)
 	privateKey[0] = 1
 	appOptions := simtestutil.AppOptionsMap{
-		flags.FlagHome:                t.TempDir(),
-		"bridge.wrapper_grpc_address": wrapperAddress,
-		"mina.network_id":             string(mina.TestNet),
-		"vote_extension.priv_key":     base64.StdEncoding.EncodeToString(privateKey),
+		flags.FlagHome:                       t.TempDir(),
+		"bridge.wrapper_grpc_address":        wrapperAddress,
+		"bridge.wrapper_grpc_transport_mode": "loopback",
+		"mina.network_id":                    string(mina.TestNet),
+		"vote_extension.priv_key":            base64.StdEncoding.EncodeToString(privateKey),
 	}
 
 	app := New(

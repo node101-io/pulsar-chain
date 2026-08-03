@@ -57,15 +57,24 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 
 	var archiveWrapperClient *keeper.ArchiveWrapperClient
 	if in.AppOpts != nil {
-		wrapperGRPCAddress, _ := in.AppOpts.Get("bridge.wrapper_grpc_address").(string)
+		wrapperGRPCAddress, _ := in.AppOpts.Get(types.WrapperGRPCAddressConfigKey).(string)
 		if strings.TrimSpace(wrapperGRPCAddress) == "" {
-			panic("bridge.wrapper_grpc_address must be set in app.toml")
+			panic(types.WrapperGRPCAddressConfigKey + " must be set in app.toml")
 		}
 
-		var err error
+		transportModeValue, _ := in.AppOpts.Get(types.WrapperGRPCTransportModeConfigKey).(string)
+		if strings.TrimSpace(transportModeValue) == "" {
+			panic(types.WrapperGRPCTransportModeConfigKey + " must be set in app.toml")
+		}
+
+		transportMode, err := keeper.ParseArchiveWrapperTransportMode(transportModeValue)
+		if err != nil {
+			panic(err)
+		}
+
 		archiveWrapperClient, err = keeper.NewArchiveWrapperQueryClient(
 			wrapperGRPCAddress,
-			keeper.ArchiveWrapperTransportModeLoopback,
+			transportMode,
 		)
 		if err != nil {
 			panic(err)

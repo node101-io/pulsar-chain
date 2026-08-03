@@ -34,11 +34,14 @@ fi
 if [[ "${1:-}" == "healthcheck-validator" ]]; then
   RPC_PORT="${RPC_PORT:-26657}"
   MAX_BLOCK_AGE_SECONDS="${PULSAR_MAX_BLOCK_AGE_SECONDS-30}"
+  VALIDATOR_HOME="${VALIDATOR_HOME:?VALIDATOR_HOME is required for validator health checks}"
   STATUS_JSON="$(curl -fsS "http://127.0.0.1:${RPC_PORT}/status")" || exit 1
 
   printf '%s\n' "$STATUS_JSON" | python3 "$SCRIPT_DIR/setup_local_testnet_helper.py" \
     check-validator-status \
     --max-block-age-seconds "$MAX_BLOCK_AGE_SECONDS" || exit 1
+
+  /usr/local/bin/pulsard healthcheck archive-wrapper --home "$VALIDATOR_HOME" || exit 1
 
   exit 0
 fi
