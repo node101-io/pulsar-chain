@@ -84,6 +84,16 @@ jobs:
           cache: npm
           cache-dependency-path: pulsar-chain/scripts/vote-ext-verifier/package-lock.json
 
+      - name: Install grpcurl
+        env:
+          GRPCURL_VERSION: v1.9.3
+        run: |
+          mkdir -p "${RUNNER_TEMP}/bin"
+          GOBIN="${RUNNER_TEMP}/bin" \
+            go install "github.com/fullstorydev/grpcurl/cmd/grpcurl@${GRPCURL_VERSION}"
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+          "${RUNNER_TEMP}/bin/grpcurl" --version
+
       - name: Verify pinned wrapper checkout
         run: |
           test "$(git -C "$GITHUB_WORKSPACE/archive-wrapper" rev-parse HEAD)" = \

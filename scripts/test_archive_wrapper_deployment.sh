@@ -147,6 +147,7 @@ esac
 
 require_cmd docker
 require_cmd git
+require_cmd grpcurl
 require_cmd node
 require_cmd npm
 require_cmd python3
