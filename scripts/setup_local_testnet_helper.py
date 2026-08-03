@@ -93,15 +93,92 @@ def read_mina_priv_key(config_path: str) -> int:
     return 0
 
 
-def read_wrapper_grpc_address(config_path: str) -> int:
-    wrapper_grpc_address = read_nested_config_value(
-        config_path, "bridge", "wrapper_grpc_address"
-    )
-    if wrapper_grpc_address is None:
+def read_validator_app_value(
+    config_path: str, validator_index: int, section_name: str, key_name: str
+) -> int:
+    lines = read_text(config_path).splitlines()
+    validators_start = None
+    validators_indent = -1
+
+    for index, line in enumerate(lines):
+        match = re.match(r"^(\s*)validators:\s*$", line)
+        if match:
+            validators_start = index + 1
+            validators_indent = len(match.group(1))
+            break
+
+    if validators_start is None:
         print("")
         return 0
 
-    print(wrapper_grpc_address)
+    item_starts = []
+    item_indent = None
+    for index in range(validators_start, len(lines)):
+        line = lines[index]
+        if not line.strip():
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= validators_indent and not line.lstrip().startswith("-"):
+            break
+
+        if re.match(r"^\s*-\s+", line):
+            if item_indent is None:
+                item_indent = indent
+            if indent == item_indent:
+                item_starts.append(index)
+
+    if validator_index < 1 or validator_index > len(item_starts):
+        print("")
+        return 0
+
+    item_start = item_starts[validator_index - 1] + 1
+    item_end = (
+        item_starts[validator_index]
+        if validator_index < len(item_starts)
+        else len(lines)
+    )
+    parent_indent = item_indent if item_indent is not None else validators_indent
+
+    app_block = find_named_block(lines, item_start, item_end, parent_indent, "app")
+    if app_block is None:
+        print("")
+        return 0
+
+    app_start, app_end, app_indent = app_block
+    section_block = find_named_block(
+        lines, app_start, app_end, app_indent, section_name
+    )
+    if section_block is None:
+        print("")
+        return 0
+
+    section_start, section_end, section_indent = section_block
+    value = read_scalar_in_block(
+        lines, section_start, section_end, section_indent, key_name
+    )
+    print(value or "")
+    return 0
+
+
+def read_app_toml_string(app_path: str, table_name: str, key_name: str) -> int:
+    content = read_text(app_path)
+    table_pattern = re.compile(
+        rf"^\[{re.escape(table_name)}\]\s*$"
+        rf"(?P<body>.*?)(?=^\[|\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    table_match = table_pattern.search(content)
+    if table_match is None:
+        print("")
+        return 0
+
+    key_match = re.search(
+        rf'^\s*{re.escape(key_name)}\s*=\s*"([^"]*)"\s*$',
+        table_match.group("body"),
+        re.MULTILINE,
+    )
+    print(key_match.group(1) if key_match else "")
     return 0
 
 
@@ -578,10 +655,15 @@ def upsert_toml_key(
             break
 
     key_pattern = re.compile(rf"^\s*{re.escape(key_name)}\s*=")
+    matching_indexes = []
     for index in range(table_start + 1, table_end):
         if key_pattern.match(lines[index]):
-            lines[index] = key_line
-            break
+            matching_indexes.append(index)
+
+    if matching_indexes:
+        lines[matching_indexes[0]] = key_line
+        for duplicate_index in reversed(matching_indexes[1:]):
+            del lines[duplicate_index]
     else:
         while table_end > table_start + 1 and not lines[table_end - 1].strip():
             table_end -= 1
@@ -596,6 +678,7 @@ def update_app_config(
     mina_priv_key: str,
     mina_network_id: str,
     wrapper_grpc_address: str,
+    wrapper_grpc_transport_mode: str,
 ) -> int:
     app_toml = read_text(app_path)
     app_toml = app_toml.replace(
@@ -608,11 +691,22 @@ def update_app_config(
 
     app_toml = upsert_toml_key(app_toml, "mina", "network_id", mina_network_id)
 
-    wrapper_grpc_address = wrapper_grpc_address.strip()
-    if wrapper_grpc_address:
-        app_toml = upsert_toml_key(
-            app_toml, "bridge", "wrapper_grpc_address", wrapper_grpc_address
+    if not wrapper_grpc_address or wrapper_grpc_address != wrapper_grpc_address.strip():
+        raise SystemExit("wrapper gRPC address must be non-empty without surrounding whitespace")
+    if wrapper_grpc_transport_mode not in ("loopback", "trusted-network"):
+        raise SystemExit(
+            "wrapper gRPC transport mode must be loopback or trusted-network"
         )
+
+    app_toml = upsert_toml_key(
+        app_toml, "bridge", "wrapper_grpc_address", wrapper_grpc_address
+    )
+    app_toml = upsert_toml_key(
+        app_toml,
+        "bridge",
+        "wrapper_grpc_transport_mode",
+        wrapper_grpc_transport_mode,
+    )
 
     write_text(app_path, app_toml)
     return 0
@@ -628,8 +722,22 @@ def build_parser() -> argparse.ArgumentParser:
     read_network_id = subparsers.add_parser("read-mina-network-id")
     read_network_id.add_argument("--config", required=True)
 
-    read_wrapper_addr = subparsers.add_parser("read-wrapper-grpc-address")
-    read_wrapper_addr.add_argument("--config", required=True)
+    read_wrapper_config = subparsers.add_parser("read-validator-wrapper-config")
+    read_wrapper_config.add_argument("--config", required=True)
+    read_wrapper_config.add_argument("--index", required=True, type=parse_positive_int)
+    read_wrapper_config.add_argument(
+        "--key",
+        required=True,
+        choices=("wrapper_grpc_address", "wrapper_grpc_transport_mode"),
+    )
+
+    read_app_wrapper_config = subparsers.add_parser("read-app-wrapper-config")
+    read_app_wrapper_config.add_argument("--app", required=True)
+    read_app_wrapper_config.add_argument(
+        "--key",
+        required=True,
+        choices=("wrapper_grpc_address", "wrapper_grpc_transport_mode"),
+    )
 
     read_bridge_param_cmd = subparsers.add_parser("read-bridge-genesis-param")
     read_bridge_param_cmd.add_argument("--config", required=True)
@@ -690,7 +798,8 @@ def build_parser() -> argparse.ArgumentParser:
     update_app.add_argument("--min-gas-price", required=True)
     update_app.add_argument("--mina-priv-key", required=True)
     update_app.add_argument("--mina-network-id", required=True)
-    update_app.add_argument("--wrapper-grpc-address", default="")
+    update_app.add_argument("--wrapper-grpc-address", required=True)
+    update_app.add_argument("--wrapper-grpc-transport-mode", required=True)
 
     return parser
 
@@ -701,8 +810,12 @@ def main() -> int:
 
     if args.command == "read-mina-priv-key":
         return read_mina_priv_key(args.config)
-    if args.command == "read-wrapper-grpc-address":
-        return read_wrapper_grpc_address(args.config)
+    if args.command == "read-validator-wrapper-config":
+        return read_validator_app_value(
+            args.config, args.index, "bridge", args.key
+        )
+    if args.command == "read-app-wrapper-config":
+        return read_app_toml_string(args.app, "bridge", args.key)
     if args.command == "read-bridge-genesis-param":
         return read_bridge_genesis_param(args.config, args.key)
     if args.command == "read-mina-network-id":
@@ -746,6 +859,7 @@ def main() -> int:
             args.mina_priv_key,
             args.mina_network_id,
             args.wrapper_grpc_address,
+            args.wrapper_grpc_transport_mode,
         )
 
     parser.print_help(sys.stderr)

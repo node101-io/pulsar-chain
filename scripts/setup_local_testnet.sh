@@ -102,8 +102,15 @@ read_consensus_pub_key() {
   python3 "$PYTHON_HELPER" read-consensus-pub-key --priv-validator-key "$1"
 }
 
-read_wrapper_grpc_address() {
-  python3 "$PYTHON_HELPER" read-wrapper-grpc-address --config "$1"
+read_validator_wrapper_config() {
+  python3 "$PYTHON_HELPER" read-validator-wrapper-config \
+    --config "$1" \
+    --index "$2" \
+    --key "$3"
+}
+
+read_app_wrapper_config() {
+  python3 "$PYTHON_HELPER" read-app-wrapper-config --app "$1" --key "$2"
 }
 
 read_bridge_genesis_param() {
@@ -223,6 +230,31 @@ get_node_setting() {
   printf '%s\n' "${!var_name:-$default_value}"
 }
 
+resolve_node_wrapper_config() {
+  local index="$1"
+  local suffix="$2"
+  local config_key="$3"
+  local global_var_name="$4"
+  local node_var_name="NODE${index}_${suffix}"
+
+  if [[ -v "$node_var_name" ]]; then
+    printf '%s\n' "${!node_var_name}"
+    return
+  fi
+
+  if [[ -v "$global_var_name" ]]; then
+    printf '%s\n' "${!global_var_name}"
+    return
+  fi
+
+  if [[ -f "$CHAIN_CONFIG_PATH" ]]; then
+    read_validator_wrapper_config "$CHAIN_CONFIG_PATH" "$index" "$config_key"
+    return
+  fi
+
+  printf '\n'
+}
+
 default_node_moniker() {
   local index="$1"
 
@@ -270,6 +302,7 @@ configure_node() {
   local mina_priv_key="$8"
   local mina_network_id="$9"
   local wrapper_grpc_address="${10}"
+  local wrapper_grpc_transport_mode="${11}"
 
   sed -i.bak "s|laddr = \"tcp://127.0.0.1:26657\"|laddr = \"tcp://0.0.0.0:${rpc_port}\"|" "$home/config/config.toml"
   sed -i.bak "s|laddr = \"tcp://0.0.0.0:26656\"|laddr = \"tcp://0.0.0.0:${p2p_port}\"|" "$home/config/config.toml"
@@ -286,7 +319,8 @@ configure_node() {
     --min-gas-price "$MIN_GAS_PRICE" \
     --mina-priv-key "$mina_priv_key" \
     --mina-network-id "$mina_network_id" \
-    --wrapper-grpc-address "$wrapper_grpc_address"
+    --wrapper-grpc-address "$wrapper_grpc_address" \
+    --wrapper-grpc-transport-mode "$wrapper_grpc_transport_mode"
 }
 
 node_home_has_required_files() {
@@ -304,6 +338,8 @@ node_app_config_matches_expected() {
   local actual_min_gas_price
   local actual_mina_priv_key
   local actual_mina_network_id
+  local actual_wrapper_grpc_address
+  local actual_wrapper_grpc_transport_mode
 
   actual_min_gas_price="$(read_min_gas_price "$app_config" 2>/dev/null)" || return 1
   [[ "$actual_min_gas_price" == "$MIN_GAS_PRICE" ]] || return 1
@@ -312,7 +348,13 @@ node_app_config_matches_expected() {
   [[ "$actual_mina_priv_key" == "${NODE_MINA_PRIV_KEYS[index]}" ]] || return 1
 
   actual_mina_network_id="$(read_mina_network_id "$app_config" 2>/dev/null)" || return 1
-  [[ "$actual_mina_network_id" == "${NODE_MINA_NETWORK_IDS[index]}" ]]
+  [[ "$actual_mina_network_id" == "${NODE_MINA_NETWORK_IDS[index]}" ]] || return 1
+
+  actual_wrapper_grpc_address="$(read_app_wrapper_config "$app_config" "wrapper_grpc_address" 2>/dev/null)" || return 1
+  [[ "$actual_wrapper_grpc_address" == "${NODE_WRAPPER_GRPC_ADDRESSES[index]}" ]] || return 1
+
+  actual_wrapper_grpc_transport_mode="$(read_app_wrapper_config "$app_config" "wrapper_grpc_transport_mode" 2>/dev/null)" || return 1
+  [[ "$actual_wrapper_grpc_transport_mode" == "${NODE_WRAPPER_GRPC_TRANSPORT_MODES[index]}" ]]
 }
 
 primary_genesis_matches_expected() {
@@ -407,15 +449,7 @@ declare -a NODE_HOMES NODE_MONIKERS NODE_KEY_NAMES NODE_MINA_PRIV_KEYS NODE_MINA
 declare -a NODE_MINA_NETWORK_IDS NODE_P2P_HOSTS
 declare -a NODE_P2P_PORTS NODE_RPC_PORTS NODE_GRPC_PORTS NODE_API_PORTS NODE_PPROF_PORTS
 declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS
-declare -a NODE_WRAPPER_GRPC_ADDRESSES
-
-DEFAULT_WRAPPER_GRPC_ADDRESS="${WRAPPER_GRPC_ADDRESS:-}"
-if [[ -z "$DEFAULT_WRAPPER_GRPC_ADDRESS" && -f "$CHAIN_CONFIG_PATH" ]]; then
-  DEFAULT_WRAPPER_GRPC_ADDRESS="$(read_wrapper_grpc_address "$CHAIN_CONFIG_PATH")"
-fi
-if [[ -z "$DEFAULT_WRAPPER_GRPC_ADDRESS" ]]; then
-  DEFAULT_WRAPPER_GRPC_ADDRESS="127.0.0.1:9095"
-fi
+declare -a NODE_WRAPPER_GRPC_ADDRESSES NODE_WRAPPER_GRPC_TRANSPORT_MODES
 
 DEFAULT_MINA_NETWORK_ID="$(resolve_default_mina_network_id)"
 BRIDGE_CONFIRMATION_DEPTH="$(resolve_default_bridge_param "CONFIRMATION_DEPTH" "confirmation_depth" "32")"
@@ -444,11 +478,23 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_GRPC_PORTS[i]="$(get_node_setting "$i" "GRPC_PORT" "$(default_node_port "$i" 9090 1)")"
   NODE_API_PORTS[i]="$(get_node_setting "$i" "API_PORT" "$(default_node_port "$i" 1317 1)")"
   NODE_PPROF_PORTS[i]="$(get_node_setting "$i" "PPROF_PORT" "$(default_node_port "$i" 6060 1)")"
-  NODE_WRAPPER_GRPC_ADDRESSES[i]="$(get_node_setting "$i" "WRAPPER_GRPC_ADDRESS" "$DEFAULT_WRAPPER_GRPC_ADDRESS")"
+  NODE_WRAPPER_GRPC_ADDRESSES[i]="$(resolve_node_wrapper_config "$i" "WRAPPER_GRPC_ADDRESS" "wrapper_grpc_address" "WRAPPER_GRPC_ADDRESS")"
   if [[ -z "${NODE_WRAPPER_GRPC_ADDRESSES[i]}" ]]; then
     echo "missing wrapper gRPC address for node${i}; set WRAPPER_GRPC_ADDRESS, NODE${i}_WRAPPER_GRPC_ADDRESS, or validators[].app.bridge.wrapper_grpc_address in $CHAIN_CONFIG_PATH" >&2
     exit 1
   fi
+  NODE_WRAPPER_GRPC_TRANSPORT_MODES[i]="$(resolve_node_wrapper_config "$i" "WRAPPER_GRPC_TRANSPORT_MODE" "wrapper_grpc_transport_mode" "WRAPPER_GRPC_TRANSPORT_MODE")"
+  case "${NODE_WRAPPER_GRPC_TRANSPORT_MODES[i]}" in
+    loopback | trusted-network) ;;
+    "")
+      echo "missing wrapper gRPC transport mode for node${i}; set WRAPPER_GRPC_TRANSPORT_MODE, NODE${i}_WRAPPER_GRPC_TRANSPORT_MODE, or validators[].app.bridge.wrapper_grpc_transport_mode in $CHAIN_CONFIG_PATH" >&2
+      exit 1
+      ;;
+    *)
+      echo "invalid wrapper gRPC transport mode for node${i}: ${NODE_WRAPPER_GRPC_TRANSPORT_MODES[i]}" >&2
+      exit 1
+      ;;
+  esac
   NODE_GENESIS_FILES[i]="${NODE_HOMES[i]}/config/genesis.json"
 done
 
@@ -598,7 +644,8 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
     "$(build_persistent_peers "$i")" \
     "${NODE_MINA_PRIV_KEYS[i]}" \
     "${NODE_MINA_NETWORK_IDS[i]}" \
-    "${NODE_WRAPPER_GRPC_ADDRESSES[i]}"
+    "${NODE_WRAPPER_GRPC_ADDRESSES[i]}" \
+    "${NODE_WRAPPER_GRPC_TRANSPORT_MODES[i]}"
 done
 
 echo ""

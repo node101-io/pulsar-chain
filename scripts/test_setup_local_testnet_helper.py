@@ -3,6 +3,7 @@
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -144,6 +145,117 @@ class CheckValidatorStatusCLITest(unittest.TestCase):
 
                 self.assertNotEqual(0, result.returncode)
                 self.assertIn("positive integer", result.stderr)
+
+
+class WrapperConfigTest(unittest.TestCase):
+    def write_temp(self, content):
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = Path(temp_dir.name) / "config"
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    def capture_stdout(self, function, *args):
+        original_stdout = sys.stdout
+        with tempfile.TemporaryFile(mode="w+") as output:
+            sys.stdout = output
+            try:
+                self.assertEqual(0, function(*args))
+                output.seek(0)
+                return output.read().strip()
+            finally:
+                sys.stdout = original_stdout
+
+    def test_reads_node_specific_wrapper_values(self):
+        config = self.write_temp(
+            """validators:
+- name: one
+  app:
+    bridge:
+      wrapper_grpc_address: "archive-wrapper-one:9095"
+      wrapper_grpc_transport_mode: "trusted-network"
+- name: two
+  app:
+    bridge:
+      wrapper_grpc_address: "127.0.0.1:9095"
+      wrapper_grpc_transport_mode: "loopback"
+"""
+        )
+
+        self.assertEqual(
+            "archive-wrapper-one:9095",
+            self.capture_stdout(
+                helper.read_validator_app_value,
+                str(config),
+                1,
+                "bridge",
+                "wrapper_grpc_address",
+            ),
+        )
+        self.assertEqual(
+            "loopback",
+            self.capture_stdout(
+                helper.read_validator_app_value,
+                str(config),
+                2,
+                "bridge",
+                "wrapper_grpc_transport_mode",
+            ),
+        )
+
+    def test_update_app_config_upserts_address_and_mode_without_duplicates(self):
+        app_config = self.write_temp(
+            """minimum-gas-prices = ""
+
+[bridge]
+wrapper_grpc_address = "old:9095"
+wrapper_grpc_address = "duplicate:9095"
+
+[vote_extension]
+priv_key = "old"
+
+[mina]
+network_id = "old"
+"""
+        )
+
+        self.assertEqual(
+            0,
+            helper.update_app_config(
+                str(app_config),
+                "0pmina",
+                "mina-private",
+                "testnet",
+                "archive-wrapper:9095",
+                "trusted-network",
+            ),
+        )
+
+        content = app_config.read_text(encoding="utf-8")
+        self.assertEqual(1, content.count("wrapper_grpc_address ="))
+        self.assertEqual(1, content.count("wrapper_grpc_transport_mode ="))
+        self.assertIn('wrapper_grpc_address = "archive-wrapper:9095"', content)
+        self.assertIn('wrapper_grpc_transport_mode = "trusted-network"', content)
+
+    def test_update_app_config_rejects_empty_or_invalid_wrapper_values(self):
+        for address, mode in (
+            ("", "loopback"),
+            (" archive-wrapper:9095", "trusted-network"),
+            ("archive-wrapper:9095", "invalid"),
+        ):
+            with self.subTest(address=address, mode=mode):
+                app_config = self.write_temp(
+                    'minimum-gas-prices = ""\n[vote_extension]\n[mina]\n'
+                )
+                with self.assertRaises(SystemExit):
+                    helper.update_app_config(
+                        str(app_config),
+                        "0pmina",
+                        "mina-private",
+                        "testnet",
+                        address,
+                        mode,
+                    )
 
 
 if __name__ == "__main__":
