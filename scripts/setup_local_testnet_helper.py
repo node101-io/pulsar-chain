@@ -336,6 +336,27 @@ def read_consensus_pub_key(priv_validator_key_path: str) -> int:
     return 0
 
 
+def read_account_pub_key() -> int:
+    payload = json.load(sys.stdin)
+    key = payload.get("key")
+    if not isinstance(key, str) or not key:
+        raise SystemExit("account public key JSON is missing key")
+    print(key)
+    return 0
+
+
+def render_e2e_seed(template_path: str, output_path: str, mina_public_key: str) -> int:
+    placeholder = "__E2E_MINA_PUBLIC_KEY__"
+    template = read_text(template_path)
+    if template.count(placeholder) != 1:
+        raise SystemExit("E2E seed template must contain exactly one Mina key placeholder")
+    rendered = template.replace(placeholder, mina_public_key)
+    if placeholder in rendered:
+        raise SystemExit("E2E seed rendering left an unresolved placeholder")
+    write_text(output_path, rendered)
+    return 0
+
+
 def generate_default_mina_priv_key(index: str) -> int:
     data = hashlib.sha256(f"pulsar-local-testnet-node-{index}".encode()).digest()
 
@@ -387,7 +408,11 @@ def extract_gentx_consensus_pub_keys(genesis) -> list[str]:
 
 
 def patch_keyregistry(
-    genesis_path: str, mina_pub_keys: list[str], cosmos_keys: Optional[list[str]] = None
+    genesis_path: str,
+    mina_pub_keys: list[str],
+    cosmos_keys: Optional[list[str]] = None,
+    user_mina_pub_key: Optional[str] = None,
+    user_cosmos_pub_key: Optional[str] = None,
 ) -> int:
     genesis = read_json(genesis_path)
 
@@ -405,7 +430,19 @@ def patch_keyregistry(
 
     keyregistry = genesis["app_state"].setdefault("keyregistry", {})
     keyregistry["params"] = keyregistry.get("params", {})
-    keyregistry["user_key_pairs"] = []
+    if (user_mina_pub_key is None) != (user_cosmos_pub_key is None):
+        raise SystemExit("user Mina and Cosmos public keys must be provided together")
+
+    keyregistry["user_key_pairs"] = (
+        [
+            {
+                "cosmos_key": user_cosmos_pub_key,
+                "mina_key": user_mina_pub_key,
+            }
+        ]
+        if user_mina_pub_key is not None
+        else []
+    )
     keyregistry["validator_key_pairs"] = [
         {
             "cosmos_key": cosmos_key,
@@ -749,6 +786,13 @@ def build_parser() -> argparse.ArgumentParser:
     read_consensus_key = subparsers.add_parser("read-consensus-pub-key")
     read_consensus_key.add_argument("--priv-validator-key", required=True)
 
+    subparsers.add_parser("read-account-pub-key")
+
+    render_seed = subparsers.add_parser("render-e2e-seed")
+    render_seed.add_argument("--template", required=True)
+    render_seed.add_argument("--output", required=True)
+    render_seed.add_argument("--mina-public-key", required=True)
+
     set_height = subparsers.add_parser("set-vote-extension-height")
     set_height.add_argument("--genesis", required=True)
     set_height.add_argument("--height", required=True)
@@ -770,6 +814,8 @@ def build_parser() -> argparse.ArgumentParser:
     patch_registry.add_argument("--genesis", required=True)
     patch_registry.add_argument("--cosmos-key", action="append")
     patch_registry.add_argument("--mina-pub-key", action="append", required=True)
+    patch_registry.add_argument("--user-mina-pub-key")
+    patch_registry.add_argument("--user-cosmos-pub-key")
 
     patch_bridge = subparsers.add_parser("patch-bridge-genesis")
     patch_bridge.add_argument("--genesis", required=True)
@@ -824,6 +870,10 @@ def main() -> int:
         return read_min_gas_price(args.app)
     if args.command == "read-consensus-pub-key":
         return read_consensus_pub_key(args.priv_validator_key)
+    if args.command == "read-account-pub-key":
+        return read_account_pub_key()
+    if args.command == "render-e2e-seed":
+        return render_e2e_seed(args.template, args.output, args.mina_public_key)
     if args.command == "set-vote-extension-height":
         return set_vote_extension_height(args.genesis, args.height)
     if args.command == "read-vote-extension-height":
@@ -835,7 +885,13 @@ def main() -> int:
     if args.command == "validate-mina-priv-key":
         return validate_mina_priv_key(args.index, args.mina_priv_key)
     if args.command == "patch-keyregistry":
-        return patch_keyregistry(args.genesis, args.mina_pub_key, args.cosmos_key)
+        return patch_keyregistry(
+            args.genesis,
+            args.mina_pub_key,
+            args.cosmos_key,
+            args.user_mina_pub_key,
+            args.user_cosmos_pub_key,
+        )
     if args.command == "patch-bridge-genesis":
         return patch_bridge_genesis(
             args.genesis,

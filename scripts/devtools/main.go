@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -18,6 +20,7 @@ import (
 	minasignature "github.com/node101-io/mina-signer-go/signature"
 	"github.com/node101-io/pulsar-chain/abci"
 	abcitypes "github.com/node101-io/pulsar-chain/abci"
+	bridgekeeper "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrytypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	votepersistencetypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 	"google.golang.org/grpc"
@@ -45,6 +48,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
 		}
+	case "query-archive-wrapper":
+		if err := runQueryArchiveWrapper(args[1:], stdout); err != nil {
+			fmt.Fprintf(stderr, "error: %v\n", err)
+			return 1
+		}
 	case "-h", "--help", "help":
 		printUsage(stdout)
 	default:
@@ -62,11 +70,60 @@ func printUsage(out io.Writer) {
 	fmt.Fprintln(out, "commands:")
 	fmt.Fprintln(out, "  derive-mina-pub <mina-private-key-base64>")
 	fmt.Fprintln(out, "  verify-vote-extensions [--grpc-addr addr] [--network-id id] [--timeout duration]")
+	fmt.Fprintln(out, "  query-archive-wrapper --address addr --transport-mode mode --latest height --target height")
+}
+
+func runQueryArchiveWrapper(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("query-archive-wrapper", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	address := fs.String("address", "", "archive-wrapper gRPC address")
+	modeValue := fs.String("transport-mode", "", "archive-wrapper transport mode")
+	latest := fs.Int64("latest", 0, "latest processed Mina height")
+	target := fs.Int64("target", 0, "target Mina height")
+	timeout := fs.Duration("timeout", 5*time.Second, "query timeout")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 || *timeout <= 0 {
+		return errors.New("invalid query-archive-wrapper arguments")
+	}
+
+	mode, err := bridgekeeper.ParseArchiveWrapperTransportMode(*modeValue)
+	if err != nil {
+		return err
+	}
+	client, err := bridgekeeper.NewArchiveWrapperQueryClient(*address, mode)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = client.Close() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
+	height, err := client.GetMinaBlockHeight(ctx)
+	if err != nil {
+		return err
+	}
+	actions, err := client.GetActionsInRange(ctx, *latest, *target)
+	if err != nil {
+		return err
+	}
+
+	return json.NewEncoder(stdout).Encode(struct {
+		IndexedHeight int64 `json:"indexed_height"`
+		ActionCount   int   `json:"action_count"`
+		Actions       any   `json:"actions"`
+	}{
+		IndexedHeight: height,
+		ActionCount:   len(actions),
+		Actions:       actions,
+	})
 }
 
 func runDeriveMinaPub(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("derive-mina-pub", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
+	asAddress := fs.Bool("address", false, "print the B62 Mina address")
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
 			return nil
@@ -96,6 +153,14 @@ func runDeriveMinaPub(args []string, stdout io.Writer) error {
 	pub, err := priv.ToPublicKey()
 	if err != nil {
 		return fmt.Errorf("derive mina public key: %w", err)
+	}
+	if *asAddress {
+		address, err := pub.ToAddress()
+		if err != nil {
+			return fmt.Errorf("encode Mina public key address: %w", err)
+		}
+		fmt.Fprintln(stdout, address.String())
+		return nil
 	}
 
 	fmt.Fprintln(stdout, base64.StdEncoding.EncodeToString(pub.Bytes()))

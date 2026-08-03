@@ -164,6 +164,15 @@ def render_compose(args: argparse.Namespace) -> dict:
             "environment": {},
         }
     }
+    services["setup"]["environment"].update(
+        {
+            "CONFIRMATION_DEPTH": "${BRIDGE_CONFIRMATION_DEPTH:-}",
+            "START_BLOCK_HEIGHT": "${BRIDGE_START_BLOCK_HEIGHT:-}",
+            "MAX_BLOCK_RANGE": "${BRIDGE_MAX_BLOCK_RANGE:-}",
+            "E2E_USER_MINA_PRIV_KEY": "${E2E_USER_MINA_PRIV_KEY:-}",
+            "MIN_GAS_PRICE": "${E2E_MIN_GAS_PRICE:-}",
+        }
+    )
     volumes = {
         f"validator{index}_data": {}
         for index in range(1, args.validator_count + 1)

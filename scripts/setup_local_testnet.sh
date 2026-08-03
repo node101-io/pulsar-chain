@@ -102,6 +102,10 @@ read_consensus_pub_key() {
   python3 "$PYTHON_HELPER" read-consensus-pub-key --priv-validator-key "$1"
 }
 
+read_account_pub_key() {
+  python3 "$PYTHON_HELPER" read-account-pub-key
+}
+
 read_validator_wrapper_config() {
   python3 "$PYTHON_HELPER" read-validator-wrapper-config \
     --config "$1" \
@@ -321,6 +325,20 @@ configure_node() {
     --mina-network-id "$mina_network_id" \
     --wrapper-grpc-address "$wrapper_grpc_address" \
     --wrapper-grpc-transport-mode "$wrapper_grpc_transport_mode"
+}
+
+grant_wrapper_genesis_access() {
+  local home="$1"
+  local config_dir="$home/config"
+  local genesis_file="$config_dir/genesis.json"
+
+  if [[ "$SETUP_CONTEXT" != "container" ]]; then
+    return
+  fi
+
+  chgrp 65532 "$home" "$config_dir" "$genesis_file"
+  chmod g+x "$home" "$config_dir"
+  chmod g+r "$genesis_file"
 }
 
 node_home_has_required_files() {
@@ -584,6 +602,19 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_ADDRS[i]="$("$BINARY_PATH" keys show "${NODE_KEY_NAMES[i]}" --address --home "${NODE_HOMES[i]}" --keyring-backend "$KEYRING_BACKEND")"
 done
 
+E2E_USER_MINA_PUB_KEY=""
+E2E_USER_COSMOS_PUB_KEY=""
+if [[ -n "${E2E_USER_MINA_PRIV_KEY:-}" ]]; then
+  validate_mina_priv_key "e2e-user" "$E2E_USER_MINA_PRIV_KEY"
+  E2E_USER_MINA_PUB_KEY="$(derive_mina_pub_key "$E2E_USER_MINA_PRIV_KEY")"
+  E2E_USER_COSMOS_PUB_KEY="$(
+    "$BINARY_PATH" keys show "${NODE_KEY_NAMES[PRIMARY_NODE_INDEX]}" \
+      --pubkey \
+      --home "$PRIMARY_HOME" \
+      --keyring-backend "$KEYRING_BACKEND" | read_account_pub_key
+  )"
+fi
+
 echo "==> Adding genesis accounts..."
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   "$BINARY_PATH" genesis add-genesis-account "${NODE_ADDRS[i]}" "${STAKE_AMOUNT}${DENOM}" --home "$PRIMARY_HOME" >/dev/null 2>&1
@@ -618,6 +649,10 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   patch_keyregistry_args+=(--cosmos-key "${NODE_COSMOS_PUB_KEYS[i]}")
   patch_keyregistry_args+=(--mina-pub-key "${NODE_MINA_PUB_KEYS[i]}")
 done
+if [[ -n "$E2E_USER_MINA_PUB_KEY" ]]; then
+  patch_keyregistry_args+=(--user-mina-pub-key "$E2E_USER_MINA_PUB_KEY")
+  patch_keyregistry_args+=(--user-cosmos-pub-key "$E2E_USER_COSMOS_PUB_KEY")
+fi
 python3 "$PYTHON_HELPER" "${patch_keyregistry_args[@]}" >/dev/null
 
 echo "==> Validating final genesis..."
@@ -626,6 +661,10 @@ echo "==> Validating final genesis..."
 for ((i = PRIMARY_NODE_INDEX + 1; i <= VALIDATOR_COUNT; i++)); do
   echo "==> Copying final genesis to ${NODE_MONIKERS[i]}..."
   cp "$PRIMARY_GENESIS_FILE" "${NODE_GENESIS_FILES[i]}"
+done
+
+for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+  grant_wrapper_genesis_access "${NODE_HOMES[i]}"
 done
 
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do

@@ -258,5 +258,66 @@ network_id = "old"
                     )
 
 
+class E2EFixtureTest(unittest.TestCase):
+    def write_temp(self, name, content):
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = Path(temp_dir.name) / name
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    def test_patch_keyregistry_adds_explicit_user_pair(self):
+        genesis = self.write_temp(
+            "genesis.json",
+            json.dumps(
+                {
+                    "app_state": {
+                        "keyregistry": {},
+                        "genutil": {"gen_txs": []},
+                    }
+                }
+            ),
+        )
+
+        self.assertEqual(
+            0,
+            helper.patch_keyregistry(
+                str(genesis),
+                ["validator-mina"],
+                ["validator-cosmos"],
+                "user-mina",
+                "user-cosmos",
+            ),
+        )
+        payload = json.loads(genesis.read_text(encoding="utf-8"))
+        self.assertEqual(
+            [{"cosmos_key": "user-cosmos", "mina_key": "user-mina"}],
+            payload["app_state"]["keyregistry"]["user_key_pairs"],
+        )
+
+    def test_render_e2e_seed_replaces_exactly_one_placeholder(self):
+        template = self.write_temp(
+            "seed.sql.tmpl", "fee_payer = '__E2E_MINA_PUBLIC_KEY__';\n"
+        )
+        output = template.with_name("seed.sql")
+
+        self.assertEqual(
+            0,
+            helper.render_e2e_seed(str(template), str(output), "mina-public"),
+        )
+        self.assertEqual(
+            "fee_payer = 'mina-public';\n", output.read_text(encoding="utf-8")
+        )
+
+    def test_render_e2e_seed_rejects_missing_or_duplicate_placeholders(self):
+        for content in ("SELECT 1;\n", "__E2E_MINA_PUBLIC_KEY__ __E2E_MINA_PUBLIC_KEY__"):
+            with self.subTest(content=content):
+                template = self.write_temp("seed.sql.tmpl", content)
+                with self.assertRaises(SystemExit):
+                    helper.render_e2e_seed(
+                        str(template), str(template.with_name("seed.sql")), "key"
+                    )
+
+
 if __name__ == "__main__":
     unittest.main()

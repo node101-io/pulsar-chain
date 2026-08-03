@@ -50,6 +50,9 @@ test-docker-topologies:
 	@echo Validating generated wrapper topologies...
 	@./scripts/test_docker_topologies.sh
 
+test-wrapper-e2e:
+	@./scripts/test_archive_wrapper_deployment.sh shared
+
 bench:
 	@echo Running unit tests with benchmarking...
 	@go test $(GO_TAGS_FLAG) -mod=readonly -v -timeout 30m -bench=. ./...
@@ -57,7 +60,7 @@ bench:
 test: govet test-unit test-scripts
 security: govulncheck
 
-.PHONY: test test-unit test-race test-cover test-scripts test-docker-topologies bench security
+.PHONY: test test-unit test-race test-cover test-scripts test-docker-topologies test-wrapper-e2e bench security
 
 #################
 ###  Install  ###
