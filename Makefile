@@ -23,6 +23,7 @@ GO_TAGS_FLAG := $(if $(strip $(GO_BUILD_TAGS)),-tags=$(GO_BUILD_TAGS),)
 GOFLAGS_WITH_TAGS := $(strip $(GOFLAGS) $(GO_TAGS_FLAG))
 GOFLAGS_WITH_LINT_TAGS := $(strip $(GOFLAGS_WITH_TAGS) -buildvcs=false)
 GOLANGCI_LINT_CACHE ?= /tmp/golangci-lint-cache
+GOVULNCHECK_VERSION ?= v1.6.0
 
 ##############
 ###  Test  ###
@@ -118,6 +119,7 @@ govet:
 
 govulncheck:
 	@echo Running govulncheck...
-	@GOFLAGS="$(GOFLAGS_WITH_TAGS)" go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) \
+		-tags=$(GO_BUILD_TAGS) ./cmd/pulsard ./scripts/devtools
 
 .PHONY: govet govulncheck

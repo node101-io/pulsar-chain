@@ -1,0 +1,104 @@
+name: Container security
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan shipped container
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      BUILDER_IMAGE: pulsar-chain-builder:${{ github.sha }}
+      RUNTIME_IMAGE: pulsar-chain:${{ github.sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.5"
+          cache: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build builder stage
+        run: |
+          docker buildx build --load --target builder --platform=linux/amd64 \
+            -t "$BUILDER_IMAGE" .
+
+      - name: Build runtime image
+        run: |
+          docker buildx build --load --platform=linux/amd64 \
+            -t "$RUNTIME_IMAGE" .
+
+      - name: Prepare security report directory
+        run: mkdir -p .cache/container-artifacts
+
+      - name: Install govulncheck
+        env:
+          CGO_ENABLED: "0"
+          GOBIN: ${{ runner.temp }}/govulncheck-bin
+        run: |
+          mkdir -p "$GOBIN"
+          go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
+
+      - name: Report reachable Go vulnerabilities
+        run: |
+          raw_report="$RUNNER_TEMP/govulncheck.sarif"
+          docker run --rm \
+            --env GOTELEMETRY=off \
+            --entrypoint /tools/govulncheck \
+            --volume "$RUNNER_TEMP/govulncheck-bin:/tools:ro" \
+            "$BUILDER_IMAGE" \
+            -tags=purego -format sarif ./cmd/pulsard ./scripts/devtools \
+            > "$raw_report"
+          jq -e '
+            .runs |= map(
+              (.results // []) |= map(select(.level == "error"))
+              | . as $run
+              | .tool.driver.rules = [
+                  (.tool.driver.rules // [])[]
+                  | select(.id as $id | any($run.results[]; .ruleId == $id))
+                ]
+            )
+          ' "$raw_report" > .cache/container-artifacts/govulncheck.sarif
+
+      - name: Enforce builder OS vulnerability policy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.BUILDER_IMAGE }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os
+          severity: CRITICAL,HIGH
+          scanners: vuln
+          version: v0.73.0
+
+      - name: Enforce runtime OS vulnerability policy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.RUNTIME_IMAGE }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os
+          severity: CRITICAL,HIGH
+          scanners: vuln
+          skip-setup-trivy: true
+
+      - name: Upload Go vulnerability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-vulnerabilities-${{ github.sha }}
+          path: .cache/container-artifacts/govulncheck.sarif
+          if-no-files-found: warn
+          retention-days: 7
