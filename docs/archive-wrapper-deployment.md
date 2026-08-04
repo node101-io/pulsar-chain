@@ -160,3 +160,24 @@ The integration suite pins archive-wrapper commit
 builds its Phase 3 container image, and runs shared, per-validator, and external
 end-to-end scenarios. Deployment artifacts should pin a released image digest
 produced from the reviewed wrapper revision rather than a mutable tag.
+
+## Container security policy
+
+Container CI scans the actual Pulsar builder stage and final runtime image
+separately. Fixable `HIGH` and `CRITICAL` operating-system package
+vulnerabilities fail the build for either image. Findings without an available
+upstream package fix remain visible without blocking changes that cannot yet
+consume a fix.
+
+Go dependency findings are analyzed from source with a pinned `govulncheck`
+version inside the builder environment. The scan uses the production `purego`
+build tag and targets only the `pulsard` and `pulsar-devtools` executables that
+ship in the image. Reachable findings are retained as a report-only SARIF
+artifact; tool installation, configuration, or analysis failures still fail CI.
+Import-only and module-only informational entries are excluded from the
+artifact, and reachable findings are never suppressed automatically.
+
+Report-only status does not establish that a reachable vulnerability is safe.
+Dependency upgrades require separate compatibility review against Cosmos SDK,
+CometBFT, and the bridge integration before they become blocking policy or are
+accepted with documented compensating controls.
