@@ -48,9 +48,39 @@ if ! [[ "$PROJECT_NAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]; then
   echo "invalid PULSAR_DOCKER_PROJECT: $PROJECT_NAME" >&2
   exit 1
 fi
-GENERATED_ROOT="$REPO_ROOT/.docker/$PROJECT_NAME"
-COMPOSE_FILE="${COMPOSE_FILE:-$GENERATED_ROOT/compose.json}"
-GENERATED_DIR="${GENERATED_DIR:-$GENERATED_ROOT/wrapper-configs}"
+
+require_cmd realpath
+
+STATE_ROOT="$(realpath -m -- "${PULSAR_DOCKER_STATE_ROOT:-$REPO_ROOT/.docker}")"
+if [[ "$STATE_ROOT" == "/" ]]; then
+  echo "PULSAR_DOCKER_STATE_ROOT must not be the filesystem root" >&2
+  exit 1
+fi
+
+GENERATED_ROOT_PATH="$STATE_ROOT/$PROJECT_NAME"
+if [[ -L "$GENERATED_ROOT_PATH" ]]; then
+  echo "generated project path must not be a symbolic link: $GENERATED_ROOT_PATH" >&2
+  exit 1
+fi
+
+GENERATED_ROOT="$(realpath -m -- "$GENERATED_ROOT_PATH")"
+case "$GENERATED_ROOT/" in
+  "$STATE_ROOT/"*) ;;
+  *)
+    echo "generated project path escapes the configured state root: $GENERATED_ROOT" >&2
+    exit 1
+    ;;
+esac
+
+if [[ "$GENERATED_ROOT" == "$REPO_ROOT" || (-n "${HOME:-}" && "$GENERATED_ROOT" == "$(realpath -m -- "$HOME")") ]]; then
+  echo "generated project path resolves to a protected directory: $GENERATED_ROOT" >&2
+  exit 1
+fi
+
+COMPOSE_FILE="$GENERATED_ROOT/compose.json"
+GENERATED_DIR="$GENERATED_ROOT/wrapper-configs"
+PROJECT_MARKER="$GENERATED_ROOT/.pulsar-docker-project"
+PROJECT_MARKER_CONTENT="pulsar-docker-project:$PROJECT_NAME"
 VALIDATOR_STARTUP_TIMEOUT="${VALIDATOR_STARTUP_TIMEOUT:-120}"
 
 if ! [[ "$VALIDATOR_STARTUP_TIMEOUT" =~ ^[0-9]+$ ]] || (( VALIDATOR_STARTUP_TIMEOUT < 1 )); then
@@ -113,15 +143,39 @@ render_compose_file() {
   esac
 
   python3 "$RENDERER" "${args[@]}"
+
+  local marker_tmp="$PROJECT_MARKER.tmp.$$"
+  (
+    umask 077
+    printf '%s\n' "$PROJECT_MARKER_CONTENT" >"$marker_tmp"
+  )
+  mv -f -- "$marker_tmp" "$PROJECT_MARKER"
+}
+
+validate_project_marker() {
+  if [[ ! -f "$PROJECT_MARKER" || -L "$PROJECT_MARKER" ]]; then
+    echo "generated project ownership marker is missing or invalid: $PROJECT_MARKER" >&2
+    return 1
+  fi
+
+  local marker_content
+  marker_content="$(cat -- "$PROJECT_MARKER")"
+  if [[ "$marker_content" != "$PROJECT_MARKER_CONTENT" ]]; then
+    echo "generated project ownership marker does not match project $PROJECT_NAME" >&2
+    return 1
+  fi
 }
 
 if [[ "$COMMAND" == "up" || "$COMMAND" == "config" ]]; then
   require_cmd python3
   render_compose_file
-elif [[ ! -f "$COMPOSE_FILE" ]]; then
-  echo "generated Compose file does not exist: $COMPOSE_FILE" >&2
-  echo "run '$0 config $VALIDATOR_COUNT' with an explicit ARCHIVE_WRAPPER_MODE first" >&2
-  exit 1
+else
+  validate_project_marker
+  if [[ ! -f "$COMPOSE_FILE" ]]; then
+    echo "generated Compose file does not exist: $COMPOSE_FILE" >&2
+    echo "run '$0 config $VALIDATOR_COUNT' with an explicit ARCHIVE_WRAPPER_MODE first" >&2
+    exit 1
+  fi
 fi
 
 if [[ "$COMMAND" == "config" ]]; then
@@ -167,7 +221,7 @@ case "$COMMAND" in
     ;;
   reset)
     run_compose down --volumes --remove-orphans
-    rm -rf "$GENERATED_DIR" "$COMPOSE_FILE"
+    rm -rf -- "$GENERATED_ROOT"
     ;;
   *)
     usage

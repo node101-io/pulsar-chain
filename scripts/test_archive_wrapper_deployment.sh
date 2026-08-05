@@ -9,9 +9,11 @@ EXPECTED_WRAPPER_SHA="6141249715c539cb3f16142d12e494af10684baf"
 MODE="${1:-shared}"
 PROJECT="pulsar-wrapper-e2e-${MODE//[^a-zA-Z0-9]/-}-$$"
 TMP_DIR="$(mktemp -d)"
-COMPOSE_FILE="$TMP_DIR/compose.json"
+DOCKER_STATE_ROOT="$TMP_DIR/docker-state"
+GENERATED_ROOT="$DOCKER_STATE_ROOT/$PROJECT"
+COMPOSE_FILE="$GENERATED_ROOT/compose.json"
 POSTGRES_COMPOSE_FILE="$TMP_DIR/postgres.json"
-GENERATED_DIR="$TMP_DIR/wrapper-configs"
+GENERATED_DIR="$GENERATED_ROOT/wrapper-configs"
 SEED_FILE="$TMP_DIR/seed.sql"
 PULSAR_IMAGE="pulsar-chain:e2e-$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)"
 WRAPPER_IMAGE="archive-wrapper:e2e-${EXPECTED_WRAPPER_SHA:0:12}"
@@ -190,8 +192,7 @@ export BRIDGE_MAX_BLOCK_RANGE=100
 export E2E_USER_MINA_PRIV_KEY
 export E2E_MIN_GAS_PRICE=0pmina
 export PULSAR_DOCKER_PROJECT="$PROJECT"
-export COMPOSE_FILE
-export GENERATED_DIR
+export PULSAR_DOCKER_STATE_ROOT="$DOCKER_STATE_ROOT"
 
 if [[ "$MODE" == "external" ]]; then
   export ARCHIVE_WRAPPER_EXTERNAL_ADDRESS="external-wrapper:9095"

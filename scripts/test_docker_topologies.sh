@@ -25,8 +25,8 @@ docker compose version >/dev/null
 
 render_and_validate() {
   local mode="$1"
-  local compose_file="$TMP_DIR/${mode}.json"
-  local generated_dir="$TMP_DIR/${mode}-generated"
+  local project="topology-${mode}"
+  local compose_file="$TMP_DIR/$project/compose.json"
   local -a mode_env
 
   case "$mode" in
@@ -47,9 +47,8 @@ render_and_validate() {
 
   env \
     "ARCHIVE_WRAPPER_MODE=$mode" \
-    "COMPOSE_FILE=$compose_file" \
-    "GENERATED_DIR=$generated_dir" \
-    "PULSAR_DOCKER_PROJECT=topology-${mode}" \
+    "PULSAR_DOCKER_STATE_ROOT=$TMP_DIR" \
+    "PULSAR_DOCKER_PROJECT=$project" \
     "${mode_env[@]}" \
     bash "$SCRIPT_DIR/docker_testnet.sh" config 3 >/dev/null
 
@@ -60,11 +59,21 @@ render_and_validate() {
 
   POSTGRES_URI="$POSTGRES_URI_VALUE" \
     docker compose \
-      --project-name "topology-${mode}" \
+      --project-name "$project" \
       -f "$compose_file" \
       config --format json >"$TMP_DIR/${mode}-normalized.json"
 
   python3 -m json.tool "$TMP_DIR/${mode}-normalized.json" >/dev/null
+
+  env -u POSTGRES_URI docker compose \
+    --project-name "$project" \
+    -f "$compose_file" \
+    config --format json >/dev/null
+
+  env -u POSTGRES_URI docker compose \
+    --project-name "$project" \
+    -f "$compose_file" \
+    down --remove-orphans >/dev/null
 }
 
 render_and_validate shared

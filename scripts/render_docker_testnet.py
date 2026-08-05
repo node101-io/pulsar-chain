@@ -132,7 +132,7 @@ def wrapper_service(
         "restart": "unless-stopped",
         "stop_grace_period": "15s",
         "depends_on": {"setup": {"condition": "service_completed_successfully"}},
-        "environment": {"POSTGRES_URI": "${POSTGRES_URI:?POSTGRES_URI is required}"},
+        "environment": {"POSTGRES_URI": "${POSTGRES_URI:-}"},
         "volumes": [
             f"{config_mount}:/etc/archive-wrapper/config.yaml:ro",
             f"{validator_volume}:/var/lib/pulsar:ro",

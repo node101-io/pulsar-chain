@@ -49,7 +49,7 @@ class RenderDockerTestnetTest(unittest.TestCase):
         self.assertEqual(["archive-wrapper_data"], wrapper_volumes)
         self.assertEqual("archive-wrapper:test", compose["services"]["archive-wrapper"]["image"])
         self.assertEqual(
-            "${POSTGRES_URI:?POSTGRES_URI is required}",
+            "${POSTGRES_URI:-}",
             compose["services"]["archive-wrapper"]["environment"]["POSTGRES_URI"],
         )
 
@@ -194,6 +194,9 @@ class DockerTestnetScriptTest(unittest.TestCase):
             "ARCHIVE_WRAPPER_EXTERNAL_ADDRESS",
             "ARCHIVE_WRAPPER_EXTERNAL_TRANSPORT_MODE",
             "ARCHIVE_WRAPPER_EXTERNAL_NETWORK",
+            "PULSAR_DOCKER_STATE_ROOT",
+            "COMPOSE_FILE",
+            "GENERATED_DIR",
         ):
             process_env.pop(key, None)
         process_env.update(env or {})
@@ -227,10 +230,12 @@ class DockerTestnetScriptTest(unittest.TestCase):
     def test_down_and_reset_reuse_existing_compose_without_mode_or_secret(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            compose = root / "compose.json"
-            generated = root / "generated"
-            compose.write_text('{"services": {}}\n', encoding="utf-8")
-            generated.mkdir()
+            state_root = root / "state"
+            project = "lifecycle-test"
+            generated_root = state_root / project
+            compose = generated_root / "compose.json"
+            sentinel = root / "must-survive"
+            sentinel.write_text("keep", encoding="utf-8")
 
             fake_bin = root / "bin"
             fake_bin.mkdir()
@@ -240,19 +245,88 @@ class DockerTestnetScriptTest(unittest.TestCase):
 
             env = {
                 "PATH": f"{fake_bin}:{os.environ['PATH']}",
-                "COMPOSE_FILE": str(compose),
-                "GENERATED_DIR": str(generated),
-                "PULSAR_DOCKER_PROJECT": "lifecycle-test",
+                "PULSAR_DOCKER_STATE_ROOT": str(state_root),
+                "PULSAR_DOCKER_PROJECT": project,
+                "ARCHIVE_WRAPPER_MODE": "external",
+                "ARCHIVE_WRAPPER_EXTERNAL_ADDRESS": "127.0.0.1:9095",
+                "ARCHIVE_WRAPPER_EXTERNAL_TRANSPORT_MODE": "loopback",
             }
-            down = self.run_script("down", env=env)
+
+            config = self.run_script("config", env=env)
+            self.assertEqual(0, config.returncode, config.stderr)
+            self.assertTrue(compose.exists())
+
+            lifecycle_env = {
+                "PATH": env["PATH"],
+                "PULSAR_DOCKER_STATE_ROOT": str(state_root),
+                "PULSAR_DOCKER_PROJECT": project,
+            }
+            down = self.run_script("down", env=lifecycle_env)
             self.assertEqual(0, down.returncode, down.stderr)
             self.assertTrue(compose.exists())
-            self.assertTrue(generated.exists())
+            self.assertTrue(generated_root.exists())
 
-            reset = self.run_script("reset", env=env)
+            reset = self.run_script("reset", env=lifecycle_env)
             self.assertEqual(0, reset.returncode, reset.stderr)
-            self.assertFalse(compose.exists())
-            self.assertFalse(generated.exists())
+            self.assertFalse(generated_root.exists())
+            self.assertEqual("keep", sentinel.read_text(encoding="utf-8"))
+
+    def test_reset_rejects_missing_ownership_marker(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            state_root = root / "state"
+            generated_root = state_root / "missing-marker"
+            generated_root.mkdir(parents=True)
+            (generated_root / "compose.json").write_text(
+                '{"services": {}}\n', encoding="utf-8"
+            )
+
+            reset = self.run_script(
+                "reset",
+                env={
+                    "PULSAR_DOCKER_STATE_ROOT": str(state_root),
+                    "PULSAR_DOCKER_PROJECT": "missing-marker",
+                },
+            )
+
+            self.assertNotEqual(0, reset.returncode)
+            self.assertIn("ownership marker", reset.stderr)
+            self.assertTrue(generated_root.exists())
+
+    def test_reset_rejects_symbolic_link_project_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            state_root = root / "state"
+            state_root.mkdir()
+            outside = root / "outside"
+            outside.mkdir()
+            sentinel = outside / "must-survive"
+            sentinel.write_text("keep", encoding="utf-8")
+            (state_root / "linked-project").symlink_to(outside, target_is_directory=True)
+
+            reset = self.run_script(
+                "reset",
+                env={
+                    "PULSAR_DOCKER_STATE_ROOT": str(state_root),
+                    "PULSAR_DOCKER_PROJECT": "linked-project",
+                },
+            )
+
+            self.assertNotEqual(0, reset.returncode)
+            self.assertIn("symbolic link", reset.stderr)
+            self.assertEqual("keep", sentinel.read_text(encoding="utf-8"))
+
+    def test_commands_reject_filesystem_root_as_state_root(self):
+        result = self.run_script(
+            "reset",
+            env={
+                "PULSAR_DOCKER_STATE_ROOT": "/",
+                "PULSAR_DOCKER_PROJECT": "unsafe-root",
+            },
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("must not be the filesystem root", result.stderr)
 
 
 if __name__ == "__main__":
