@@ -13,13 +13,23 @@ func keeperCanonicalRoot(v uint64) []byte {
 	return minafield.NewField().FromUint64(v).Bytes()
 }
 
+func keeperCanonicalActionHash(v uint64) string {
+	return minafield.NewField().FromUint64(v).String()
+}
+
 func TestGenesis(t *testing.T) {
 
 	params := types.DefaultTestParams()
 
 	genesisState := types.GenesisState{
-		Params:                      params,
-		BridgeState:                 types.NewInitialBridgeState(params.StartBlockHeight),
+		Params: params,
+		BridgeState: types.BridgeState{
+			LatestFetchedMinaHeight: params.StartBlockHeight - 1,
+			ValidActionHashes: []string{
+				keeperCanonicalActionHash(42),
+				keeperCanonicalActionHash(43),
+			},
+		},
 		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
 	}
 
@@ -63,7 +73,13 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 
 	beforeParams, err := f.keeper.Params.Get(f.ctx)
 	require.NoError(t, err)
-	beforeState := types.BridgeState{LatestFetchedMinaHeight: 500_000}
+	beforeState := types.BridgeState{
+		LatestFetchedMinaHeight: 500_000,
+		ValidActionHashes: []string{
+			keeperCanonicalActionHash(77),
+			keeperCanonicalActionHash(78),
+		},
+	}
 	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, beforeState))
 
 	for height := int64(100); height <= 103; height++ {
@@ -93,6 +109,9 @@ func TestPrepareForZeroHeightGenesisRestoresSnapshotPruningOrder(t *testing.T) {
 	f := initFixture(t, nil, nil, nil)
 	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, types.BridgeState{
 		LatestFetchedMinaHeight: 500_000,
+		ValidActionHashes: []string{
+			keeperCanonicalActionHash(90),
+		},
 	}))
 
 	for height := int64(100); height <= 103; height++ {
@@ -138,7 +157,12 @@ func TestGenesisWithCustomStartBlockHeight(t *testing.T) {
 			testMaxBlockRange,
 			testActionsReducedRootSnapshotWindowSize,
 		),
-		BridgeState:                 types.NewInitialBridgeState(customStartBlockHeight),
+		BridgeState: types.BridgeState{
+			LatestFetchedMinaHeight: customStartBlockHeight - 1,
+			ValidActionHashes: []string{
+				keeperCanonicalActionHash(500000),
+			},
+		},
 		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
 	}
 

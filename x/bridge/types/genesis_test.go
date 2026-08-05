@@ -24,6 +24,10 @@ func canonicalRoot(v uint64) []byte {
 	return minafield.NewField().FromUint64(v).Bytes()
 }
 
+func canonicalActionHash(v uint64) string {
+	return minafield.NewField().FromUint64(v).String()
+}
+
 func nonCanonicalRoot() []byte {
 	return bytes.Repeat([]byte{0xff}, minafield.NewField().ElementSize())
 }
@@ -51,6 +55,20 @@ func TestGenesisStateValidate(t *testing.T) {
 				gs.Params.StartBlockHeight = 0
 			},
 			wantErr: types.ErrStartBlockHeightMustBeGreaterThanZero,
+		},
+		{
+			name: "empty valid action hash is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ValidActionHashes = []string{""}
+			},
+			wantErr: types.ErrInvalidValidActionHash,
+		},
+		{
+			name: "whitespace padded valid action hash is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ValidActionHashes = []string{" 42 "}
+			},
+			wantErr: types.ErrInvalidValidActionHash,
 		},
 		{
 			name: "latest fetched before start block is invalid",
@@ -175,6 +193,16 @@ func TestGenesisStateValidateAcceptsCustomStartBlockHeight(t *testing.T) {
 	require.NoError(t, gs.Validate())
 }
 
+func TestGenesisStateValidateAcceptsCanonicalValidActionHashes(t *testing.T) {
+	gs := validGenesisState()
+	gs.BridgeState.ValidActionHashes = []string{
+		canonicalActionHash(42),
+		canonicalActionHash(43),
+	}
+
+	require.NoError(t, gs.Validate())
+}
+
 func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
 	gs := validGenesisState()
 
@@ -189,6 +217,10 @@ func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
 
 func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) {
 	gs := validGenesisState()
+	gs.BridgeState.ValidActionHashes = []string{
+		canonicalActionHash(42),
+		canonicalActionHash(43),
+	}
 	gs.ActionsReducedRootSnapshots = append(
 		gs.ActionsReducedRootSnapshots,
 		types.ActionsReducedRootSnapshot{

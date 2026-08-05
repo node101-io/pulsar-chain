@@ -47,13 +47,16 @@ func (gs GenesisState) Validate() error {
 
 // DefaultBridgeState returns the default bridge state.
 func DefaultBridgeState() BridgeState {
-	return BridgeState{}
+	return BridgeState{
+		ValidActionHashes: []string{},
+	}
 }
 
 // DefaultTestBridgeState returns the initial bridge state for tests and simulation.
 func DefaultTestBridgeState() BridgeState {
 	return BridgeState{
 		LatestFetchedMinaHeight: defaultStartBlockHeight - 1,
+		ValidActionHashes:       []string{},
 	}
 }
 
@@ -62,6 +65,7 @@ func DefaultTestBridgeState() BridgeState {
 func NewInitialBridgeState(startBlockHeight int64) BridgeState {
 	return BridgeState{
 		LatestFetchedMinaHeight: startBlockHeight - 1,
+		ValidActionHashes:       []string{},
 	}
 }
 
