@@ -21,6 +21,11 @@ service Query {
   rpc ActionsReducedRoot(QueryActionsReducedRootRequest) returns (QueryActionsReducedRootResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/bridge/v1/actions_reduced_root";
   }
+
+  // LatestValidActionHashes Queries a list of LatestValidActionHashes items.
+  rpc LatestValidActionHashes(QueryLatestValidActionHashesRequest) returns (QueryLatestValidActionHashesResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/bridge/v1/latest_valid_action_hashes";
+  }
 }
 
 // QueryParamsRequest is request type for the Query/Params RPC method.
@@ -41,4 +46,13 @@ message QueryActionsReducedRootRequest {}
 // QueryActionsReducedRootResponse defines the QueryActionsReducedRootResponse message.
 message QueryActionsReducedRootResponse {
   bytes actions_reduced_root = 1;
+}
+
+// QueryLatestValidActionHashesRequest defines the QueryLatestValidActionHashesRequest message.
+message QueryLatestValidActionHashesRequest {}
+
+// QueryLatestValidActionHashesResponse defines the QueryLatestValidActionHashesResponse message.
+message QueryLatestValidActionHashesResponse {
+  int64 latest_fetched_mina_height = 1;
+  repeated string valid_action_hashes = 2;
 }
