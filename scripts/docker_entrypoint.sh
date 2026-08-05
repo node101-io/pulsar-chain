@@ -41,6 +41,7 @@ if [[ "${1:-}" == "healthcheck-validator" ]]; then
     check-validator-status \
     --max-block-age-seconds "$MAX_BLOCK_AGE_SECONDS" || exit 1
 
+  /usr/local/bin/pulsard healthcheck grpc --home "$VALIDATOR_HOME" || exit 1
   /usr/local/bin/pulsard healthcheck archive-wrapper --home "$VALIDATOR_HOME" || exit 1
 
   exit 0

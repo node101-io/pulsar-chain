@@ -94,6 +94,7 @@ func healthcheckCommand() *cobra.Command {
 			return checkConfiguredArchiveWrapperReady(cmd)
 		},
 	})
+	cmd.AddCommand(nodeGRPCHealthCommand())
 
 	return cmd
 }

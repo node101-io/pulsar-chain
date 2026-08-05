@@ -45,6 +45,7 @@ import (
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
+	gogogrpc "github.com/cosmos/gogoproto/grpc"
 	icacontrollerkeeper "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/controller/keeper"
 	icahostkeeper "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/host/keeper"
 	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
@@ -59,6 +60,8 @@ import (
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
 	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
+	"google.golang.org/grpc/health"
+	grpcHealthV1 "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
@@ -120,6 +123,12 @@ type App struct {
 
 	ABCIHandler                *abcihandler.ABCIHandler
 	BridgeArchiveWrapperClient *bridge.ArchiveWrapperClient
+}
+
+// RegisterGRPCServerWithSkipCheckHeader registers application and standard health services.
+func (app *App) RegisterGRPCServerWithSkipCheckHeader(server gogogrpc.Server, skipCheckHeader bool) {
+	app.App.RegisterGRPCServerWithSkipCheckHeader(server, skipCheckHeader)
+	grpcHealthV1.RegisterHealthServer(server, health.NewServer())
 }
 
 func init() {

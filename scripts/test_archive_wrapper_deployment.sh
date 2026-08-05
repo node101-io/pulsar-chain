@@ -139,6 +139,40 @@ wait_for_container_health() {
   return 1
 }
 
+verify_grpc_bind_failure() {
+  local output="$TMP_DIR/grpc-bind-failure.log"
+  local status
+
+  set +e
+  timeout 30s docker compose \
+    --project-name "$PROJECT" \
+    -f "$COMPOSE_FILE" \
+    -f "$POSTGRES_COMPOSE_FILE" \
+    run --rm --no-deps --entrypoint /bin/bash validator1 -ceu '
+      python3 -m http.server 9090 >/tmp/grpc-port-holder.log 2>&1 &
+      holder=$!
+      trap '\''kill "$holder" >/dev/null 2>&1 || true'\'' EXIT
+      sleep 1
+      pulsard start --home "$VALIDATOR_HOME"
+    ' >"$output" 2>&1
+  status=$?
+  set -e
+
+  if (( status == 0 )); then
+    echo "pulsard start unexpectedly succeeded while its gRPC port was occupied" >&2
+    return 1
+  fi
+  if (( status == 124 )); then
+    echo "pulsard start did not exit after its gRPC listener failed" >&2
+    return 1
+  fi
+  if ! grep -Eq 'failed to listen.*9090|address already in use' "$output"; then
+    echo "pulsard start did not report the expected gRPC bind failure" >&2
+    cat "$output" >&2
+    return 1
+  fi
+}
+
 case "$MODE" in
   shared | per-validator | external) ;;
   *)
@@ -153,6 +187,7 @@ require_cmd grpcurl
 require_cmd node
 require_cmd npm
 require_cmd python3
+require_cmd timeout
 docker compose version >/dev/null
 
 if [[ "$(git -C "$WRAPPER_SOURCE" rev-parse HEAD)" != "$EXPECTED_WRAPPER_SHA" ]]; then
@@ -231,6 +266,11 @@ if [[ "$MODE" == "external" ]]; then
     "$WRAPPER_IMAGE" >/dev/null
   EXTERNAL_WRAPPER_STARTED=1
   wait_for_container_health "$EXTERNAL_WRAPPER_NAME"
+fi
+
+if [[ "$MODE" == "shared" ]]; then
+  compose up --no-build -d --wait --wait-timeout 120 archive-wrapper
+  verify_grpc_bind_failure
 fi
 
 compose up --no-build -d --wait --wait-timeout 240 validator1 validator2 validator3
