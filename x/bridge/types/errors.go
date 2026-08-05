@@ -8,12 +8,13 @@ import (
 
 // x/bridge module sentinel errors
 var (
-	ErrInvalidSigner                          = errors.Register(ModuleName, 1100, "expected gov account as only signer for proposal message")
-	ErrUnspecified                            = errors.Register(ModuleName, 1101, "unspecified action type")
-	ErrNotEnoughBalance                       = errors.Register(ModuleName, 1102, "not enough balance")
-	ErrBankKeeperNotConfigured                = errors.Register(ModuleName, 1103, "bank keeper is not configured")
-	ErrKeyRegistryKeeperNotConfigured         = errors.Register(ModuleName, 1104, "keyregistry keeper is not configured")
-	ErrMinaBlockNotFinalized                  = errors.Register(ModuleName, 1105, "mina block not finalized")
+	ErrInvalidSigner                  = errors.Register(ModuleName, 1100, "expected gov account as only signer for proposal message")
+	ErrUnspecified                    = errors.Register(ModuleName, 1101, "unspecified action type")
+	ErrNotEnoughBalance               = errors.Register(ModuleName, 1102, "not enough balance")
+	ErrBankKeeperNotConfigured        = errors.Register(ModuleName, 1103, "bank keeper is not configured")
+	ErrKeyRegistryKeeperNotConfigured = errors.Register(ModuleName, 1104, "keyregistry keeper is not configured")
+	ErrMinaBlockNotFinalized          = errors.Register(ModuleName, 1105, "mina block not finalized")
+	// ErrArchiveWrapperQueryClientNotConfigured indicates missing bridge client wiring.
 	ErrArchiveWrapperQueryClientNotConfigured = errors.Register(ModuleName, 1106, "archive wrapper query client is not configured")
 
 	ErrInvalidMinaBlockHeight     = errors.Register(ModuleName, 1107, "mina block height must be greater than 0")
@@ -44,7 +45,8 @@ var (
 	ErrMaxBlockRangeMustBeGreaterThanZero = errors.Register(ModuleName, 1126, "max_block_range must be greater than 0")
 	ErrMinaBlockRangeTooLarge             = errors.Register(ModuleName, 1127, "mina block range exceeds max_block_range")
 
-	ErrInvalidArchiveWrapperGRPCAddress = errors.Register(ModuleName, 1128, "wrapper_grpc_address must be a loopback host:port address")
+	// ErrInvalidArchiveWrapperGRPCAddress identifies endpoints rejected by the configured transport policy.
+	ErrInvalidArchiveWrapperGRPCAddress = errors.Register(ModuleName, 1128, "invalid archive wrapper gRPC address")
 
 	ErrNilAction                = errors.Register(ModuleName, 1129, "action is nil")
 	ErrInvalidActionBlockHeight = errors.Register(ModuleName, 1130, "invalid action block_height")
@@ -52,10 +54,13 @@ var (
 	ErrInvalidActionType        = errors.Register(ModuleName, 1132, "invalid action type")
 	ErrInvalidActionFeePayer    = errors.Register(ModuleName, 1133, "invalid action fee_payer")
 	ErrActionToFieldFailed      = errors.Register(ModuleName, 1134, "failed to convert action to field")
-	ErrArchiveWrapperNotReady   = errors.Register(ModuleName, 1135, "archive wrapper is not ready")
+	// ErrArchiveWrapperNotReady indicates that the wrapper query service is not serving.
+	ErrArchiveWrapperNotReady = errors.Register(ModuleName, 1135, "archive wrapper is not ready")
 
 	ErrActionOutsideRequestedRange = errors.Register(ModuleName, 1136, "action outside the requested range")
 
-	ErrTooManyActionsReducedRootSnapshots                        = errors.Register(ModuleName, 1137, "too many actions_reduced_root_snapshots")
+	ErrTooManyActionsReducedRootSnapshots = errors.Register(ModuleName, 1137, "too many actions_reduced_root_snapshots")
+	// ErrInvalidArchiveWrapperGRPCTransportMode identifies an unsupported transport policy.
+	ErrInvalidArchiveWrapperGRPCTransportMode                    = errors.Register(ModuleName, 1138, "invalid archive wrapper gRPC transport mode")
 	ErrActionsReducedRootSnapshotWindowSizeMustBeGreaterThanZero = errors.Register(ModuleName, 1139, "actions_reduced_root_snapshot_window_size must be greater than 0")
 )

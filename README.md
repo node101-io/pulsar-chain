@@ -10,4 +10,8 @@ Pulsar is an application layer on top of the Mina Protocol using the Cosmos SDK,
 
 In short, it is designed as a side-chain for Mina for fast throughput zkApps.
 
+Archive-wrapper is a mandatory runtime dependency for validator startup. See
+[Archive-wrapper deployment](docs/archive-wrapper-deployment.md) for the supported
+shared, per-validator, and external topologies.
+
 For more information, you can reach out from [hello@node101.io](mailto:hello@node101.io) or write from Telegram (@ygurlek).

@@ -11,98 +11,143 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func TestValidateLoopbackGRPCAddress(t *testing.T) {
+func TestParseArchiveWrapperTransportMode(t *testing.T) {
+	for _, value := range []string{"loopback", "trusted-network"} {
+		mode, err := ParseArchiveWrapperTransportMode(value)
+		require.NoError(t, err)
+		require.Equal(t, ArchiveWrapperTransportMode(value), mode)
+	}
+
+	for _, value := range []string{"", "trusted_network", " loopback"} {
+		mode, err := ParseArchiveWrapperTransportMode(value)
+		require.Empty(t, mode)
+		require.ErrorIs(t, err, types.ErrInvalidArchiveWrapperGRPCTransportMode)
+	}
+}
+
+func TestValidateArchiveWrapperGRPCAddress(t *testing.T) {
 	testCases := []struct {
 		name    string
 		addr    string
+		mode    ArchiveWrapperTransportMode
 		wantErr bool
+		modeErr bool
 	}{
 		{
 			name:    "ipv4 loopback",
 			addr:    "127.0.0.1:9095",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: false,
 		},
 		{
 			name:    "ipv6 loopback",
 			addr:    "[::1]:9095",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: false,
 		},
 		{
 			name:    "ipv4 loopback range",
 			addr:    "127.20.30.40:9095",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: false,
 		},
+		{name: "trusted dns service", addr: "archive-wrapper:9095", mode: ArchiveWrapperTransportModeTrustedNetwork},
+		{name: "trusted qualified dns service", addr: "archive-wrapper-validator1.internal:9095", mode: ArchiveWrapperTransportModeTrustedNetwork},
+		{name: "trusted private ipv4", addr: "192.168.1.10:9095", mode: ArchiveWrapperTransportModeTrustedNetwork},
+		{name: "trusted private ipv6", addr: "[fd00::10]:9095", mode: ArchiveWrapperTransportModeTrustedNetwork},
 		{
 			name:    "empty address is rejected",
 			addr:    "",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: true,
 		},
 		{
 			name:    "surrounding whitespace is rejected",
 			addr:    " 127.0.0.1:9095 ",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: true,
 		},
 		{
 			name:    "localhost is rejected",
 			addr:    "localhost:9095",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: true,
 		},
 		{
 			name:    "wildcard is rejected",
 			addr:    "0.0.0.0:9095",
+			mode:    ArchiveWrapperTransportModeTrustedNetwork,
 			wantErr: true,
 		},
 		{
 			name:    "ipv6 wildcard is rejected",
 			addr:    "[::]:9095",
+			mode:    ArchiveWrapperTransportModeTrustedNetwork,
 			wantErr: true,
 		},
 		{
 			name:    "lan address is rejected",
 			addr:    "192.168.1.10:9095",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: true,
 		},
 		{
 			name:    "public address is rejected",
 			addr:    "8.8.8.8:9095",
+			mode:    ArchiveWrapperTransportModeTrustedNetwork,
 			wantErr: true,
 		},
 		{
 			name:    "missing host is rejected",
 			addr:    ":9095",
+			mode:    ArchiveWrapperTransportModeTrustedNetwork,
 			wantErr: true,
 		},
 		{
 			name:    "missing port is rejected",
 			addr:    "127.0.0.1",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: true,
 		},
 		{
 			name:    "zero port is rejected",
 			addr:    "127.0.0.1:0",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: true,
 		},
 		{
 			name:    "port above range is rejected",
 			addr:    "127.0.0.1:65536",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: true,
 		},
 		{
 			name:    "service name port is rejected",
 			addr:    "127.0.0.1:http",
+			mode:    ArchiveWrapperTransportModeLoopback,
 			wantErr: true,
 		},
 		{
 			name:    "zoned ipv6 is rejected",
 			addr:    "[::1%lo]:9095",
+			mode:    ArchiveWrapperTransportModeTrustedNetwork,
 			wantErr: true,
 		},
+		{name: "url scheme is rejected", addr: "http://archive-wrapper:9095", mode: ArchiveWrapperTransportModeTrustedNetwork, wantErr: true},
+		{name: "userinfo is rejected", addr: "user@archive-wrapper:9095", mode: ArchiveWrapperTransportModeTrustedNetwork, wantErr: true},
+		{name: "invalid dns label is rejected", addr: "archive_wrapper:9095", mode: ArchiveWrapperTransportModeTrustedNetwork, wantErr: true},
+		{name: "malformed ipv4 is rejected", addr: "127.0.0.999:9095", mode: ArchiveWrapperTransportModeTrustedNetwork, wantErr: true},
+		{name: "hostname rejected for unspecified mode", addr: "archive-wrapper:9095", mode: "", wantErr: true, modeErr: true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateLoopbackGRPCAddress(tc.addr)
+			err := validateArchiveWrapperGRPCAddress(tc.addr, tc.mode)
 			if tc.wantErr {
+				if tc.modeErr {
+					require.ErrorIs(t, err, types.ErrInvalidArchiveWrapperGRPCTransportMode)
+					return
+				}
 				require.ErrorIs(t, err, types.ErrInvalidArchiveWrapperGRPCAddress)
 				return
 			}
@@ -116,26 +161,40 @@ func TestNewArchiveWrapperQueryClientRejectsInvalidAddress(t *testing.T) {
 	testCases := []struct {
 		name string
 		addr string
+		mode ArchiveWrapperTransportMode
 	}{
-		{name: "empty", addr: ""},
-		{name: "malformed", addr: "127.0.0.1"},
-		{name: "non-loopback", addr: "192.168.1.10:9095"},
+		{name: "empty", addr: "", mode: ArchiveWrapperTransportModeLoopback},
+		{name: "malformed", addr: "127.0.0.1", mode: ArchiveWrapperTransportModeLoopback},
+		{name: "non-loopback", addr: "192.168.1.10:9095", mode: ArchiveWrapperTransportModeLoopback},
+		{name: "invalid mode", addr: "127.0.0.1:9095", mode: ""},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			client, err := NewArchiveWrapperQueryClient(tc.addr)
+			client, err := NewArchiveWrapperQueryClient(tc.addr, tc.mode)
 			require.Nil(t, client)
+			if tc.mode == "" {
+				require.ErrorIs(t, err, types.ErrInvalidArchiveWrapperGRPCTransportMode)
+				return
+			}
 			require.ErrorIs(t, err, types.ErrInvalidArchiveWrapperGRPCAddress)
 		})
 	}
 }
 
-func TestNewArchiveWrapperQueryClientNormalizesAddress(t *testing.T) {
-	client, err := NewArchiveWrapperQueryClient(" 127.0.0.1:9095 ")
-	require.NoError(t, err)
-	require.NotNil(t, client)
-	require.NoError(t, client.Close())
+func TestNewArchiveWrapperQueryClientAcceptsSupportedEndpoints(t *testing.T) {
+	for _, tc := range []struct {
+		addr string
+		mode ArchiveWrapperTransportMode
+	}{
+		{addr: "127.0.0.1:9095", mode: ArchiveWrapperTransportModeLoopback},
+		{addr: "archive-wrapper:9095", mode: ArchiveWrapperTransportModeTrustedNetwork},
+	} {
+		client, err := NewArchiveWrapperQueryClient(tc.addr, tc.mode)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+		require.NoError(t, client.Close())
+	}
 }
 
 func TestArchiveWrapperClientMethodsRejectUnconfiguredClient(t *testing.T) {

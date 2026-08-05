@@ -6,12 +6,18 @@ import hashlib
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 
 MINA_SCALAR_FIELD = int(
     "40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001", 16
+)
+RFC3339_TIMESTAMP_PATTERN = re.compile(
+    r"^(?P<date>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"
+    r"(?:\.(?P<fraction>\d+))?"
+    r"(?P<timezone>Z|[+-]\d{2}:\d{2})$"
 )
 
 
@@ -63,27 +69,116 @@ def read_nested_config_value(
     return None
 
 
+def read_first_match(content: str, patterns: list[str], error_message: str) -> str:
+    for pattern in patterns:
+        match = re.search(pattern, content, re.MULTILINE)
+        if match:
+            return match.group(1).strip()
+
+    raise SystemExit(error_message)
+
+
 def read_mina_priv_key(config_path: str) -> int:
     content = read_text(config_path)
-    match = re.search(r'vote_extension:\s*\n\s*priv_key:\s*"([^"]+)"', content)
-    if not match:
-        raise SystemExit(
-            f"could not find validators[].app.vote_extension.priv_key in {config_path}"
+    print(
+        read_first_match(
+            content,
+            [
+                r'vote_extension:\s*\n\s*priv_key:\s*"([^"]+)"',
+                r"\[vote_extension\]\s*\npriv_key\s*=\s*\"([^\"]+)\"",
+            ],
+            f"could not find vote extension private key in {config_path}",
         )
-
-    print(match.group(1))
+    )
     return 0
 
 
-def read_wrapper_grpc_address(config_path: str) -> int:
-    wrapper_grpc_address = read_nested_config_value(
-        config_path, "bridge", "wrapper_grpc_address"
-    )
-    if wrapper_grpc_address is None:
+def read_validator_app_value(
+    config_path: str, validator_index: int, section_name: str, key_name: str
+) -> int:
+    lines = read_text(config_path).splitlines()
+    validators_start = None
+    validators_indent = -1
+
+    for index, line in enumerate(lines):
+        match = re.match(r"^(\s*)validators:\s*$", line)
+        if match:
+            validators_start = index + 1
+            validators_indent = len(match.group(1))
+            break
+
+    if validators_start is None:
         print("")
         return 0
 
-    print(wrapper_grpc_address)
+    item_starts = []
+    item_indent = None
+    for index in range(validators_start, len(lines)):
+        line = lines[index]
+        if not line.strip():
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= validators_indent and not line.lstrip().startswith("-"):
+            break
+
+        if re.match(r"^\s*-\s+", line):
+            if item_indent is None:
+                item_indent = indent
+            if indent == item_indent:
+                item_starts.append(index)
+
+    if validator_index < 1 or validator_index > len(item_starts):
+        print("")
+        return 0
+
+    item_start = item_starts[validator_index - 1] + 1
+    item_end = (
+        item_starts[validator_index]
+        if validator_index < len(item_starts)
+        else len(lines)
+    )
+    parent_indent = item_indent if item_indent is not None else validators_indent
+
+    app_block = find_named_block(lines, item_start, item_end, parent_indent, "app")
+    if app_block is None:
+        print("")
+        return 0
+
+    app_start, app_end, app_indent = app_block
+    section_block = find_named_block(
+        lines, app_start, app_end, app_indent, section_name
+    )
+    if section_block is None:
+        print("")
+        return 0
+
+    section_start, section_end, section_indent = section_block
+    value = read_scalar_in_block(
+        lines, section_start, section_end, section_indent, key_name
+    )
+    print(value or "")
+    return 0
+
+
+def read_app_toml_string(app_path: str, table_name: str, key_name: str) -> int:
+    content = read_text(app_path)
+    table_pattern = re.compile(
+        rf"^\[{re.escape(table_name)}\]\s*$"
+        rf"(?P<body>.*?)(?=^\[|\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    table_match = table_pattern.search(content)
+    if table_match is None:
+        print("")
+        return 0
+
+    key_match = re.search(
+        rf'^\s*{re.escape(key_name)}\s*=\s*"([^"]*)"\s*$',
+        table_match.group("body"),
+        re.MULTILINE,
+    )
+    print(key_match.group(1) if key_match else "")
     return 0
 
 
@@ -190,13 +285,29 @@ def read_bridge_genesis_param(config_path: str, key_name: str) -> int:
 
 
 def read_mina_network_id(config_path: str) -> int:
-    network_id = read_nested_config_value(config_path, "mina", "network_id")
-    if network_id is None:
-        raise SystemExit(
-            f"could not find validators[].app.mina.network_id in {config_path}"
+    content = read_text(config_path)
+    print(
+        read_first_match(
+            content,
+            [
+                r'mina:\s*\n\s*network_id:\s*"?([^"\n]+)"?',
+                r"\[mina\]\s*\nnetwork_id\s*=\s*\"([^\"]+)\"",
+            ],
+            f"could not find mina network id in {config_path}",
         )
+    )
+    return 0
 
-    print(network_id)
+
+def read_min_gas_price(app_path: str) -> int:
+    content = read_text(app_path)
+    print(
+        read_first_match(
+            content,
+            [r'^minimum-gas-prices\s*=\s*"([^"]*)"'],
+            f"could not find minimum-gas-prices in {app_path}",
+        )
+    )
     return 0
 
 
@@ -207,9 +318,42 @@ def set_vote_extension_height(genesis_path: str, height: str) -> int:
     return 0
 
 
+def read_vote_extension_height(genesis_path: str) -> int:
+    genesis = read_json(genesis_path)
+    print(genesis["consensus"]["params"]["abci"]["vote_extensions_enable_height"])
+    return 0
+
+
+def read_genesis_chain_id(genesis_path: str) -> int:
+    genesis = read_json(genesis_path)
+    print(genesis["chain_id"])
+    return 0
+
+
 def read_consensus_pub_key(priv_validator_key_path: str) -> int:
     priv_validator_key = read_json(priv_validator_key_path)
     print(priv_validator_key["pub_key"]["value"])
+    return 0
+
+
+def read_account_pub_key() -> int:
+    payload = json.load(sys.stdin)
+    key = payload.get("key")
+    if not isinstance(key, str) or not key:
+        raise SystemExit("account public key JSON is missing key")
+    print(key)
+    return 0
+
+
+def render_e2e_seed(template_path: str, output_path: str, mina_public_key: str) -> int:
+    placeholder = "__E2E_MINA_PUBLIC_KEY__"
+    template = read_text(template_path)
+    if template.count(placeholder) != 1:
+        raise SystemExit("E2E seed template must contain exactly one Mina key placeholder")
+    rendered = template.replace(placeholder, mina_public_key)
+    if placeholder in rendered:
+        raise SystemExit("E2E seed rendering left an unresolved placeholder")
+    write_text(output_path, rendered)
     return 0
 
 
@@ -264,7 +408,11 @@ def extract_gentx_consensus_pub_keys(genesis) -> list[str]:
 
 
 def patch_keyregistry(
-    genesis_path: str, mina_pub_keys: list[str], cosmos_keys: Optional[list[str]] = None
+    genesis_path: str,
+    mina_pub_keys: list[str],
+    cosmos_keys: Optional[list[str]] = None,
+    user_mina_pub_key: Optional[str] = None,
+    user_cosmos_pub_key: Optional[str] = None,
 ) -> int:
     genesis = read_json(genesis_path)
 
@@ -282,7 +430,19 @@ def patch_keyregistry(
 
     keyregistry = genesis["app_state"].setdefault("keyregistry", {})
     keyregistry["params"] = keyregistry.get("params", {})
-    keyregistry["user_key_pairs"] = []
+    if (user_mina_pub_key is None) != (user_cosmos_pub_key is None):
+        raise SystemExit("user Mina and Cosmos public keys must be provided together")
+
+    keyregistry["user_key_pairs"] = (
+        [
+            {
+                "cosmos_key": user_cosmos_pub_key,
+                "mina_key": user_mina_pub_key,
+            }
+        ]
+        if user_mina_pub_key is not None
+        else []
+    )
     keyregistry["validator_key_pairs"] = [
         {
             "cosmos_key": cosmos_key,
@@ -293,6 +453,128 @@ def patch_keyregistry(
 
     write_json(genesis_path, genesis)
     print("\n".join(cosmos_keys))
+    return 0
+
+
+def verify_validator_key_pairs(genesis_path: str, cosmos_keys: list[str]) -> int:
+    genesis = read_json(genesis_path)
+    key_pairs = genesis.get("app_state", {}).get("keyregistry", {}).get(
+        "validator_key_pairs", []
+    )
+
+    if len(key_pairs) != len(cosmos_keys):
+        raise SystemExit(
+            "validator key pair count mismatch: "
+            f"{len(key_pairs)} pairs for {len(cosmos_keys)} validators"
+        )
+
+    for index, (key_pair, expected_cosmos_key) in enumerate(
+        zip(key_pairs, cosmos_keys), start=1
+    ):
+        actual_cosmos_key = key_pair.get("cosmos_key")
+        actual_mina_key = key_pair.get("mina_key")
+
+        if actual_cosmos_key != expected_cosmos_key:
+            raise SystemExit(
+                f"validator key pair {index} cosmos key mismatch: "
+                f"got {actual_cosmos_key!r}, want {expected_cosmos_key!r}"
+            )
+
+        # TODO: Compare this value with the expected Mina public key once a
+        # canonical, trusted Mina key validation implementation is available.
+        if not actual_mina_key:
+            raise SystemExit(f"validator key pair {index} is missing a mina_key")
+
+    return 0
+
+
+def parse_positive_int(value: str) -> int:
+    if re.fullmatch(r"[0-9]+", value) is None:
+        raise argparse.ArgumentTypeError("value must be a positive integer")
+
+    parsed_value = int(value)
+    if parsed_value < 1:
+        raise argparse.ArgumentTypeError("value must be a positive integer")
+
+    return parsed_value
+
+
+def parse_rfc3339_timestamp(timestamp: str) -> datetime:
+    if not isinstance(timestamp, str) or not timestamp:
+        raise ValueError("timestamp must be a non-empty string")
+
+    match = RFC3339_TIMESTAMP_PATTERN.fullmatch(timestamp)
+    if match is None:
+        raise ValueError("timestamp must use RFC3339 format with a timezone")
+
+    fraction = (match.group("fraction") or "")[:6].ljust(6, "0")
+    timezone_suffix = "+00:00" if match.group("timezone") == "Z" else match.group("timezone")
+    normalized_timestamp = (
+        f"{match.group('date')}.{fraction}{timezone_suffix}"
+    )
+
+    try:
+        parsed_timestamp = datetime.fromisoformat(normalized_timestamp)
+    except ValueError as exc:
+        raise ValueError(f"invalid RFC3339 timestamp: {timestamp}") from exc
+
+    return parsed_timestamp.astimezone(timezone.utc)
+
+
+def check_validator_status(
+    status_json: Optional[str],
+    max_block_age_seconds: int,
+    now: Optional[datetime] = None,
+) -> int:
+    if max_block_age_seconds < 1:
+        raise SystemExit("maximum block age must be a positive integer")
+
+    if status_json is None:
+        status_json = sys.stdin.read()
+
+    if not status_json.strip():
+        raise SystemExit("validator status JSON must not be empty")
+
+    try:
+        sync_info = json.loads(status_json)["result"]["sync_info"]
+        catching_up = sync_info["catching_up"]
+        latest_block_height = int(sync_info["latest_block_height"])
+        latest_block_time = sync_info["latest_block_time"]
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"unable to parse validator status response: {exc}")
+
+    if catching_up:
+        raise SystemExit("validator is still catching up")
+
+    if latest_block_height <= 0:
+        raise SystemExit(
+            f"validator has not produced a positive block height yet: {latest_block_height}"
+        )
+
+    try:
+        latest_block_datetime = parse_rfc3339_timestamp(latest_block_time)
+    except ValueError as exc:
+        raise SystemExit(f"unable to parse validator latest block time: {exc}")
+
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None or current_time.utcoffset() is None:
+        raise SystemExit("current time must include a timezone")
+
+    current_time = current_time.astimezone(timezone.utc)
+    block_age_seconds = max(
+        0.0,
+        (current_time - latest_block_datetime).total_seconds(),
+    )
+
+    if block_age_seconds > max_block_age_seconds:
+        raise SystemExit(
+            "validator latest block is stale: "
+            f"height={latest_block_height}, "
+            f"latest_block_time={latest_block_time}, "
+            f"age_seconds={block_age_seconds:.6f}, "
+            f"max_age_seconds={max_block_age_seconds}"
+        )
+
     return 0
 
 
@@ -410,10 +692,15 @@ def upsert_toml_key(
             break
 
     key_pattern = re.compile(rf"^\s*{re.escape(key_name)}\s*=")
+    matching_indexes = []
     for index in range(table_start + 1, table_end):
         if key_pattern.match(lines[index]):
-            lines[index] = key_line
-            break
+            matching_indexes.append(index)
+
+    if matching_indexes:
+        lines[matching_indexes[0]] = key_line
+        for duplicate_index in reversed(matching_indexes[1:]):
+            del lines[duplicate_index]
     else:
         while table_end > table_start + 1 and not lines[table_end - 1].strip():
             table_end -= 1
@@ -428,6 +715,7 @@ def update_app_config(
     mina_priv_key: str,
     mina_network_id: str,
     wrapper_grpc_address: str,
+    wrapper_grpc_transport_mode: str,
 ) -> int:
     app_toml = read_text(app_path)
     app_toml = app_toml.replace(
@@ -440,11 +728,22 @@ def update_app_config(
 
     app_toml = upsert_toml_key(app_toml, "mina", "network_id", mina_network_id)
 
-    wrapper_grpc_address = wrapper_grpc_address.strip()
-    if wrapper_grpc_address:
-        app_toml = upsert_toml_key(
-            app_toml, "bridge", "wrapper_grpc_address", wrapper_grpc_address
+    if not wrapper_grpc_address or wrapper_grpc_address != wrapper_grpc_address.strip():
+        raise SystemExit("wrapper gRPC address must be non-empty without surrounding whitespace")
+    if wrapper_grpc_transport_mode not in ("loopback", "trusted-network"):
+        raise SystemExit(
+            "wrapper gRPC transport mode must be loopback or trusted-network"
         )
+
+    app_toml = upsert_toml_key(
+        app_toml, "bridge", "wrapper_grpc_address", wrapper_grpc_address
+    )
+    app_toml = upsert_toml_key(
+        app_toml,
+        "bridge",
+        "wrapper_grpc_transport_mode",
+        wrapper_grpc_transport_mode,
+    )
 
     write_text(app_path, app_toml)
     return 0
@@ -460,19 +759,49 @@ def build_parser() -> argparse.ArgumentParser:
     read_network_id = subparsers.add_parser("read-mina-network-id")
     read_network_id.add_argument("--config", required=True)
 
-    read_wrapper_addr = subparsers.add_parser("read-wrapper-grpc-address")
-    read_wrapper_addr.add_argument("--config", required=True)
+    read_wrapper_config = subparsers.add_parser("read-validator-wrapper-config")
+    read_wrapper_config.add_argument("--config", required=True)
+    read_wrapper_config.add_argument("--index", required=True, type=parse_positive_int)
+    read_wrapper_config.add_argument(
+        "--key",
+        required=True,
+        choices=("wrapper_grpc_address", "wrapper_grpc_transport_mode"),
+    )
+
+    read_app_wrapper_config = subparsers.add_parser("read-app-wrapper-config")
+    read_app_wrapper_config.add_argument("--app", required=True)
+    read_app_wrapper_config.add_argument(
+        "--key",
+        required=True,
+        choices=("wrapper_grpc_address", "wrapper_grpc_transport_mode"),
+    )
 
     read_bridge_param_cmd = subparsers.add_parser("read-bridge-genesis-param")
     read_bridge_param_cmd.add_argument("--config", required=True)
     read_bridge_param_cmd.add_argument("--key", required=True)
 
+    read_gas_price = subparsers.add_parser("read-min-gas-price")
+    read_gas_price.add_argument("--app", required=True)
+
     read_consensus_key = subparsers.add_parser("read-consensus-pub-key")
     read_consensus_key.add_argument("--priv-validator-key", required=True)
+
+    subparsers.add_parser("read-account-pub-key")
+
+    render_seed = subparsers.add_parser("render-e2e-seed")
+    render_seed.add_argument("--template", required=True)
+    render_seed.add_argument("--output", required=True)
+    render_seed.add_argument("--mina-public-key", required=True)
 
     set_height = subparsers.add_parser("set-vote-extension-height")
     set_height.add_argument("--genesis", required=True)
     set_height.add_argument("--height", required=True)
+
+    read_height = subparsers.add_parser("read-vote-extension-height")
+    read_height.add_argument("--genesis", required=True)
+
+    read_chain_id = subparsers.add_parser("read-genesis-chain-id")
+    read_chain_id.add_argument("--genesis", required=True)
 
     generate_mina_key = subparsers.add_parser("generate-default-mina-priv-key")
     generate_mina_key.add_argument("--index", required=True)
@@ -485,6 +814,8 @@ def build_parser() -> argparse.ArgumentParser:
     patch_registry.add_argument("--genesis", required=True)
     patch_registry.add_argument("--cosmos-key", action="append")
     patch_registry.add_argument("--mina-pub-key", action="append", required=True)
+    patch_registry.add_argument("--user-mina-pub-key")
+    patch_registry.add_argument("--user-cosmos-pub-key")
 
     patch_bridge = subparsers.add_parser("patch-bridge-genesis")
     patch_bridge.add_argument("--genesis", required=True)
@@ -496,12 +827,25 @@ def build_parser() -> argparse.ArgumentParser:
         "--actions-reduced-root-snapshot-window-size", required=True
     )
 
+    verify_registry = subparsers.add_parser("verify-validator-key-pairs")
+    verify_registry.add_argument("--genesis", required=True)
+    verify_registry.add_argument("--cosmos-key", action="append", required=True)
+
+    check_status = subparsers.add_parser("check-validator-status")
+    check_status.add_argument("--status-json")
+    check_status.add_argument(
+        "--max-block-age-seconds",
+        required=True,
+        type=parse_positive_int,
+    )
+
     update_app = subparsers.add_parser("update-app-config")
     update_app.add_argument("--app", required=True)
     update_app.add_argument("--min-gas-price", required=True)
     update_app.add_argument("--mina-priv-key", required=True)
     update_app.add_argument("--mina-network-id", required=True)
-    update_app.add_argument("--wrapper-grpc-address", default="")
+    update_app.add_argument("--wrapper-grpc-address", required=True)
+    update_app.add_argument("--wrapper-grpc-transport-mode", required=True)
 
     return parser
 
@@ -512,22 +856,42 @@ def main() -> int:
 
     if args.command == "read-mina-priv-key":
         return read_mina_priv_key(args.config)
-    if args.command == "read-wrapper-grpc-address":
-        return read_wrapper_grpc_address(args.config)
+    if args.command == "read-validator-wrapper-config":
+        return read_validator_app_value(
+            args.config, args.index, "bridge", args.key
+        )
+    if args.command == "read-app-wrapper-config":
+        return read_app_toml_string(args.app, "bridge", args.key)
     if args.command == "read-bridge-genesis-param":
         return read_bridge_genesis_param(args.config, args.key)
     if args.command == "read-mina-network-id":
         return read_mina_network_id(args.config)
+    if args.command == "read-min-gas-price":
+        return read_min_gas_price(args.app)
     if args.command == "read-consensus-pub-key":
         return read_consensus_pub_key(args.priv_validator_key)
+    if args.command == "read-account-pub-key":
+        return read_account_pub_key()
+    if args.command == "render-e2e-seed":
+        return render_e2e_seed(args.template, args.output, args.mina_public_key)
     if args.command == "set-vote-extension-height":
         return set_vote_extension_height(args.genesis, args.height)
+    if args.command == "read-vote-extension-height":
+        return read_vote_extension_height(args.genesis)
+    if args.command == "read-genesis-chain-id":
+        return read_genesis_chain_id(args.genesis)
     if args.command == "generate-default-mina-priv-key":
         return generate_default_mina_priv_key(args.index)
     if args.command == "validate-mina-priv-key":
         return validate_mina_priv_key(args.index, args.mina_priv_key)
     if args.command == "patch-keyregistry":
-        return patch_keyregistry(args.genesis, args.mina_pub_key, args.cosmos_key)
+        return patch_keyregistry(
+            args.genesis,
+            args.mina_pub_key,
+            args.cosmos_key,
+            args.user_mina_pub_key,
+            args.user_cosmos_pub_key,
+        )
     if args.command == "patch-bridge-genesis":
         return patch_bridge_genesis(
             args.genesis,
@@ -537,6 +901,13 @@ def main() -> int:
             args.max_block_range,
             args.actions_reduced_root_snapshot_window_size,
         )
+    if args.command == "verify-validator-key-pairs":
+        return verify_validator_key_pairs(args.genesis, args.cosmos_key)
+    if args.command == "check-validator-status":
+        return check_validator_status(
+            args.status_json,
+            args.max_block_age_seconds,
+        )
     if args.command == "update-app-config":
         return update_app_config(
             args.app,
@@ -544,6 +915,7 @@ def main() -> int:
             args.mina_priv_key,
             args.mina_network_id,
             args.wrapper_grpc_address,
+            args.wrapper_grpc_transport_mode,
         )
 
     parser.print_help(sys.stderr)

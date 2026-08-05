@@ -60,7 +60,7 @@ async function grpcurlJson(grpcAddr, method, requestBody) {
   try {
     ({ stdout } = await execFileAsync(
       'grpcurl',
-      ['-plaintext', '-d', JSON.stringify(requestBody), grpcAddr, method],
+      ['-plaintext', '-emit-defaults', '-d', JSON.stringify(requestBody), grpcAddr, method],
       { maxBuffer: 10 * 1024 * 1024 }
     ));
   } catch (error) {

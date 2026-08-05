@@ -23,6 +23,7 @@ GO_TAGS_FLAG := $(if $(strip $(GO_BUILD_TAGS)),-tags=$(GO_BUILD_TAGS),)
 GOFLAGS_WITH_TAGS := $(strip $(GOFLAGS) $(GO_TAGS_FLAG))
 GOFLAGS_WITH_LINT_TAGS := $(strip $(GOFLAGS_WITH_TAGS) -buildvcs=false)
 GOLANGCI_LINT_CACHE ?= /tmp/golangci-lint-cache
+GOVULNCHECK_VERSION ?= v1.6.0
 
 ##############
 ###  Test  ###
@@ -42,14 +43,27 @@ test-cover:
 	@go tool cover -html=$(COVER_FILE) -o $(COVER_HTML_FILE)
 	@rm $(COVER_FILE)
 
+test-scripts:
+	@echo Running script unit tests...
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p 'test_*.py'
+
+test-docker-topologies:
+	@echo Validating generated wrapper topologies...
+	@./scripts/test_docker_topologies.sh
+
+test-wrapper-e2e:
+	@./scripts/test_archive_wrapper_deployment.sh shared
+	@./scripts/test_archive_wrapper_deployment.sh per-validator
+	@./scripts/test_archive_wrapper_deployment.sh external
+
 bench:
 	@echo Running unit tests with benchmarking...
 	@go test $(GO_TAGS_FLAG) -mod=readonly -v -timeout 30m -bench=. ./...
 
-test: govet test-unit
+test: govet test-unit test-scripts
 security: govulncheck
 
-.PHONY: test test-unit test-race test-cover bench security
+.PHONY: test test-unit test-race test-cover test-scripts test-docker-topologies test-wrapper-e2e bench security
 
 #################
 ###  Install  ###
@@ -105,6 +119,7 @@ govet:
 
 govulncheck:
 	@echo Running govulncheck...
-	@GOFLAGS="$(GOFLAGS_WITH_TAGS)" go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) \
+		-tags=$(GO_BUILD_TAGS) ./cmd/pulsard ./scripts/devtools
 
 .PHONY: govet govulncheck

@@ -47,6 +47,9 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
+	// TODO: Move archive-wrapper reads out of consensus execution before production.
+	// Validator-local external state is not a deterministic consensus input; all
+	// validators must instead verify identical transaction or proposal bytes.
 	currentMinaBlockHeight, err := k.archiveWrapperClient.GetMinaBlockHeight(ctx)
 	if err != nil {
 		return nil, err
