@@ -66,7 +66,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: node101-io/archive-wrapper
-          ref: 6141249715c539cb3f16142d12e494af10684baf
+          ref: f8fcc1bd9d7f8343a4fd9f25c6ec3f8d8d390168
           path: archive-wrapper
 
       - name: Set up Go
@@ -97,7 +97,7 @@ jobs:
       - name: Verify pinned wrapper checkout
         run: |
           test "$(git -C "$GITHUB_WORKSPACE/archive-wrapper" rev-parse HEAD)" = \
-            "6141249715c539cb3f16142d12e494af10684baf"
+            "f8fcc1bd9d7f8343a4fd9f25c6ec3f8d8d390168"
 
       - name: Run deployment E2E
         env:

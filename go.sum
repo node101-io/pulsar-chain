@@ -1672,8 +1672,8 @@ github.com/nishanths/exhaustive v0.12.0 h1:vIY9sALmw6T/yxiASewa4TQcFsVYZQQRUQJhK
 github.com/nishanths/exhaustive v0.12.0/go.mod h1:mEZ95wPIZW+x8kC4TgC+9YCUgiST7ecevsVDTgc2obs=
 github.com/nishanths/predeclared v0.2.2 h1:V2EPdZPliZymNAn79T8RkNApBjMmVKh5XRpLm/w98Vk=
 github.com/nishanths/predeclared v0.2.2/go.mod h1:RROzoN6TnGQupbC+lqggsOlcgysk3LMK/HI84Mp280c=
-github.com/node101-io/archive-wrapper v0.0.0-20260802232422-6141249715c5 h1:b7INRa0pALguI6S0Z1NYs/xekNvjLb+rg6avSlQTYeU=
-github.com/node101-io/archive-wrapper v0.0.0-20260802232422-6141249715c5/go.mod h1:H+iXAEbMKtMG8hDq5jO6Zgp8QjahDKFDTx7MgFWfctI=
+github.com/node101-io/archive-wrapper v0.0.0-20260804200524-f8fcc1bd9d7f h1:clM3x2QnoBmbKouivjoWNGjKmF38tE7Hyynp6I0I5HQ=
+github.com/node101-io/archive-wrapper v0.0.0-20260804200524-f8fcc1bd9d7f/go.mod h1:H+iXAEbMKtMG8hDq5jO6Zgp8QjahDKFDTx7MgFWfctI=
 github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e h1:zrvawdhMkFOLNAUjAzSzEq8IhWaWTuMxGs/Q4LxePoI=
 github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e/go.mod h1:SpMLmGyarqavPzpF5iU+pw0mBOWUsEtjOV/3Oe00Jsg=
 github.com/nunnatsa/ginkgolinter v0.19.1 h1:mjwbOlDQxZi9Cal+KfbEJTCz327OLNfwNvoZ70NJ+c4=
