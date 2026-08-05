@@ -376,6 +376,8 @@ node_app_config_matches_expected() {
 }
 
 primary_genesis_matches_expected() {
+  # TODO: Compare every persisted bridge genesis parameter before production use.
+  # The current reuse check does not detect finality, contract, range, or snapshot-window drift.
   local actual_vote_extension_height
   local actual_chain_id
   local i

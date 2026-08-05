@@ -24,18 +24,24 @@ const (
 	wrapperQueryGRPCServiceName = "query.Query"
 )
 
+// ArchiveWrapperQueryClient provides the wrapper reads required by the bridge keeper.
 type ArchiveWrapperQueryClient interface {
 	GetMinaBlockHeight(ctx context.Context) (int64, error)
 	GetActionsInRange(ctx context.Context, latestFetchedMinaHeight, targetMinaHeight int64) ([]types.Action, error)
 }
 
+// ArchiveWrapperTransportMode controls which wrapper endpoint classes are accepted.
 type ArchiveWrapperTransportMode string
 
 const (
-	ArchiveWrapperTransportModeLoopback       ArchiveWrapperTransportMode = "loopback"
+	// ArchiveWrapperTransportModeLoopback permits only literal loopback IP endpoints.
+	ArchiveWrapperTransportModeLoopback ArchiveWrapperTransportMode = "loopback"
+	// ArchiveWrapperTransportModeTrustedNetwork permits private IPs and DNS service names.
+	// It uses plaintext transport and does not authenticate the remote peer.
 	ArchiveWrapperTransportModeTrustedNetwork ArchiveWrapperTransportMode = "trusted-network"
 )
 
+// ArchiveWrapperClient is the gRPC-backed archive-wrapper query client.
 type ArchiveWrapperClient struct {
 	conn         *grpc.ClientConn
 	query        wrapperquery.QueryClient
@@ -43,6 +49,7 @@ type ArchiveWrapperClient struct {
 	queryTimeout time.Duration
 }
 
+// ParseArchiveWrapperTransportMode parses and validates a configured transport mode.
 func ParseArchiveWrapperTransportMode(value string) (ArchiveWrapperTransportMode, error) {
 	if value != strings.TrimSpace(value) {
 		return "", errorsmod.Wrap(
@@ -202,6 +209,7 @@ func isValidDNSName(host string) bool {
 	return true
 }
 
+// NewArchiveWrapperQueryClient validates the endpoint and creates a lazy gRPC client.
 func NewArchiveWrapperQueryClient(
 	wrapperGRPCAddress string,
 	transportMode ArchiveWrapperTransportMode,
@@ -226,6 +234,7 @@ func NewArchiveWrapperQueryClient(
 	}, nil
 }
 
+// Close releases the underlying gRPC client connection.
 func (c *ArchiveWrapperClient) Close() error {
 	if c == nil || c.conn == nil {
 		return nil
@@ -233,6 +242,7 @@ func (c *ArchiveWrapperClient) Close() error {
 	return c.conn.Close()
 }
 
+// CheckReady reports whether the wrapper query service is serving requests.
 func (c *ArchiveWrapperClient) CheckReady(ctx context.Context) error {
 	if c == nil || c.conn == nil || c.query == nil || c.health == nil {
 		return types.ErrArchiveWrapperQueryClientNotConfigured
@@ -260,6 +270,7 @@ func (c *ArchiveWrapperClient) CheckReady(ctx context.Context) error {
 	return nil
 }
 
+// GetMinaBlockHeight returns the wrapper's latest confirmed and indexed Mina height.
 func (c *ArchiveWrapperClient) GetMinaBlockHeight(ctx context.Context) (int64, error) {
 	if c == nil || c.conn == nil || c.query == nil {
 		return 0, types.ErrArchiveWrapperQueryClientNotConfigured
@@ -279,6 +290,7 @@ func (c *ArchiveWrapperClient) GetMinaBlockHeight(ctx context.Context) (int64, e
 	return resp.BlockHeight, nil
 }
 
+// GetActionsInRange returns actions in the requested open-closed Mina height range.
 func (c *ArchiveWrapperClient) GetActionsInRange(
 	ctx context.Context,
 	latestFetchedMinaHeight int64,
