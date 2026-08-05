@@ -86,6 +86,8 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, err
 	}
 
+	var validActionHashes []string
+
 	for _, act := range actions {
 		valid, err := k.isValidAction(ctx, act)
 		if err != nil {
@@ -107,13 +109,17 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		if err := list.Append(fieldElement.Bytes()); err != nil {
 			return nil, err
 		}
+
+		validActionHashes = append(validActionHashes, fieldElement.String())
 	}
 
 	newRoot := list.Root()
 
-	// A successful batch advances the Mina cursor.
-	bridgeState.LatestFetchedMinaHeight = msg.MinaBlockHeight
-	if err := k.Keeper.BridgeState.Set(ctx, bridgeState); err != nil {
+	// A successful batch advances the Mina cursor and sets valid action hashes
+	if err := k.Keeper.BridgeState.Set(ctx, types.BridgeState{
+		LatestFetchedMinaHeight: msg.MinaBlockHeight,
+		ValidActionHashes:       validActionHashes,
+	}); err != nil {
 		return nil, err
 	}
 

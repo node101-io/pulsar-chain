@@ -4,11 +4,14 @@ package pulsarchain.bridge.v1;
 
 option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
 
+import "pulsarchain/bridge/v1/action.proto";
+
 // BridgeState stores the bridge's processed Mina cursor.
 message BridgeState {
-  reserved 2;
-  reserved "current_actions_reduced_root";
 
   // latest_fetched_mina_height is the latest Mina height processed by the bridge.
   int64 latest_fetched_mina_height = 1;
+
+  // valid_action_hashes is the hashes of the valid actions  
+  repeated string valid_action_hashes = 2;
 }
