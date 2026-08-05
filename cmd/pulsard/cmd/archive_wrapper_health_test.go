@@ -47,9 +47,16 @@ func startWrapperHealthServer(
 func commandWithWrapperConfig(t *testing.T, address, mode string) *cobra.Command {
 	t.Helper()
 
+	grpcListener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	grpcAddress := grpcListener.Addr().String()
+	require.NoError(t, grpcListener.Close())
+
 	v := viper.New()
 	v.Set("bridge.wrapper_grpc_address", address)
 	v.Set("bridge.wrapper_grpc_transport_mode", mode)
+	v.Set("grpc.address", grpcAddress)
+	v.Set("grpc.enable", true)
 	serverCtx := server.NewContext(v, cmtcfg.DefaultConfig(), log.NewNopLogger())
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.WithValue(context.Background(), server.ServerContextKey, serverCtx))

@@ -148,12 +148,23 @@ verify_grpc_bind_failure() {
     --project-name "$PROJECT" \
     -f "$COMPOSE_FILE" \
     -f "$POSTGRES_COMPOSE_FILE" \
-    run --rm --no-deps --entrypoint /bin/bash validator1 -ceu '
+    run -T --rm --no-deps --entrypoint /bin/bash validator1 -ceu '
       python3 -m http.server 9090 >/tmp/grpc-port-holder.log 2>&1 &
       holder=$!
       trap '\''kill "$holder" >/dev/null 2>&1 || true'\'' EXIT
       sleep 1
-      pulsard start --home "$VALIDATOR_HOME"
+      if ! kill -0 "$holder" >/dev/null 2>&1; then
+        cat /tmp/grpc-port-holder.log >&2
+        exit 1
+      fi
+      set +e
+      pulsard start --home "$VALIDATOR_HOME" --grpc.address 127.0.0.1:9090
+      status=$?
+      set -e
+      kill "$holder" >/dev/null 2>&1 || true
+      wait "$holder" >/dev/null 2>&1 || true
+      trap - EXIT
+      exit "$status"
     ' >"$output" 2>&1
   status=$?
   set -e
@@ -164,6 +175,7 @@ verify_grpc_bind_failure() {
   fi
   if (( status == 124 )); then
     echo "pulsard start did not exit after its gRPC listener failed" >&2
+    cat "$output" >&2
     return 1
   fi
   if ! grep -Eq 'failed to listen.*9090|address already in use' "$output"; then

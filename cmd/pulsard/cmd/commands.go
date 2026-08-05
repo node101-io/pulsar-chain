@@ -74,6 +74,10 @@ func addModuleInitFlags(startCmd *cobra.Command) {
 			}
 		}
 
+		if err := checkConfiguredNodeGRPCListenerAvailable(cmd); err != nil {
+			return err
+		}
+
 		return checkConfiguredArchiveWrapperReady(cmd)
 	}
 }

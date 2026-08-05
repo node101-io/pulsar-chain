@@ -96,6 +96,26 @@ func TestCheckConfiguredNodeGRPCReadyRejectsDisabledServer(t *testing.T) {
 	require.ErrorContains(t, checkConfiguredNodeGRPCReady(cmd), "disabled")
 }
 
+func TestCheckConfiguredNodeGRPCListenerAvailable(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	address := listener.Addr().String()
+	require.NoError(t, listener.Close())
+
+	cmd := commandWithNodeGRPCConfig(t, address, true)
+	require.NoError(t, checkConfiguredNodeGRPCListenerAvailable(cmd))
+}
+
+func TestCheckConfiguredNodeGRPCListenerAvailableRejectsOccupiedPort(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, listener.Close()) })
+
+	cmd := commandWithNodeGRPCConfig(t, listener.Addr().String(), true)
+	err = checkConfiguredNodeGRPCListenerAvailable(cmd)
+	require.ErrorContains(t, err, "unavailable")
+}
+
 func TestNodeGRPCDialAddress(t *testing.T) {
 	testCases := []struct {
 		name    string

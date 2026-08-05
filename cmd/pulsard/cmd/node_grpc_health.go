@@ -32,20 +32,48 @@ func nodeGRPCHealthCommand() *cobra.Command {
 }
 
 func checkConfiguredNodeGRPCReady(cmd *cobra.Command) error {
+	grpcConfig, err := configuredNodeGRPC(cmd)
+	if err != nil {
+		return err
+	}
+
+	return checkNodeGRPCReady(cmd.Context(), grpcConfig.Address, nodeGRPCReadinessTimeout)
+}
+
+func checkConfiguredNodeGRPCListenerAvailable(cmd *cobra.Command) error {
+	grpcConfig, err := configuredNodeGRPC(cmd)
+	if err != nil {
+		return err
+	}
+
+	// Cosmos SDK v0.53 waits for a process signal after a gRPC serve failure.
+	// Probe the configured address before startup so a bind conflict fails fast.
+	listener, err := net.Listen("tcp", grpcConfig.Address)
+	if err != nil {
+		return fmt.Errorf("Pulsar gRPC listen address %q is unavailable: %w", grpcConfig.Address, err)
+	}
+	if err := listener.Close(); err != nil {
+		return fmt.Errorf("release Pulsar gRPC listen address %q: %w", grpcConfig.Address, err)
+	}
+
+	return nil
+}
+
+func configuredNodeGRPC(cmd *cobra.Command) (serverconfig.GRPCConfig, error) {
 	serverCtx := server.GetServerContextFromCmd(cmd)
 	if serverCtx == nil || serverCtx.Viper == nil {
-		return errors.New("server configuration is unavailable")
+		return serverconfig.GRPCConfig{}, errors.New("server configuration is unavailable")
 	}
 
 	appConfig, err := serverconfig.GetConfig(serverCtx.Viper)
 	if err != nil {
-		return fmt.Errorf("load Pulsar gRPC configuration: %w", err)
+		return serverconfig.GRPCConfig{}, fmt.Errorf("load Pulsar gRPC configuration: %w", err)
 	}
 	if !appConfig.GRPC.Enable {
-		return errors.New("Pulsar gRPC server is disabled")
+		return serverconfig.GRPCConfig{}, errors.New("Pulsar gRPC server is disabled")
 	}
 
-	return checkNodeGRPCReady(cmd.Context(), appConfig.GRPC.Address, nodeGRPCReadinessTimeout)
+	return appConfig.GRPC, nil
 }
 
 func checkNodeGRPCReady(ctx context.Context, listenAddress string, timeout time.Duration) error {
