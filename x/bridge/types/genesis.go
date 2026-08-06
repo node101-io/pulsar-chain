@@ -2,11 +2,17 @@ package types
 
 import (
 	"bytes"
+	"encoding/json"
 
 	errorsmod "cosmossdk.io/errors"
 	minafield "github.com/node101-io/mina-signer-go/field"
 	minasignergo "github.com/node101-io/mina-signer-go/merklelist"
 )
+
+type bridgeStateJSON struct {
+	LatestFetchedMinaHeight int64    `json:"latest_fetched_mina_height,omitempty"`
+	ValidActionHashes       []string `json:"valid_action_hashes"`
+}
 
 // DefaultGenesis returns the default genesis state
 func DefaultGenesis() *GenesisState {
@@ -50,6 +56,35 @@ func DefaultBridgeState() BridgeState {
 	return BridgeState{
 		ValidActionHashes: []string{},
 	}
+}
+
+// MarshalJSON keeps empty action hashes stable as [] instead of null/omitted.
+func (s BridgeState) MarshalJSON() ([]byte, error) {
+	hashes := s.ValidActionHashes
+	if hashes == nil {
+		hashes = []string{}
+	}
+
+	return json.Marshal(bridgeStateJSON{
+		LatestFetchedMinaHeight: s.LatestFetchedMinaHeight,
+		ValidActionHashes:       hashes,
+	})
+}
+
+// UnmarshalJSON normalizes omitted action hashes back to an empty slice.
+func (s *BridgeState) UnmarshalJSON(bz []byte) error {
+	var decoded bridgeStateJSON
+	if err := json.Unmarshal(bz, &decoded); err != nil {
+		return err
+	}
+
+	s.LatestFetchedMinaHeight = decoded.LatestFetchedMinaHeight
+	s.ValidActionHashes = decoded.ValidActionHashes
+	if s.ValidActionHashes == nil {
+		s.ValidActionHashes = []string{}
+	}
+
+	return nil
 }
 
 // DefaultTestBridgeState returns the initial bridge state for tests and simulation.
