@@ -6,6 +6,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 )
 
+// Validate checks BridgeState height invariants and valid_action_hashes formatting invariants.
 func (s BridgeState) Validate() error {
 	if s.LatestFetchedMinaHeight < 0 {
 		return ErrInvalidLatestFetchedMinaHeight

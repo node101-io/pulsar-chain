@@ -63,5 +63,6 @@ var (
 	// ErrInvalidArchiveWrapperGRPCTransportMode identifies an unsupported transport policy.
 	ErrInvalidArchiveWrapperGRPCTransportMode                    = errors.Register(ModuleName, 1138, "invalid archive wrapper gRPC transport mode")
 	ErrActionsReducedRootSnapshotWindowSizeMustBeGreaterThanZero = errors.Register(ModuleName, 1139, "actions_reduced_root_snapshot_window_size must be greater than 0")
-	ErrInvalidValidActionHash                                    = errors.Register(ModuleName, 1140, "invalid valid_action_hash")
+	// ErrInvalidValidActionHash indicates that a valid_action_hashes entry is empty or whitespace-padded.
+	ErrInvalidValidActionHash = errors.Register(ModuleName, 1140, "invalid valid_action_hash")
 )
