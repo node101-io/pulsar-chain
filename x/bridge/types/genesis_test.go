@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/bronlabs/bron-crypto/pkg/base/curves/pasta"
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	minafield "github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 	"github.com/stretchr/testify/require"
@@ -41,6 +43,10 @@ func pallasBaseFieldModulus() *big.Int {
 func oversizedDecimal() string {
 	fieldBytes := minafield.NewField().ElementSize()
 	return new(big.Int).Lsh(big.NewInt(1), uint(fieldBytes*8)).String()
+}
+
+func newProtoCodec() *codec.ProtoCodec {
+	return codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 }
 
 func TestGenesisStateValidate(t *testing.T) {
@@ -291,14 +297,25 @@ func TestGenesisStateValidateAcceptsCanonicalValidActionHashes(t *testing.T) {
 
 func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
 	gs := validGenesisState()
+	cdc := newProtoCodec()
 
-	bz, err := json.Marshal(gs)
-	require.NoError(t, err)
+	bz := cdc.MustMarshalJSON(gs)
 
 	var roundTripped types.GenesisState
-	require.NoError(t, json.Unmarshal(bz, &roundTripped))
+	require.NoError(t, cdc.UnmarshalJSON(bz, &roundTripped))
 	require.Equal(t, *gs, roundTripped)
 	require.NoError(t, roundTripped.Validate())
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(bz, &payload))
+
+	bridgeState, ok := payload["bridge_state"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "0", bridgeState["latest_fetched_mina_height"])
+
+	hashes, ok := bridgeState["valid_action_hashes"].([]any)
+	require.True(t, ok)
+	require.Len(t, hashes, 0)
 }
 
 func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) {
@@ -317,12 +334,23 @@ func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) 
 			ActionsReducedRoot: canonicalRoot(42),
 		},
 	)
+	cdc := newProtoCodec()
 
-	bz, err := json.Marshal(gs)
-	require.NoError(t, err)
+	bz := cdc.MustMarshalJSON(gs)
 
 	var roundTripped types.GenesisState
-	require.NoError(t, json.Unmarshal(bz, &roundTripped))
+	require.NoError(t, cdc.UnmarshalJSON(bz, &roundTripped))
 	require.Equal(t, *gs, roundTripped)
 	require.NoError(t, roundTripped.Validate())
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(bz, &payload))
+
+	bridgeState, ok := payload["bridge_state"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "43", bridgeState["latest_fetched_mina_height"])
+
+	hashes, ok := bridgeState["valid_action_hashes"].([]any)
+	require.True(t, ok)
+	require.Equal(t, []any{canonicalActionHash(42), canonicalActionHash(43)}, hashes)
 }
