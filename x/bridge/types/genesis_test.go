@@ -49,6 +49,27 @@ func newProtoCodec() *codec.ProtoCodec {
 	return codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 }
 
+func setRuntimeBatch(
+	gs *types.GenesisState,
+	sourceCosmosHeight int64,
+	startMinaHeight int64,
+	latestFetchedMinaHeight int64,
+	hashes []string,
+) {
+	gs.BridgeState = types.BridgeState{
+		LatestFetchedMinaHeight:            latestFetchedMinaHeight,
+		ValidActionHashes:                  hashes,
+		ValidActionHashesCosmosBlockHeight: sourceCosmosHeight,
+		StartMinaHeight:                    startMinaHeight,
+	}
+	gs.ActionsReducedRootSnapshots = []types.ActionsReducedRootSnapshot{
+		{
+			CosmosBlockHeight:  sourceCosmosHeight,
+			ActionsReducedRoot: canonicalRoot(uint64(sourceCosmosHeight)),
+		},
+	}
+}
+
 func TestGenesisStateValidate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -95,8 +116,46 @@ func TestGenesisStateValidate(t *testing.T) {
 			wantErr: types.ErrStartBlockHeightMustBeGreaterThanZero,
 		},
 		{
+			name: "valid runtime batch with non empty hashes",
+			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, []string{
+					canonicalActionHash(42),
+					canonicalActionHash(43),
+				})
+			},
+		},
+		{
+			name: "valid runtime batch with empty hashes",
+			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, nil)
+			},
+		},
+		{
+			name: "initial batch rejects non empty hashes",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ValidActionHashes = []string{canonicalActionHash(42)}
+			},
+			wantErr: types.ErrInvalidValidActionBatch,
+		},
+		{
+			name: "initial batch rejects advanced mina range",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.LatestFetchedMinaHeight = 43
+				gs.BridgeState.StartMinaHeight = 41
+			},
+			wantErr: types.ErrInvalidValidActionBatch,
+		},
+		{
+			name: "runtime batch must advance mina cursor",
+			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 43, 43, nil)
+			},
+			wantErr: types.ErrInvalidValidActionBatch,
+		},
+		{
 			name: "empty valid action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, nil)
 				gs.BridgeState.ValidActionHashes = []string{""}
 			},
 			wantErr: types.ErrInvalidValidActionHash,
@@ -104,6 +163,7 @@ func TestGenesisStateValidate(t *testing.T) {
 		{
 			name: "whitespace padded valid action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, nil)
 				gs.BridgeState.ValidActionHashes = []string{" 42 "}
 			},
 			wantErr: types.ErrInvalidValidActionHash,
@@ -111,6 +171,7 @@ func TestGenesisStateValidate(t *testing.T) {
 		{
 			name: "non decimal valid action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, nil)
 				gs.BridgeState.ValidActionHashes = []string{"abc"}
 			},
 			wantErr: types.ErrInvalidValidActionHash,
@@ -118,6 +179,7 @@ func TestGenesisStateValidate(t *testing.T) {
 		{
 			name: "negative valid action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, nil)
 				gs.BridgeState.ValidActionHashes = []string{"-1"}
 			},
 			wantErr: types.ErrInvalidValidActionHash,
@@ -125,6 +187,7 @@ func TestGenesisStateValidate(t *testing.T) {
 		{
 			name: "leading zero valid action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, nil)
 				gs.BridgeState.ValidActionHashes = []string{"01"}
 			},
 			wantErr: types.ErrInvalidValidActionHash,
@@ -132,6 +195,7 @@ func TestGenesisStateValidate(t *testing.T) {
 		{
 			name: "field modulus valid action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, nil)
 				gs.BridgeState.ValidActionHashes = []string{pallasBaseFieldModulus().String()}
 			},
 			wantErr: types.ErrInvalidValidActionHash,
@@ -139,6 +203,7 @@ func TestGenesisStateValidate(t *testing.T) {
 		{
 			name: "above field modulus valid action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, nil)
 				above := new(big.Int).Add(pallasBaseFieldModulus(), big.NewInt(1))
 				gs.BridgeState.ValidActionHashes = []string{above.String()}
 			},
@@ -147,6 +212,7 @@ func TestGenesisStateValidate(t *testing.T) {
 		{
 			name: "oversized decimal valid action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, nil)
 				gs.BridgeState.ValidActionHashes = []string{oversizedDecimal()}
 			},
 			wantErr: types.ErrInvalidValidActionHash,
@@ -165,10 +231,22 @@ func TestGenesisStateValidate(t *testing.T) {
 			name: "start mina height before start block is invalid",
 			mutate: func(gs *types.GenesisState) {
 				gs.Params.StartBlockHeight = 500_000
-				gs.BridgeState = types.NewInitialBridgeState(gs.Params.StartBlockHeight)
-				gs.BridgeState.StartMinaHeight--
+				setRuntimeBatch(gs, 500_000, 499_998, 500_000, nil)
 			},
 			wantErr: types.ErrInvalidBridgeStateHeight,
+		},
+		{
+			name: "batch cosmos height must match newest snapshot height",
+			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, []string{canonicalActionHash(42)})
+				gs.ActionsReducedRootSnapshots = []types.ActionsReducedRootSnapshot{
+					{
+						CosmosBlockHeight:  78,
+						ActionsReducedRoot: canonicalRoot(78),
+					},
+				}
+			},
+			wantErr: types.ErrInvalidValidActionBatch,
 		},
 		{
 			name: "empty snapshots",
@@ -253,19 +331,19 @@ func TestGenesisStateValidate(t *testing.T) {
 
 func TestGenesisStateValidateAcceptsCustomCanonicalSnapshotRoot(t *testing.T) {
 	gs := validGenesisState()
-	gs.ActionsReducedRootSnapshots = append(
-		gs.ActionsReducedRootSnapshots,
-		types.ActionsReducedRootSnapshot{
-			CosmosBlockHeight:  10,
-			ActionsReducedRoot: canonicalRoot(42),
-		},
-	)
+	setRuntimeBatch(gs, 10, 41, 43, nil)
+	gs.ActionsReducedRootSnapshots[0].ActionsReducedRoot = canonicalRoot(42)
 
 	require.NoError(t, gs.Validate())
 }
 
 func TestGenesisStateValidateAcceptsRollingWindowWithoutHeightZero(t *testing.T) {
 	gs := validGenesisState()
+	gs.BridgeState = types.BridgeState{
+		LatestFetchedMinaHeight:            43,
+		ValidActionHashesCosmosBlockHeight: 13,
+		StartMinaHeight:                    41,
+	}
 	gs.ActionsReducedRootSnapshots = []types.ActionsReducedRootSnapshot{
 		{CosmosBlockHeight: 10, ActionsReducedRoot: canonicalRoot(10)},
 		{CosmosBlockHeight: 11, ActionsReducedRoot: canonicalRoot(11)},
@@ -286,11 +364,11 @@ func TestGenesisStateValidateAcceptsCustomStartBlockHeight(t *testing.T) {
 
 func TestGenesisStateValidateAcceptsCanonicalValidActionHashes(t *testing.T) {
 	gs := validGenesisState()
-	gs.BridgeState.ValidActionHashes = []string{
+	setRuntimeBatch(gs, 77, 41, 43, []string{
 		canonicalActionHash(0),
 		canonicalActionHash(42),
 		canonicalActionHash(43),
-	}
+	})
 
 	require.NoError(t, gs.Validate())
 }
@@ -332,7 +410,7 @@ func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) 
 	gs.ActionsReducedRootSnapshots = append(
 		gs.ActionsReducedRootSnapshots,
 		types.ActionsReducedRootSnapshot{
-			CosmosBlockHeight:  10,
+			CosmosBlockHeight:  77,
 			ActionsReducedRoot: canonicalRoot(42),
 		},
 	)

@@ -8,7 +8,7 @@ import (
 	minafield "github.com/node101-io/mina-signer-go/field"
 )
 
-// Validate checks BridgeState height invariants and canonical valid_action_hashes invariants.
+// Validate checks BridgeState height, batch-shape, and canonical valid_action_hashes invariants.
 func (s BridgeState) Validate() error {
 	if s.LatestFetchedMinaHeight < 0 {
 		return ErrInvalidLatestFetchedMinaHeight
@@ -25,6 +25,19 @@ func (s BridgeState) Validate() error {
 			"start_mina_height %d must be <= latest_fetched_mina_height %d",
 			s.StartMinaHeight,
 			s.LatestFetchedMinaHeight,
+		)
+	}
+	if s.ValidActionHashesCosmosBlockHeight == 0 {
+		if len(s.ValidActionHashes) != 0 || s.StartMinaHeight != s.LatestFetchedMinaHeight {
+			return errorsmod.Wrap(
+				ErrInvalidValidActionBatch,
+				"initial batch must be empty and start_mina_height must equal latest_fetched_mina_height",
+			)
+		}
+	} else if s.StartMinaHeight >= s.LatestFetchedMinaHeight {
+		return errorsmod.Wrap(
+			ErrInvalidValidActionBatch,
+			"runtime batch must advance the Mina cursor",
 		)
 	}
 

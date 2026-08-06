@@ -97,6 +97,7 @@ func TestLatestValidActionHashesPreservesMerkleAppendOrder(t *testing.T) {
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
+	f.ctx = sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(77)
 
 	// Process the batch so the keeper records both the Merkle root and the query
 	// payload from the wrapper-provided action order.
@@ -124,7 +125,7 @@ func TestLatestValidActionHashesPreservesMerkleAppendOrder(t *testing.T) {
 	// The query response must preserve append order and must not sort hashes.
 	require.Equal(t, int64(11), response.LatestFetchedMinaHeight)
 	require.Equal(t, int64(10), response.StartMinaHeight)
-	require.Equal(t, int64(0), response.ValidActionHashesCosmosBlockHeight)
+	require.Equal(t, int64(77), response.ValidActionHashesCosmosBlockHeight)
 	require.Equal(t, []string{
 		action1Field.String(),
 		action2Field.String(),

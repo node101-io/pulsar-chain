@@ -47,10 +47,24 @@ func (gs GenesisState) Validate() error {
 	}
 
 	// Genesis carries the recent consensus window; its newest snapshot is current.
-	return validateActionsReducedRootSnapshots(
+	if err := validateActionsReducedRootSnapshots(
 		gs.ActionsReducedRootSnapshots,
 		gs.Params.ActionsReducedRootSnapshotWindowSize,
-	)
+	); err != nil {
+		return err
+	}
+
+	newestSnapshot := gs.ActionsReducedRootSnapshots[len(gs.ActionsReducedRootSnapshots)-1]
+	if gs.BridgeState.ValidActionHashesCosmosBlockHeight != newestSnapshot.CosmosBlockHeight {
+		return errorsmod.Wrapf(
+			ErrInvalidValidActionBatch,
+			"batch cosmos height %d must match newest root snapshot height %d",
+			gs.BridgeState.ValidActionHashesCosmosBlockHeight,
+			newestSnapshot.CosmosBlockHeight,
+		)
+	}
+
+	return nil
 }
 
 // DefaultBridgeState returns the default bridge state.

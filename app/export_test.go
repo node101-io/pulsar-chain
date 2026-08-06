@@ -185,6 +185,7 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	require.NoError(t, err)
 	normalBridgeGenesis := bridgeGenesisFromExport(t, oldApp, normalExport.AppState)
 	require.Equal(t, bridgeGenesis.BridgeState, normalBridgeGenesis.BridgeState)
+	require.NoError(t, normalBridgeGenesis.Validate())
 	require.Len(t, normalBridgeGenesis.ActionsReducedRootSnapshots, 4)
 	require.Equal(t, []int64{100, 101, 102, 103}, []int64{
 		normalBridgeGenesis.ActionsReducedRootSnapshots[0].CosmosBlockHeight,
@@ -205,6 +206,7 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	require.Len(t, exportedBridgeGenesis.ActionsReducedRootSnapshots, 1)
 	require.Equal(t, int64(0), exportedBridgeGenesis.ActionsReducedRootSnapshots[0].CosmosBlockHeight)
 	require.Equal(t, canonicalRoot(103), exportedBridgeGenesis.ActionsReducedRootSnapshots[0].ActionsReducedRoot)
+	require.NoError(t, exportedBridgeGenesis.Validate())
 
 	newApp := newZeroHeightExportTestApp(t, wrapperAddress)
 	_, err = newApp.InitChain(&abci.RequestInitChain{
@@ -234,4 +236,5 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	require.Empty(t, importedBridgeState.ValidActionHashes)
 	require.Equal(t, int64(0), importedBridgeState.ValidActionHashesCosmosBlockHeight)
 	require.Equal(t, minaCursor, importedBridgeState.StartMinaHeight)
+	require.NoError(t, importedBridgeState.Validate())
 }

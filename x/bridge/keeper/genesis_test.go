@@ -24,7 +24,7 @@ func TestGenesis(t *testing.T) {
 	genesisState := types.GenesisState{
 		Params: params,
 		BridgeState: types.BridgeState{
-			LatestFetchedMinaHeight:            params.StartBlockHeight - 1,
+			LatestFetchedMinaHeight:            params.StartBlockHeight + 1,
 			ValidActionHashesCosmosBlockHeight: 77,
 			StartMinaHeight:                    params.StartBlockHeight - 1,
 			ValidActionHashes: []string{
@@ -32,7 +32,13 @@ func TestGenesis(t *testing.T) {
 				keeperCanonicalActionHash(43),
 			},
 		},
-		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
+		ActionsReducedRootSnapshots: append(
+			types.DefaultActionsReducedRootSnapshots(),
+			types.ActionsReducedRootSnapshot{
+				CosmosBlockHeight:  77,
+				ActionsReducedRoot: keeperCanonicalRoot(77),
+			},
+		),
 	}
 
 	require.NoError(t, genesisState.Validate())
@@ -48,6 +54,7 @@ func TestGenesis(t *testing.T) {
 	require.EqualExportedValues(t, genesisState.Params, got.Params)
 	require.EqualExportedValues(t, genesisState.BridgeState, got.BridgeState)
 	require.EqualExportedValues(t, genesisState.ActionsReducedRootSnapshots, got.ActionsReducedRootSnapshots)
+	require.NoError(t, got.Validate())
 }
 
 func TestExportGenesisKeepsRollingWindowOnly(t *testing.T) {
@@ -59,6 +66,11 @@ func TestExportGenesisKeepsRollingWindowOnly(t *testing.T) {
 	for height := int64(1); height <= windowSize+1; height++ {
 		require.NoError(t, f.keeper.SetActionsReducedRoot(f.ctx, height, keeperCanonicalRoot(uint64(height))))
 	}
+	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, types.BridgeState{
+		LatestFetchedMinaHeight:            2,
+		ValidActionHashesCosmosBlockHeight: windowSize + 1,
+		StartMinaHeight:                    1,
+	}))
 
 	got, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
@@ -104,6 +116,7 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 		ValidActionHashesCosmosBlockHeight: 0,
 		StartMinaHeight:                    500_000,
 	}, got.BridgeState)
+	require.NoError(t, got.Validate())
 
 	rootAtZero, err := f.keeper.GetActionsReducedRootAtHeight(f.ctx, 0)
 	require.NoError(t, err)
@@ -179,16 +192,10 @@ func TestGenesisWithCustomStartBlockHeight(t *testing.T) {
 			testMaxBlockRange,
 			testActionsReducedRootSnapshotWindowSize,
 		),
-		BridgeState: types.BridgeState{
-			LatestFetchedMinaHeight:            customStartBlockHeight - 1,
-			ValidActionHashesCosmosBlockHeight: 123,
-			StartMinaHeight:                    customStartBlockHeight - 1,
-			ValidActionHashes: []string{
-				keeperCanonicalActionHash(500000),
-			},
-		},
+		BridgeState:                 types.NewInitialBridgeState(customStartBlockHeight),
 		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
 	}
+	genesisState.BridgeState.ValidActionHashes = nil
 
 	f := initFixture(t, nil, nil, nil)
 	err := f.keeper.InitGenesis(f.ctx, genesisState)
@@ -201,4 +208,5 @@ func TestGenesisWithCustomStartBlockHeight(t *testing.T) {
 	require.EqualExportedValues(t, genesisState.Params, got.Params)
 	require.EqualExportedValues(t, genesisState.BridgeState, got.BridgeState)
 	require.EqualExportedValues(t, genesisState.ActionsReducedRootSnapshots, got.ActionsReducedRootSnapshots)
+	require.NoError(t, got.Validate())
 }
