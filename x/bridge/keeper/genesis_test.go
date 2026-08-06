@@ -25,6 +25,7 @@ func TestGenesis(t *testing.T) {
 		Params: params,
 		BridgeState: types.BridgeState{
 			LatestFetchedMinaHeight: params.StartBlockHeight - 1,
+			StartMinaHeight:         params.StartBlockHeight - 1,
 			ValidActionHashes: []string{
 				keeperCanonicalActionHash(42),
 				keeperCanonicalActionHash(43),
@@ -75,6 +76,7 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 	require.NoError(t, err)
 	beforeState := types.BridgeState{
 		LatestFetchedMinaHeight: 500_000,
+		StartMinaHeight:         500_000,
 		ValidActionHashes: []string{
 			keeperCanonicalActionHash(77),
 			keeperCanonicalActionHash(78),
@@ -109,6 +111,7 @@ func TestPrepareForZeroHeightGenesisRestoresSnapshotPruningOrder(t *testing.T) {
 	f := initFixture(t, nil, nil, nil)
 	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, types.BridgeState{
 		LatestFetchedMinaHeight: 500_000,
+		StartMinaHeight:         500_000,
 		ValidActionHashes: []string{
 			keeperCanonicalActionHash(90),
 		},
@@ -159,6 +162,7 @@ func TestGenesisWithCustomStartBlockHeight(t *testing.T) {
 		),
 		BridgeState: types.BridgeState{
 			LatestFetchedMinaHeight: customStartBlockHeight - 1,
+			StartMinaHeight:         customStartBlockHeight - 1,
 			ValidActionHashes: []string{
 				keeperCanonicalActionHash(500000),
 			},

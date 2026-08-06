@@ -57,6 +57,7 @@ func TestLatestValidActionHashesSuccessWithEmptyHashes(t *testing.T) {
 	require.Equal(t, &types.QueryLatestValidActionHashesResponse{
 		LatestFetchedMinaHeight: 0,
 		ValidActionHashes:       nil,
+		StartMinaHeight:         0,
 	}, response)
 }
 
@@ -121,6 +122,7 @@ func TestLatestValidActionHashesPreservesMerkleAppendOrder(t *testing.T) {
 
 	// The query response must preserve append order and must not sort hashes.
 	require.Equal(t, int64(11), response.LatestFetchedMinaHeight)
+	require.Equal(t, int64(10), response.StartMinaHeight)
 	require.Equal(t, []string{
 		action1Field.String(),
 		action2Field.String(),
@@ -209,6 +211,7 @@ func TestLatestValidActionHashesAppendsSuccessfulPushesWithinSameCosmosBlock(t *
 	require.NoError(t, err)
 
 	require.Equal(t, int64(12), response.LatestFetchedMinaHeight)
+	require.Equal(t, int64(10), response.StartMinaHeight)
 	require.Equal(t, []string{
 		action1Field.String(),
 		action2Field.String(),
@@ -223,6 +226,7 @@ func TestLatestValidActionHashesAppendsSuccessfulPushesWithinSameCosmosBlock(t *
 	state, err := f.keeper.GetBridgeState(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, int64(77), state.ValidActionHashesCosmosBlockHeight)
+	require.Equal(t, int64(10), state.StartMinaHeight)
 }
 
 // The first successful push in the next Cosmos block must start a new visible batch.
@@ -309,6 +313,7 @@ func TestLatestValidActionHashesResetsBatchOnNextCosmosBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, int64(13), response.LatestFetchedMinaHeight)
+	require.Equal(t, int64(12), response.StartMinaHeight)
 	require.Equal(t, []string{action4Field.String()}, response.ValidActionHashes)
 
 	// The query resets to the new block's batch, while the chain root still
@@ -320,6 +325,7 @@ func TestLatestValidActionHashesResetsBatchOnNextCosmosBlock(t *testing.T) {
 	state, err := f.keeper.GetBridgeState(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, int64(78), state.ValidActionHashesCosmosBlockHeight)
+	require.Equal(t, int64(12), state.StartMinaHeight)
 }
 
 // A failed later tx in the same Cosmos block must not corrupt the last successful batch.
@@ -386,12 +392,14 @@ func TestLatestValidActionHashesFailedSecondPushKeepsPreviousSuccessfulBatch(t *
 	require.NoError(t, err)
 
 	require.Equal(t, int64(11), response.LatestFetchedMinaHeight)
+	require.Equal(t, int64(10), response.StartMinaHeight)
 	require.Equal(t, []string{successField.String()}, response.ValidActionHashes)
 	require.Equal(t, rootAfterFirstSuccess, latestActionsReducedRoot(t, f))
 
 	state, err := f.keeper.GetBridgeState(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, int64(77), state.ValidActionHashesCosmosBlockHeight)
+	require.Equal(t, int64(10), state.StartMinaHeight)
 }
 
 // actionsReducedRootFromHashes rebuilds the Merkle root exactly the way an RPC

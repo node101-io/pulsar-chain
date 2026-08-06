@@ -57,6 +57,20 @@ func TestGenesisStateValidate(t *testing.T) {
 			wantErr: types.ErrInvalidBridgeStateHeight,
 		},
 		{
+			name: "negative start mina height",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.StartMinaHeight = -1
+			},
+			wantErr: types.ErrInvalidBridgeStateHeight,
+		},
+		{
+			name: "start mina height after latest fetched mina height",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.StartMinaHeight = gs.BridgeState.LatestFetchedMinaHeight + 1
+			},
+			wantErr: types.ErrInvalidBridgeStateHeight,
+		},
+		{
 			name: "start block height must be positive",
 			mutate: func(gs *types.GenesisState) {
 				gs.Params.StartBlockHeight = 0
@@ -83,8 +97,18 @@ func TestGenesisStateValidate(t *testing.T) {
 				gs.Params.StartBlockHeight = 500_000
 				gs.BridgeState = types.NewInitialBridgeState(gs.Params.StartBlockHeight)
 				gs.BridgeState.LatestFetchedMinaHeight--
+				gs.BridgeState.StartMinaHeight = gs.BridgeState.LatestFetchedMinaHeight
 			},
 			wantErr: types.ErrLatestFetchedMinaHeightBeforeStartBlock,
+		},
+		{
+			name: "start mina height before start block is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.Params.StartBlockHeight = 500_000
+				gs.BridgeState = types.NewInitialBridgeState(gs.Params.StartBlockHeight)
+				gs.BridgeState.StartMinaHeight--
+			},
+			wantErr: types.ErrInvalidBridgeStateHeight,
 		},
 		{
 			name: "empty snapshots",
@@ -224,11 +248,13 @@ func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
 
 func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) {
 	gs := validGenesisState()
+	gs.BridgeState.LatestFetchedMinaHeight = 43
 	gs.BridgeState.ValidActionHashes = []string{
 		canonicalActionHash(42),
 		canonicalActionHash(43),
 	}
 	gs.BridgeState.ValidActionHashesCosmosBlockHeight = 77
+	gs.BridgeState.StartMinaHeight = 41
 	gs.ActionsReducedRootSnapshots = append(
 		gs.ActionsReducedRootSnapshots,
 		types.ActionsReducedRootSnapshot{

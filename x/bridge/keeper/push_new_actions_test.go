@@ -247,6 +247,7 @@ func seedPushNewActionsState(t *testing.T, f *fixture, latestFetchedMinaHeight i
 
 	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, bridgetypes.BridgeState{
 		LatestFetchedMinaHeight: latestFetchedMinaHeight,
+		StartMinaHeight:         latestFetchedMinaHeight,
 	}))
 	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(
 		f.ctx,
