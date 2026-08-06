@@ -12,6 +12,11 @@ message BridgeState {
   // latest_fetched_mina_height is the latest Mina height processed by the bridge.
   int64 latest_fetched_mina_height = 1;
 
-  // valid_action_hashes is the hashes of the valid actions  
+  // valid_action_hashes is the cumulative ordered hash list for the latest
+  // successful PushNewActions batch in valid_action_hashes_cosmos_block_height.
   repeated string valid_action_hashes = 2;
+
+  // valid_action_hashes_cosmos_block_height is the Cosmos block height of the
+  // batch represented by valid_action_hashes.
+  int64 valid_action_hashes_cosmos_block_height = 3;
 }

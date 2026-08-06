@@ -10,8 +10,9 @@ import (
 )
 
 type bridgeStateJSON struct {
-	LatestFetchedMinaHeight int64    `json:"latest_fetched_mina_height,omitempty"`
-	ValidActionHashes       []string `json:"valid_action_hashes"`
+	LatestFetchedMinaHeight            int64    `json:"latest_fetched_mina_height,omitempty"`
+	ValidActionHashes                  []string `json:"valid_action_hashes"`
+	ValidActionHashesCosmosBlockHeight int64    `json:"valid_action_hashes_cosmos_block_height,omitempty"`
 }
 
 // DefaultGenesis returns the default genesis state
@@ -66,8 +67,9 @@ func (s BridgeState) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(bridgeStateJSON{
-		LatestFetchedMinaHeight: s.LatestFetchedMinaHeight,
-		ValidActionHashes:       hashes,
+		LatestFetchedMinaHeight:            s.LatestFetchedMinaHeight,
+		ValidActionHashes:                  hashes,
+		ValidActionHashesCosmosBlockHeight: s.ValidActionHashesCosmosBlockHeight,
 	})
 }
 
@@ -80,6 +82,7 @@ func (s *BridgeState) UnmarshalJSON(bz []byte) error {
 
 	s.LatestFetchedMinaHeight = decoded.LatestFetchedMinaHeight
 	s.ValidActionHashes = decoded.ValidActionHashes
+	s.ValidActionHashesCosmosBlockHeight = decoded.ValidActionHashesCosmosBlockHeight
 	if s.ValidActionHashes == nil {
 		s.ValidActionHashes = []string{}
 	}
