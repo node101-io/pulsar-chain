@@ -332,6 +332,100 @@ func TestLatestValidActionHashesResetsBatchOnNextCosmosBlock(t *testing.T) {
 	require.Equal(t, int64(12), state.StartMinaHeight)
 }
 
+// If no PushNewActions runs in the next Cosmos block, the query still returns
+// the previous batch and must identify the original source block correctly.
+func TestLatestValidActionHashesKeepsPreviousBatchSourceHeightAcrossLaterEmptyBlock(t *testing.T) {
+	feePayer, cosmosPubKey, _ := newUserMapping(t)
+
+	action1 := types.Action{
+		BlockHeight: 11,
+		FeePayer:    feePayer,
+		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
+		Amount:      5,
+	}
+	action2 := types.Action{
+		BlockHeight: 11,
+		FeePayer:    feePayer,
+		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
+		Amount:      9,
+	}
+	action3 := types.Action{
+		BlockHeight: 12,
+		FeePayer:    feePayer,
+		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
+		Amount:      13,
+	}
+
+	client := &stubArchiveWrapperQueryClient{
+		minaBlockHeight: 12,
+		actionsInRangeSource: scriptedActionsInRangeSource{
+			{latestFetchedMinaHeight: 10, targetMinaHeight: 11}: {
+				actions: []types.Action{action1, action2},
+			},
+			{latestFetchedMinaHeight: 11, targetMinaHeight: 12}: {
+				actions: []types.Action{action3},
+			},
+		},
+	}
+
+	bankKeeper := NewMockBankKeeper()
+	keyRegistryKeeper := NewMockKeyregistryKeeper()
+	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+
+	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
+	seedPushNewActionsState(t, f, 10)
+
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	// Build the cumulative batch in Cosmos block 77.
+	f.ctx = sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(77)
+	_, err := ms.PushNewActions(f.ctx, &types.MsgPushNewActions{
+		Creator:         authorityString(t, f.addressCodec),
+		MinaBlockHeight: 11,
+	})
+	require.NoError(t, err)
+	_, err = ms.PushNewActions(f.ctx, &types.MsgPushNewActions{
+		Creator:         authorityString(t, f.addressCodec),
+		MinaBlockHeight: 12,
+	})
+	require.NoError(t, err)
+
+	// Query one Cosmos block later without any new push. The batch should still
+	// identify block 77 as its source.
+	f.ctx = sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(78)
+	queryServer := keeper.NewQueryServerImpl(f.keeper)
+	response, err := queryServer.LatestValidActionHashes(f.ctx, &types.QueryLatestValidActionHashesRequest{})
+	require.NoError(t, err)
+
+	action1Field, err := action1.ToFieldElement()
+	require.NoError(t, err)
+	action2Field, err := action2.ToFieldElement()
+	require.NoError(t, err)
+	action3Field, err := action3.ToFieldElement()
+	require.NoError(t, err)
+
+	require.Equal(t, int64(12), response.LatestFetchedMinaHeight)
+	require.Equal(t, int64(10), response.StartMinaHeight)
+	require.Equal(t, int64(77), response.ValidActionHashesCosmosBlockHeight)
+	require.Equal(t, []string{
+		action1Field.String(),
+		action2Field.String(),
+		action3Field.String(),
+	}, response.ValidActionHashes)
+
+	rootBeforeBatch, err := f.keeper.GetActionsReducedRootAtHeight(f.ctx, response.ValidActionHashesCosmosBlockHeight-1)
+	require.NoError(t, err)
+
+	gotRoot := latestActionsReducedRoot(t, f)
+	require.Equal(t, expectedActionsReducedRoot(t, action1, action2, action3), gotRoot)
+	require.Equal(t, gotRoot, actionsReducedRootFromBaseAndHashes(t, rootBeforeBatch, response.ValidActionHashes...))
+
+	state, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(77), state.ValidActionHashesCosmosBlockHeight)
+	require.Equal(t, int64(10), state.StartMinaHeight)
+}
+
 // A failed later tx in the same Cosmos block must not corrupt the last successful batch.
 func TestLatestValidActionHashesFailedSecondPushKeepsPreviousSuccessfulBatch(t *testing.T) {
 	feePayer, cosmosPubKey, _ := newUserMapping(t)
