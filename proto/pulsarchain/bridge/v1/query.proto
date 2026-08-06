@@ -53,10 +53,19 @@ message QueryLatestValidActionHashesRequest {}
 
 // QueryLatestValidActionHashesResponse defines the QueryLatestValidActionHashesResponse message.
 message QueryLatestValidActionHashesResponse {
+  // latest_fetched_mina_height is the inclusive upper Mina cursor of the
+  // current batch. Together with start_mina_height it defines the consumed
+  // Mina interval (start_mina_height, latest_fetched_mina_height].
   int64 latest_fetched_mina_height = 1;
+
+  // valid_action_hashes is the ordered canonical hash batch that reconstructs
+  // the root transition for the source Cosmos block.
   repeated string valid_action_hashes = 2;
-  // start_mina_height is the starting Mina cursor for the current query batch.
+
+  // start_mina_height is the exclusive lower Mina cursor of the current batch.
   int64 start_mina_height = 3;
 
+  // valid_action_hashes_cosmos_block_height is the Cosmos block height where
+  // this query batch was produced.
   int64 valid_action_hashes_cosmos_block_height = 4;
 }
