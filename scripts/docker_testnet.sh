@@ -17,6 +17,10 @@ require_cmd() {
   fi
 }
 
+resolve_path() {
+  python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1"
+}
+
 COMMAND="${1:-}"
 if [[ -z "$COMMAND" ]]; then
   usage
@@ -49,9 +53,9 @@ if ! [[ "$PROJECT_NAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]; then
   exit 1
 fi
 
-require_cmd realpath
+require_cmd python3
 
-STATE_ROOT="$(realpath -m -- "${PULSAR_DOCKER_STATE_ROOT:-$REPO_ROOT/.docker}")"
+STATE_ROOT="$(resolve_path "${PULSAR_DOCKER_STATE_ROOT:-$REPO_ROOT/.docker}")"
 if [[ "$STATE_ROOT" == "/" ]]; then
   echo "PULSAR_DOCKER_STATE_ROOT must not be the filesystem root" >&2
   exit 1
@@ -63,7 +67,7 @@ if [[ -L "$GENERATED_ROOT_PATH" ]]; then
   exit 1
 fi
 
-GENERATED_ROOT="$(realpath -m -- "$GENERATED_ROOT_PATH")"
+GENERATED_ROOT="$(resolve_path "$GENERATED_ROOT_PATH")"
 case "$GENERATED_ROOT/" in
   "$STATE_ROOT/"*) ;;
   *)
@@ -72,7 +76,7 @@ case "$GENERATED_ROOT/" in
     ;;
 esac
 
-if [[ "$GENERATED_ROOT" == "$REPO_ROOT" || (-n "${HOME:-}" && "$GENERATED_ROOT" == "$(realpath -m -- "$HOME")") ]]; then
+if [[ "$GENERATED_ROOT" == "$REPO_ROOT" || (-n "${HOME:-}" && "$GENERATED_ROOT" == "$(resolve_path "$HOME")") ]]; then
   echo "generated project path resolves to a protected directory: $GENERATED_ROOT" >&2
   exit 1
 fi
@@ -113,7 +117,7 @@ render_compose_file() {
         echo "ARCHIVE_WRAPPER_IMAGE is required for $mode mode" >&2
         exit 1
       fi
-      if [[ ! -v POSTGRES_URI || -z "$POSTGRES_URI" ]]; then
+      if [[ -z "${POSTGRES_URI-}" ]]; then
         echo "POSTGRES_URI is required for $mode mode" >&2
         exit 1
       fi
