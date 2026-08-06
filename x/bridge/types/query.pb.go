@@ -237,7 +237,8 @@ var xxx_messageInfo_QueryLatestValidActionHashesRequest proto.InternalMessageInf
 type QueryLatestValidActionHashesResponse struct {
 	LatestFetchedMinaHeight int64    `protobuf:"varint,1,opt,name=latest_fetched_mina_height,json=latestFetchedMinaHeight,proto3" json:"latest_fetched_mina_height,omitempty"`
 	ValidActionHashes       []string `protobuf:"bytes,2,rep,name=valid_action_hashes,json=validActionHashes,proto3" json:"valid_action_hashes,omitempty"`
-	StartMinaHeight         int64    `protobuf:"varint,3,opt,name=start_mina_height,json=startMinaHeight,proto3" json:"start_mina_height,omitempty"`
+	// start_mina_height is the starting Mina cursor for the current query batch.
+	StartMinaHeight int64 `protobuf:"varint,3,opt,name=start_mina_height,json=startMinaHeight,proto3" json:"start_mina_height,omitempty"`
 }
 
 func (m *QueryLatestValidActionHashesResponse) Reset()         { *m = QueryLatestValidActionHashesResponse{} }
