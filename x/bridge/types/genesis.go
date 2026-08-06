@@ -13,6 +13,7 @@ type bridgeStateJSON struct {
 	LatestFetchedMinaHeight            int64    `json:"latest_fetched_mina_height,omitempty"`
 	ValidActionHashes                  []string `json:"valid_action_hashes"`
 	ValidActionHashesCosmosBlockHeight int64    `json:"valid_action_hashes_cosmos_block_height,omitempty"`
+	StartMinaHeight                    int64    `json:"start_mina_height,omitempty"`
 }
 
 // DefaultGenesis returns the default genesis state
@@ -44,6 +45,14 @@ func (gs GenesisState) Validate() error {
 			minLatestFetched,
 		)
 	}
+	if gs.BridgeState.StartMinaHeight < minLatestFetched {
+		return errorsmod.Wrapf(
+			ErrInvalidBridgeStateHeight,
+			"start_mina_height %d must be >= start_block_height - 1 (%d)",
+			gs.BridgeState.StartMinaHeight,
+			minLatestFetched,
+		)
+	}
 
 	// Genesis carries the recent consensus window; its newest snapshot is current.
 	return validateActionsReducedRootSnapshots(
@@ -56,6 +65,7 @@ func (gs GenesisState) Validate() error {
 func DefaultBridgeState() BridgeState {
 	return BridgeState{
 		ValidActionHashes: []string{},
+		StartMinaHeight:   0,
 	}
 }
 
@@ -70,6 +80,7 @@ func (s BridgeState) MarshalJSON() ([]byte, error) {
 		LatestFetchedMinaHeight:            s.LatestFetchedMinaHeight,
 		ValidActionHashes:                  hashes,
 		ValidActionHashesCosmosBlockHeight: s.ValidActionHashesCosmosBlockHeight,
+		StartMinaHeight:                    s.StartMinaHeight,
 	})
 }
 
@@ -83,6 +94,7 @@ func (s *BridgeState) UnmarshalJSON(bz []byte) error {
 	s.LatestFetchedMinaHeight = decoded.LatestFetchedMinaHeight
 	s.ValidActionHashes = decoded.ValidActionHashes
 	s.ValidActionHashesCosmosBlockHeight = decoded.ValidActionHashesCosmosBlockHeight
+	s.StartMinaHeight = decoded.StartMinaHeight
 	if s.ValidActionHashes == nil {
 		s.ValidActionHashes = []string{}
 	}
@@ -95,6 +107,7 @@ func DefaultTestBridgeState() BridgeState {
 	return BridgeState{
 		LatestFetchedMinaHeight: defaultStartBlockHeight - 1,
 		ValidActionHashes:       []string{},
+		StartMinaHeight:         defaultStartBlockHeight - 1,
 	}
 }
 
@@ -104,6 +117,7 @@ func NewInitialBridgeState(startBlockHeight int64) BridgeState {
 	return BridgeState{
 		LatestFetchedMinaHeight: startBlockHeight - 1,
 		ValidActionHashes:       []string{},
+		StartMinaHeight:         startBlockHeight - 1,
 	}
 }
 

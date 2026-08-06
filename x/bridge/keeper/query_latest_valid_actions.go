@@ -34,5 +34,6 @@ func (q queryServer) LatestValidActionHashes(ctx context.Context, req *types.Que
 	return &types.QueryLatestValidActionHashesResponse{
 		LatestFetchedMinaHeight: bridgeState.LatestFetchedMinaHeight,
 		ValidActionHashes:       bridgeState.ValidActionHashes,
+		StartMinaHeight:         bridgeState.StartMinaHeight,
 	}, nil
 }

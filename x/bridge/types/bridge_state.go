@@ -13,6 +13,17 @@ func (s BridgeState) Validate() error {
 	if s.ValidActionHashesCosmosBlockHeight < 0 {
 		return ErrInvalidBridgeStateHeight
 	}
+	if s.StartMinaHeight < 0 {
+		return ErrInvalidBridgeStateHeight
+	}
+	if s.StartMinaHeight > s.LatestFetchedMinaHeight {
+		return errorsmod.Wrapf(
+			ErrInvalidBridgeStateHeight,
+			"start_mina_height %d must be <= latest_fetched_mina_height %d",
+			s.StartMinaHeight,
+			s.LatestFetchedMinaHeight,
+		)
+	}
 
 	for i, hash := range s.ValidActionHashes {
 		trimmed := strings.TrimSpace(hash)

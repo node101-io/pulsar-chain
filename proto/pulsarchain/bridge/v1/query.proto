@@ -55,4 +55,6 @@ message QueryLatestValidActionHashesRequest {}
 message QueryLatestValidActionHashesResponse {
   int64 latest_fetched_mina_height = 1;
   repeated string valid_action_hashes = 2;
+  // start_mina_height is the starting Mina cursor for the current query batch.
+  int64 start_mina_height = 3;
 }
