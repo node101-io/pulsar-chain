@@ -5,6 +5,7 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	minafield "github.com/node101-io/mina-signer-go/field"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -12,6 +13,10 @@ import (
 	"github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 )
+
+func queryCanonicalActionsReducedRootString(v uint64) string {
+	return minafield.NewField().FromUint64(v).String()
+}
 
 func TestActionsReducedRootInvalidArgumentFail(t *testing.T) {
 	f := initFixture(t, nil, nil, nil)
@@ -37,9 +42,9 @@ func TestActionsReducedRootNotFound(t *testing.T) {
 
 		switch height {
 		case 3:
-			require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(sdkCtx, 3, []byte("root-3")))
+			require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(sdkCtx, 3, keeperCanonicalRoot(3)))
 		case 8:
-			require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(sdkCtx, 8, []byte("root-8")))
+			require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(sdkCtx, 8, keeperCanonicalRoot(8)))
 		}
 
 		cms.Commit()
@@ -66,16 +71,32 @@ func TestActionsReducedRootSuccess(t *testing.T) {
 	f := initFixture(t, nil, nil, nil)
 	ctx := sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(8)
 
-	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(ctx, 3, []byte("root-3")))
-	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(ctx, 8, []byte("root-8")))
+	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(ctx, 3, keeperCanonicalRoot(3)))
+	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(ctx, 8, keeperCanonicalRoot(8)))
 
 	qs := keeper.NewQueryServerImpl(f.keeper)
 
 	response, err := qs.ActionsReducedRoot(ctx, &types.QueryActionsReducedRootRequest{})
 	require.NoError(t, err)
 	require.Equal(t, &types.QueryActionsReducedRootResponse{
-		ActionsReducedRoot: []byte("root-8"),
+		ActionsReducedRoot: queryCanonicalActionsReducedRootString(8),
 	}, response)
+}
+
+func TestActionsReducedRootInvalidStoredRoot(t *testing.T) {
+	f := initFixture(t, nil, nil, nil)
+	ctx := sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(8)
+
+	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(ctx, 8, []byte{1, 2, 3}))
+
+	qs := keeper.NewQueryServerImpl(f.keeper)
+
+	_, err := qs.ActionsReducedRoot(ctx, &types.QueryActionsReducedRootRequest{})
+	require.Error(t, err)
+
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	require.Equal(t, codes.Internal, st.Code())
 }
 
 func TestActionsReducedRootHistoricalQueryReturnsHistoricalState(t *testing.T) {
@@ -87,9 +108,9 @@ func TestActionsReducedRootHistoricalQueryReturnsHistoricalState(t *testing.T) {
 	require.True(t, ok)
 
 	rootsByHeight := map[int64][]byte{
-		3: []byte("root-3"),
-		4: []byte("root-4"),
-		5: []byte("root-5"),
+		3: keeperCanonicalRoot(3),
+		4: keeperCanonicalRoot(4),
+		5: keeperCanonicalRoot(5),
 	}
 
 	for height := int64(1); height <= 5; height++ {
@@ -112,6 +133,6 @@ func TestActionsReducedRootHistoricalQueryReturnsHistoricalState(t *testing.T) {
 	response, err := qs.ActionsReducedRoot(historicalCtx, &types.QueryActionsReducedRootRequest{})
 	require.NoError(t, err)
 	require.Equal(t, &types.QueryActionsReducedRootResponse{
-		ActionsReducedRoot: []byte("root-3"),
+		ActionsReducedRoot: queryCanonicalActionsReducedRootString(3),
 	}, response)
 }

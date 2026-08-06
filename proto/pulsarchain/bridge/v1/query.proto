@@ -45,7 +45,7 @@ message QueryActionsReducedRootRequest {}
 
 // QueryActionsReducedRootResponse defines the QueryActionsReducedRootResponse message.
 message QueryActionsReducedRootResponse {
-  bytes actions_reduced_root = 1;
+  string actions_reduced_root = 1;
 }
 
 // QueryLatestValidActionHashesRequest defines the QueryLatestValidActionHashesRequest message.
