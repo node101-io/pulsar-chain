@@ -50,6 +50,13 @@ func TestGenesisStateValidate(t *testing.T) {
 			wantErr: types.ErrInvalidLatestFetchedMinaHeight,
 		},
 		{
+			name: "negative valid action hashes cosmos block height",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ValidActionHashesCosmosBlockHeight = -1
+			},
+			wantErr: types.ErrInvalidBridgeStateHeight,
+		},
+		{
 			name: "start block height must be positive",
 			mutate: func(gs *types.GenesisState) {
 				gs.Params.StartBlockHeight = 0
@@ -221,6 +228,7 @@ func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) 
 		canonicalActionHash(42),
 		canonicalActionHash(43),
 	}
+	gs.BridgeState.ValidActionHashesCosmosBlockHeight = 77
 	gs.ActionsReducedRootSnapshots = append(
 		gs.ActionsReducedRootSnapshots,
 		types.ActionsReducedRootSnapshot{
