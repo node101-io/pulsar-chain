@@ -77,8 +77,8 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 	require.NoError(t, err)
 	beforeState := types.BridgeState{
 		LatestFetchedMinaHeight:            500_000,
-		ValidActionHashesCosmosBlockHeight: 77,
-		StartMinaHeight:                    500_000,
+		ValidActionHashesCosmosBlockHeight: 103,
+		StartMinaHeight:                    499_990,
 		ValidActionHashes: []string{
 			keeperCanonicalActionHash(77),
 			keeperCanonicalActionHash(78),
@@ -98,7 +98,12 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 	require.Equal(t, int64(0), got.ActionsReducedRootSnapshots[0].CosmosBlockHeight)
 	require.Equal(t, keeperCanonicalRoot(103), got.ActionsReducedRootSnapshots[0].ActionsReducedRoot)
 	require.EqualExportedValues(t, beforeParams, got.Params)
-	require.EqualExportedValues(t, beforeState, got.BridgeState)
+	require.EqualExportedValues(t, types.BridgeState{
+		LatestFetchedMinaHeight:            500_000,
+		ValidActionHashes:                  nil,
+		ValidActionHashesCosmosBlockHeight: 0,
+		StartMinaHeight:                    500_000,
+	}, got.BridgeState)
 
 	rootAtZero, err := f.keeper.GetActionsReducedRootAtHeight(f.ctx, 0)
 	require.NoError(t, err)
@@ -107,14 +112,18 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 	latestRoot, err := f.keeper.GetLatestActionsReducedRoot(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, keeperCanonicalRoot(103), latestRoot)
+
+	state, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+	require.EqualExportedValues(t, got.BridgeState, state)
 }
 
 func TestPrepareForZeroHeightGenesisRestoresSnapshotPruningOrder(t *testing.T) {
 	f := initFixture(t, nil, nil, nil)
 	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, types.BridgeState{
 		LatestFetchedMinaHeight:            500_000,
-		ValidActionHashesCosmosBlockHeight: 90,
-		StartMinaHeight:                    500_000,
+		ValidActionHashesCosmosBlockHeight: 103,
+		StartMinaHeight:                    499_990,
 		ValidActionHashes: []string{
 			keeperCanonicalActionHash(90),
 		},
@@ -150,6 +159,13 @@ func TestPrepareForZeroHeightGenesisRestoresSnapshotPruningOrder(t *testing.T) {
 	latestRoot, err := f.keeper.GetLatestActionsReducedRoot(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, keeperCanonicalRoot(204), latestRoot)
+
+	state, err := f.keeper.GetBridgeState(f.ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(500_000), state.LatestFetchedMinaHeight)
+	require.Nil(t, state.ValidActionHashes)
+	require.Equal(t, int64(0), state.ValidActionHashesCosmosBlockHeight)
+	require.Equal(t, int64(500_000), state.StartMinaHeight)
 }
 
 func TestGenesisWithCustomStartBlockHeight(t *testing.T) {

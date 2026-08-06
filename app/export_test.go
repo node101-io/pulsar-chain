@@ -142,7 +142,15 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	const minaCursor int64 = 500_000
 	bridgeGenesis := bridgetypes.DefaultGenesis()
 	bridgeGenesis.Params = bridgetypes.DefaultTestParams()
-	bridgeGenesis.BridgeState = bridgetypes.BridgeState{LatestFetchedMinaHeight: minaCursor}
+	bridgeGenesis.BridgeState = bridgetypes.BridgeState{
+		LatestFetchedMinaHeight:            minaCursor,
+		StartMinaHeight:                    499_990,
+		ValidActionHashesCosmosBlockHeight: 103,
+		ValidActionHashes: []string{
+			minafield.NewField().FromUint64(77).String(),
+			minafield.NewField().FromUint64(78).String(),
+		},
+	}
 	bridgeGenesis.ActionsReducedRootSnapshots = nil
 	for height := int64(100); height <= 103; height++ {
 		bridgeGenesis.ActionsReducedRootSnapshots = append(
@@ -176,6 +184,7 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	normalExport, err := oldApp.ExportAppStateAndValidators(false, nil, nil)
 	require.NoError(t, err)
 	normalBridgeGenesis := bridgeGenesisFromExport(t, oldApp, normalExport.AppState)
+	require.Equal(t, bridgeGenesis.BridgeState, normalBridgeGenesis.BridgeState)
 	require.Len(t, normalBridgeGenesis.ActionsReducedRootSnapshots, 4)
 	require.Equal(t, []int64{100, 101, 102, 103}, []int64{
 		normalBridgeGenesis.ActionsReducedRootSnapshots[0].CosmosBlockHeight,
@@ -190,6 +199,9 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 
 	exportedBridgeGenesis := bridgeGenesisFromExport(t, oldApp, exported.AppState)
 	require.Equal(t, minaCursor, exportedBridgeGenesis.BridgeState.LatestFetchedMinaHeight)
+	require.Empty(t, exportedBridgeGenesis.BridgeState.ValidActionHashes)
+	require.Equal(t, int64(0), exportedBridgeGenesis.BridgeState.ValidActionHashesCosmosBlockHeight)
+	require.Equal(t, minaCursor, exportedBridgeGenesis.BridgeState.StartMinaHeight)
 	require.Len(t, exportedBridgeGenesis.ActionsReducedRootSnapshots, 1)
 	require.Equal(t, int64(0), exportedBridgeGenesis.ActionsReducedRootSnapshots[0].CosmosBlockHeight)
 	require.Equal(t, canonicalRoot(103), exportedBridgeGenesis.ActionsReducedRootSnapshots[0].ActionsReducedRoot)
@@ -219,4 +231,7 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	importedBridgeState, err := newApp.BridgeKeeper.GetBridgeState(ctx)
 	require.NoError(t, err)
 	require.Equal(t, minaCursor, importedBridgeState.LatestFetchedMinaHeight)
+	require.Empty(t, importedBridgeState.ValidActionHashes)
+	require.Equal(t, int64(0), importedBridgeState.ValidActionHashesCosmosBlockHeight)
+	require.Equal(t, minaCursor, importedBridgeState.StartMinaHeight)
 }
