@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	minaField "github.com/node101-io/mina-signer-go/field"
+	minafield "github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -38,7 +38,7 @@ func (q queryServer) ActionsReducedRoot(ctx context.Context, req *types.QueryAct
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	fieldElement, err := minaField.NewFieldElement(actionsRoot)
+	fieldElement, err := minafield.NewFieldElement(actionsRoot)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "invalid actions reduced root")
 	}
