@@ -3,8 +3,10 @@ package types_test
 import (
 	"bytes"
 	"encoding/json"
+	"math/big"
 	"testing"
 
+	"github.com/bronlabs/bron-crypto/pkg/base/curves/pasta"
 	minafield "github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 	"github.com/stretchr/testify/require"
@@ -30,6 +32,15 @@ func canonicalActionHash(v uint64) string {
 
 func nonCanonicalRoot() []byte {
 	return bytes.Repeat([]byte{0xff}, minafield.NewField().ElementSize())
+}
+
+func pallasBaseFieldModulus() *big.Int {
+	return new(big.Int).Set(pasta.NewPallasCurve().ToElliptic().Params().P)
+}
+
+func oversizedDecimal() string {
+	fieldBytes := minafield.NewField().ElementSize()
+	return new(big.Int).Lsh(big.NewInt(1), uint(fieldBytes*8)).String()
 }
 
 func TestGenesisStateValidate(t *testing.T) {
@@ -88,6 +99,49 @@ func TestGenesisStateValidate(t *testing.T) {
 			name: "whitespace padded valid action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
 				gs.BridgeState.ValidActionHashes = []string{" 42 "}
+			},
+			wantErr: types.ErrInvalidValidActionHash,
+		},
+		{
+			name: "non decimal valid action hash is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ValidActionHashes = []string{"abc"}
+			},
+			wantErr: types.ErrInvalidValidActionHash,
+		},
+		{
+			name: "negative valid action hash is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ValidActionHashes = []string{"-1"}
+			},
+			wantErr: types.ErrInvalidValidActionHash,
+		},
+		{
+			name: "leading zero valid action hash is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ValidActionHashes = []string{"01"}
+			},
+			wantErr: types.ErrInvalidValidActionHash,
+		},
+		{
+			name: "field modulus valid action hash is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ValidActionHashes = []string{pallasBaseFieldModulus().String()}
+			},
+			wantErr: types.ErrInvalidValidActionHash,
+		},
+		{
+			name: "above field modulus valid action hash is invalid",
+			mutate: func(gs *types.GenesisState) {
+				above := new(big.Int).Add(pallasBaseFieldModulus(), big.NewInt(1))
+				gs.BridgeState.ValidActionHashes = []string{above.String()}
+			},
+			wantErr: types.ErrInvalidValidActionHash,
+		},
+		{
+			name: "oversized decimal valid action hash is invalid",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ValidActionHashes = []string{oversizedDecimal()}
 			},
 			wantErr: types.ErrInvalidValidActionHash,
 		},
@@ -227,6 +281,7 @@ func TestGenesisStateValidateAcceptsCustomStartBlockHeight(t *testing.T) {
 func TestGenesisStateValidateAcceptsCanonicalValidActionHashes(t *testing.T) {
 	gs := validGenesisState()
 	gs.BridgeState.ValidActionHashes = []string{
+		canonicalActionHash(0),
 		canonicalActionHash(42),
 		canonicalActionHash(43),
 	}
