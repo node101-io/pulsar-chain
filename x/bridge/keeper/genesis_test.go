@@ -24,8 +24,9 @@ func TestGenesis(t *testing.T) {
 	genesisState := types.GenesisState{
 		Params: params,
 		BridgeState: types.BridgeState{
-			LatestFetchedMinaHeight: params.StartBlockHeight - 1,
-			StartMinaHeight:         params.StartBlockHeight - 1,
+			LatestFetchedMinaHeight:            params.StartBlockHeight - 1,
+			ValidActionHashesCosmosBlockHeight: 77,
+			StartMinaHeight:                    params.StartBlockHeight - 1,
 			ValidActionHashes: []string{
 				keeperCanonicalActionHash(42),
 				keeperCanonicalActionHash(43),
@@ -75,8 +76,9 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 	beforeParams, err := f.keeper.Params.Get(f.ctx)
 	require.NoError(t, err)
 	beforeState := types.BridgeState{
-		LatestFetchedMinaHeight: 500_000,
-		StartMinaHeight:         500_000,
+		LatestFetchedMinaHeight:            500_000,
+		ValidActionHashesCosmosBlockHeight: 77,
+		StartMinaHeight:                    500_000,
 		ValidActionHashes: []string{
 			keeperCanonicalActionHash(77),
 			keeperCanonicalActionHash(78),
@@ -110,8 +112,9 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 func TestPrepareForZeroHeightGenesisRestoresSnapshotPruningOrder(t *testing.T) {
 	f := initFixture(t, nil, nil, nil)
 	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, types.BridgeState{
-		LatestFetchedMinaHeight: 500_000,
-		StartMinaHeight:         500_000,
+		LatestFetchedMinaHeight:            500_000,
+		ValidActionHashesCosmosBlockHeight: 90,
+		StartMinaHeight:                    500_000,
 		ValidActionHashes: []string{
 			keeperCanonicalActionHash(90),
 		},
@@ -161,8 +164,9 @@ func TestGenesisWithCustomStartBlockHeight(t *testing.T) {
 			testActionsReducedRootSnapshotWindowSize,
 		),
 		BridgeState: types.BridgeState{
-			LatestFetchedMinaHeight: customStartBlockHeight - 1,
-			StartMinaHeight:         customStartBlockHeight - 1,
+			LatestFetchedMinaHeight:            customStartBlockHeight - 1,
+			ValidActionHashesCosmosBlockHeight: 123,
+			StartMinaHeight:                    customStartBlockHeight - 1,
 			ValidActionHashes: []string{
 				keeperCanonicalActionHash(500000),
 			},

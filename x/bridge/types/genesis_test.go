@@ -312,6 +312,8 @@ func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
 	bridgeState, ok := payload["bridge_state"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "0", bridgeState["latest_fetched_mina_height"])
+	require.Equal(t, "0", bridgeState["valid_action_hashes_cosmos_block_height"])
+	require.Equal(t, "0", bridgeState["start_mina_height"])
 
 	hashes, ok := bridgeState["valid_action_hashes"].([]any)
 	require.True(t, ok)
@@ -349,6 +351,8 @@ func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) 
 	bridgeState, ok := payload["bridge_state"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "43", bridgeState["latest_fetched_mina_height"])
+	require.Equal(t, "77", bridgeState["valid_action_hashes_cosmos_block_height"])
+	require.Equal(t, "41", bridgeState["start_mina_height"])
 
 	hashes, ok := bridgeState["valid_action_hashes"].([]any)
 	require.True(t, ok)

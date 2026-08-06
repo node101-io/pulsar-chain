@@ -55,9 +55,10 @@ func TestLatestValidActionHashesSuccessWithEmptyHashes(t *testing.T) {
 	response, err := qs.LatestValidActionHashes(f.ctx, &types.QueryLatestValidActionHashesRequest{})
 	require.NoError(t, err)
 	require.Equal(t, &types.QueryLatestValidActionHashesResponse{
-		LatestFetchedMinaHeight: 0,
-		ValidActionHashes:       nil,
-		StartMinaHeight:         0,
+		LatestFetchedMinaHeight:            0,
+		ValidActionHashes:                  nil,
+		StartMinaHeight:                    0,
+		ValidActionHashesCosmosBlockHeight: 0,
 	}, response)
 }
 
@@ -123,6 +124,7 @@ func TestLatestValidActionHashesPreservesMerkleAppendOrder(t *testing.T) {
 	// The query response must preserve append order and must not sort hashes.
 	require.Equal(t, int64(11), response.LatestFetchedMinaHeight)
 	require.Equal(t, int64(10), response.StartMinaHeight)
+	require.Equal(t, int64(0), response.ValidActionHashesCosmosBlockHeight)
 	require.Equal(t, []string{
 		action1Field.String(),
 		action2Field.String(),
@@ -212,6 +214,7 @@ func TestLatestValidActionHashesAppendsSuccessfulPushesWithinSameCosmosBlock(t *
 
 	require.Equal(t, int64(12), response.LatestFetchedMinaHeight)
 	require.Equal(t, int64(10), response.StartMinaHeight)
+	require.Equal(t, int64(77), response.ValidActionHashesCosmosBlockHeight)
 	require.Equal(t, []string{
 		action1Field.String(),
 		action2Field.String(),
@@ -314,6 +317,7 @@ func TestLatestValidActionHashesResetsBatchOnNextCosmosBlock(t *testing.T) {
 
 	require.Equal(t, int64(13), response.LatestFetchedMinaHeight)
 	require.Equal(t, int64(12), response.StartMinaHeight)
+	require.Equal(t, int64(78), response.ValidActionHashesCosmosBlockHeight)
 	require.Equal(t, []string{action4Field.String()}, response.ValidActionHashes)
 
 	// The query resets to the new block's batch, while the chain root still
@@ -393,6 +397,7 @@ func TestLatestValidActionHashesFailedSecondPushKeepsPreviousSuccessfulBatch(t *
 
 	require.Equal(t, int64(11), response.LatestFetchedMinaHeight)
 	require.Equal(t, int64(10), response.StartMinaHeight)
+	require.Equal(t, int64(77), response.ValidActionHashesCosmosBlockHeight)
 	require.Equal(t, []string{successField.String()}, response.ValidActionHashes)
 	require.Equal(t, rootAfterFirstSuccess, latestActionsReducedRoot(t, f))
 
