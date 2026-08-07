@@ -8,5 +8,6 @@ import (
 
 // x/verification module sentinel errors
 var (
-	ErrInvalidSigner = errors.Register(ModuleName, 1100, "expected gov account as only signer for proposal message")
+	ErrInvalidSigner             = errors.Register(ModuleName, 1100, "expected gov account as only signer for proposal message")
+	ErrPendingProofAlreadyExists = errors.Register(ModuleName, 1101, "pending proof already exists")
 )

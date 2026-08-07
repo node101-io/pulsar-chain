@@ -17,3 +17,6 @@ const (
 
 // ParamsKey is the prefix to retrieve all Params
 var ParamsKey = collections.NewPrefix("p_verification")
+
+// PendingProofsKey is the prefix to PendingProofs map.
+var PendingProofsKey = collections.NewPrefix("pending_proofs")
