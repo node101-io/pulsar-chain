@@ -295,6 +295,43 @@ class E2EFixtureTest(unittest.TestCase):
             payload["app_state"]["keyregistry"]["user_key_pairs"],
         )
 
+    def test_patch_bridge_genesis_sets_initial_bridge_state_fields(self):
+        genesis = self.write_temp("genesis.json", json.dumps({"app_state": {}}))
+
+        self.assertEqual(
+            0,
+            helper.patch_bridge_genesis(
+                str(genesis),
+                "32",
+                "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf",
+                "10",
+                "1000",
+                "4",
+            ),
+        )
+
+        payload = json.loads(genesis.read_text(encoding="utf-8"))
+        bridge = payload["app_state"]["bridge"]
+        self.assertEqual(
+            {
+                "confirmation_depth": "32",
+                "contract_address": "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf",
+                "start_block_height": "10",
+                "max_block_range": "1000",
+                "actions_reduced_root_snapshot_window_size": "4",
+            },
+            bridge["params"],
+        )
+        self.assertEqual(
+            {
+                "latest_fetched_mina_height": "9",
+                "valid_action_hashes": [],
+                "valid_action_hashes_cosmos_block_height": "0",
+                "start_mina_height": "9",
+            },
+            bridge["bridge_state"],
+        )
+
     def test_render_e2e_seed_replaces_exactly_one_placeholder(self):
         template = self.write_temp(
             "seed.sql.tmpl", "fee_payer = '__E2E_MINA_PUBLIC_KEY__';\n"

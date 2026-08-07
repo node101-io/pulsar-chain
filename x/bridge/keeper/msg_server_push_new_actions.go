@@ -62,7 +62,8 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 	}
 
 	target := msg.MinaBlockHeight
-	actions, err := k.archiveWrapperClient.GetActionsInRange(ctx, bridgeState.LatestFetchedMinaHeight, target)
+	startMinaHeight := bridgeState.LatestFetchedMinaHeight
+	actions, err := k.archiveWrapperClient.GetActionsInRange(ctx, startMinaHeight, target)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +87,8 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, err
 	}
 
+	var validActionHashes []string
+
 	for _, act := range actions {
 		valid, err := k.isValidAction(ctx, act)
 		if err != nil {
@@ -107,13 +110,33 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		if err := list.Append(fieldElement.Bytes()); err != nil {
 			return nil, err
 		}
+
+		validActionHashes = append(validActionHashes, fieldElement.String())
 	}
 
 	newRoot := list.Root()
 
-	// A successful batch advances the Mina cursor.
-	bridgeState.LatestFetchedMinaHeight = msg.MinaBlockHeight
-	if err := k.Keeper.BridgeState.Set(ctx, bridgeState); err != nil {
+	batchHashes := validActionHashes
+	currentCosmosBlockHeight := sdkCtx.BlockHeight()
+	batchStartMinaHeight := startMinaHeight
+
+	// Same-block successful pushes must preserve transaction execution order in
+	// the cumulative batch that query consumers use to rebuild the final root.
+	if bridgeState.ValidActionHashesCosmosBlockHeight == currentCosmosBlockHeight {
+		batchHashes = make([]string, 0, len(bridgeState.ValidActionHashes)+len(validActionHashes))
+		batchHashes = append(batchHashes, bridgeState.ValidActionHashes...)
+		batchHashes = append(batchHashes, validActionHashes...)
+		batchStartMinaHeight = bridgeState.StartMinaHeight
+	}
+
+	// A successful batch advances the Mina cursor and stores the cumulative hash
+	// list visible for the current Cosmos block.
+	if err := k.Keeper.BridgeState.Set(ctx, types.BridgeState{
+		LatestFetchedMinaHeight:            msg.MinaBlockHeight,
+		ValidActionHashes:                  batchHashes,
+		ValidActionHashesCosmosBlockHeight: currentCosmosBlockHeight,
+		StartMinaHeight:                    batchStartMinaHeight,
+	}); err != nil {
 		return nil, err
 	}
 

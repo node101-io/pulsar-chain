@@ -638,8 +638,12 @@ def patch_bridge_genesis(
         "actions_reduced_root_snapshot_window_size": str(snapshot_window_size_int),
     }
 
+    initial_mina_height = str(start_block_height_int - 1)
     bridge["bridge_state"] = {
-        "latest_fetched_mina_height": str(start_block_height_int - 1),
+        "latest_fetched_mina_height": initial_mina_height,
+        "valid_action_hashes": [],
+        "valid_action_hashes_cosmos_block_height": "0",
+        "start_mina_height": initial_mina_height,
     }
 
     bridge.setdefault(

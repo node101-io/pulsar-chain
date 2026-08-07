@@ -79,6 +79,19 @@ func (k Keeper) PrepareForZeroHeightGenesis(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	cacheCtx, write := sdkCtx.CacheContext()
 
+	bridgeState, err := k.GetBridgeState(cacheCtx)
+	if err != nil {
+		return err
+	}
+
+	bridgeState.ValidActionHashes = nil
+	bridgeState.ValidActionHashesCosmosBlockHeight = 0
+	bridgeState.StartMinaHeight = bridgeState.LatestFetchedMinaHeight
+
+	if err := k.BridgeState.Set(cacheCtx, bridgeState); err != nil {
+		return err
+	}
+
 	if err := k.ActionsReducedRootSnapshots.Clear(cacheCtx, nil); err != nil {
 		return err
 	}

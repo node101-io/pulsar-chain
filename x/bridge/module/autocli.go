@@ -19,8 +19,15 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				},
 				{
 					RpcMethod:      "ActionsReducedRoot",
-					Use:            "actions-reduced-root ",
+					Use:            "actions-reduced-root",
 					Short:          "Query actions-reduced-root",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
+				},
+
+				{
+					RpcMethod:      "LatestValidActionHashes",
+					Use:            "latest-valid-action-hashes",
+					Short:          "Query latest-valid-action-hashes",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
 				},
 

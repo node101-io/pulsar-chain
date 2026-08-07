@@ -153,7 +153,7 @@ var xxx_messageInfo_QueryActionsReducedRootRequest proto.InternalMessageInfo
 
 // QueryActionsReducedRootResponse defines the QueryActionsReducedRootResponse message.
 type QueryActionsReducedRootResponse struct {
-	ActionsReducedRoot []byte `protobuf:"bytes,1,opt,name=actions_reduced_root,json=actionsReducedRoot,proto3" json:"actions_reduced_root,omitempty"`
+	ActionsReducedRoot string `protobuf:"bytes,1,opt,name=actions_reduced_root,json=actionsReducedRoot,proto3" json:"actions_reduced_root,omitempty"`
 }
 
 func (m *QueryActionsReducedRootResponse) Reset()         { *m = QueryActionsReducedRootResponse{} }
@@ -189,11 +189,125 @@ func (m *QueryActionsReducedRootResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryActionsReducedRootResponse proto.InternalMessageInfo
 
-func (m *QueryActionsReducedRootResponse) GetActionsReducedRoot() []byte {
+func (m *QueryActionsReducedRootResponse) GetActionsReducedRoot() string {
 	if m != nil {
 		return m.ActionsReducedRoot
 	}
+	return ""
+}
+
+// QueryLatestValidActionHashesRequest defines the QueryLatestValidActionHashesRequest message.
+type QueryLatestValidActionHashesRequest struct {
+}
+
+func (m *QueryLatestValidActionHashesRequest) Reset()         { *m = QueryLatestValidActionHashesRequest{} }
+func (m *QueryLatestValidActionHashesRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryLatestValidActionHashesRequest) ProtoMessage()    {}
+func (*QueryLatestValidActionHashesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f0aa4d5eadeeb7a5, []int{4}
+}
+func (m *QueryLatestValidActionHashesRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLatestValidActionHashesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLatestValidActionHashesRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLatestValidActionHashesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLatestValidActionHashesRequest.Merge(m, src)
+}
+func (m *QueryLatestValidActionHashesRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLatestValidActionHashesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLatestValidActionHashesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLatestValidActionHashesRequest proto.InternalMessageInfo
+
+// QueryLatestValidActionHashesResponse defines the QueryLatestValidActionHashesResponse message.
+type QueryLatestValidActionHashesResponse struct {
+	// latest_fetched_mina_height is the inclusive upper Mina cursor of the
+	// current batch. Together with start_mina_height it defines the consumed
+	// Mina interval (start_mina_height, latest_fetched_mina_height].
+	LatestFetchedMinaHeight int64 `protobuf:"varint,1,opt,name=latest_fetched_mina_height,json=latestFetchedMinaHeight,proto3" json:"latest_fetched_mina_height,omitempty"`
+	// valid_action_hashes is the ordered canonical hash batch that reconstructs
+	// the root transition for the source Cosmos block.
+	ValidActionHashes []string `protobuf:"bytes,2,rep,name=valid_action_hashes,json=validActionHashes,proto3" json:"valid_action_hashes,omitempty"`
+	// start_mina_height is the exclusive lower Mina cursor of the current batch.
+	StartMinaHeight int64 `protobuf:"varint,3,opt,name=start_mina_height,json=startMinaHeight,proto3" json:"start_mina_height,omitempty"`
+	// valid_action_hashes_cosmos_block_height is the Cosmos block height where
+	// this query batch was produced.
+	ValidActionHashesCosmosBlockHeight int64 `protobuf:"varint,4,opt,name=valid_action_hashes_cosmos_block_height,json=validActionHashesCosmosBlockHeight,proto3" json:"valid_action_hashes_cosmos_block_height,omitempty"`
+}
+
+func (m *QueryLatestValidActionHashesResponse) Reset()         { *m = QueryLatestValidActionHashesResponse{} }
+func (m *QueryLatestValidActionHashesResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryLatestValidActionHashesResponse) ProtoMessage()    {}
+func (*QueryLatestValidActionHashesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f0aa4d5eadeeb7a5, []int{5}
+}
+func (m *QueryLatestValidActionHashesResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLatestValidActionHashesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLatestValidActionHashesResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLatestValidActionHashesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLatestValidActionHashesResponse.Merge(m, src)
+}
+func (m *QueryLatestValidActionHashesResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLatestValidActionHashesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLatestValidActionHashesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLatestValidActionHashesResponse proto.InternalMessageInfo
+
+func (m *QueryLatestValidActionHashesResponse) GetLatestFetchedMinaHeight() int64 {
+	if m != nil {
+		return m.LatestFetchedMinaHeight
+	}
+	return 0
+}
+
+func (m *QueryLatestValidActionHashesResponse) GetValidActionHashes() []string {
+	if m != nil {
+		return m.ValidActionHashes
+	}
 	return nil
+}
+
+func (m *QueryLatestValidActionHashesResponse) GetStartMinaHeight() int64 {
+	if m != nil {
+		return m.StartMinaHeight
+	}
+	return 0
+}
+
+func (m *QueryLatestValidActionHashesResponse) GetValidActionHashesCosmosBlockHeight() int64 {
+	if m != nil {
+		return m.ValidActionHashesCosmosBlockHeight
+	}
+	return 0
 }
 
 func init() {
@@ -201,38 +315,51 @@ func init() {
 	proto.RegisterType((*QueryParamsResponse)(nil), "pulsarchain.bridge.v1.QueryParamsResponse")
 	proto.RegisterType((*QueryActionsReducedRootRequest)(nil), "pulsarchain.bridge.v1.QueryActionsReducedRootRequest")
 	proto.RegisterType((*QueryActionsReducedRootResponse)(nil), "pulsarchain.bridge.v1.QueryActionsReducedRootResponse")
+	proto.RegisterType((*QueryLatestValidActionHashesRequest)(nil), "pulsarchain.bridge.v1.QueryLatestValidActionHashesRequest")
+	proto.RegisterType((*QueryLatestValidActionHashesResponse)(nil), "pulsarchain.bridge.v1.QueryLatestValidActionHashesResponse")
 }
 
 func init() { proto.RegisterFile("pulsarchain/bridge/v1/query.proto", fileDescriptor_f0aa4d5eadeeb7a5) }
 
 var fileDescriptor_f0aa4d5eadeeb7a5 = []byte{
-	// 414 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x92, 0xc1, 0xaa, 0xd3, 0x40,
-	0x14, 0x86, 0x33, 0x17, 0x2c, 0x38, 0xba, 0x71, 0xac, 0x20, 0x41, 0x73, 0xaf, 0x59, 0x79, 0x2b,
-	0x37, 0x73, 0xe7, 0x8a, 0x8a, 0x2b, 0xb5, 0x5b, 0x37, 0x1a, 0x17, 0x82, 0x9b, 0x32, 0x49, 0x86,
-	0x74, 0xa0, 0x99, 0x93, 0x66, 0x26, 0xc5, 0x6e, 0x7d, 0x02, 0xd1, 0x97, 0x70, 0xe9, 0x43, 0xb8,
-	0xe8, 0xb2, 0xe0, 0xc6, 0x95, 0x48, 0x23, 0xf8, 0x1a, 0xd2, 0x99, 0x14, 0x94, 0x26, 0x52, 0x37,
-	0x61, 0x38, 0xe7, 0xff, 0xff, 0xf3, 0xcd, 0xc9, 0xe0, 0x3b, 0x65, 0x3d, 0xd3, 0xbc, 0x4a, 0xa7,
-	0x5c, 0x2a, 0x9a, 0x54, 0x32, 0xcb, 0x05, 0x5d, 0x30, 0x3a, 0xaf, 0x45, 0xb5, 0x8c, 0xca, 0x0a,
-	0x0c, 0x90, 0x1b, 0x7f, 0x48, 0x22, 0x27, 0x89, 0x16, 0xcc, 0xbf, 0xc6, 0x0b, 0xa9, 0x80, 0xda,
-	0xaf, 0x53, 0xfa, 0xa3, 0x14, 0x74, 0x01, 0x9a, 0x26, 0x5c, 0x0b, 0x17, 0x41, 0x17, 0x2c, 0x11,
-	0x86, 0x33, 0x5a, 0xf2, 0x5c, 0x2a, 0x6e, 0x24, 0xa8, 0x56, 0x3b, 0xcc, 0x21, 0x07, 0x7b, 0xa4,
-	0xdb, 0x53, 0x5b, 0xbd, 0x95, 0x03, 0xe4, 0x33, 0x41, 0x79, 0x29, 0x29, 0x57, 0x0a, 0x8c, 0xb5,
-	0xe8, 0xb6, 0x1b, 0x76, 0xc3, 0x96, 0xbc, 0xe2, 0x45, 0xab, 0x09, 0x87, 0x98, 0xbc, 0xdc, 0x4e,
-	0x7e, 0x61, 0x8b, 0xb1, 0x98, 0xd7, 0x42, 0x9b, 0xf0, 0x35, 0xbe, 0xfe, 0x57, 0x55, 0x97, 0xa0,
-	0xb4, 0x20, 0x4f, 0xf1, 0xc0, 0x99, 0x6f, 0xa2, 0x13, 0x74, 0xf7, 0xca, 0xc5, 0xed, 0xa8, 0xf3,
-	0xae, 0x91, 0xb3, 0x8d, 0x2f, 0xaf, 0xbe, 0x1f, 0x7b, 0x9f, 0x7e, 0x7d, 0x1e, 0xa1, 0xb8, 0xf5,
-	0x85, 0x27, 0x38, 0xb0, 0xc1, 0xcf, 0x52, 0x0b, 0x1a, 0x8b, 0xac, 0x4e, 0x45, 0x16, 0x03, 0x98,
-	0xdd, 0xe8, 0x57, 0xf8, 0xb8, 0x57, 0xd1, 0x62, 0x9c, 0xe3, 0x21, 0x77, 0xdd, 0x49, 0xe5, 0xda,
-	0x93, 0x0a, 0xc0, 0x58, 0xa8, 0xab, 0x31, 0xe1, 0x7b, 0xce, 0x8b, 0xe6, 0x08, 0x5f, 0xb2, 0xa9,
-	0xe4, 0x03, 0xc2, 0x03, 0x87, 0x47, 0x4e, 0x7b, 0xe8, 0xf7, 0xf7, 0xe1, 0x8f, 0x0e, 0x91, 0x3a,
-	0xba, 0x90, 0xbd, 0xfb, 0xfa, 0xf3, 0xe3, 0xd1, 0x3d, 0x72, 0x4a, 0x15, 0x64, 0x82, 0x9d, 0xb3,
-	0x33, 0x09, 0xd4, 0xd9, 0xcf, 0xba, 0x7f, 0x05, 0xf9, 0x82, 0x30, 0xd9, 0xbf, 0x2f, 0x79, 0xf0,
-	0xaf, 0xa9, 0xbd, 0x1b, 0xf4, 0x1f, 0xfe, 0xaf, 0xad, 0x05, 0x7f, 0x62, 0xc1, 0x1f, 0x93, 0x47,
-	0x07, 0x80, 0x77, 0xed, 0x7f, 0xfc, 0x7c, 0xb5, 0x09, 0xd0, 0x7a, 0x13, 0xa0, 0x1f, 0x9b, 0x00,
-	0xbd, 0x6f, 0x02, 0x6f, 0xdd, 0x04, 0xde, 0xb7, 0x26, 0xf0, 0xde, 0xb0, 0x5c, 0x9a, 0x69, 0x9d,
-	0x44, 0x29, 0x14, 0xbd, 0xe1, 0x6f, 0x77, 0xf1, 0x66, 0x59, 0x0a, 0x9d, 0x0c, 0xec, 0xfb, 0xbc,
-	0xff, 0x3b, 0x00, 0x00, 0xff, 0xff, 0x3b, 0x79, 0x25, 0xe0, 0x72, 0x03, 0x00, 0x00,
+	// 586 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x54, 0xdf, 0x6b, 0xd3, 0x40,
+	0x1c, 0x6f, 0xda, 0x59, 0xe8, 0xf9, 0x20, 0xbd, 0x55, 0x36, 0x82, 0x66, 0x35, 0x2a, 0x6e, 0x95,
+	0xe5, 0x96, 0x89, 0x8a, 0x0e, 0x99, 0x56, 0x94, 0x81, 0x0a, 0x9a, 0x81, 0x82, 0x2f, 0xe1, 0x92,
+	0x9c, 0xc9, 0x61, 0x9b, 0xcb, 0x72, 0xd7, 0xe2, 0x5e, 0xfd, 0x0b, 0x44, 0xfd, 0x23, 0x7c, 0xf4,
+	0x3f, 0xf0, 0xc5, 0x87, 0x3d, 0x0e, 0x7c, 0xd1, 0x17, 0x91, 0x56, 0xf0, 0xdf, 0x90, 0xde, 0x5d,
+	0x65, 0xb3, 0x69, 0xa9, 0xbe, 0x94, 0x70, 0xdf, 0xcf, 0xaf, 0x6f, 0xee, 0xd3, 0x80, 0x73, 0x59,
+	0xaf, 0xc3, 0x71, 0x1e, 0x26, 0x98, 0xa6, 0x28, 0xc8, 0x69, 0x14, 0x13, 0xd4, 0x77, 0xd1, 0x5e,
+	0x8f, 0xe4, 0xfb, 0x4e, 0x96, 0x33, 0xc1, 0xe0, 0xe9, 0x23, 0x10, 0x47, 0x41, 0x9c, 0xbe, 0x6b,
+	0xd6, 0x71, 0x97, 0xa6, 0x0c, 0xc9, 0x5f, 0x85, 0x34, 0x5b, 0x21, 0xe3, 0x5d, 0xc6, 0x51, 0x80,
+	0x39, 0x51, 0x12, 0xa8, 0xef, 0x06, 0x44, 0x60, 0x17, 0x65, 0x38, 0xa6, 0x29, 0x16, 0x94, 0xa5,
+	0x1a, 0xdb, 0x88, 0x59, 0xcc, 0xe4, 0x23, 0x1a, 0x3d, 0xe9, 0xd3, 0x33, 0x31, 0x63, 0x71, 0x87,
+	0x20, 0x9c, 0x51, 0x84, 0xd3, 0x94, 0x09, 0x49, 0xe1, 0x7a, 0x6a, 0x17, 0x87, 0xcd, 0x70, 0x8e,
+	0xbb, 0x1a, 0x63, 0x37, 0x00, 0x7c, 0x32, 0x72, 0x7e, 0x2c, 0x0f, 0x3d, 0xb2, 0xd7, 0x23, 0x5c,
+	0xd8, 0xcf, 0xc0, 0xe2, 0xb1, 0x53, 0x9e, 0xb1, 0x94, 0x13, 0x78, 0x1b, 0x54, 0x15, 0x79, 0xd9,
+	0x68, 0x1a, 0xab, 0x27, 0x37, 0xcf, 0x3a, 0x85, 0xbb, 0x3a, 0x8a, 0xd6, 0xae, 0x1d, 0x7c, 0x5f,
+	0x29, 0x7d, 0xf8, 0xf5, 0xb1, 0x65, 0x78, 0x9a, 0x67, 0x37, 0x81, 0x25, 0x85, 0xef, 0x84, 0x32,
+	0xa8, 0x47, 0xa2, 0x5e, 0x48, 0x22, 0x8f, 0x31, 0x31, 0xb6, 0xde, 0x05, 0x2b, 0x53, 0x11, 0x3a,
+	0xc6, 0x06, 0x68, 0x60, 0x35, 0xf5, 0x73, 0x35, 0xf6, 0x73, 0xc6, 0x84, 0x0c, 0x55, 0xf3, 0x20,
+	0x9e, 0x60, 0xda, 0x17, 0xc1, 0x79, 0x29, 0xfa, 0x10, 0x0b, 0xc2, 0xc5, 0x53, 0xdc, 0xa1, 0x91,
+	0xd2, 0xdf, 0xc1, 0x3c, 0x21, 0x7f, 0xd6, 0x7e, 0x5f, 0x06, 0x17, 0x66, 0xe3, 0x74, 0x82, 0x2d,
+	0x60, 0x76, 0x24, 0xc4, 0x7f, 0x41, 0x44, 0x98, 0x90, 0xc8, 0xef, 0xd2, 0x14, 0xfb, 0x09, 0xa1,
+	0x71, 0xa2, 0x72, 0x54, 0xbc, 0x25, 0x85, 0xb8, 0xaf, 0x00, 0x8f, 0x68, 0x8a, 0x77, 0xe4, 0x18,
+	0x3a, 0x60, 0xb1, 0x3f, 0x52, 0xf6, 0x55, 0x50, 0x3f, 0x91, 0xda, 0xcb, 0xe5, 0x66, 0x65, 0xb5,
+	0xe6, 0xd5, 0xfb, 0x7f, 0x9b, 0xc2, 0x16, 0xa8, 0x73, 0x81, 0x73, 0x71, 0xcc, 0xa3, 0x22, 0x3d,
+	0x4e, 0xc9, 0xc1, 0x11, 0xed, 0x5d, 0x70, 0xa9, 0x40, 0xdb, 0x57, 0x45, 0xf3, 0x83, 0x0e, 0x0b,
+	0x5f, 0x8e, 0x15, 0x16, 0xa4, 0x82, 0x3d, 0xe1, 0x77, 0x57, 0x62, 0xdb, 0x23, 0xa8, 0x12, 0xdd,
+	0xfc, 0xb4, 0x00, 0x4e, 0xc8, 0xd7, 0x02, 0xdf, 0x1a, 0xa0, 0xaa, 0x2e, 0x17, 0xae, 0x4d, 0xb9,
+	0xfb, 0xc9, 0x36, 0x99, 0xad, 0x79, 0xa0, 0xea, 0xcd, 0xda, 0xee, 0xeb, 0x2f, 0x3f, 0xdf, 0x95,
+	0x2f, 0xc3, 0x35, 0x94, 0xb2, 0x88, 0xb8, 0x1b, 0xee, 0x3a, 0x65, 0x48, 0xd1, 0xd7, 0x8b, 0x8b,
+	0x0c, 0x3f, 0x1b, 0x00, 0x4e, 0xb6, 0x05, 0x5e, 0x9d, 0xe5, 0x3a, 0xb5, 0x7f, 0xe6, 0xb5, 0x7f,
+	0xa5, 0xe9, 0xe0, 0xdb, 0x32, 0xf8, 0x0d, 0x78, 0x7d, 0x8e, 0xe0, 0x45, 0xed, 0x85, 0xdf, 0x0c,
+	0xb0, 0x34, 0xa5, 0x77, 0xf0, 0xe6, 0xac, 0x50, 0xb3, 0x4b, 0x6d, 0x6e, 0xfd, 0x17, 0x57, 0x6f,
+	0x75, 0x4f, 0x6e, 0xb5, 0x0d, 0x6f, 0xcd, 0xb1, 0x95, 0xfe, 0x47, 0x14, 0xf4, 0xaf, 0xfd, 0xe0,
+	0x60, 0x60, 0x19, 0x87, 0x03, 0xcb, 0xf8, 0x31, 0xb0, 0x8c, 0x37, 0x43, 0xab, 0x74, 0x38, 0xb4,
+	0x4a, 0x5f, 0x87, 0x56, 0xe9, 0xb9, 0x1b, 0x53, 0x91, 0xf4, 0x02, 0x27, 0x64, 0xdd, 0xa9, 0x16,
+	0xaf, 0xc6, 0x26, 0x62, 0x3f, 0x23, 0x3c, 0xa8, 0xca, 0x2f, 0xd7, 0x95, 0xdf, 0x01, 0x00, 0x00,
+	0xff, 0xff, 0xc8, 0x96, 0xba, 0xd4, 0x8c, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -251,6 +378,8 @@ type QueryClient interface {
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
 	// ActionsReducedRoot Queries a list of ActionsReducedRoot items.
 	ActionsReducedRoot(ctx context.Context, in *QueryActionsReducedRootRequest, opts ...grpc.CallOption) (*QueryActionsReducedRootResponse, error)
+	// LatestValidActionHashes Queries a list of LatestValidActionHashes items.
+	LatestValidActionHashes(ctx context.Context, in *QueryLatestValidActionHashesRequest, opts ...grpc.CallOption) (*QueryLatestValidActionHashesResponse, error)
 }
 
 type queryClient struct {
@@ -279,12 +408,23 @@ func (c *queryClient) ActionsReducedRoot(ctx context.Context, in *QueryActionsRe
 	return out, nil
 }
 
+func (c *queryClient) LatestValidActionHashes(ctx context.Context, in *QueryLatestValidActionHashesRequest, opts ...grpc.CallOption) (*QueryLatestValidActionHashesResponse, error) {
+	out := new(QueryLatestValidActionHashesResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.bridge.v1.Query/LatestValidActionHashes", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Parameters queries the parameters of the module.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
 	// ActionsReducedRoot Queries a list of ActionsReducedRoot items.
 	ActionsReducedRoot(context.Context, *QueryActionsReducedRootRequest) (*QueryActionsReducedRootResponse, error)
+	// LatestValidActionHashes Queries a list of LatestValidActionHashes items.
+	LatestValidActionHashes(context.Context, *QueryLatestValidActionHashesRequest) (*QueryLatestValidActionHashesResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -296,6 +436,9 @@ func (*UnimplementedQueryServer) Params(ctx context.Context, req *QueryParamsReq
 }
 func (*UnimplementedQueryServer) ActionsReducedRoot(ctx context.Context, req *QueryActionsReducedRootRequest) (*QueryActionsReducedRootResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ActionsReducedRoot not implemented")
+}
+func (*UnimplementedQueryServer) LatestValidActionHashes(ctx context.Context, req *QueryLatestValidActionHashesRequest) (*QueryLatestValidActionHashesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LatestValidActionHashes not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -338,6 +481,24 @@ func _Query_ActionsReducedRoot_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_LatestValidActionHashes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryLatestValidActionHashesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).LatestValidActionHashes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.bridge.v1.Query/LatestValidActionHashes",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).LatestValidActionHashes(ctx, req.(*QueryLatestValidActionHashesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pulsarchain.bridge.v1.Query",
@@ -350,6 +511,10 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ActionsReducedRoot",
 			Handler:    _Query_ActionsReducedRoot_Handler,
+		},
+		{
+			MethodName: "LatestValidActionHashes",
+			Handler:    _Query_LatestValidActionHashes_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -465,6 +630,76 @@ func (m *QueryActionsReducedRootResponse) MarshalToSizedBuffer(dAtA []byte) (int
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryLatestValidActionHashesRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLatestValidActionHashesRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLatestValidActionHashesRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLatestValidActionHashesResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLatestValidActionHashesResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLatestValidActionHashesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.ValidActionHashesCosmosBlockHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.ValidActionHashesCosmosBlockHeight))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.StartMinaHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.StartMinaHeight))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.ValidActionHashes) > 0 {
+		for iNdEx := len(m.ValidActionHashes) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.ValidActionHashes[iNdEx])
+			copy(dAtA[i:], m.ValidActionHashes[iNdEx])
+			i = encodeVarintQuery(dAtA, i, uint64(len(m.ValidActionHashes[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.LatestFetchedMinaHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.LatestFetchedMinaHeight))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -514,6 +749,39 @@ func (m *QueryActionsReducedRootResponse) Size() (n int) {
 	l = len(m.ActionsReducedRoot)
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryLatestValidActionHashesRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryLatestValidActionHashesResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.LatestFetchedMinaHeight != 0 {
+		n += 1 + sovQuery(uint64(m.LatestFetchedMinaHeight))
+	}
+	if len(m.ValidActionHashes) > 0 {
+		for _, s := range m.ValidActionHashes {
+			l = len(s)
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	if m.StartMinaHeight != 0 {
+		n += 1 + sovQuery(uint64(m.StartMinaHeight))
+	}
+	if m.ValidActionHashesCosmosBlockHeight != 0 {
+		n += 1 + sovQuery(uint64(m.ValidActionHashesCosmosBlockHeight))
 	}
 	return n
 }
@@ -740,7 +1008,7 @@ func (m *QueryActionsReducedRootResponse) Unmarshal(dAtA []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ActionsReducedRoot", wireType)
 			}
-			var byteLen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowQuery
@@ -750,26 +1018,213 @@ func (m *QueryActionsReducedRootResponse) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				byteLen |= int(b&0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
 				return ErrInvalidLengthQuery
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + intStringLen
 			if postIndex < 0 {
 				return ErrInvalidLengthQuery
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ActionsReducedRoot = append(m.ActionsReducedRoot[:0], dAtA[iNdEx:postIndex]...)
-			if m.ActionsReducedRoot == nil {
-				m.ActionsReducedRoot = []byte{}
-			}
+			m.ActionsReducedRoot = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLatestValidActionHashesRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLatestValidActionHashesRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLatestValidActionHashesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLatestValidActionHashesResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLatestValidActionHashesResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLatestValidActionHashesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LatestFetchedMinaHeight", wireType)
+			}
+			m.LatestFetchedMinaHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LatestFetchedMinaHeight |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidActionHashes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidActionHashes = append(m.ValidActionHashes, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StartMinaHeight", wireType)
+			}
+			m.StartMinaHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.StartMinaHeight |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidActionHashesCosmosBlockHeight", wireType)
+			}
+			m.ValidActionHashesCosmosBlockHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ValidActionHashesCosmosBlockHeight |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQuery(dAtA[iNdEx:])

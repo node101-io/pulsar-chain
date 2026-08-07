@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"cosmossdk.io/core/address"
@@ -33,9 +34,47 @@ type stubArchiveWrapperQueryClient struct {
 	actions    []bridgetypes.Action
 	actionsErr error
 
+	actionsInRangeSource actionsInRangeSource
+
 	getActionsCalls  int
 	gotLatestFetched int64
 	gotTarget        int64
+}
+
+type actionsInRangeSource interface {
+	GetActionsInRange(latestFetchedMinaHeight, targetMinaHeight int64) ([]bridgetypes.Action, error)
+}
+
+type actionsInRangeRequest struct {
+	latestFetchedMinaHeight int64
+	targetMinaHeight        int64
+}
+
+type actionsInRangeResult struct {
+	actions []bridgetypes.Action
+	err     error
+}
+
+// scriptedActionsInRangeSource keeps each expected wrapper range request explicit.
+type scriptedActionsInRangeSource map[actionsInRangeRequest]actionsInRangeResult
+
+func (s scriptedActionsInRangeSource) GetActionsInRange(
+	latestFetchedMinaHeight int64,
+	targetMinaHeight int64,
+) ([]bridgetypes.Action, error) {
+	result, ok := s[actionsInRangeRequest{
+		latestFetchedMinaHeight: latestFetchedMinaHeight,
+		targetMinaHeight:        targetMinaHeight,
+	}]
+	if !ok {
+		return nil, fmt.Errorf(
+			"unexpected GetActionsInRange call: latest=%d target=%d",
+			latestFetchedMinaHeight,
+			targetMinaHeight,
+		)
+	}
+
+	return result.actions, result.err
 }
 
 type mockKeyregistryKeeper struct {
@@ -166,6 +205,9 @@ func (c *stubArchiveWrapperQueryClient) GetActionsInRange(
 	c.getActionsCalls++
 	c.gotLatestFetched = latestFetchedMinaHeight
 	c.gotTarget = targetMinaHeight
+	if c.actionsInRangeSource != nil {
+		return c.actionsInRangeSource.GetActionsInRange(latestFetchedMinaHeight, targetMinaHeight)
+	}
 	return c.actions, c.actionsErr
 }
 
@@ -205,6 +247,7 @@ func seedPushNewActionsState(t *testing.T, f *fixture, latestFetchedMinaHeight i
 
 	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, bridgetypes.BridgeState{
 		LatestFetchedMinaHeight: latestFetchedMinaHeight,
+		StartMinaHeight:         latestFetchedMinaHeight,
 	}))
 	require.NoError(t, f.keeper.ActionsReducedRootSnapshots.Set(
 		f.ctx,

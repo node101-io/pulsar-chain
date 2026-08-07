@@ -6,9 +6,19 @@ option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
 
 // BridgeState stores the bridge's processed Mina cursor.
 message BridgeState {
-  reserved 2;
-  reserved "current_actions_reduced_root";
 
   // latest_fetched_mina_height is the latest Mina height processed by the bridge.
   int64 latest_fetched_mina_height = 1;
+
+  // valid_action_hashes is the cumulative ordered canonical hash batch built
+  // from successful PushNewActions calls in the same Cosmos block. Execution
+  // order is part of the root reconstruction contract.
+  repeated string valid_action_hashes = 2;
+
+  // valid_action_hashes_cosmos_block_height is the Cosmos block height of the
+  // batch represented by valid_action_hashes.
+  int64 valid_action_hashes_cosmos_block_height = 3;
+
+  // start_mina_height is the starting Mina cursor for the current query batch.
+  int64 start_mina_height = 4;
 }

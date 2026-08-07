@@ -241,12 +241,12 @@ resolve_node_wrapper_config() {
   local global_var_name="$4"
   local node_var_name="NODE${index}_${suffix}"
 
-  if [[ -v "$node_var_name" ]]; then
+  if [[ -n "${!node_var_name+x}" ]]; then
     printf '%s\n' "${!node_var_name}"
     return
   fi
 
-  if [[ -v "$global_var_name" ]]; then
+  if [[ -n "${!global_var_name+x}" ]]; then
     printf '%s\n' "${!global_var_name}"
     return
   fi
