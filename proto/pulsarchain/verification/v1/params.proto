@@ -10,4 +10,6 @@ option go_package = "github.com/node101-io/pulsar-chain/x/verification/types";
 message Params {
   option (amino.name) = "pulsarchain/x/verification/Params";
   option (gogoproto.equal) = true;
+
+  int64 pending_proof_blocks_window_size = 1;
 }

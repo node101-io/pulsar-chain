@@ -14,8 +14,6 @@ import (
 
 const PendingProofsMapName string = "pending_proofs_map"
 
-const pendingProofBlocksWindowSize = 6
-
 type Keeper struct {
 	storeService corestore.KVStoreService
 	cdc          codec.Codec
@@ -89,7 +87,7 @@ func (k Keeper) SetPendingProof(ctx context.Context, pendingProof []byte,
 		return nil, err
 	}
 
-	if err := k.prunePendingProofs(ctx, pendingProofBlocksWindowSize); err != nil {
+	if err := k.prunePendingProofs(ctx, blockHeight); err != nil {
 		return nil, err
 	}
 
@@ -109,7 +107,13 @@ func (k Keeper) IteratePendingProofs(ctx context.Context) (collections.Iterator[
 }
 
 func (k Keeper) prunePendingProofs(ctx context.Context, blockHeight int64) error {
-	pruneHeight := blockHeight - pendingProofBlocksWindowSize
+
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	pruneHeight := blockHeight - params.PendingProofBlocksWindowSize
 
 	return k.pendingProofs.Clear(
 		ctx,
