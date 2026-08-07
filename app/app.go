@@ -58,6 +58,7 @@ import (
 	"github.com/node101-io/pulsar-chain/docs"
 	bridge "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
+	verificationmodulekeeper "github.com/node101-io/pulsar-chain/x/verification/keeper"
 	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 	"google.golang.org/grpc/health"
 	grpcHealthV1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -121,6 +122,7 @@ type App struct {
 
 	ABCIHandler                *abcihandler.ABCIHandler
 	BridgeArchiveWrapperClient *bridge.ArchiveWrapperClient
+	VerificationKeeper         verificationmodulekeeper.Keeper
 }
 
 // RegisterGRPCServerWithSkipCheckHeader registers application and standard health services.
@@ -211,6 +213,7 @@ func New(
 		&app.VotepersistenceKeeper,
 		&app.BridgeKeeper,
 		&app.BridgeArchiveWrapperClient,
+		&app.VerificationKeeper,
 	); err != nil {
 		panic(err)
 	}
