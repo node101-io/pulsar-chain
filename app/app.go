@@ -58,7 +58,6 @@ import (
 	"github.com/node101-io/pulsar-chain/docs"
 	bridge "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
-	pulsarmodulekeeper "github.com/node101-io/pulsar-chain/x/pulsar/keeper"
 	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 	"google.golang.org/grpc/health"
 	grpcHealthV1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -116,7 +115,6 @@ type App struct {
 
 	// simulation manager
 	sm                    *module.SimulationManager
-	PulsarKeeper          pulsarmodulekeeper.Keeper
 	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
 	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
 	BridgeKeeper          bridge.Keeper
@@ -209,7 +207,6 @@ func New(
 		&app.CircuitBreakerKeeper,
 		&app.FeeGrantKeeper,
 		&app.ParamsKeeper,
-		&app.PulsarKeeper,
 		&app.KeyregistryKeeper,
 		&app.VotepersistenceKeeper,
 		&app.BridgeKeeper,
