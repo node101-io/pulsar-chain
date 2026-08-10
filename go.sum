@@ -1676,6 +1676,8 @@ github.com/node101-io/archive-wrapper v0.0.0-20260804200524-f8fcc1bd9d7f h1:clM3
 github.com/node101-io/archive-wrapper v0.0.0-20260804200524-f8fcc1bd9d7f/go.mod h1:H+iXAEbMKtMG8hDq5jO6Zgp8QjahDKFDTx7MgFWfctI=
 github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e h1:zrvawdhMkFOLNAUjAzSzEq8IhWaWTuMxGs/Q4LxePoI=
 github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e/go.mod h1:SpMLmGyarqavPzpF5iU+pw0mBOWUsEtjOV/3Oe00Jsg=
+github.com/node101-io/mina-signer-go v0.0.0-20260810105351-862ef720d914 h1:gANeiWrgwdqxPzNnEx0i5Ew5NzyF897OmFRHQ7keQtk=
+github.com/node101-io/mina-signer-go v0.0.0-20260810105351-862ef720d914/go.mod h1:vGZaN+qwZwJzSm5WQ4hTs95ULhysLLhz7kV+SLj4Abc=
 github.com/nunnatsa/ginkgolinter v0.19.1 h1:mjwbOlDQxZi9Cal+KfbEJTCz327OLNfwNvoZ70NJ+c4=
 github.com/nunnatsa/ginkgolinter v0.19.1/go.mod h1:jkQ3naZDmxaZMXPWaS9rblH+i+GWXQCaS/JFIWcOH2s=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=

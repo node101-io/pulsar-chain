@@ -43,7 +43,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/node101-io/archive-wrapper v0.0.0-20260804200524-f8fcc1bd9d7f
-	github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e
+	github.com/node101-io/mina-signer-go v0.0.0-20260810105351-862ef720d914
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
