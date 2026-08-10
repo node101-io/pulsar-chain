@@ -1672,10 +1672,8 @@ github.com/nishanths/exhaustive v0.12.0 h1:vIY9sALmw6T/yxiASewa4TQcFsVYZQQRUQJhK
 github.com/nishanths/exhaustive v0.12.0/go.mod h1:mEZ95wPIZW+x8kC4TgC+9YCUgiST7ecevsVDTgc2obs=
 github.com/nishanths/predeclared v0.2.2 h1:V2EPdZPliZymNAn79T8RkNApBjMmVKh5XRpLm/w98Vk=
 github.com/nishanths/predeclared v0.2.2/go.mod h1:RROzoN6TnGQupbC+lqggsOlcgysk3LMK/HI84Mp280c=
-github.com/node101-io/archive-wrapper v0.0.0-20260804200524-f8fcc1bd9d7f h1:clM3x2QnoBmbKouivjoWNGjKmF38tE7Hyynp6I0I5HQ=
-github.com/node101-io/archive-wrapper v0.0.0-20260804200524-f8fcc1bd9d7f/go.mod h1:H+iXAEbMKtMG8hDq5jO6Zgp8QjahDKFDTx7MgFWfctI=
-github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e h1:zrvawdhMkFOLNAUjAzSzEq8IhWaWTuMxGs/Q4LxePoI=
-github.com/node101-io/mina-signer-go v0.0.0-20260630183510-c8cb2d728c0e/go.mod h1:SpMLmGyarqavPzpF5iU+pw0mBOWUsEtjOV/3Oe00Jsg=
+github.com/node101-io/archive-wrapper v0.0.0-20260810125120-7af6a36fb11a h1:zeDZCX7gOJhT7c5wJ1SZ4BhDnrLFNgrbYi0geyuJXYU=
+github.com/node101-io/archive-wrapper v0.0.0-20260810125120-7af6a36fb11a/go.mod h1:J7yhT75w4/O1rkhCbidIFWKDAUBG4duUpcBVSVVyMts=
 github.com/node101-io/mina-signer-go v0.0.0-20260810105351-862ef720d914 h1:gANeiWrgwdqxPzNnEx0i5Ew5NzyF897OmFRHQ7keQtk=
 github.com/node101-io/mina-signer-go v0.0.0-20260810105351-862ef720d914/go.mod h1:vGZaN+qwZwJzSm5WQ4hTs95ULhysLLhz7kV+SLj4Abc=
 github.com/nunnatsa/ginkgolinter v0.19.1 h1:mjwbOlDQxZi9Cal+KfbEJTCz327OLNfwNvoZ70NJ+c4=
