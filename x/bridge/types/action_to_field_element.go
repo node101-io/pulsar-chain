@@ -4,10 +4,9 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	"github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/poseidon"
-	"github.com/node101-io/mina-signer-go/publickey"
 )
 
-func (act *Action) ToFieldElement() (*field.FieldElement, error) {
+func (act *Action) ToFieldElement(isValidAction bool) (*field.FieldElement, error) {
 	if act == nil {
 		return nil, ErrNilAction
 	}
@@ -49,16 +48,9 @@ func (act *Action) ToFieldElement() (*field.FieldElement, error) {
 		)
 	}
 
-	if _, err := publickey.NewPublicKeyFromFieldElement(xCoordinateToField, act.IsOdd, ""); err != nil {
-		return nil, errorsmod.Wrap(
-			ErrInvalidActionXCoordinate,
-			err.Error(),
-		)
-	}
-
 	actionField, err := p.HashFieldElementsWithPrefix(
 		ActionHashPoseidonPrefixV1,
-		f.FromUint64(uint64(act.BlockHeight)),
+		boolToField(isValidAction),
 		xCoordinateToField,
 		boolToField(act.IsOdd),
 		f.FromUint64(uint64(act.ActionType)),

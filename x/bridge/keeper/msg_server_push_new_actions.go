@@ -87,45 +87,49 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, err
 	}
 
-	var validActionHashes []string
+	var actionHashes []string
 
 	for _, act := range actions {
 		minaPublicKey, valid, err := k.validateAction(ctx, act)
 		if err != nil {
 			return nil, err
 		}
-		if !valid {
-			continue
-		}
 
-		if err := k.apply(ctx, act, minaPublicKey); err != nil {
-			return nil, err
-		}
-
-		fieldElement, err := act.ToFieldElement()
+		fieldElement, err := act.ToFieldElement(valid)
 		if err != nil {
 			return nil, err
 		}
 
+		if valid {
+			if err := k.apply(ctx, act, minaPublicKey); err != nil {
+				return nil, err
+			}
+		}
+
+		// Every action gets a leaf; only valid actions are applied.
 		if err := list.Append(fieldElement.Bytes()); err != nil {
 			return nil, err
 		}
 
-		validActionHashes = append(validActionHashes, fieldElement.String())
+		actionHashes = append(actionHashes, fieldElement.String())
 	}
 
 	newRoot := list.Root()
 
-	batchHashes := validActionHashes
+	batchHashes := actionHashes
 	currentCosmosBlockHeight := sdkCtx.BlockHeight()
 	batchStartMinaHeight := startMinaHeight
 
 	// Same-block successful pushes must preserve transaction execution order in
 	// the cumulative batch that query consumers use to rebuild the final root.
 	if bridgeState.ValidActionHashesCosmosBlockHeight == currentCosmosBlockHeight {
-		batchHashes = make([]string, 0, len(bridgeState.ValidActionHashes)+len(validActionHashes))
+		batchHashes = make(
+			[]string,
+			0,
+			len(bridgeState.ValidActionHashes)+len(actionHashes),
+		)
 		batchHashes = append(batchHashes, bridgeState.ValidActionHashes...)
-		batchHashes = append(batchHashes, validActionHashes...)
+		batchHashes = append(batchHashes, actionHashes...)
 		batchStartMinaHeight = bridgeState.StartMinaHeight
 	}
 
