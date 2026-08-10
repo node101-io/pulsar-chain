@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 WRAPPER_SOURCE="${ARCHIVE_WRAPPER_SOURCE:-$(cd -- "$REPO_ROOT/../archive-wrapper" && pwd)}"
-EXPECTED_WRAPPER_SHA="80ed0da643d50ff27d4a187e99bad65df804a1bf"
+EXPECTED_WRAPPER_SHA="163a2530a9f1354e23c152f8d14c19524369ab38"
 MODE="${1:-shared}"
 PROJECT="pulsar-wrapper-e2e-${MODE//[^a-zA-Z0-9]/-}-$$"
 TMP_DIR="$(mktemp -d)"
