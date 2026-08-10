@@ -90,7 +90,7 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 	var validActionHashes []string
 
 	for _, act := range actions {
-		valid, err := k.isValidAction(ctx, act)
+		minaPublicKey, valid, err := k.validateAction(ctx, act)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +98,7 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 			continue
 		}
 
-		if err := k.apply(ctx, act); err != nil {
+		if err := k.apply(ctx, act, minaPublicKey); err != nil {
 			return nil, err
 		}
 

@@ -13,24 +13,41 @@ import (
 	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-func (k *Keeper) isValidAction(ctx context.Context, act types.Action) (bool, error) {
-
+func (k *Keeper) validateAction(ctx context.Context, act types.Action) ([]byte, bool, error) {
 	if k.keyRegistryKeeper == nil {
-		return false, types.ErrKeyRegistryKeeperNotConfigured
+		return nil, false, types.ErrKeyRegistryKeeperNotConfigured
 	}
 
 	if act.Amount <= 0 || act.BlockHeight <= 0 {
-		return false, nil
+		return nil, false, nil
 	}
 
+	if act.ActionType != types.ActionType_ACTION_TYPE_DEPOSIT &&
+		act.ActionType != types.ActionType_ACTION_TYPE_WITHDRAW {
+		return nil, false, nil
+	}
+
+	minaPublicKey, err := coordinatesToPublicKey(act.XCoordinate, act.IsOdd)
+	if err != nil {
+		// Treat malformed public-key coordinates as an invalid action so the batch can continue.
+		return nil, false, nil
+	}
+
+	var valid bool
 	switch act.ActionType {
 	case types.ActionType_ACTION_TYPE_DEPOSIT:
-		return k.isValidDeposit(ctx, act)
+		valid, err = k.isValidDeposit(ctx, minaPublicKey)
 	case types.ActionType_ACTION_TYPE_WITHDRAW:
-		return k.isValidWithdrawal(ctx, act)
-	default:
-		return false, nil
+		valid, err = k.isValidWithdrawal(ctx, act, minaPublicKey)
 	}
+	if err != nil {
+		return nil, false, err
+	}
+	if !valid {
+		return nil, false, nil
+	}
+
+	return minaPublicKey, true, nil
 }
 
 func coordinatesToPublicKey(xCoordinate []byte, isOdd bool) ([]byte, error) {
@@ -48,29 +65,16 @@ func coordinatesToPublicKey(xCoordinate []byte, isOdd bool) ([]byte, error) {
 	return pubKey.Bytes(), nil
 }
 
-func (k *Keeper) isValidDeposit(ctx context.Context, act types.Action) (bool, error) {
-	pubKey, err := coordinatesToPublicKey(act.XCoordinate, act.IsOdd)
-	if err != nil {
-		// Treat malformed public-key coordinates as an invalid action so the batch can continue.
-		return false, nil
-	}
-
-	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, pubKey)
+func (k *Keeper) isValidDeposit(ctx context.Context, minaPublicKey []byte) (bool, error) {
+	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, minaPublicKey)
 	if err != nil {
 		return false, err
 	}
 	return exists, nil
 }
 
-func (k *Keeper) isValidWithdrawal(ctx context.Context, act types.Action) (bool, error) {
-
-	pubKey, err := coordinatesToPublicKey(act.XCoordinate, act.IsOdd)
-	if err != nil {
-		// Treat malformed public-key coordinates as an invalid action so the batch can continue.
-		return false, nil
-	}
-
-	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, pubKey)
+func (k *Keeper) isValidWithdrawal(ctx context.Context, act types.Action, minaPublicKey []byte) (bool, error) {
+	exists, err := k.keyRegistryKeeper.UserMinaToCosmosHas(ctx, minaPublicKey)
 	if err != nil {
 		return false, err
 	}
@@ -78,7 +82,7 @@ func (k *Keeper) isValidWithdrawal(ctx context.Context, act types.Action) (bool,
 		return false, nil
 	}
 
-	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, pubKey)
+	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, minaPublicKey)
 	if err != nil {
 		return false, err
 	}
@@ -100,30 +104,23 @@ func (k *Keeper) isValidWithdrawal(ctx context.Context, act types.Action) (bool,
 	return true, nil
 }
 
-func (k *Keeper) apply(ctx context.Context, act types.Action) error {
-
+func (k *Keeper) apply(ctx context.Context, act types.Action, minaPublicKey []byte) error {
 	if k.bankKeeper == nil {
 		return types.ErrBankKeeperNotConfigured
 	}
 
 	switch act.ActionType {
 	case types.ActionType_ACTION_TYPE_DEPOSIT:
-		return k.applyDeposit(ctx, act)
+		return k.applyDeposit(ctx, act, minaPublicKey)
 	case types.ActionType_ACTION_TYPE_WITHDRAW:
-		return k.applyWithdrawal(ctx, act)
+		return k.applyWithdrawal(ctx, act, minaPublicKey)
 	default:
 		return types.ErrUnspecified
 	}
 }
 
-func (k *Keeper) applyDeposit(ctx context.Context, act types.Action) error {
-
-	pubKey, err := coordinatesToPublicKey(act.XCoordinate, act.IsOdd)
-	if err != nil {
-		return err
-	}
-
-	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, pubKey)
+func (k *Keeper) applyDeposit(ctx context.Context, act types.Action, minaPublicKey []byte) error {
+	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, minaPublicKey)
 	if err != nil {
 		return err
 	}
@@ -143,14 +140,8 @@ func (k *Keeper) applyDeposit(ctx context.Context, act types.Action) error {
 	return k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, addr, coins)
 }
 
-func (k *Keeper) applyWithdrawal(ctx context.Context, act types.Action) error {
-
-	pubKey, err := coordinatesToPublicKey(act.XCoordinate, act.IsOdd)
-	if err != nil {
-		return err
-	}
-
-	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, pubKey)
+func (k *Keeper) applyWithdrawal(ctx context.Context, act types.Action, minaPublicKey []byte) error {
+	cosmosPubKey, err := k.keyRegistryKeeper.UserGetMinaToCosmos(ctx, minaPublicKey)
 	if err != nil {
 		return err
 	}
