@@ -156,7 +156,7 @@ not require the deployment mode or PostgreSQL secret to be supplied again.
 ## Tested wrapper contract
 
 The integration suite pins archive-wrapper commit
-`f8fcc1bd9d7f8343a4fd9f25c6ec3f8d8d390168`. CI checks out that exact revision,
+`80ed0da643d50ff27d4a187e99bad65df804a1bf`. CI checks out that exact revision,
 builds its Phase 3 container image, and runs shared, per-validator, and external
 end-to-end scenarios. Deployment artifacts should pin a released image digest
 produced from the reviewed wrapper revision rather than a mutable tag.
