@@ -38,31 +38,29 @@ func (act *Action) ToFieldElement() (*field.FieldElement, error) {
 		)
 	}
 
-	// networkID is intentionally empty here because mina-signer-go does not use it when parsing raw Mina public-key bytes.
-	pk, err := publickey.NewPublicKeyFromBytes(act.FeePayer, "")
-	if err != nil {
-		return nil, errorsmod.Wrap(
-			ErrInvalidActionFeePayer,
-			err.Error(),
-		)
-	}
-
-	x, isOdd, err := pk.ToFields()
-	if err != nil {
-		return nil, errorsmod.Wrap(
-			ErrActionToFieldFailed,
-			err.Error(),
-		)
-	}
-
 	f := field.NewField()
 	p := poseidon.NewPoseidon()
+
+	xCoordinateToField, err := f.FromBytes(act.XCoordinate)
+	if err != nil {
+		return nil, errorsmod.Wrap(
+			ErrInvalidActionXCoordinate,
+			err.Error(),
+		)
+	}
+
+	if _, err := publickey.NewPublicKeyFromFieldElement(xCoordinateToField, act.IsOdd, ""); err != nil {
+		return nil, errorsmod.Wrap(
+			ErrInvalidActionXCoordinate,
+			err.Error(),
+		)
+	}
 
 	actionField, err := p.HashFieldElementsWithPrefix(
 		ActionHashPoseidonPrefixV1,
 		f.FromUint64(uint64(act.BlockHeight)),
-		x,
-		isOdd,
+		xCoordinateToField,
+		boolToField(act.IsOdd),
 		f.FromUint64(uint64(act.ActionType)),
 		f.FromUint64(uint64(act.Amount)),
 	)
@@ -74,4 +72,14 @@ func (act *Action) ToFieldElement() (*field.FieldElement, error) {
 	}
 
 	return actionField, nil
+}
+
+func boolToField(value bool) *field.FieldElement {
+	f := field.NewField()
+
+	if value {
+		return f.One()
+	}
+
+	return f.Zero()
 }

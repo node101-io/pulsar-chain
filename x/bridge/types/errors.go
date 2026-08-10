@@ -52,7 +52,7 @@ var (
 	ErrInvalidActionBlockHeight = errors.Register(ModuleName, 1130, "invalid action block_height")
 	ErrInvalidActionAmount      = errors.Register(ModuleName, 1131, "invalid action amount")
 	ErrInvalidActionType        = errors.Register(ModuleName, 1132, "invalid action type")
-	ErrInvalidActionFeePayer    = errors.Register(ModuleName, 1133, "invalid action fee_payer")
+	ErrInvalidActionXCoordinate = errors.Register(ModuleName, 1133, "invalid action x coordinate")
 	ErrActionToFieldFailed      = errors.Register(ModuleName, 1134, "failed to convert action to field")
 	// ErrArchiveWrapperNotReady indicates that the wrapper query service is not serving.
 	ErrArchiveWrapperNotReady = errors.Register(ModuleName, 1135, "archive wrapper is not ready")
