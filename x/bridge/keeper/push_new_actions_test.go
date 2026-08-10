@@ -190,13 +190,17 @@ func newUserMapping(t *testing.T) ([]byte, []byte, sdk.AccAddress) {
 	return minaPubKey, cosmosPubKey, cosmosAddr
 }
 
-func expectedActionsReducedRoot(t *testing.T, actions ...bridgetypes.Action) []byte {
+func expectedActionsReducedRoot(
+	t *testing.T,
+	isValidAction bool,
+	actions ...bridgetypes.Action,
+) []byte {
 	t.Helper()
 
 	list := merkle.NewMerkleList(bridgetypes.ActionsReducedRootMerkleListPrefixV1)
 
 	for _, act := range actions {
-		fieldElement, err := act.ToFieldElement()
+		fieldElement, err := act.ToFieldElement(isValidAction)
 		require.NoError(t, err)
 		require.NoError(t, list.Append(fieldElement.Bytes()))
 	}
@@ -719,7 +723,7 @@ func TestPushNewActionsRejectsActionsOutsideRequestedRangeBeforeMutation(t *test
 	}
 }
 
-func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *testing.T) {
+func TestPushNewActionsRejectsNonPositiveAmountsWithoutMutation(t *testing.T) {
 	testCases := []struct {
 		name       string
 		actionType bridgetypes.ActionType
@@ -780,13 +784,12 @@ func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *te
 				MinaBlockHeight: 11,
 			})
 
-			require.NoError(t, err)
-			require.NotNil(t, resp)
+			require.ErrorIs(t, err, bridgetypes.ErrInvalidActionAmount)
+			require.Nil(t, resp)
 
 			afterState, err := f.keeper.GetBridgeState(f.ctx)
 			require.NoError(t, err)
-			require.Equal(t, int64(11), afterState.LatestFetchedMinaHeight)
-			require.NotEqual(t, beforeState.LatestFetchedMinaHeight, afterState.LatestFetchedMinaHeight)
+			require.Equal(t, beforeState, afterState)
 
 			afterRoot := latestActionsReducedRoot(t, f)
 			require.Equal(t, beforeRoot, afterRoot)
@@ -804,7 +807,7 @@ func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *te
 	}
 }
 
-func TestPushNewActionsSkipsMalformedPublicKeyCoordinates(t *testing.T) {
+func TestPushNewActionsRejectsMalformedFieldCoordinatesWithoutMutation(t *testing.T) {
 	testCases := []struct {
 		name        string
 		actionType  bridgetypes.ActionType
@@ -819,16 +822,6 @@ func TestPushNewActionsSkipsMalformedPublicKeyCoordinates(t *testing.T) {
 			name:        "withdrawal with malformed field bytes",
 			actionType:  bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
 			xCoordinate: []byte{1},
-		},
-		{
-			name:        "deposit with point outside curve",
-			actionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
-			xCoordinate: invalidMinaXCoordinate(t),
-		},
-		{
-			name:        "withdrawal with point outside curve",
-			actionType:  bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
-			xCoordinate: invalidMinaXCoordinate(t),
 		},
 	}
 
@@ -851,6 +844,65 @@ func TestPushNewActionsSkipsMalformedPublicKeyCoordinates(t *testing.T) {
 			f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 			seedPushNewActionsState(t, f, 10)
 
+			beforeState, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+			beforeRoot := latestActionsReducedRoot(t, f)
+			resp, err := bridgekeeper.NewMsgServerImpl(f.keeper).PushNewActions(
+				f.ctx,
+				&bridgetypes.MsgPushNewActions{
+					Creator:         authorityString(t, f.addressCodec),
+					MinaBlockHeight: 11,
+				},
+			)
+
+			require.ErrorIs(t, err, bridgetypes.ErrInvalidActionXCoordinate)
+			require.Nil(t, resp)
+			state, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+			require.Equal(t, beforeState, state)
+			require.Equal(t, beforeRoot, latestActionsReducedRoot(t, f))
+			require.Zero(t, bankKeeper.spendableCalls)
+			require.Zero(t, bankKeeper.mintCoinsCalls)
+			require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
+			require.Zero(t, bankKeeper.sendCoinsToModuleCalls)
+			require.Zero(t, bankKeeper.burnCoinsCalls)
+		})
+	}
+}
+
+func TestPushNewActionsRecordsOffCurveCoordinatesAsInvalidLeaves(t *testing.T) {
+	testCases := []struct {
+		name       string
+		actionType bridgetypes.ActionType
+	}{
+		{
+			name:       "deposit",
+			actionType: bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
+		},
+		{
+			name:       "withdrawal",
+			actionType: bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			action := bridgetypes.Action{
+				BlockHeight: 11,
+				XCoordinate: invalidMinaXCoordinate(t),
+				ActionType:  tc.actionType,
+				Amount:      7,
+			}
+			client := &stubArchiveWrapperQueryClient{
+				minaBlockHeight: 11,
+				actions:         []bridgetypes.Action{action},
+			}
+
+			bankKeeper := NewMockBankKeeper()
+			keyRegistryKeeper := NewMockKeyregistryKeeper()
+			f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
+			seedPushNewActionsState(t, f, 10)
+
 			beforeRoot := latestActionsReducedRoot(t, f)
 			resp, err := bridgekeeper.NewMsgServerImpl(f.keeper).PushNewActions(
 				f.ctx,
@@ -862,10 +914,19 @@ func TestPushNewActionsSkipsMalformedPublicKeyCoordinates(t *testing.T) {
 
 			require.NoError(t, err)
 			require.NotNil(t, resp)
+
+			invalidField, err := action.ToFieldElement(false)
+			require.NoError(t, err)
 			state, err := f.keeper.GetBridgeState(f.ctx)
 			require.NoError(t, err)
 			require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
-			require.Equal(t, beforeRoot, latestActionsReducedRoot(t, f))
+			require.Equal(t, []string{invalidField.String()}, state.ValidActionHashes)
+			require.NotEqual(t, beforeRoot, latestActionsReducedRoot(t, f))
+			require.Equal(
+				t,
+				expectedActionsReducedRoot(t, false, action),
+				latestActionsReducedRoot(t, f),
+			)
 			require.Zero(t, bankKeeper.spendableCalls)
 			require.Zero(t, bankKeeper.mintCoinsCalls)
 			require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
@@ -910,7 +971,7 @@ func TestPushNewActionsUserDepositHappyPath(t *testing.T) {
 	expectedCoins := sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 7))
 
 	require.NotEqual(t, beforeRoot, afterRoot)
-	require.Equal(t, expectedActionsReducedRoot(t, action), afterRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action), afterRoot)
 
 	require.Equal(t, 1, bankKeeper.mintCoinsCalls)
 	require.Equal(t, bridgetypes.ModuleName, bankKeeper.lastMintModule)
@@ -963,7 +1024,7 @@ func TestPushNewActionsUserWithdrawalHappyPath(t *testing.T) {
 	expectedCoins := sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 7))
 
 	require.NotEqual(t, beforeRoot, afterRoot)
-	require.Equal(t, expectedActionsReducedRoot(t, action), afterRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action), afterRoot)
 
 	require.Equal(t, 2, bankKeeper.spendableCalls)
 	require.Equal(t, cosmosAddr, bankKeeper.lastSpendableAddr)
@@ -1124,7 +1185,7 @@ func TestPushNewActionsRollsBackStateOnBankKeeperErrors(t *testing.T) {
 	}
 }
 
-func TestPushNewActionsSkipsUnknownDepositButAdvancesCursor(t *testing.T) {
+func TestPushNewActionsRecordsUnknownDepositAsInvalidLeaf(t *testing.T) {
 	minaPubKey := mustMinaPublicKeyBytes(t)
 	action := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_DEPOSIT, 7)
 
@@ -1153,9 +1214,13 @@ func TestPushNewActionsSkipsUnknownDepositButAdvancesCursor(t *testing.T) {
 	state, err := f.keeper.GetBridgeState(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
+	invalidField, err := action.ToFieldElement(false)
+	require.NoError(t, err)
+	require.Equal(t, []string{invalidField.String()}, state.ValidActionHashes)
 
 	afterRoot := latestActionsReducedRoot(t, f)
-	require.Equal(t, beforeRoot, afterRoot)
+	require.NotEqual(t, beforeRoot, afterRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, false, action), afterRoot)
 
 	require.Zero(t, bankKeeper.spendableCalls)
 	require.Zero(t, bankKeeper.mintCoinsCalls)
@@ -1164,7 +1229,7 @@ func TestPushNewActionsSkipsUnknownDepositButAdvancesCursor(t *testing.T) {
 	require.Zero(t, bankKeeper.burnCoinsCalls)
 }
 
-func TestPushNewActionsSkipsWithdrawalWithInsufficientBalanceButAdvancesCursor(t *testing.T) {
+func TestPushNewActionsRecordsInsufficientWithdrawalAsInvalidLeaf(t *testing.T) {
 	minaPubKey, cosmosPubKey, cosmosAddr := newUserMapping(t)
 	action := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_WITHDRAW, 7)
 
@@ -1196,9 +1261,13 @@ func TestPushNewActionsSkipsWithdrawalWithInsufficientBalanceButAdvancesCursor(t
 	state, err := f.keeper.GetBridgeState(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
+	invalidField, err := action.ToFieldElement(false)
+	require.NoError(t, err)
+	require.Equal(t, []string{invalidField.String()}, state.ValidActionHashes)
 
 	afterRoot := latestActionsReducedRoot(t, f)
-	require.Equal(t, beforeRoot, afterRoot)
+	require.NotEqual(t, beforeRoot, afterRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, false, action), afterRoot)
 
 	require.Equal(t, 1, bankKeeper.spendableCalls)
 	require.Equal(t, cosmosAddr, bankKeeper.lastSpendableAddr)
@@ -1283,8 +1352,8 @@ func TestPushNewActionsPreservesWrapperActionOrderingInRoot(t *testing.T) {
 	require.NotNil(t, resp)
 
 	gotRoot := latestActionsReducedRoot(t, f)
-	forwardRoot := expectedActionsReducedRoot(t, action1, action2)
-	reversedRoot := expectedActionsReducedRoot(t, action2, action1)
+	forwardRoot := expectedActionsReducedRoot(t, true, action1, action2)
+	reversedRoot := expectedActionsReducedRoot(t, true, action2, action1)
 
 	require.Equal(t, forwardRoot, gotRoot)
 	require.NotEqual(t, reversedRoot, gotRoot)
@@ -1332,8 +1401,8 @@ func TestPushNewActionsProcessesIdenticalActionOccurrences(t *testing.T) {
 	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
 
 	gotRoot := latestActionsReducedRoot(t, f)
-	require.Equal(t, expectedActionsReducedRoot(t, action, action), gotRoot)
-	require.NotEqual(t, expectedActionsReducedRoot(t, action), gotRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action, action), gotRoot)
+	require.NotEqual(t, expectedActionsReducedRoot(t, true, action), gotRoot)
 
 	require.Equal(t, 2, bankKeeper.mintCoinsCalls)
 	require.Equal(t, 2, bankKeeper.sendCoinsFromModuleCalls)

@@ -55,14 +55,50 @@ func TestActionToFieldElementIncludesPublicKeyParity(t *testing.T) {
 	oppositeParityAction := action
 	oppositeParityAction.IsOdd = !action.IsOdd
 
-	actionField, err := action.ToFieldElement()
+	actionField, err := action.ToFieldElement(true)
 	require.NoError(t, err)
-	oppositeParityField, err := oppositeParityAction.ToFieldElement()
+	oppositeParityField, err := oppositeParityAction.ToFieldElement(true)
 	require.NoError(t, err)
 	require.False(t, actionField.Equal(oppositeParityField))
 }
 
-func TestActionToFieldElementRejectsInvalidPublicKeyPoint(t *testing.T) {
+func TestActionToFieldElementIncludesValidity(t *testing.T) {
+	xCoordinate, isOdd := minaActionCoordinates(t)
+	action := bridgetypes.Action{
+		BlockHeight: 42,
+		XCoordinate: xCoordinate,
+		IsOdd:       isOdd,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
+		Amount:      7,
+	}
+
+	validField, err := action.ToFieldElement(true)
+	require.NoError(t, err)
+	invalidField, err := action.ToFieldElement(false)
+	require.NoError(t, err)
+	require.False(t, validField.Equal(invalidField))
+}
+
+func TestActionToFieldElementDoesNotIncludeBlockHeight(t *testing.T) {
+	xCoordinate, isOdd := minaActionCoordinates(t)
+	action := bridgetypes.Action{
+		BlockHeight: 42,
+		XCoordinate: xCoordinate,
+		IsOdd:       isOdd,
+		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
+		Amount:      7,
+	}
+	actionAtAnotherHeight := action
+	actionAtAnotherHeight.BlockHeight = 99
+
+	actionField, err := action.ToFieldElement(true)
+	require.NoError(t, err)
+	actionAtAnotherHeightField, err := actionAtAnotherHeight.ToFieldElement(true)
+	require.NoError(t, err)
+	require.True(t, actionField.Equal(actionAtAnotherHeightField))
+}
+
+func TestActionToFieldElementAcceptsFieldCoordinateOutsideCurve(t *testing.T) {
 	action := bridgetypes.Action{
 		BlockHeight: 42,
 		XCoordinate: invalidCurveXCoordinate(t),
@@ -70,6 +106,6 @@ func TestActionToFieldElementRejectsInvalidPublicKeyPoint(t *testing.T) {
 		Amount:      7,
 	}
 
-	_, err := action.ToFieldElement()
-	require.ErrorIs(t, err, bridgetypes.ErrInvalidActionXCoordinate)
+	_, err := action.ToFieldElement(false)
+	require.NoError(t, err)
 }

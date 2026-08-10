@@ -107,9 +107,9 @@ func TestLatestValidActionHashesPreservesMerkleAppendOrder(t *testing.T) {
 
 	// Compute the expected field-string hashes directly from the original
 	// actions so the response can be checked without depending on keeper state.
-	action1Field, err := action1.ToFieldElement()
+	action1Field, err := action1.ToFieldElement(true)
 	require.NoError(t, err)
-	action2Field, err := action2.ToFieldElement()
+	action2Field, err := action2.ToFieldElement(true)
 	require.NoError(t, err)
 
 	// The query response must preserve append order and must not sort hashes.
@@ -127,9 +127,45 @@ func TestLatestValidActionHashesPreservesMerkleAppendOrder(t *testing.T) {
 
 	// A query consumer rebuilding the list in query order must get the same root.
 	// Reversing the order must produce a different root.
-	require.Equal(t, expectedActionsReducedRoot(t, action1, action2), gotRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action1, action2), gotRoot)
 	require.Equal(t, gotRoot, rootFromQueryOrder)
 	require.NotEqual(t, gotRoot, rootFromReverseOrder)
+}
+
+func TestLatestValidActionHashesIncludesInvalidActionLeaf(t *testing.T) {
+	minaPubKey := mustMinaPublicKeyBytes(t)
+	action := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 7)
+	client := &stubArchiveWrapperQueryClient{
+		minaBlockHeight: 11,
+		actions:         []types.Action{action},
+	}
+
+	f := initFixture(t, NewMockBankKeeper(), client, NewMockKeyregistryKeeper())
+	seedPushNewActionsState(t, f, 10)
+	f.ctx = sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(77)
+
+	_, err := keeper.NewMsgServerImpl(f.keeper).PushNewActions(
+		f.ctx,
+		&types.MsgPushNewActions{
+			Creator:         authorityString(t, f.addressCodec),
+			MinaBlockHeight: 11,
+		},
+	)
+	require.NoError(t, err)
+
+	response, err := keeper.NewQueryServerImpl(f.keeper).LatestValidActionHashes(
+		f.ctx,
+		&types.QueryLatestValidActionHashesRequest{},
+	)
+	require.NoError(t, err)
+
+	invalidField, err := action.ToFieldElement(false)
+	require.NoError(t, err)
+	require.Equal(t, []string{invalidField.String()}, response.ValidActionHashes)
+
+	gotRoot := latestActionsReducedRoot(t, f)
+	require.Equal(t, expectedActionsReducedRoot(t, false, action), gotRoot)
+	require.Equal(t, gotRoot, actionsReducedRootFromHashes(t, response.ValidActionHashes...))
 }
 
 // Successful pushes in the same Cosmos block must append into one cumulative
@@ -181,11 +217,11 @@ func TestLatestValidActionHashesAppendsSuccessfulPushesWithinSameCosmosBlock(t *
 	response, err := queryServer.LatestValidActionHashes(f.ctx, &types.QueryLatestValidActionHashesRequest{})
 	require.NoError(t, err)
 
-	action1Field, err := action1.ToFieldElement()
+	action1Field, err := action1.ToFieldElement(true)
 	require.NoError(t, err)
-	action2Field, err := action2.ToFieldElement()
+	action2Field, err := action2.ToFieldElement(true)
 	require.NoError(t, err)
-	action3Field, err := action3.ToFieldElement()
+	action3Field, err := action3.ToFieldElement(true)
 	require.NoError(t, err)
 
 	require.Equal(t, int64(12), response.LatestFetchedMinaHeight)
@@ -199,7 +235,7 @@ func TestLatestValidActionHashesAppendsSuccessfulPushesWithinSameCosmosBlock(t *
 
 	// The same-block cumulative query payload must rebuild the final root.
 	gotRoot := latestActionsReducedRoot(t, f)
-	require.Equal(t, expectedActionsReducedRoot(t, action1, action2, action3), gotRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action1, action2, action3), gotRoot)
 	require.Equal(t, gotRoot, actionsReducedRootFromHashes(t, response.ValidActionHashes...))
 
 	state, err := f.keeper.GetBridgeState(f.ctx)
@@ -268,7 +304,7 @@ func TestLatestValidActionHashesResetsBatchOnNextCosmosBlock(t *testing.T) {
 	response, err := queryServer.LatestValidActionHashes(f.ctx, &types.QueryLatestValidActionHashesRequest{})
 	require.NoError(t, err)
 
-	action4Field, err := action4.ToFieldElement()
+	action4Field, err := action4.ToFieldElement(true)
 	require.NoError(t, err)
 
 	require.Equal(t, int64(13), response.LatestFetchedMinaHeight)
@@ -279,7 +315,7 @@ func TestLatestValidActionHashesResetsBatchOnNextCosmosBlock(t *testing.T) {
 	// The query resets to the new block's batch, while the chain root still
 	// includes all historical actions committed before this block.
 	gotRoot := latestActionsReducedRoot(t, f)
-	require.Equal(t, expectedActionsReducedRoot(t, action1, action2, action3, action4), gotRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action1, action2, action3, action4), gotRoot)
 	require.Equal(t, gotRoot, actionsReducedRootFromBaseAndHashes(t, rootAfterBlock77, response.ValidActionHashes...))
 
 	state, err := f.keeper.GetBridgeState(f.ctx)
@@ -338,11 +374,11 @@ func TestLatestValidActionHashesKeepsPreviousBatchSourceHeightAcrossLaterEmptyBl
 	response, err := queryServer.LatestValidActionHashes(f.ctx, &types.QueryLatestValidActionHashesRequest{})
 	require.NoError(t, err)
 
-	action1Field, err := action1.ToFieldElement()
+	action1Field, err := action1.ToFieldElement(true)
 	require.NoError(t, err)
-	action2Field, err := action2.ToFieldElement()
+	action2Field, err := action2.ToFieldElement(true)
 	require.NoError(t, err)
-	action3Field, err := action3.ToFieldElement()
+	action3Field, err := action3.ToFieldElement(true)
 	require.NoError(t, err)
 
 	require.Equal(t, int64(12), response.LatestFetchedMinaHeight)
@@ -358,7 +394,7 @@ func TestLatestValidActionHashesKeepsPreviousBatchSourceHeightAcrossLaterEmptyBl
 	require.NoError(t, err)
 
 	gotRoot := latestActionsReducedRoot(t, f)
-	require.Equal(t, expectedActionsReducedRoot(t, action1, action2, action3), gotRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action1, action2, action3), gotRoot)
 	require.Equal(t, gotRoot, actionsReducedRootFromBaseAndHashes(t, rootBeforeBatch, response.ValidActionHashes...))
 
 	state, err := f.keeper.GetBridgeState(f.ctx)
@@ -417,7 +453,7 @@ func TestLatestValidActionHashesFailedSecondPushKeepsPreviousSuccessfulBatch(t *
 	response, err := queryServer.LatestValidActionHashes(f.ctx, &types.QueryLatestValidActionHashesRequest{})
 	require.NoError(t, err)
 
-	successField, err := successAction.ToFieldElement()
+	successField, err := successAction.ToFieldElement(true)
 	require.NoError(t, err)
 
 	require.Equal(t, int64(11), response.LatestFetchedMinaHeight)
