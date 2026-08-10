@@ -67,22 +67,12 @@ func TestLatestValidActionHashesSuccessWithEmptyHashes(t *testing.T) {
 func TestLatestValidActionHashesPreservesMerkleAppendOrder(t *testing.T) {
 	// Use one registered Mina key so both wrapper actions are accepted and
 	// appended into the bridge Merkle list.
-	feePayer, cosmosPubKey, _ := newUserMapping(t)
+	minaPubKey, cosmosPubKey, _ := newUserMapping(t)
 
 	// The two actions differ only by amount so the expected order is easy to
 	// track through hashing, state storage, and the query response.
-	action1 := types.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      5,
-	}
-	action2 := types.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      9,
-	}
+	action1 := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 5)
+	action2 := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 9)
 
 	// The wrapper stub returns actions in this exact order. The bridge must not
 	// reorder them before storing hashes or updating the root.
@@ -93,7 +83,7 @@ func TestLatestValidActionHashesPreservesMerkleAppendOrder(t *testing.T) {
 
 	bankKeeper := NewMockBankKeeper()
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -145,26 +135,11 @@ func TestLatestValidActionHashesPreservesMerkleAppendOrder(t *testing.T) {
 // Successful pushes in the same Cosmos block must append into one cumulative
 // query batch in transaction execution order.
 func TestLatestValidActionHashesAppendsSuccessfulPushesWithinSameCosmosBlock(t *testing.T) {
-	feePayer, cosmosPubKey, _ := newUserMapping(t)
+	minaPubKey, cosmosPubKey, _ := newUserMapping(t)
 
-	action1 := types.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      5,
-	}
-	action2 := types.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      9,
-	}
-	action3 := types.Action{
-		BlockHeight: 12,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      13,
-	}
+	action1 := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 5)
+	action2 := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 9)
+	action3 := newAction(t, minaPubKey, 12, types.ActionType_ACTION_TYPE_DEPOSIT, 13)
 
 	// Each PushNewActions call sees its own wrapper batch, but the query must
 	// expose the cumulative same-block append order across both successful txs.
@@ -182,7 +157,7 @@ func TestLatestValidActionHashesAppendsSuccessfulPushesWithinSameCosmosBlock(t *
 
 	bankKeeper := NewMockBankKeeper()
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -235,32 +210,12 @@ func TestLatestValidActionHashesAppendsSuccessfulPushesWithinSameCosmosBlock(t *
 
 // The first successful push in the next Cosmos block must start a new visible batch.
 func TestLatestValidActionHashesResetsBatchOnNextCosmosBlock(t *testing.T) {
-	feePayer, cosmosPubKey, _ := newUserMapping(t)
+	minaPubKey, cosmosPubKey, _ := newUserMapping(t)
 
-	action1 := types.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      5,
-	}
-	action2 := types.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      9,
-	}
-	action3 := types.Action{
-		BlockHeight: 12,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      13,
-	}
-	action4 := types.Action{
-		BlockHeight: 13,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      21,
-	}
+	action1 := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 5)
+	action2 := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 9)
+	action3 := newAction(t, minaPubKey, 12, types.ActionType_ACTION_TYPE_DEPOSIT, 13)
+	action4 := newAction(t, minaPubKey, 13, types.ActionType_ACTION_TYPE_DEPOSIT, 21)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 13,
@@ -279,7 +234,7 @@ func TestLatestValidActionHashesResetsBatchOnNextCosmosBlock(t *testing.T) {
 
 	bankKeeper := NewMockBankKeeper()
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -336,26 +291,11 @@ func TestLatestValidActionHashesResetsBatchOnNextCosmosBlock(t *testing.T) {
 // If no PushNewActions runs in the next Cosmos block, the query still returns
 // the previous batch and must identify the original source block correctly.
 func TestLatestValidActionHashesKeepsPreviousBatchSourceHeightAcrossLaterEmptyBlock(t *testing.T) {
-	feePayer, cosmosPubKey, _ := newUserMapping(t)
+	minaPubKey, cosmosPubKey, _ := newUserMapping(t)
 
-	action1 := types.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      5,
-	}
-	action2 := types.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      9,
-	}
-	action3 := types.Action{
-		BlockHeight: 12,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      13,
-	}
+	action1 := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 5)
+	action2 := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 9)
+	action3 := newAction(t, minaPubKey, 12, types.ActionType_ACTION_TYPE_DEPOSIT, 13)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 12,
@@ -371,7 +311,7 @@ func TestLatestValidActionHashesKeepsPreviousBatchSourceHeightAcrossLaterEmptyBl
 
 	bankKeeper := NewMockBankKeeper()
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -429,20 +369,10 @@ func TestLatestValidActionHashesKeepsPreviousBatchSourceHeightAcrossLaterEmptyBl
 
 // A failed later tx in the same Cosmos block must not corrupt the last successful batch.
 func TestLatestValidActionHashesFailedSecondPushKeepsPreviousSuccessfulBatch(t *testing.T) {
-	feePayer, cosmosPubKey, _ := newUserMapping(t)
+	minaPubKey, cosmosPubKey, _ := newUserMapping(t)
 
-	successAction := types.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      5,
-	}
-	failingAction := types.Action{
-		BlockHeight: 12,
-		FeePayer:    feePayer,
-		ActionType:  types.ActionType_ACTION_TYPE_WITHDRAW,
-		Amount:      7,
-	}
+	successAction := newAction(t, minaPubKey, 11, types.ActionType_ACTION_TYPE_DEPOSIT, 5)
+	failingAction := newAction(t, minaPubKey, 12, types.ActionType_ACTION_TYPE_WITHDRAW, 7)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 12,
@@ -461,7 +391,7 @@ func TestLatestValidActionHashesFailedSecondPushKeepsPreviousSuccessfulBatch(t *
 	bankKeeper.sendToModuleErr = status.Error(codes.Internal, "send to module failed")
 
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)

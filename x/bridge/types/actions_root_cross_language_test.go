@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	minaaddress "github.com/node101-io/mina-signer-go/address"
 	minafield "github.com/node101-io/mina-signer-go/field"
 	merkle "github.com/node101-io/mina-signer-go/merklelist"
 	bridgetypes "github.com/node101-io/pulsar-chain/x/bridge/types"
@@ -24,7 +23,8 @@ type actionsRootVectors struct {
 	SingleDepositRoot struct {
 		Action struct {
 			BlockHeight int64  `json:"blockHeight"`
-			FeePayer    string `json:"feePayer"`
+			XCoordinate string `json:"xCoordinate"`
+			IsOdd       bool   `json:"isOdd"`
 			ActionType  string `json:"actionType"`
 			Amount      int64  `json:"amount"`
 		} `json:"action"`
@@ -63,12 +63,13 @@ func TestActionsRootCrossLanguageVectors(t *testing.T) {
 	actionVector := vectors.SingleDepositRoot.Action
 	require.Equal(t, "ACTION_TYPE_DEPOSIT", actionVector.ActionType)
 
-	feePayer, err := minaaddress.NewAddress(actionVector.FeePayer).Marshal()
+	xCoordinate, err := base64.StdEncoding.DecodeString(actionVector.XCoordinate)
 	require.NoError(t, err)
 
 	action := bridgetypes.Action{
 		BlockHeight: actionVector.BlockHeight,
-		FeePayer:    feePayer,
+		XCoordinate: xCoordinate,
+		IsOdd:       actionVector.IsOdd,
 		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
 		Amount:      actionVector.Amount,
 	}

@@ -6,7 +6,8 @@
   "singleDepositRoot": {
     "action": {
       "blockHeight": 42,
-      "feePayer": "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf",
+      "xCoordinate": "EGWIOOff33rBsBqbXogXN3UwpEqWYae4ovV1zZwlwRw=",
+      "isOdd": true,
       "actionType": "ACTION_TYPE_DEPOSIT",
       "amount": 7
     },
