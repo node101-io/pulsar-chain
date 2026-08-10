@@ -56,6 +56,8 @@ func requireRootMatchesVector(t *testing.T, root []byte, vector rootVector) {
 	require.Equal(t, vector.Decimal, element.String())
 }
 
+// TODO: Verify action-root construction against an authoritative Mina/o1js
+// implementation. The JavaScript test currently validates only canonical root decoding.
 func TestActionsRootCrossLanguageVectors(t *testing.T) {
 	vectors := loadActionsRootVectors(t)
 	requireRootMatchesVector(t, bridgetypes.DefaultActionsReducedRoot(), vectors.EmptyRoot)
