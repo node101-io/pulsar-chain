@@ -3,6 +3,8 @@ package keeper
 import (
 	"context"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	errorsmod "cosmossdk.io/errors"
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
@@ -12,7 +14,12 @@ func (k msgServer) PushNewProofHash(ctx context.Context, msg *types.MsgPushNewPr
 		return nil, errorsmod.Wrap(err, "invalid authority address")
 	}
 
-	// TODO: Handle the message
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	err := k.Keeper.AppendPendingProof(ctx, msg.ProofHash, sdkCtx.BlockHeight())
+	if err != nil {
+		return nil, err
+	}
 
 	return &types.MsgPushNewProofHashResponse{}, nil
 }
