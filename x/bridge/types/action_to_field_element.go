@@ -11,32 +11,6 @@ func (act *Action) ToFieldElement(isValidAction bool) (*field.FieldElement, erro
 		return nil, ErrNilAction
 	}
 
-	if act.BlockHeight <= 0 {
-		return nil, errorsmod.Wrapf(
-			ErrInvalidActionBlockHeight,
-			"got %d",
-			act.BlockHeight,
-		)
-	}
-
-	if act.Amount <= 0 {
-		return nil, errorsmod.Wrapf(
-			ErrInvalidActionAmount,
-			"got %d",
-			act.Amount,
-		)
-	}
-
-	switch act.ActionType {
-	case ActionType_ACTION_TYPE_DEPOSIT, ActionType_ACTION_TYPE_WITHDRAW:
-	default:
-		return nil, errorsmod.Wrapf(
-			ErrInvalidActionType,
-			"got %s",
-			act.ActionType.String(),
-		)
-	}
-
 	f := field.NewField()
 	p := poseidon.NewPoseidon()
 
