@@ -136,6 +136,7 @@ var (
 						// chain modules
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
+						verificationmoduletypes.ModuleName,
 					},
 					EndBlockers: []string{
 						govtypes.ModuleName,
