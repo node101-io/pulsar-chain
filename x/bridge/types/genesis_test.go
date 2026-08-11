@@ -57,10 +57,10 @@ func setRuntimeBatch(
 	hashes []string,
 ) {
 	gs.BridgeState = types.BridgeState{
-		LatestFetchedMinaHeight:            latestFetchedMinaHeight,
-		ValidActionHashes:                  hashes,
-		ValidActionHashesCosmosBlockHeight: sourceCosmosHeight,
-		StartMinaHeight:                    startMinaHeight,
+		LatestFetchedMinaHeight:       latestFetchedMinaHeight,
+		ActionHashes:                  hashes,
+		ActionHashesCosmosBlockHeight: sourceCosmosHeight,
+		StartMinaHeight:               startMinaHeight,
 	}
 	gs.ActionsReducedRootSnapshots = []types.ActionsReducedRootSnapshot{
 		{
@@ -88,9 +88,9 @@ func TestGenesisStateValidate(t *testing.T) {
 			wantErr: types.ErrInvalidLatestFetchedMinaHeight,
 		},
 		{
-			name: "negative valid action hashes cosmos block height",
+			name: "negative action hashes cosmos block height",
 			mutate: func(gs *types.GenesisState) {
-				gs.BridgeState.ValidActionHashesCosmosBlockHeight = -1
+				gs.BridgeState.ActionHashesCosmosBlockHeight = -1
 			},
 			wantErr: types.ErrInvalidBridgeStateHeight,
 		},
@@ -133,9 +133,9 @@ func TestGenesisStateValidate(t *testing.T) {
 		{
 			name: "initial batch rejects non empty hashes",
 			mutate: func(gs *types.GenesisState) {
-				gs.BridgeState.ValidActionHashes = []string{canonicalActionHash(42)}
+				gs.BridgeState.ActionHashes = []string{canonicalActionHash(42)}
 			},
-			wantErr: types.ErrInvalidValidActionBatch,
+			wantErr: types.ErrInvalidActionBatch,
 		},
 		{
 			name: "initial batch rejects advanced mina range",
@@ -143,79 +143,79 @@ func TestGenesisStateValidate(t *testing.T) {
 				gs.BridgeState.LatestFetchedMinaHeight = 43
 				gs.BridgeState.StartMinaHeight = 41
 			},
-			wantErr: types.ErrInvalidValidActionBatch,
+			wantErr: types.ErrInvalidActionBatch,
 		},
 		{
 			name: "runtime batch must advance mina cursor",
 			mutate: func(gs *types.GenesisState) {
 				setRuntimeBatch(gs, 77, 43, 43, nil)
 			},
-			wantErr: types.ErrInvalidValidActionBatch,
+			wantErr: types.ErrInvalidActionBatch,
 		},
 		{
-			name: "empty valid action hash is invalid",
+			name: "empty action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
 				setRuntimeBatch(gs, 77, 41, 43, nil)
-				gs.BridgeState.ValidActionHashes = []string{""}
+				gs.BridgeState.ActionHashes = []string{""}
 			},
-			wantErr: types.ErrInvalidValidActionHash,
+			wantErr: types.ErrInvalidActionHash,
 		},
 		{
-			name: "whitespace padded valid action hash is invalid",
+			name: "whitespace padded action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
 				setRuntimeBatch(gs, 77, 41, 43, nil)
-				gs.BridgeState.ValidActionHashes = []string{" 42 "}
+				gs.BridgeState.ActionHashes = []string{" 42 "}
 			},
-			wantErr: types.ErrInvalidValidActionHash,
+			wantErr: types.ErrInvalidActionHash,
 		},
 		{
-			name: "non decimal valid action hash is invalid",
+			name: "non decimal action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
 				setRuntimeBatch(gs, 77, 41, 43, nil)
-				gs.BridgeState.ValidActionHashes = []string{"abc"}
+				gs.BridgeState.ActionHashes = []string{"abc"}
 			},
-			wantErr: types.ErrInvalidValidActionHash,
+			wantErr: types.ErrInvalidActionHash,
 		},
 		{
-			name: "negative valid action hash is invalid",
+			name: "negative action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
 				setRuntimeBatch(gs, 77, 41, 43, nil)
-				gs.BridgeState.ValidActionHashes = []string{"-1"}
+				gs.BridgeState.ActionHashes = []string{"-1"}
 			},
-			wantErr: types.ErrInvalidValidActionHash,
+			wantErr: types.ErrInvalidActionHash,
 		},
 		{
-			name: "leading zero valid action hash is invalid",
+			name: "leading zero action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
 				setRuntimeBatch(gs, 77, 41, 43, nil)
-				gs.BridgeState.ValidActionHashes = []string{"01"}
+				gs.BridgeState.ActionHashes = []string{"01"}
 			},
-			wantErr: types.ErrInvalidValidActionHash,
+			wantErr: types.ErrInvalidActionHash,
 		},
 		{
-			name: "field modulus valid action hash is invalid",
+			name: "field modulus action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
 				setRuntimeBatch(gs, 77, 41, 43, nil)
-				gs.BridgeState.ValidActionHashes = []string{pallasBaseFieldModulus().String()}
+				gs.BridgeState.ActionHashes = []string{pallasBaseFieldModulus().String()}
 			},
-			wantErr: types.ErrInvalidValidActionHash,
+			wantErr: types.ErrInvalidActionHash,
 		},
 		{
-			name: "above field modulus valid action hash is invalid",
+			name: "above field modulus action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
 				setRuntimeBatch(gs, 77, 41, 43, nil)
 				above := new(big.Int).Add(pallasBaseFieldModulus(), big.NewInt(1))
-				gs.BridgeState.ValidActionHashes = []string{above.String()}
+				gs.BridgeState.ActionHashes = []string{above.String()}
 			},
-			wantErr: types.ErrInvalidValidActionHash,
+			wantErr: types.ErrInvalidActionHash,
 		},
 		{
-			name: "oversized decimal valid action hash is invalid",
+			name: "oversized decimal action hash is invalid",
 			mutate: func(gs *types.GenesisState) {
 				setRuntimeBatch(gs, 77, 41, 43, nil)
-				gs.BridgeState.ValidActionHashes = []string{oversizedDecimal()}
+				gs.BridgeState.ActionHashes = []string{oversizedDecimal()}
 			},
-			wantErr: types.ErrInvalidValidActionHash,
+			wantErr: types.ErrInvalidActionHash,
 		},
 		{
 			name: "latest fetched before start block is invalid",
@@ -246,7 +246,7 @@ func TestGenesisStateValidate(t *testing.T) {
 					},
 				}
 			},
-			wantErr: types.ErrInvalidValidActionBatch,
+			wantErr: types.ErrInvalidActionBatch,
 		},
 		{
 			name: "empty snapshots",
@@ -340,9 +340,9 @@ func TestGenesisStateValidateAcceptsCustomCanonicalSnapshotRoot(t *testing.T) {
 func TestGenesisStateValidateAcceptsRollingWindowWithoutHeightZero(t *testing.T) {
 	gs := validGenesisState()
 	gs.BridgeState = types.BridgeState{
-		LatestFetchedMinaHeight:            43,
-		ValidActionHashesCosmosBlockHeight: 13,
-		StartMinaHeight:                    41,
+		LatestFetchedMinaHeight:       43,
+		ActionHashesCosmosBlockHeight: 13,
+		StartMinaHeight:               41,
 	}
 	gs.ActionsReducedRootSnapshots = []types.ActionsReducedRootSnapshot{
 		{CosmosBlockHeight: 10, ActionsReducedRoot: canonicalRoot(10)},
@@ -362,7 +362,7 @@ func TestGenesisStateValidateAcceptsCustomStartBlockHeight(t *testing.T) {
 	require.NoError(t, gs.Validate())
 }
 
-func TestGenesisStateValidateAcceptsCanonicalValidActionHashes(t *testing.T) {
+func TestGenesisStateValidateAcceptsCanonicalActionHashes(t *testing.T) {
 	gs := validGenesisState()
 	setRuntimeBatch(gs, 77, 41, 43, []string{
 		canonicalActionHash(0),
@@ -390,10 +390,10 @@ func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
 	bridgeState, ok := payload["bridge_state"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "0", bridgeState["latest_fetched_mina_height"])
-	require.Equal(t, "0", bridgeState["valid_action_hashes_cosmos_block_height"])
+	require.Equal(t, "0", bridgeState["action_hashes_cosmos_block_height"])
 	require.Equal(t, "0", bridgeState["start_mina_height"])
 
-	hashes, ok := bridgeState["valid_action_hashes"].([]any)
+	hashes, ok := bridgeState["action_hashes"].([]any)
 	require.True(t, ok)
 	require.Len(t, hashes, 0)
 }
@@ -401,11 +401,11 @@ func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
 func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) {
 	gs := validGenesisState()
 	gs.BridgeState.LatestFetchedMinaHeight = 43
-	gs.BridgeState.ValidActionHashes = []string{
+	gs.BridgeState.ActionHashes = []string{
 		canonicalActionHash(42),
 		canonicalActionHash(43),
 	}
-	gs.BridgeState.ValidActionHashesCosmosBlockHeight = 77
+	gs.BridgeState.ActionHashesCosmosBlockHeight = 77
 	gs.BridgeState.StartMinaHeight = 41
 	gs.ActionsReducedRootSnapshots = append(
 		gs.ActionsReducedRootSnapshots,
@@ -429,10 +429,10 @@ func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) 
 	bridgeState, ok := payload["bridge_state"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "43", bridgeState["latest_fetched_mina_height"])
-	require.Equal(t, "77", bridgeState["valid_action_hashes_cosmos_block_height"])
+	require.Equal(t, "77", bridgeState["action_hashes_cosmos_block_height"])
 	require.Equal(t, "41", bridgeState["start_mina_height"])
 
-	hashes, ok := bridgeState["valid_action_hashes"].([]any)
+	hashes, ok := bridgeState["action_hashes"].([]any)
 	require.True(t, ok)
 	require.Equal(t, []any{canonicalActionHash(42), canonicalActionHash(43)}, hashes)
 }

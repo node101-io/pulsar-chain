@@ -63,8 +63,8 @@ var (
 	// ErrInvalidArchiveWrapperGRPCTransportMode identifies an unsupported transport policy.
 	ErrInvalidArchiveWrapperGRPCTransportMode                    = errors.Register(ModuleName, 1138, "invalid archive wrapper gRPC transport mode")
 	ErrActionsReducedRootSnapshotWindowSizeMustBeGreaterThanZero = errors.Register(ModuleName, 1139, "actions_reduced_root_snapshot_window_size must be greater than 0")
-	// ErrInvalidValidActionHash indicates that a valid_action_hashes entry is not a canonical decimal Mina field element.
-	ErrInvalidValidActionHash = errors.Register(ModuleName, 1140, "invalid valid_action_hash")
-	// ErrInvalidValidActionBatch indicates that the valid action batch fields do not form a valid runtime or initial batch shape.
-	ErrInvalidValidActionBatch = errors.Register(ModuleName, 1141, "invalid valid_action_batch")
+	// ErrInvalidActionHash indicates that an action_hashes entry is not a canonical decimal Mina field element.
+	ErrInvalidActionHash = errors.Register(ModuleName, 1140, "invalid action_hash")
+	// ErrInvalidActionBatch indicates that the action batch fields do not form a valid runtime or initial batch shape.
+	ErrInvalidActionBatch = errors.Register(ModuleName, 1141, "invalid action_batch")
 )

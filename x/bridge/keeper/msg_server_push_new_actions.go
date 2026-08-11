@@ -122,13 +122,13 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 
 	// Same-block successful pushes must preserve transaction execution order in
 	// the cumulative batch that query consumers use to rebuild the final root.
-	if bridgeState.ValidActionHashesCosmosBlockHeight == currentCosmosBlockHeight {
+	if bridgeState.ActionHashesCosmosBlockHeight == currentCosmosBlockHeight {
 		batchHashes = make(
 			[]string,
 			0,
-			len(bridgeState.ValidActionHashes)+len(actionHashes),
+			len(bridgeState.ActionHashes)+len(actionHashes),
 		)
-		batchHashes = append(batchHashes, bridgeState.ValidActionHashes...)
+		batchHashes = append(batchHashes, bridgeState.ActionHashes...)
 		batchHashes = append(batchHashes, actionHashes...)
 		batchStartMinaHeight = bridgeState.StartMinaHeight
 	}
@@ -136,10 +136,10 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 	// A successful batch advances the Mina cursor and stores the cumulative hash
 	// list visible for the current Cosmos block.
 	if err := k.Keeper.BridgeState.Set(ctx, types.BridgeState{
-		LatestFetchedMinaHeight:            msg.MinaBlockHeight,
-		ValidActionHashes:                  batchHashes,
-		ValidActionHashesCosmosBlockHeight: currentCosmosBlockHeight,
-		StartMinaHeight:                    batchStartMinaHeight,
+		LatestFetchedMinaHeight:       msg.MinaBlockHeight,
+		ActionHashes:                  batchHashes,
+		ActionHashesCosmosBlockHeight: currentCosmosBlockHeight,
+		StartMinaHeight:               batchStartMinaHeight,
 	}); err != nil {
 		return nil, err
 	}

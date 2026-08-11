@@ -84,8 +84,8 @@ func (k Keeper) PrepareForZeroHeightGenesis(ctx context.Context) error {
 		return err
 	}
 
-	bridgeState.ValidActionHashes = nil
-	bridgeState.ValidActionHashesCosmosBlockHeight = 0
+	bridgeState.ActionHashes = nil
+	bridgeState.ActionHashesCosmosBlockHeight = 0
 	bridgeState.StartMinaHeight = bridgeState.LatestFetchedMinaHeight
 
 	if err := k.BridgeState.Set(cacheCtx, bridgeState); err != nil {

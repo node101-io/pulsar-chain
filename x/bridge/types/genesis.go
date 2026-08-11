@@ -55,11 +55,11 @@ func (gs GenesisState) Validate() error {
 	}
 
 	newestSnapshot := gs.ActionsReducedRootSnapshots[len(gs.ActionsReducedRootSnapshots)-1]
-	if gs.BridgeState.ValidActionHashesCosmosBlockHeight != newestSnapshot.CosmosBlockHeight {
+	if gs.BridgeState.ActionHashesCosmosBlockHeight != newestSnapshot.CosmosBlockHeight {
 		return errorsmod.Wrapf(
-			ErrInvalidValidActionBatch,
+			ErrInvalidActionBatch,
 			"batch cosmos height %d must match newest root snapshot height %d",
-			gs.BridgeState.ValidActionHashesCosmosBlockHeight,
+			gs.BridgeState.ActionHashesCosmosBlockHeight,
 			newestSnapshot.CosmosBlockHeight,
 		)
 	}
@@ -70,19 +70,19 @@ func (gs GenesisState) Validate() error {
 // DefaultBridgeState returns the default bridge state.
 func DefaultBridgeState() BridgeState {
 	return BridgeState{
-		ValidActionHashes:                  []string{},
-		ValidActionHashesCosmosBlockHeight: 0,
-		StartMinaHeight:                    0,
+		ActionHashes:                  []string{},
+		ActionHashesCosmosBlockHeight: 0,
+		StartMinaHeight:               0,
 	}
 }
 
 // DefaultTestBridgeState returns the initial bridge state for tests and simulation.
 func DefaultTestBridgeState() BridgeState {
 	return BridgeState{
-		LatestFetchedMinaHeight:            defaultStartBlockHeight - 1,
-		ValidActionHashes:                  []string{},
-		ValidActionHashesCosmosBlockHeight: 0,
-		StartMinaHeight:                    defaultStartBlockHeight - 1,
+		LatestFetchedMinaHeight:       defaultStartBlockHeight - 1,
+		ActionHashes:                  []string{},
+		ActionHashesCosmosBlockHeight: 0,
+		StartMinaHeight:               defaultStartBlockHeight - 1,
 	}
 }
 
@@ -90,10 +90,10 @@ func DefaultTestBridgeState() BridgeState {
 // exactly at startBlockHeight.
 func NewInitialBridgeState(startBlockHeight int64) BridgeState {
 	return BridgeState{
-		LatestFetchedMinaHeight:            startBlockHeight - 1,
-		ValidActionHashes:                  []string{},
-		ValidActionHashesCosmosBlockHeight: 0,
-		StartMinaHeight:                    startBlockHeight - 1,
+		LatestFetchedMinaHeight:       startBlockHeight - 1,
+		ActionHashes:                  []string{},
+		ActionHashesCosmosBlockHeight: 0,
+		StartMinaHeight:               startBlockHeight - 1,
 	}
 }
 

@@ -920,7 +920,7 @@ func TestPushNewActionsRecordsOffCurveCoordinatesAsInvalidLeaves(t *testing.T) {
 			state, err := f.keeper.GetBridgeState(f.ctx)
 			require.NoError(t, err)
 			require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
-			require.Equal(t, []string{invalidField.String()}, state.ValidActionHashes)
+			require.Equal(t, []string{invalidField.String()}, state.ActionHashes)
 			require.NotEqual(t, beforeRoot, latestActionsReducedRoot(t, f))
 			require.Equal(
 				t,
@@ -1216,7 +1216,7 @@ func TestPushNewActionsRecordsUnknownDepositAsInvalidLeaf(t *testing.T) {
 	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
 	invalidField, err := action.ToFieldElement(false)
 	require.NoError(t, err)
-	require.Equal(t, []string{invalidField.String()}, state.ValidActionHashes)
+	require.Equal(t, []string{invalidField.String()}, state.ActionHashes)
 
 	afterRoot := latestActionsReducedRoot(t, f)
 	require.NotEqual(t, beforeRoot, afterRoot)
@@ -1263,7 +1263,7 @@ func TestPushNewActionsRecordsInsufficientWithdrawalAsInvalidLeaf(t *testing.T) 
 	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
 	invalidField, err := action.ToFieldElement(false)
 	require.NoError(t, err)
-	require.Equal(t, []string{invalidField.String()}, state.ValidActionHashes)
+	require.Equal(t, []string{invalidField.String()}, state.ActionHashes)
 
 	afterRoot := latestActionsReducedRoot(t, f)
 	require.NotEqual(t, beforeRoot, afterRoot)

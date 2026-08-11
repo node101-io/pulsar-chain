@@ -143,10 +143,10 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	bridgeGenesis := bridgetypes.DefaultGenesis()
 	bridgeGenesis.Params = bridgetypes.DefaultTestParams()
 	bridgeGenesis.BridgeState = bridgetypes.BridgeState{
-		LatestFetchedMinaHeight:            minaCursor,
-		StartMinaHeight:                    499_990,
-		ValidActionHashesCosmosBlockHeight: 103,
-		ValidActionHashes: []string{
+		LatestFetchedMinaHeight:       minaCursor,
+		StartMinaHeight:               499_990,
+		ActionHashesCosmosBlockHeight: 103,
+		ActionHashes: []string{
 			minafield.NewField().FromUint64(77).String(),
 			minafield.NewField().FromUint64(78).String(),
 		},
@@ -200,8 +200,8 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 
 	exportedBridgeGenesis := bridgeGenesisFromExport(t, oldApp, exported.AppState)
 	require.Equal(t, minaCursor, exportedBridgeGenesis.BridgeState.LatestFetchedMinaHeight)
-	require.Empty(t, exportedBridgeGenesis.BridgeState.ValidActionHashes)
-	require.Equal(t, int64(0), exportedBridgeGenesis.BridgeState.ValidActionHashesCosmosBlockHeight)
+	require.Empty(t, exportedBridgeGenesis.BridgeState.ActionHashes)
+	require.Equal(t, int64(0), exportedBridgeGenesis.BridgeState.ActionHashesCosmosBlockHeight)
 	require.Equal(t, minaCursor, exportedBridgeGenesis.BridgeState.StartMinaHeight)
 	require.Len(t, exportedBridgeGenesis.ActionsReducedRootSnapshots, 1)
 	require.Equal(t, int64(0), exportedBridgeGenesis.ActionsReducedRootSnapshots[0].CosmosBlockHeight)
@@ -233,8 +233,8 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	importedBridgeState, err := newApp.BridgeKeeper.GetBridgeState(ctx)
 	require.NoError(t, err)
 	require.Equal(t, minaCursor, importedBridgeState.LatestFetchedMinaHeight)
-	require.Empty(t, importedBridgeState.ValidActionHashes)
-	require.Equal(t, int64(0), importedBridgeState.ValidActionHashesCosmosBlockHeight)
+	require.Empty(t, importedBridgeState.ActionHashes)
+	require.Equal(t, int64(0), importedBridgeState.ActionHashesCosmosBlockHeight)
 	require.Equal(t, minaCursor, importedBridgeState.StartMinaHeight)
 	require.NoError(t, importedBridgeState.Validate())
 }

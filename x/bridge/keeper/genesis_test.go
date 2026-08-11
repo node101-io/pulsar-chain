@@ -24,10 +24,10 @@ func TestGenesis(t *testing.T) {
 	genesisState := types.GenesisState{
 		Params: params,
 		BridgeState: types.BridgeState{
-			LatestFetchedMinaHeight:            params.StartBlockHeight + 1,
-			ValidActionHashesCosmosBlockHeight: 77,
-			StartMinaHeight:                    params.StartBlockHeight - 1,
-			ValidActionHashes: []string{
+			LatestFetchedMinaHeight:       params.StartBlockHeight + 1,
+			ActionHashesCosmosBlockHeight: 77,
+			StartMinaHeight:               params.StartBlockHeight - 1,
+			ActionHashes: []string{
 				keeperCanonicalActionHash(42),
 				keeperCanonicalActionHash(43),
 			},
@@ -67,9 +67,9 @@ func TestExportGenesisKeepsRollingWindowOnly(t *testing.T) {
 		require.NoError(t, f.keeper.SetActionsReducedRoot(f.ctx, height, keeperCanonicalRoot(uint64(height))))
 	}
 	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, types.BridgeState{
-		LatestFetchedMinaHeight:            2,
-		ValidActionHashesCosmosBlockHeight: windowSize + 1,
-		StartMinaHeight:                    1,
+		LatestFetchedMinaHeight:       2,
+		ActionHashesCosmosBlockHeight: windowSize + 1,
+		StartMinaHeight:               1,
 	}))
 
 	got, err := f.keeper.ExportGenesis(f.ctx)
@@ -88,10 +88,10 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 	beforeParams, err := f.keeper.Params.Get(f.ctx)
 	require.NoError(t, err)
 	beforeState := types.BridgeState{
-		LatestFetchedMinaHeight:            500_000,
-		ValidActionHashesCosmosBlockHeight: 103,
-		StartMinaHeight:                    499_990,
-		ValidActionHashes: []string{
+		LatestFetchedMinaHeight:       500_000,
+		ActionHashesCosmosBlockHeight: 103,
+		StartMinaHeight:               499_990,
+		ActionHashes: []string{
 			keeperCanonicalActionHash(77),
 			keeperCanonicalActionHash(78),
 		},
@@ -111,10 +111,10 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 	require.Equal(t, keeperCanonicalRoot(103), got.ActionsReducedRootSnapshots[0].ActionsReducedRoot)
 	require.EqualExportedValues(t, beforeParams, got.Params)
 	require.EqualExportedValues(t, types.BridgeState{
-		LatestFetchedMinaHeight:            500_000,
-		ValidActionHashes:                  nil,
-		ValidActionHashesCosmosBlockHeight: 0,
-		StartMinaHeight:                    500_000,
+		LatestFetchedMinaHeight:       500_000,
+		ActionHashes:                  nil,
+		ActionHashesCosmosBlockHeight: 0,
+		StartMinaHeight:               500_000,
 	}, got.BridgeState)
 	require.NoError(t, got.Validate())
 
@@ -134,10 +134,10 @@ func TestPrepareForZeroHeightGenesisKeepsOnlyCurrentRoot(t *testing.T) {
 func TestPrepareForZeroHeightGenesisRestoresSnapshotPruningOrder(t *testing.T) {
 	f := initFixture(t, nil, nil, nil)
 	require.NoError(t, f.keeper.BridgeState.Set(f.ctx, types.BridgeState{
-		LatestFetchedMinaHeight:            500_000,
-		ValidActionHashesCosmosBlockHeight: 103,
-		StartMinaHeight:                    499_990,
-		ValidActionHashes: []string{
+		LatestFetchedMinaHeight:       500_000,
+		ActionHashesCosmosBlockHeight: 103,
+		StartMinaHeight:               499_990,
+		ActionHashes: []string{
 			keeperCanonicalActionHash(90),
 		},
 	}))
@@ -176,8 +176,8 @@ func TestPrepareForZeroHeightGenesisRestoresSnapshotPruningOrder(t *testing.T) {
 	state, err := f.keeper.GetBridgeState(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, int64(500_000), state.LatestFetchedMinaHeight)
-	require.Nil(t, state.ValidActionHashes)
-	require.Equal(t, int64(0), state.ValidActionHashesCosmosBlockHeight)
+	require.Nil(t, state.ActionHashes)
+	require.Equal(t, int64(0), state.ActionHashesCosmosBlockHeight)
 	require.Equal(t, int64(500_000), state.StartMinaHeight)
 }
 
@@ -195,7 +195,7 @@ func TestGenesisWithCustomStartBlockHeight(t *testing.T) {
 		BridgeState:                 types.NewInitialBridgeState(customStartBlockHeight),
 		ActionsReducedRootSnapshots: types.DefaultActionsReducedRootSnapshots(),
 	}
-	genesisState.BridgeState.ValidActionHashes = nil
+	genesisState.BridgeState.ActionHashes = nil
 
 	f := initFixture(t, nil, nil, nil)
 	err := f.keeper.InitGenesis(f.ctx, genesisState)
