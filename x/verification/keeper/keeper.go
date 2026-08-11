@@ -70,28 +70,33 @@ func (k Keeper) GetAuthority() []byte {
 	return k.authority
 }
 
-func (k Keeper) SetPendingProof(ctx context.Context, pendingProof []byte,
-	blockHeight, pendingProofIndex int64) ([]byte, error) {
+func (k Keeper) AppendPendingProof(ctx context.Context, pendingProof []byte,
+	blockHeight int64) error {
+
+	pendingProofIndex, err := k.GetNextPendingProofIndex(ctx, blockHeight)
+	if err != nil {
+		return err
+	}
 
 	key := collections.Join(blockHeight, pendingProofIndex)
 
 	exists, err := k.pendingProofs.Has(ctx, key)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if exists {
-		return nil, types.ErrPendingProofAlreadyExists
+		return types.ErrPendingProofAlreadyExists
 	}
 
 	if err := k.pendingProofs.Set(ctx, key, pendingProof); err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := k.prunePendingProofs(ctx, blockHeight); err != nil {
-		return nil, err
+		return err
 	}
 
-	return nil, nil
+	return nil
 }
 
 func (k Keeper) GetPendingProof(ctx context.Context, blockHeight, pendingProofIndex int64) ([]byte, error) {
@@ -115,8 +120,58 @@ func (k Keeper) prunePendingProofs(ctx context.Context, blockHeight int64) error
 
 	pruneHeight := blockHeight - params.PendingProofBlocksWindowSize
 
+	exists, err := k.PendingProofBlockExists(ctx, pruneHeight)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	return k.pendingProofs.Clear(
 		ctx,
 		collections.NewPrefixedPairRange[int64, int64](pruneHeight),
 	)
+}
+
+func (k Keeper) PendingProofBlockExists(
+	ctx context.Context,
+	blockHeight int64,
+) (bool, error) {
+	iter, err := k.pendingProofs.Iterate(
+		ctx,
+		collections.NewPrefixedPairRange[int64, int64](blockHeight),
+	)
+	if err != nil {
+		return false, err
+	}
+	defer iter.Close()
+
+	return iter.Valid(), nil
+}
+
+func (k Keeper) GetNextPendingProofIndex(
+	ctx context.Context,
+	blockHeight int64,
+) (int64, error) {
+	iter, err := k.pendingProofs.Iterate(
+		ctx,
+		collections.NewPrefixedPairRange[int64, int64](blockHeight).
+			Descending(),
+	)
+	if err != nil {
+		return 0, err
+	}
+	defer iter.Close()
+
+	if !iter.Valid() {
+		return 0, nil
+	}
+
+	key, err := iter.Key()
+	if err != nil {
+		return 0, err
+	}
+
+	return key.K2() + 1, nil
 }
