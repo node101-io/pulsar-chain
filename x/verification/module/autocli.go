@@ -28,6 +28,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod: "UpdateParams",
 					Skip:      true, // skipped because authority gated
 				},
+				{
+					RpcMethod:      "PushNewProofHash",
+					Use:            "push-new-proof-hash [proof-hash]",
+					Short:          "Send a push-new-proof-hash tx",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "proof_hash", Varargs: true}},
+				},
 				// this line is used by ignite scaffolding # autocli/tx
 			},
 		},

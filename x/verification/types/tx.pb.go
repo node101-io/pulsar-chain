@@ -6,6 +6,10 @@ package types
 import (
 	context "context"
 	fmt "fmt"
+	io "io"
+	math "math"
+	math_bits "math/bits"
+
 	_ "github.com/cosmos/cosmos-proto"
 	_ "github.com/cosmos/cosmos-sdk/types/msgservice"
 	_ "github.com/cosmos/cosmos-sdk/types/tx/amino"
@@ -15,9 +19,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	io "io"
-	math "math"
-	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -35,8 +36,6 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type MsgUpdateParams struct {
 	// authority is the address that controls the module (defaults to x/gov unless overwritten).
 	Authority string `protobuf:"bytes,1,opt,name=authority,proto3" json:"authority,omitempty"`
-	// params defines the module parameters to update.
-	//
 	// NOTE: All parameters must be supplied.
 	Params Params `protobuf:"bytes,2,opt,name=params,proto3" json:"params"`
 }
@@ -126,9 +125,101 @@ func (m *MsgUpdateParamsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
+// MsgPushNewProofHash defines the MsgPushNewProofHash message.
+type MsgPushNewProofHash struct {
+	Creator   string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	ProofHash []byte `protobuf:"bytes,2,opt,name=proof_hash,json=proofHash,proto3" json:"proof_hash,omitempty"`
+}
+
+func (m *MsgPushNewProofHash) Reset()         { *m = MsgPushNewProofHash{} }
+func (m *MsgPushNewProofHash) String() string { return proto.CompactTextString(m) }
+func (*MsgPushNewProofHash) ProtoMessage()    {}
+func (*MsgPushNewProofHash) Descriptor() ([]byte, []int) {
+	return fileDescriptor_76d83322f5cd0413, []int{2}
+}
+func (m *MsgPushNewProofHash) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgPushNewProofHash) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgPushNewProofHash.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgPushNewProofHash) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgPushNewProofHash.Merge(m, src)
+}
+func (m *MsgPushNewProofHash) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgPushNewProofHash) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgPushNewProofHash.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgPushNewProofHash proto.InternalMessageInfo
+
+func (m *MsgPushNewProofHash) GetCreator() string {
+	if m != nil {
+		return m.Creator
+	}
+	return ""
+}
+
+func (m *MsgPushNewProofHash) GetProofHash() []byte {
+	if m != nil {
+		return m.ProofHash
+	}
+	return nil
+}
+
+// MsgPushNewProofHashResponse defines the MsgPushNewProofHashResponse message.
+type MsgPushNewProofHashResponse struct {
+}
+
+func (m *MsgPushNewProofHashResponse) Reset()         { *m = MsgPushNewProofHashResponse{} }
+func (m *MsgPushNewProofHashResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgPushNewProofHashResponse) ProtoMessage()    {}
+func (*MsgPushNewProofHashResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_76d83322f5cd0413, []int{3}
+}
+func (m *MsgPushNewProofHashResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgPushNewProofHashResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgPushNewProofHashResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgPushNewProofHashResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgPushNewProofHashResponse.Merge(m, src)
+}
+func (m *MsgPushNewProofHashResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgPushNewProofHashResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgPushNewProofHashResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgPushNewProofHashResponse proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*MsgUpdateParams)(nil), "pulsarchain.verification.v1.MsgUpdateParams")
 	proto.RegisterType((*MsgUpdateParamsResponse)(nil), "pulsarchain.verification.v1.MsgUpdateParamsResponse")
+	proto.RegisterType((*MsgPushNewProofHash)(nil), "pulsarchain.verification.v1.MsgPushNewProofHash")
+	proto.RegisterType((*MsgPushNewProofHashResponse)(nil), "pulsarchain.verification.v1.MsgPushNewProofHashResponse")
 }
 
 func init() {
@@ -136,30 +227,36 @@ func init() {
 }
 
 var fileDescriptor_76d83322f5cd0413 = []byte{
-	// 365 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x52, 0x29, 0x28, 0xcd, 0x29,
-	0x4e, 0x2c, 0x4a, 0xce, 0x48, 0xcc, 0xcc, 0xd3, 0x2f, 0x4b, 0x2d, 0xca, 0x4c, 0xcb, 0x4c, 0x4e,
-	0x2c, 0xc9, 0xcc, 0xcf, 0xd3, 0x2f, 0x33, 0xd4, 0x2f, 0xa9, 0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9,
-	0x17, 0x92, 0x46, 0x52, 0xa5, 0x87, 0xac, 0x4a, 0xaf, 0xcc, 0x50, 0x4a, 0x30, 0x31, 0x37, 0x33,
-	0x2f, 0x5f, 0x1f, 0x4c, 0x42, 0xd4, 0x4b, 0x89, 0x27, 0xe7, 0x17, 0xe7, 0xe6, 0x17, 0xeb, 0xe7,
-	0x16, 0xa7, 0x83, 0xcc, 0xc9, 0x2d, 0x4e, 0x87, 0x4a, 0x48, 0x42, 0x24, 0xe2, 0xc1, 0x3c, 0x7d,
-	0x08, 0x07, 0x2a, 0x25, 0x92, 0x9e, 0x9f, 0x9e, 0x0f, 0x11, 0x07, 0xb1, 0xa0, 0xa2, 0x1a, 0xf8,
-	0xdc, 0x57, 0x90, 0x58, 0x94, 0x98, 0x0b, 0xd5, 0xaf, 0x74, 0x81, 0x91, 0x8b, 0xdf, 0xb7, 0x38,
-	0x3d, 0xb4, 0x20, 0x25, 0xb1, 0x24, 0x35, 0x00, 0x2c, 0x23, 0x64, 0xc6, 0xc5, 0x99, 0x58, 0x5a,
-	0x92, 0x91, 0x5f, 0x94, 0x59, 0x52, 0x29, 0xc1, 0xa8, 0xc0, 0xa8, 0xc1, 0xe9, 0x24, 0x71, 0x69,
-	0x8b, 0xae, 0x08, 0xd4, 0x62, 0xc7, 0x94, 0x94, 0xa2, 0xd4, 0xe2, 0xe2, 0xe0, 0x92, 0xa2, 0xcc,
-	0xbc, 0xf4, 0x20, 0x84, 0x52, 0x21, 0x37, 0x2e, 0x36, 0x88, 0xd9, 0x12, 0x4c, 0x0a, 0x8c, 0x1a,
-	0xdc, 0x46, 0xca, 0x7a, 0x78, 0x02, 0x40, 0x0f, 0x62, 0x99, 0x13, 0xe7, 0x89, 0x7b, 0xf2, 0x0c,
-	0x2b, 0x9e, 0x6f, 0xd0, 0x62, 0x0c, 0x82, 0xea, 0xb6, 0xb2, 0x6d, 0x7a, 0xbe, 0x41, 0x0b, 0x61,
-	0x6e, 0xd7, 0xf3, 0x0d, 0x5a, 0x5a, 0xc8, 0x1e, 0xaa, 0x40, 0xf5, 0x12, 0x9a, 0xf3, 0x95, 0x24,
-	0xb9, 0xc4, 0xd1, 0x84, 0x82, 0x52, 0x8b, 0x0b, 0xf2, 0xf3, 0x8a, 0x53, 0x8d, 0x1a, 0x18, 0xb9,
-	0x98, 0x7d, 0x8b, 0xd3, 0x85, 0x8a, 0xb8, 0x78, 0x50, 0x7c, 0xac, 0x83, 0xd7, 0xa5, 0x68, 0xa6,
-	0x49, 0x99, 0x90, 0xa2, 0x1a, 0x66, 0xb7, 0x14, 0x6b, 0x03, 0xc8, 0x93, 0x4e, 0x81, 0x27, 0x1e,
-	0xc9, 0x31, 0x5e, 0x78, 0x24, 0xc7, 0xf8, 0xe0, 0x91, 0x1c, 0xe3, 0x84, 0xc7, 0x72, 0x0c, 0x17,
-	0x1e, 0xcb, 0x31, 0xdc, 0x78, 0x2c, 0xc7, 0x10, 0x65, 0x9e, 0x9e, 0x59, 0x92, 0x51, 0x9a, 0xa4,
-	0x97, 0x9c, 0x9f, 0xab, 0x9f, 0x97, 0x9f, 0x92, 0x6a, 0x68, 0x60, 0xa8, 0x9b, 0x99, 0xaf, 0x0f,
-	0xb1, 0x4b, 0x17, 0xab, 0xd7, 0x4b, 0x2a, 0x0b, 0x52, 0x8b, 0x93, 0xd8, 0xc0, 0x51, 0x69, 0x0c,
-	0x08, 0x00, 0x00, 0xff, 0xff, 0x40, 0x7c, 0x69, 0xaa, 0x96, 0x02, 0x00, 0x00,
+	// 457 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x52, 0x4f, 0x6b, 0x13, 0x41,
+	0x14, 0xcf, 0x54, 0xac, 0x64, 0x0c, 0xa8, 0x6b, 0xa1, 0xe9, 0x96, 0xae, 0x25, 0x7a, 0x08, 0xc1,
+	0xec, 0x34, 0x51, 0x54, 0x0a, 0x1e, 0xcc, 0x41, 0xbc, 0x44, 0x62, 0xc4, 0x8b, 0x97, 0x32, 0xdd,
+	0x4c, 0x67, 0x07, 0xdc, 0x7d, 0xc3, 0xbc, 0x49, 0x6c, 0x2f, 0x52, 0x3c, 0x7a, 0xf2, 0x63, 0x78,
+	0xcc, 0xc1, 0x0f, 0xd1, 0x63, 0xf0, 0xe4, 0x49, 0x24, 0x39, 0xe4, 0x6b, 0xc8, 0xfe, 0xa3, 0x69,
+	0x2c, 0x29, 0xbd, 0x2c, 0x3b, 0xef, 0xfd, 0xfe, 0xbc, 0xdf, 0x9b, 0xa1, 0x8f, 0xf4, 0xf0, 0x13,
+	0x72, 0x13, 0x84, 0x5c, 0xc5, 0x6c, 0x24, 0x8c, 0x3a, 0x52, 0x01, 0xb7, 0x0a, 0x62, 0x36, 0x6a,
+	0x31, 0x7b, 0xec, 0x6b, 0x03, 0x16, 0x9c, 0xed, 0x05, 0x94, 0xbf, 0x88, 0xf2, 0x47, 0x2d, 0xf7,
+	0x1e, 0x8f, 0x54, 0x0c, 0x2c, 0xfd, 0x66, 0x78, 0x77, 0x33, 0x00, 0x8c, 0x00, 0x59, 0x84, 0x32,
+	0xd1, 0x89, 0x50, 0xe6, 0x8d, 0xad, 0xac, 0x71, 0x90, 0x9e, 0x58, 0x76, 0xc8, 0x5b, 0x1b, 0x12,
+	0x24, 0x64, 0xf5, 0xe4, 0x2f, 0xaf, 0xd6, 0x57, 0xcd, 0xa7, 0xb9, 0xe1, 0x51, 0xce, 0xaf, 0x4d,
+	0x08, 0xbd, 0xd3, 0x45, 0xf9, 0x41, 0x0f, 0xb8, 0x15, 0xbd, 0xb4, 0xe3, 0x3c, 0xa3, 0x65, 0x3e,
+	0xb4, 0x21, 0x18, 0x65, 0x4f, 0xaa, 0x64, 0x97, 0xd4, 0xcb, 0x9d, 0xea, 0xaf, 0x9f, 0xcd, 0x8d,
+	0xdc, 0xf8, 0xd5, 0x60, 0x60, 0x04, 0xe2, 0x7b, 0x6b, 0x54, 0x2c, 0xfb, 0xe7, 0x50, 0xe7, 0x35,
+	0x5d, 0xcf, 0xb4, 0xab, 0x6b, 0xbb, 0xa4, 0x7e, 0xbb, 0xfd, 0xd0, 0x5f, 0xb1, 0x00, 0x3f, 0x33,
+	0xeb, 0x94, 0xcf, 0xfe, 0x3c, 0x28, 0xfd, 0x98, 0x8f, 0x1b, 0xa4, 0x9f, 0xb3, 0xf7, 0x5f, 0x7e,
+	0x9d, 0x8f, 0x1b, 0xe7, 0xba, 0xdf, 0xe6, 0xe3, 0x46, 0x63, 0x31, 0xd0, 0xf1, 0xc5, 0x48, 0x4b,
+	0xe3, 0xd7, 0xb6, 0xe8, 0xe6, 0x52, 0xa9, 0x2f, 0x50, 0x43, 0x8c, 0xa2, 0x36, 0xa2, 0xf7, 0xbb,
+	0x28, 0x7b, 0x43, 0x0c, 0xdf, 0x8a, 0xcf, 0x3d, 0x03, 0x70, 0xf4, 0x86, 0x63, 0xe8, 0xb4, 0xe9,
+	0xad, 0xc0, 0x08, 0x6e, 0xc1, 0x5c, 0x19, 0xb7, 0x00, 0x3a, 0x3b, 0x94, 0xea, 0x44, 0xe0, 0x20,
+	0xe4, 0x18, 0xa6, 0x81, 0x2b, 0xfd, 0xb2, 0x2e, 0x24, 0xf7, 0x2b, 0x49, 0x86, 0x02, 0x5c, 0xdb,
+	0xa1, 0xdb, 0x97, 0xf8, 0x16, 0x63, 0xb5, 0x4f, 0xd7, 0xe8, 0x8d, 0x2e, 0x4a, 0xc7, 0xd0, 0xca,
+	0x85, 0x8b, 0x78, 0xbc, 0x72, 0x81, 0x4b, 0x21, 0xdd, 0xa7, 0xd7, 0x41, 0x17, 0xde, 0xce, 0x17,
+	0x7a, 0xf7, 0xbf, 0x7d, 0xec, 0x5d, 0xa5, 0xb4, 0xcc, 0x70, 0x5f, 0x5c, 0x97, 0x51, 0xf8, 0xbb,
+	0x37, 0x4f, 0x93, 0xbb, 0xef, 0xbc, 0x3b, 0x9b, 0x7a, 0x64, 0x32, 0xf5, 0xc8, 0xdf, 0xa9, 0x47,
+	0xbe, 0xcf, 0xbc, 0xd2, 0x64, 0xe6, 0x95, 0x7e, 0xcf, 0xbc, 0xd2, 0xc7, 0xe7, 0x52, 0xd9, 0x70,
+	0x78, 0xe8, 0x07, 0x10, 0xb1, 0x18, 0x06, 0xa2, 0xb5, 0xd7, 0x6a, 0x2a, 0x60, 0x99, 0x5f, 0xf3,
+	0xd2, 0x17, 0x61, 0x4f, 0xb4, 0xc0, 0xc3, 0xf5, 0xf4, 0x85, 0x3f, 0xf9, 0x17, 0x00, 0x00, 0xff,
+	0xff, 0xa4, 0xf8, 0x61, 0xf5, 0xad, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -177,6 +274,8 @@ type MsgClient interface {
 	// UpdateParams defines a (governance) operation for updating the module
 	// parameters. The authority defaults to the x/gov module account.
 	UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error)
+	// PushNewProofHash defines the PushNewProofHash RPC.
+	PushNewProofHash(ctx context.Context, in *MsgPushNewProofHash, opts ...grpc.CallOption) (*MsgPushNewProofHashResponse, error)
 }
 
 type msgClient struct {
@@ -196,11 +295,22 @@ func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts 
 	return out, nil
 }
 
+func (c *msgClient) PushNewProofHash(ctx context.Context, in *MsgPushNewProofHash, opts ...grpc.CallOption) (*MsgPushNewProofHashResponse, error) {
+	out := new(MsgPushNewProofHashResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.verification.v1.Msg/PushNewProofHash", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// UpdateParams defines a (governance) operation for updating the module
 	// parameters. The authority defaults to the x/gov module account.
 	UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error)
+	// PushNewProofHash defines the PushNewProofHash RPC.
+	PushNewProofHash(context.Context, *MsgPushNewProofHash) (*MsgPushNewProofHashResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
@@ -209,6 +319,9 @@ type UnimplementedMsgServer struct {
 
 func (*UnimplementedMsgServer) UpdateParams(ctx context.Context, req *MsgUpdateParams) (*MsgUpdateParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateParams not implemented")
+}
+func (*UnimplementedMsgServer) PushNewProofHash(ctx context.Context, req *MsgPushNewProofHash) (*MsgPushNewProofHashResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushNewProofHash not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
@@ -233,6 +346,24 @@ func _Msg_UpdateParams_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_PushNewProofHash_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgPushNewProofHash)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).PushNewProofHash(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.verification.v1.Msg/PushNewProofHash",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).PushNewProofHash(ctx, req.(*MsgPushNewProofHash))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Msg_serviceDesc = _Msg_serviceDesc
 var _Msg_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pulsarchain.verification.v1.Msg",
@@ -241,6 +372,10 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateParams",
 			Handler:    _Msg_UpdateParams_Handler,
+		},
+		{
+			MethodName: "PushNewProofHash",
+			Handler:    _Msg_PushNewProofHash_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -310,6 +445,66 @@ func (m *MsgUpdateParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
+func (m *MsgPushNewProofHash) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgPushNewProofHash) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgPushNewProofHash) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ProofHash) > 0 {
+		i -= len(m.ProofHash)
+		copy(dAtA[i:], m.ProofHash)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.ProofHash)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Creator) > 0 {
+		i -= len(m.Creator)
+		copy(dAtA[i:], m.Creator)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Creator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgPushNewProofHashResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgPushNewProofHashResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgPushNewProofHashResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	offset -= sovTx(v)
 	base := offset
@@ -337,6 +532,32 @@ func (m *MsgUpdateParams) Size() (n int) {
 }
 
 func (m *MsgUpdateParamsResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgPushNewProofHash) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Creator)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.ProofHash)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgPushNewProofHashResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -493,6 +714,172 @@ func (m *MsgUpdateParamsResponse) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: MsgUpdateParamsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgPushNewProofHash) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgPushNewProofHash: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgPushNewProofHash: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Creator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Creator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProofHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ProofHash = append(m.ProofHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.ProofHash == nil {
+				m.ProofHash = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgPushNewProofHashResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgPushNewProofHashResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgPushNewProofHashResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:
