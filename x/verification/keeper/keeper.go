@@ -80,14 +80,6 @@ func (k Keeper) AppendPendingProof(ctx context.Context, pendingProof []byte,
 
 	key := collections.Join(blockHeight, pendingProofIndex)
 
-	exists, err := k.pendingProofs.Has(ctx, key)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return types.ErrPendingProofAlreadyExists
-	}
-
 	if err := k.pendingProofs.Set(ctx, key, pendingProof); err != nil {
 		return err
 	}
