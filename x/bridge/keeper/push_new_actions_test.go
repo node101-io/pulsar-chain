@@ -485,7 +485,6 @@ func TestPushNewActionsRejectsInvalidOrNonAdvancingTargetsWithoutMutatingState(t
 			seedPushNewActionsState(t, f, tc.latestFetchedMinaHeight)
 
 			beforeBalance := append(sdk.Coins(nil), bankKeeper.spendable...)
-
 			beforeState, err := f.keeper.GetBridgeState(f.ctx)
 			require.NoError(t, err)
 
@@ -723,7 +722,7 @@ func TestPushNewActionsRejectsActionsOutsideRequestedRangeBeforeMutation(t *test
 	}
 }
 
-func TestPushNewActionsRejectsNonPositiveAmountsWithoutMutation(t *testing.T) {
+func TestPushNewActionsRecordsNonPositiveAmountsAsInvalidLeaves(t *testing.T) {
 	testCases := []struct {
 		name       string
 		actionType bridgetypes.ActionType
@@ -753,15 +752,12 @@ func TestPushNewActionsRejectsNonPositiveAmountsWithoutMutation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			minaPubKey := mustMinaPublicKeyBytes(t)
+			action := newAction(t, minaPubKey, 11, tc.actionType, tc.amount)
+
 			client := &stubArchiveWrapperQueryClient{
 				minaBlockHeight: 11,
-				actions: []bridgetypes.Action{
-					{
-						BlockHeight: 11,
-						ActionType:  tc.actionType,
-						Amount:      tc.amount,
-					},
-				},
+				actions:         []bridgetypes.Action{action},
 			}
 
 			bankKeeper := NewMockBankKeeper()
@@ -772,9 +768,6 @@ func TestPushNewActionsRejectsNonPositiveAmountsWithoutMutation(t *testing.T) {
 
 			beforeBalance := append(sdk.Coins(nil), bankKeeper.spendable...)
 
-			beforeState, err := f.keeper.GetBridgeState(f.ctx)
-			require.NoError(t, err)
-
 			beforeRoot := latestActionsReducedRoot(t, f)
 
 			ms := bridgekeeper.NewMsgServerImpl(f.keeper)
@@ -784,15 +777,20 @@ func TestPushNewActionsRejectsNonPositiveAmountsWithoutMutation(t *testing.T) {
 				MinaBlockHeight: 11,
 			})
 
-			require.ErrorIs(t, err, bridgetypes.ErrInvalidActionAmount)
-			require.Nil(t, resp)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
 
 			afterState, err := f.keeper.GetBridgeState(f.ctx)
 			require.NoError(t, err)
-			require.Equal(t, beforeState, afterState)
+			require.Equal(t, int64(11), afterState.LatestFetchedMinaHeight)
+
+			invalidField, err := action.ToFieldElement(false)
+			require.NoError(t, err)
+			require.Equal(t, []string{invalidField.String()}, afterState.ActionHashes)
 
 			afterRoot := latestActionsReducedRoot(t, f)
-			require.Equal(t, beforeRoot, afterRoot)
+			require.NotEqual(t, beforeRoot, afterRoot)
+			require.Equal(t, expectedActionsReducedRoot(t, false, action), afterRoot)
 
 			require.Equal(t, beforeBalance, bankKeeper.spendable)
 			require.Zero(t, bankKeeper.spendableCalls)
