@@ -6,6 +6,8 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/node101-io/pulsar-chain/x/verification/keeper"
 	"github.com/node101-io/pulsar-chain/x/verification/types"
@@ -99,5 +101,84 @@ func TestPushNewProofHash(t *testing.T) {
 		storedProofHash, err := f.keeper.GetPendingProof(ctx, blockHeight, int64(index))
 		require.NoError(t, err)
 		require.Equal(t, proofHash, storedProofHash)
+	}
+}
+
+func TestPushNewProofHashErrors(t *testing.T) {
+	tests := []struct {
+		name         string
+		message      func(string) *types.MsgPushNewProofHash
+		removeParams bool
+		expectedCode codes.Code
+		expectedText string
+	}{
+		{
+			name: "nil request",
+			message: func(string) *types.MsgPushNewProofHash {
+				return nil
+			},
+			expectedCode: codes.InvalidArgument,
+			expectedText: types.ErrInvalidPushNewProofHashRequest.Error(),
+		},
+		{
+			name: "invalid creator address",
+			message: func(string) *types.MsgPushNewProofHash {
+				return &types.MsgPushNewProofHash{
+					Creator:   "invalid",
+					ProofHash: bytes.Repeat([]byte{0x11}, 32),
+				}
+			},
+			expectedCode: codes.InvalidArgument,
+			expectedText: types.ErrInvalidCreatorAddress.Error(),
+		},
+		{
+			name: "empty proof hash",
+			message: func(creator string) *types.MsgPushNewProofHash {
+				return &types.MsgPushNewProofHash{Creator: creator}
+			},
+			expectedCode: codes.InvalidArgument,
+			expectedText: types.ErrInvalidProofHashLength.Error(),
+		},
+		{
+			name: "invalid proof hash length",
+			message: func(creator string) *types.MsgPushNewProofHash {
+				return &types.MsgPushNewProofHash{
+					Creator:   creator,
+					ProofHash: bytes.Repeat([]byte{0x11}, 31),
+				}
+			},
+			expectedCode: codes.InvalidArgument,
+			expectedText: types.ErrInvalidProofHashLength.Error(),
+		},
+		{
+			name: "append pending proof failure",
+			message: func(creator string) *types.MsgPushNewProofHash {
+				return &types.MsgPushNewProofHash{
+					Creator:   creator,
+					ProofHash: bytes.Repeat([]byte{0x11}, 32),
+				}
+			},
+			removeParams: true,
+			expectedCode: codes.Internal,
+			expectedText: types.ErrFailedToAppendPendingProof.Error(),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			f := initFixture(t)
+			ctx := sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(42)
+			creator, err := f.addressCodec.BytesToString(f.keeper.GetAuthority())
+			require.NoError(t, err)
+
+			if test.removeParams {
+				require.NoError(t, f.keeper.Params.Remove(ctx))
+			}
+
+			_, err = keeper.NewMsgServerImpl(f.keeper).PushNewProofHash(ctx, test.message(creator))
+			require.Error(t, err)
+			require.Equal(t, test.expectedCode, status.Code(err))
+			require.ErrorContains(t, err, test.expectedText)
+		})
 	}
 }
