@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	minafield "github.com/node101-io/mina-signer-go/field"
+	merkle "github.com/node101-io/mina-signer-go/merklelist"
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
 	"github.com/stretchr/testify/require"
 )
@@ -56,6 +57,28 @@ func setRuntimeBatch(
 	latestFetchedMinaHeight int64,
 	hashes []string,
 ) {
+	baseRoot := canonicalRoot(uint64(sourceCosmosHeight - 1))
+	list, err := merkle.NewMerkleListFromRoot(types.ActionsReducedRootMerkleListPrefixV1, baseRoot)
+	if err != nil {
+		panic(err)
+	}
+	fieldCodec := minafield.NewField()
+	for _, hash := range hashes {
+		n, ok := new(big.Int).SetString(hash, 10)
+		if !ok {
+			panic("invalid test action hash")
+		}
+		fixed := make([]byte, fieldCodec.ElementSize())
+		copy(fixed[len(fixed)-len(n.Bytes()):], n.Bytes())
+		fieldElement, err := fieldCodec.FromBytes(fixed)
+		if err != nil {
+			panic(err)
+		}
+		if err := list.Append(fieldElement.Bytes()); err != nil {
+			panic(err)
+		}
+	}
+
 	gs.BridgeState = types.BridgeState{
 		LatestFetchedMinaHeight:       latestFetchedMinaHeight,
 		ActionHashes:                  hashes,
@@ -64,8 +87,12 @@ func setRuntimeBatch(
 	}
 	gs.ActionsReducedRootSnapshots = []types.ActionsReducedRootSnapshot{
 		{
+			CosmosBlockHeight:  sourceCosmosHeight - 1,
+			ActionsReducedRoot: baseRoot,
+		},
+		{
 			CosmosBlockHeight:  sourceCosmosHeight,
-			ActionsReducedRoot: canonicalRoot(uint64(sourceCosmosHeight)),
+			ActionsReducedRoot: list.Root(),
 		},
 	}
 }
@@ -249,6 +276,14 @@ func TestGenesisStateValidate(t *testing.T) {
 			wantErr: types.ErrInvalidActionBatch,
 		},
 		{
+			name: "runtime batch requires preceding snapshot",
+			mutate: func(gs *types.GenesisState) {
+				setRuntimeBatch(gs, 77, 41, 43, []string{canonicalActionHash(42)})
+				gs.ActionsReducedRootSnapshots = gs.ActionsReducedRootSnapshots[1:]
+			},
+			wantErr: types.ErrInvalidActionBatch,
+		},
+		{
 			name: "empty snapshots",
 			mutate: func(gs *types.GenesisState) {
 				gs.ActionsReducedRootSnapshots = nil
@@ -329,12 +364,37 @@ func TestGenesisStateValidate(t *testing.T) {
 	}
 }
 
-func TestGenesisStateValidateAcceptsCustomCanonicalSnapshotRoot(t *testing.T) {
-	gs := validGenesisState()
-	setRuntimeBatch(gs, 10, 41, 43, nil)
-	gs.ActionsReducedRootSnapshots[0].ActionsReducedRoot = canonicalRoot(42)
+func TestGenesisStateValidateRejectsTamperedRuntimeBatch(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*types.GenesisState)
+	}{
+		{
+			name: "tampered action hash",
+			mutate: func(gs *types.GenesisState) {
+				gs.BridgeState.ActionHashes[0] = canonicalActionHash(44)
+			},
+		},
+		{
+			name: "tampered newest root",
+			mutate: func(gs *types.GenesisState) {
+				gs.ActionsReducedRootSnapshots[len(gs.ActionsReducedRootSnapshots)-1].ActionsReducedRoot = canonicalRoot(44)
+			},
+		},
+	}
 
-	require.NoError(t, gs.Validate())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gs := validGenesisState()
+			setRuntimeBatch(gs, 10, 41, 43, []string{
+				canonicalActionHash(42),
+				canonicalActionHash(43),
+			})
+			tt.mutate(gs)
+
+			require.ErrorIs(t, gs.Validate(), types.ErrInvalidActionBatch)
+		})
+	}
 }
 
 func TestGenesisStateValidateAcceptsRollingWindowWithoutHeightZero(t *testing.T) {
@@ -348,7 +408,7 @@ func TestGenesisStateValidateAcceptsRollingWindowWithoutHeightZero(t *testing.T)
 		{CosmosBlockHeight: 10, ActionsReducedRoot: canonicalRoot(10)},
 		{CosmosBlockHeight: 11, ActionsReducedRoot: canonicalRoot(11)},
 		{CosmosBlockHeight: 12, ActionsReducedRoot: canonicalRoot(12)},
-		{CosmosBlockHeight: 13, ActionsReducedRoot: canonicalRoot(13)},
+		{CosmosBlockHeight: 13, ActionsReducedRoot: canonicalRoot(12)},
 	}
 
 	require.NoError(t, gs.Validate())
@@ -400,20 +460,10 @@ func TestDefaultGenesisJSONRoundTrip(t *testing.T) {
 
 func TestGenesisStateJSONRoundTripWithCustomCanonicalSnapshotRoot(t *testing.T) {
 	gs := validGenesisState()
-	gs.BridgeState.LatestFetchedMinaHeight = 43
-	gs.BridgeState.ActionHashes = []string{
+	setRuntimeBatch(gs, 77, 41, 43, []string{
 		canonicalActionHash(42),
 		canonicalActionHash(43),
-	}
-	gs.BridgeState.ActionHashesCosmosBlockHeight = 77
-	gs.BridgeState.StartMinaHeight = 41
-	gs.ActionsReducedRootSnapshots = append(
-		gs.ActionsReducedRootSnapshots,
-		types.ActionsReducedRootSnapshot{
-			CosmosBlockHeight:  77,
-			ActionsReducedRoot: canonicalRoot(42),
-		},
-	)
+	})
 	cdc := newProtoCodec()
 
 	bz := cdc.MustMarshalJSON(gs)

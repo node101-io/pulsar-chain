@@ -51,19 +51,24 @@ func (s BridgeState) Validate() error {
 }
 
 func validateCanonicalActionHash(hash string) error {
+	_, err := canonicalActionHashBytes(hash)
+	return err
+}
+
+func canonicalActionHashBytes(hash string) ([]byte, error) {
 	if strings.TrimSpace(hash) != hash || hash == "" {
-		return ErrInvalidActionHash
+		return nil, ErrInvalidActionHash
 	}
 
 	n, ok := new(big.Int).SetString(hash, 10)
 	if !ok || n.Sign() < 0 || n.String() != hash {
-		return ErrInvalidActionHash
+		return nil, ErrInvalidActionHash
 	}
 
 	field := minafield.NewField()
 	raw := n.Bytes()
 	if len(raw) > field.ElementSize() {
-		return ErrInvalidActionHash
+		return nil, ErrInvalidActionHash
 	}
 
 	fixed := make([]byte, field.ElementSize())
@@ -71,8 +76,8 @@ func validateCanonicalActionHash(hash string) error {
 
 	element, err := field.FromBytes(fixed)
 	if err != nil || element.String() != hash {
-		return ErrInvalidActionHash
+		return nil, ErrInvalidActionHash
 	}
 
-	return nil
+	return element.Bytes(), nil
 }
