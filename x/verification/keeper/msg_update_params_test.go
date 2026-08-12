@@ -44,6 +44,24 @@ func TestMsgUpdateParams(t *testing.T) {
 			expErr: false,
 		},
 		{
+			name: "invalid pending proof window size",
+			input: &types.MsgUpdateParams{
+				Authority: authorityStr,
+				Params:    types.NewParams(0, 256),
+			},
+			expErr:    true,
+			expErrMsg: types.ErrPendingProofBlocksWindowSizeMustBeGreaterThanZero.Error(),
+		},
+		{
+			name: "invalid max proof range",
+			input: &types.MsgUpdateParams{
+				Authority: authorityStr,
+				Params:    types.NewParams(6, 0),
+			},
+			expErr:    true,
+			expErrMsg: types.ErrMaxProofRangeMustBeGreaterThanZero.Error(),
+		},
+		{
 			name: "all good",
 			input: &types.MsgUpdateParams{
 				Authority: authorityStr,

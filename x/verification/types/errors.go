@@ -15,4 +15,5 @@ var (
 	ErrInvalidCreatorAddress                             = errors.Register(ModuleName, 1104, "invalid creator address")
 	ErrInvalidProofHashLength                            = errors.Register(ModuleName, 1105, "proof hash must be exactly 32 bytes")
 	ErrFailedToAppendPendingProof                        = errors.Register(ModuleName, 1106, "failed to append pending proof")
+	ErrMaxProofRangeMustBeGreaterThanZero                = errors.Register(ModuleName, 1107, "max_proof_range must be greater than 0")
 )

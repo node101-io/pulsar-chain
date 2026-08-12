@@ -75,6 +75,17 @@ func TestAppendPendingProof(t *testing.T) {
 	require.False(t, oldBlockExists)
 }
 
+func TestAppendPendingProofRejectsBlockProofLimit(t *testing.T) {
+	f := initFixture(t)
+	require.NoError(t, f.keeper.Params.Set(f.ctx, types.NewParams(6, 2)))
+
+	require.NoError(t, f.keeper.AppendPendingProof(f.ctx, []byte("proof-0"), 20))
+	require.NoError(t, f.keeper.AppendPendingProof(f.ctx, []byte("proof-1"), 20))
+
+	err := f.keeper.AppendPendingProof(f.ctx, []byte("proof-2"), 20)
+	require.ErrorIs(t, err, types.ErrFailedToAppendPendingProof)
+}
+
 func TestPushNewProofHash(t *testing.T) {
 	f := initFixture(t)
 	blockHeight := int64(42)
