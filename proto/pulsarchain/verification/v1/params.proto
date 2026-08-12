@@ -12,4 +12,7 @@ message Params {
   option (gogoproto.equal) = true;
 
   int64 pending_proof_blocks_window_size = 1;
+
+  // max_proof_range is the maximum number of pending proofs allowed in one block.
+  int64 max_proof_range = 2;
 }

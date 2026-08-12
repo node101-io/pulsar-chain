@@ -68,6 +68,7 @@ genesis:
     verification:
       params: 
         pending_proof_blocks_window_size: "6"
+        max_proof_range: "256"
   consensus:
     params:
       abci:

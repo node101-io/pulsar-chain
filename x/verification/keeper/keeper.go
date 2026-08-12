@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/collections"
 	"cosmossdk.io/core/address"
 	corestore "cosmossdk.io/core/store"
+	"cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/codec"
 
 	"github.com/node101-io/pulsar-chain/x/verification/types"
@@ -73,9 +74,22 @@ func (k Keeper) GetAuthority() []byte {
 func (k Keeper) AppendPendingProof(ctx context.Context, pendingProof []byte,
 	blockHeight int64) error {
 
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return err
+	}
+
 	pendingProofIndex, err := k.GetNextPendingProofIndex(ctx, blockHeight)
 	if err != nil {
 		return err
+	}
+
+	// MaxProofRange limits how many zero-based pending proof indexes a block may contain.
+	if pendingProofIndex >= params.MaxProofRange {
+		return errors.Wrap(
+			types.ErrFailedToAppendPendingProof,
+			"number of proof limit has been reached",
+		)
 	}
 
 	key := collections.Join(blockHeight, pendingProofIndex)
