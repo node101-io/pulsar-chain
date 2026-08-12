@@ -63,6 +63,56 @@ func (gs GenesisState) Validate() error {
 			newestSnapshot.CosmosBlockHeight,
 		)
 	}
+	if err := validateRuntimeActionBatchRoot(
+		gs.BridgeState,
+		gs.ActionsReducedRootSnapshots,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateRuntimeActionBatchRoot(
+	bridgeState BridgeState,
+	snapshots []ActionsReducedRootSnapshot,
+) error {
+	if bridgeState.ActionHashesCosmosBlockHeight == 0 {
+		return nil
+	}
+	if len(snapshots) < 2 {
+		return errorsmod.Wrap(
+			ErrInvalidActionBatch,
+			"runtime batch requires the preceding actions reduced root snapshot",
+		)
+	}
+
+	previousSnapshot := snapshots[len(snapshots)-2]
+	newestSnapshot := snapshots[len(snapshots)-1]
+	list, err := minasignergo.NewMerkleListFromRoot(
+		ActionsReducedRootMerkleListPrefixV1,
+		previousSnapshot.ActionsReducedRoot,
+	)
+	if err != nil {
+		return errorsmod.Wrap(ErrInvalidActionBatch, err.Error())
+	}
+
+	for i, hash := range bridgeState.ActionHashes {
+		hashBytes, err := canonicalActionHashBytes(hash)
+		if err != nil {
+			return errorsmod.Wrapf(ErrInvalidActionBatch, "action_hashes[%d]: %v", i, err)
+		}
+		if err := list.Append(hashBytes); err != nil {
+			return errorsmod.Wrapf(ErrInvalidActionBatch, "append action_hashes[%d]: %v", i, err)
+		}
+	}
+
+	if !bytes.Equal(list.Root(), newestSnapshot.ActionsReducedRoot) {
+		return errorsmod.Wrap(
+			ErrInvalidActionBatch,
+			"action_hashes do not reproduce the newest actions reduced root snapshot",
+		)
+	}
 
 	return nil
 }
