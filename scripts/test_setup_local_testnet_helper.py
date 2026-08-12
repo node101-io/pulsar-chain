@@ -332,6 +332,67 @@ class E2EFixtureTest(unittest.TestCase):
             bridge["bridge_state"],
         )
 
+    def test_sync_genesis_module_params_copies_all_configured_fields(self):
+        config = self.write_temp(
+            "config.yml",
+            """genesis:
+  app_state:
+    verification:
+      params:
+        pending_proof_blocks_window_size: "6"
+        max_proof_range: "256"
+        future_param: "99"
+""",
+        )
+        genesis = self.write_temp(
+            "genesis.json",
+            json.dumps(
+                {
+                    "app_state": {
+                        "verification": {
+                            "params": {"existing_default": "kept"}
+                        }
+                    }
+                }
+            ),
+        )
+
+        self.assertEqual(
+            0,
+            helper.sync_genesis_module_params(
+                str(genesis), str(config), "verification"
+            ),
+        )
+
+        params = json.loads(genesis.read_text(encoding="utf-8"))["app_state"][
+            "verification"
+        ]["params"]
+        self.assertEqual(
+            {
+                "existing_default": "kept",
+                "pending_proof_blocks_window_size": "6",
+                "max_proof_range": "256",
+                "future_param": "99",
+            },
+            params,
+        )
+        self.assertEqual(
+            0,
+            helper.verify_genesis_module_params(
+                str(genesis), str(config), "verification"
+            ),
+        )
+
+        params["future_param"] = "100"
+        genesis.write_text(
+            json.dumps({"app_state": {"verification": {"params": params}}}),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SystemExit, "future_param"):
+            helper.verify_genesis_module_params(
+                str(genesis), str(config), "verification"
+            )
+
     def test_render_e2e_seed_replaces_exactly_one_placeholder(self):
         template = self.write_temp(
             "seed.sql.tmpl", "fee_payer = '__E2E_MINA_PUBLIC_KEY__';\n"
