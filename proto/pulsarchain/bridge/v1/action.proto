@@ -18,7 +18,10 @@ message Action {
   // block_height is the Mina block height containing the action.
   int64 block_height = 1;
 
+  // x_coordinate is the 32-byte canonical big-endian encoding of the
+  // account's affine Pallas x-coordinate.
   bytes x_coordinate = 2;
+  // is_odd selects the affine y-coordinate with odd parity for x_coordinate.
   bool is_odd = 3;
   // action_type identifies the bridge operation to execute.
   ActionType action_type = 4;

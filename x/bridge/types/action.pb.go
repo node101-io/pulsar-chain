@@ -57,9 +57,12 @@ func (ActionType) EnumDescriptor() ([]byte, []int) {
 // Action represents one finalized Mina bridge action.
 type Action struct {
 	// block_height is the Mina block height containing the action.
-	BlockHeight int64  `protobuf:"varint,1,opt,name=block_height,json=blockHeight,proto3" json:"block_height,omitempty"`
+	BlockHeight int64 `protobuf:"varint,1,opt,name=block_height,json=blockHeight,proto3" json:"block_height,omitempty"`
+	// x_coordinate is the 32-byte canonical big-endian encoding of the
+	// account's affine Pallas x-coordinate.
 	XCoordinate []byte `protobuf:"bytes,2,opt,name=x_coordinate,json=xCoordinate,proto3" json:"x_coordinate,omitempty"`
-	IsOdd       bool   `protobuf:"varint,3,opt,name=is_odd,json=isOdd,proto3" json:"is_odd,omitempty"`
+	// is_odd selects the affine y-coordinate with odd parity for x_coordinate.
+	IsOdd bool `protobuf:"varint,3,opt,name=is_odd,json=isOdd,proto3" json:"is_odd,omitempty"`
 	// action_type identifies the bridge operation to execute.
 	ActionType ActionType `protobuf:"varint,4,opt,name=action_type,json=actionType,proto3,enum=pulsarchain.bridge.v1.ActionType" json:"action_type,omitempty"`
 	// amount is the pmina amount handled by the action.
