@@ -41,7 +41,7 @@ func (k *Keeper) validateAction(ctx context.Context, act types.Action) ([]byte, 
 		valid, err = k.isValidWithdrawal(ctx, act, minaPublicKey)
 	}
 	if err != nil {
-		return nil, false, nil
+		return nil, false, err
 	}
 	if !valid {
 		return nil, false, nil
