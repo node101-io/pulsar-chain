@@ -176,7 +176,9 @@ func initTestnetFiles(
 
 	appConfig := srvconfig.DefaultConfig()
 	appConfig.MinGasPrices = args.minGasPrices
-	appConfig.API.Enable = false
+	// Browsers talk to these nodes directly; the RPC gets the same below.
+	appConfig.API.Enable = true
+	appConfig.API.EnableUnsafeCORS = true
 	appConfig.BaseConfig.MinGasPrices = "0.0001" + sdk.DefaultBondDenom
 	appConfig.Telemetry.EnableHostnameLabel = false
 	appConfig.Telemetry.Enabled = false
@@ -448,6 +450,7 @@ func collectGenFiles(
 		nodeConfig.P2P.AllowDuplicateIP = true
 		nodeConfig.P2P.ListenAddress = "tcp://0.0.0.0:" + strconv.Itoa(26656-3*i)
 		nodeConfig.RPC.ListenAddress = "tcp://127.0.0.1:" + args.ports[i]
+		nodeConfig.RPC.CORSAllowedOrigins = []string{"*"}
 		nodeConfig.BaseConfig.ProxyApp = "tcp://127.0.0.1:" + strconv.Itoa(26658-3*i)
 		nodeConfig.Instrumentation.PrometheusListenAddr = ":" + strconv.Itoa(26660+i)
 		nodeConfig.Instrumentation.Prometheus = true
