@@ -50,10 +50,15 @@ func (k msgServer) persistUserRegistration(ctx context.Context, msg *types.MsgRe
 	if err != nil {
 		return err
 	}
-	cosmosSigValidity := VerifyUserCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
-	if !minaSigValidity || !cosmosSigValidity {
-		return errors.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
+	if !minaSigValidity {
+		return errors.Wrap(types.ErrInvalidSignature, "invalid mina signature")
 	}
+
+	// No separate Cosmos signature here: the tx itself is Cosmos-signed (a
+	// first registration cannot be Mina-authenticated) and creator is checked
+	// against CosmosPublicKey above, so that key already signed this binding.
+	// Updates and validator registration still require it — they lack one or
+	// both of those guarantees.
 
 	err = k.Keeper.userCosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)
 	if err != nil {

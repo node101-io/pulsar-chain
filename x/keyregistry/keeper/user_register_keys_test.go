@@ -218,7 +218,40 @@ func TestUserInvalidSigner(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
 }
 
-func TestUserInvalidSignature(t *testing.T) {
+// TestUserInvalidMinaSignature covers the one signature registration depends on.
+func TestUserInvalidMinaSignature(t *testing.T) {
+
+	f := initFixture(t)
+	ms := keeper.NewMsgServerImpl(f.keeper)
+
+	cosmosPriv := generateUserCosmosPrivKey()
+	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	require.NoError(t, err)
+
+	creator, cosmosPubKey, minaPubKey, cosmosSig, _, err := signUserRegistration(cosmosPriv, minaPriv)
+	require.NoError(t, err)
+
+	// A well-formed signature from a DIFFERENT Mina key.
+	otherMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_USER)
+	require.NoError(t, err)
+	wrongMinaSig, err := otherMinaPriv.SignBytes(cosmosPubKey)
+	require.NoError(t, err)
+
+	_, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
+		Creator:         creator,
+		CosmosSignature: cosmosSig,
+		MinaSignature:   wrongMinaSig.Bytes(),
+		CosmosPublicKey: cosmosPubKey,
+		MinaPublicKey:   minaPubKey,
+		ActorType:       types.ActorType_USER,
+	})
+	require.Error(t, err)
+}
+
+// TestUserRegistrationIgnoresCosmosSignature pins the asymmetry deliberately,
+// so it reads as a decision rather than an oversight. Updates and validator
+// registrations still enforce the signature; see their tests.
+func TestUserRegistrationIgnoresCosmosSignature(t *testing.T) {
 
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
@@ -241,7 +274,11 @@ func TestUserInvalidSignature(t *testing.T) {
 		MinaPublicKey:   minaPubKey,
 		ActorType:       types.ActorType_USER,
 	})
-	require.ErrorIs(t, err, types.ErrInvalidSignature)
+	require.NoError(t, err)
+
+	stored, err := f.keeper.UserGetCosmosToMina(f.ctx, cosmosPubKey)
+	require.NoError(t, err)
+	require.Equal(t, minaPubKey, stored)
 }
 
 func TestUserMalformedMinaSignature(t *testing.T) {
