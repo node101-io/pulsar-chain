@@ -1,0 +1,14 @@
+syntax = "proto3";
+package pulsarchain.keyregistry.v1;
+
+option go_package = "github.com/node101-io/pulsar-chain/x/keyregistry/types";
+
+// ActorType identifies the key-registry actor authorized by a signing challenge.
+enum ActorType {
+  // ACTOR_TYPE_UNSPECIFIED is invalid for key-registry operations.
+  ACTOR_TYPE_UNSPECIFIED = 0;
+  // ACTOR_TYPE_USER identifies a user account key association.
+  ACTOR_TYPE_USER = 1;
+  // ACTOR_TYPE_VALIDATOR identifies a validator consensus key association.
+  ACTOR_TYPE_VALIDATOR = 2;
+}

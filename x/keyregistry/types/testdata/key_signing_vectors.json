@@ -1,0 +1,50 @@
+[
+  {
+    "name": "register_user",
+    "chain_id": "pulsar-test-1",
+    "operation": "KEY_SIGNING_OPERATION_REGISTER",
+    "actor_type": "ACTOR_TYPE_USER",
+    "cosmos_public_key_hex": "028e23b60777010732ad6bc2607f5ee5624fbba62ad284bc1300852cf90b2d94b0",
+    "current_mina_public_key_base64": "",
+    "new_mina_public_key_base64": "rMvdD37uiZopL5F0Sb8TSREzLwNyjUK35V8FWM4DA7o=",
+    "new_key_version": 0,
+    "challenge_decimal": "19271892855978733589501325189823203537033416443790720927570198753248041485521",
+    "challenge_base64": "KpuBOyr4aRAWxcSCKSoMYvWCABC1L3sZNiwFAAV/xNE="
+  },
+  {
+    "name": "update_user",
+    "chain_id": "pulsar-test-1",
+    "operation": "KEY_SIGNING_OPERATION_UPDATE",
+    "actor_type": "ACTOR_TYPE_USER",
+    "cosmos_public_key_hex": "028e23b60777010732ad6bc2607f5ee5624fbba62ad284bc1300852cf90b2d94b0",
+    "current_mina_public_key_base64": "9cbJr5Q1q4xz+CcvADf4JaheDlk8mxb9z5/pWZqeJYI=",
+    "new_mina_public_key_base64": "rMvdD37uiZopL5F0Sb8TSREzLwNyjUK35V8FWM4DA7o=",
+    "new_key_version": 1,
+    "challenge_decimal": "17794979355109105488044390992239304909814443811580849143217189411639745845781",
+    "challenge_base64": "J1eZ9MDV5QkSUBYR7u71zeSDvn5C3rxpFaxPiY+EGhU="
+  },
+  {
+    "name": "register_validator",
+    "chain_id": "pulsar-test-1",
+    "operation": "KEY_SIGNING_OPERATION_REGISTER",
+    "actor_type": "ACTOR_TYPE_VALIDATOR",
+    "cosmos_public_key_hex": "0100000000000000000000000000000000000000000000000000000000000000",
+    "current_mina_public_key_base64": "",
+    "new_mina_public_key_base64": "rMvdD37uiZopL5F0Sb8TSREzLwNyjUK35V8FWM4DA7o=",
+    "new_key_version": 0,
+    "challenge_decimal": "15665624911581878981409979211033672482051283859069080217104144643098470280674",
+    "challenge_base64": "IqJt8sOWjQMCKfpFwCf6fj2IPUHwtdHWTIKixwXIbeI="
+  },
+  {
+    "name": "update_validator",
+    "chain_id": "pulsar-test-1",
+    "operation": "KEY_SIGNING_OPERATION_UPDATE",
+    "actor_type": "ACTOR_TYPE_VALIDATOR",
+    "cosmos_public_key_hex": "0100000000000000000000000000000000000000000000000000000000000000",
+    "current_mina_public_key_base64": "9cbJr5Q1q4xz+CcvADf4JaheDlk8mxb9z5/pWZqeJYI=",
+    "new_mina_public_key_base64": "rMvdD37uiZopL5F0Sb8TSREzLwNyjUK35V8FWM4DA7o=",
+    "new_key_version": 1,
+    "challenge_decimal": "24917972318967178856988867503131742785190812169642085053131317560155888091364",
+    "challenge_base64": "NxcSkeG4YZxqNurUvwohVw7Y58WlFmr9usAmjcLTAOQ="
+  }
+]

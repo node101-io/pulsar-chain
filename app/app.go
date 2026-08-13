@@ -219,8 +219,12 @@ func New(
 	if !ok || networkId == "" {
 		panic("mina.network_id is missing or not a string")
 	}
+	minaNetworkID, err := normalizeMinaNetworkID(networkId)
+	if err != nil {
+		panic(err)
+	}
 
-	secondaryKey, err := parseSecondaryKey(appOpts, mina.NetworkID(networkId))
+	secondaryKey, err := parseSecondaryKey(appOpts, minaNetworkID)
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))
 	}
@@ -230,7 +234,7 @@ func New(
 		app.StakingKeeper,
 		app.KeyregistryKeeper,
 		app.VotepersistenceKeeper,
-		mina.NetworkID(networkId),
+		minaNetworkID,
 		app.BridgeKeeper,
 	)
 	if err != nil {
@@ -252,7 +256,7 @@ func New(
 				SignModeHandler:   app.txConfig.SignModeHandler(),
 				SigGasConsumer:    authante.DefaultSigVerificationGasConsumer,
 				KeyregistryKeeper: &app.KeyregistryKeeper,
-				MinaNetworkID:     networkId,
+				MinaNetworkID:     string(minaNetworkID),
 				Logger:            logger,
 			})
 			if err != nil {

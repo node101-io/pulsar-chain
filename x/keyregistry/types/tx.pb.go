@@ -124,28 +124,27 @@ func (m *MsgUpdateParamsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
-// MsgRegisterKeys defines the MsgRegisterKeys message.
-type MsgRegisterKeys struct {
-	Creator         string    `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
-	CosmosPublicKey []byte    `protobuf:"bytes,2,opt,name=cosmos_public_key,json=cosmosPublicKey,proto3" json:"cosmos_public_key,omitempty"`
-	MinaPublicKey   []byte    `protobuf:"bytes,3,opt,name=mina_public_key,json=minaPublicKey,proto3" json:"mina_public_key,omitempty"`
-	CosmosSignature []byte    `protobuf:"bytes,4,opt,name=cosmos_signature,json=cosmosSignature,proto3" json:"cosmos_signature,omitempty"`
-	MinaSignature   []byte    `protobuf:"bytes,5,opt,name=mina_signature,json=minaSignature,proto3" json:"mina_signature,omitempty"`
-	ActorType       ActorType `protobuf:"varint,6,opt,name=actor_type,json=actorType,proto3,enum=pulsarchain.keyregistry.v1.ActorType" json:"actor_type,omitempty"`
+// MsgRegisterUserKeys creates a user key association authorized by the Cosmos
+// transaction signer and the Mina key owner.
+type MsgRegisterUserKeys struct {
+	Creator         string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	CosmosPublicKey []byte `protobuf:"bytes,2,opt,name=cosmos_public_key,json=cosmosPublicKey,proto3" json:"cosmos_public_key,omitempty"`
+	MinaPublicKey   []byte `protobuf:"bytes,3,opt,name=mina_public_key,json=minaPublicKey,proto3" json:"mina_public_key,omitempty"`
+	MinaSignature   []byte `protobuf:"bytes,4,opt,name=mina_signature,json=minaSignature,proto3" json:"mina_signature,omitempty"`
 }
 
-func (m *MsgRegisterKeys) Reset()         { *m = MsgRegisterKeys{} }
-func (m *MsgRegisterKeys) String() string { return proto.CompactTextString(m) }
-func (*MsgRegisterKeys) ProtoMessage()    {}
-func (*MsgRegisterKeys) Descriptor() ([]byte, []int) {
+func (m *MsgRegisterUserKeys) Reset()         { *m = MsgRegisterUserKeys{} }
+func (m *MsgRegisterUserKeys) String() string { return proto.CompactTextString(m) }
+func (*MsgRegisterUserKeys) ProtoMessage()    {}
+func (*MsgRegisterUserKeys) Descriptor() ([]byte, []int) {
 	return fileDescriptor_235f5fb22cc1f8d8, []int{2}
 }
-func (m *MsgRegisterKeys) XXX_Unmarshal(b []byte) error {
+func (m *MsgRegisterUserKeys) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgRegisterKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgRegisterUserKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgRegisterKeys.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgRegisterUserKeys.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -155,76 +154,62 @@ func (m *MsgRegisterKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, err
 		return b[:n], nil
 	}
 }
-func (m *MsgRegisterKeys) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgRegisterKeys.Merge(m, src)
+func (m *MsgRegisterUserKeys) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgRegisterUserKeys.Merge(m, src)
 }
-func (m *MsgRegisterKeys) XXX_Size() int {
+func (m *MsgRegisterUserKeys) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgRegisterKeys) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgRegisterKeys.DiscardUnknown(m)
+func (m *MsgRegisterUserKeys) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgRegisterUserKeys.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgRegisterKeys proto.InternalMessageInfo
+var xxx_messageInfo_MsgRegisterUserKeys proto.InternalMessageInfo
 
-func (m *MsgRegisterKeys) GetCreator() string {
+func (m *MsgRegisterUserKeys) GetCreator() string {
 	if m != nil {
 		return m.Creator
 	}
 	return ""
 }
 
-func (m *MsgRegisterKeys) GetCosmosPublicKey() []byte {
+func (m *MsgRegisterUserKeys) GetCosmosPublicKey() []byte {
 	if m != nil {
 		return m.CosmosPublicKey
 	}
 	return nil
 }
 
-func (m *MsgRegisterKeys) GetMinaPublicKey() []byte {
+func (m *MsgRegisterUserKeys) GetMinaPublicKey() []byte {
 	if m != nil {
 		return m.MinaPublicKey
 	}
 	return nil
 }
 
-func (m *MsgRegisterKeys) GetCosmosSignature() []byte {
-	if m != nil {
-		return m.CosmosSignature
-	}
-	return nil
-}
-
-func (m *MsgRegisterKeys) GetMinaSignature() []byte {
+func (m *MsgRegisterUserKeys) GetMinaSignature() []byte {
 	if m != nil {
 		return m.MinaSignature
 	}
 	return nil
 }
 
-func (m *MsgRegisterKeys) GetActorType() ActorType {
-	if m != nil {
-		return m.ActorType
-	}
-	return ActorType_UNSPECIFIED
+// MsgRegisterUserKeysResponse is returned after a successful user registration.
+type MsgRegisterUserKeysResponse struct {
 }
 
-// MsgRegisterKeysResponse defines the MsgRegisterKeysResponse message.
-type MsgRegisterKeysResponse struct {
-}
-
-func (m *MsgRegisterKeysResponse) Reset()         { *m = MsgRegisterKeysResponse{} }
-func (m *MsgRegisterKeysResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgRegisterKeysResponse) ProtoMessage()    {}
-func (*MsgRegisterKeysResponse) Descriptor() ([]byte, []int) {
+func (m *MsgRegisterUserKeysResponse) Reset()         { *m = MsgRegisterUserKeysResponse{} }
+func (m *MsgRegisterUserKeysResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgRegisterUserKeysResponse) ProtoMessage()    {}
+func (*MsgRegisterUserKeysResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_235f5fb22cc1f8d8, []int{3}
 }
-func (m *MsgRegisterKeysResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgRegisterUserKeysResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgRegisterKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgRegisterUserKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgRegisterKeysResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgRegisterUserKeysResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -234,40 +219,39 @@ func (m *MsgRegisterKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return b[:n], nil
 	}
 }
-func (m *MsgRegisterKeysResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgRegisterKeysResponse.Merge(m, src)
+func (m *MsgRegisterUserKeysResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgRegisterUserKeysResponse.Merge(m, src)
 }
-func (m *MsgRegisterKeysResponse) XXX_Size() int {
+func (m *MsgRegisterUserKeysResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgRegisterKeysResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgRegisterKeysResponse.DiscardUnknown(m)
+func (m *MsgRegisterUserKeysResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgRegisterUserKeysResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgRegisterKeysResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgRegisterUserKeysResponse proto.InternalMessageInfo
 
-// MsgUpdateKeys defines the MsgUpdateKeys message.
-type MsgUpdateKeys struct {
-	Creator           string    `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
-	PrevMinaPublicKey []byte    `protobuf:"bytes,2,opt,name=prev_mina_public_key,json=prevMinaPublicKey,proto3" json:"prev_mina_public_key,omitempty"`
-	NewMinaPublicKey  []byte    `protobuf:"bytes,3,opt,name=new_mina_public_key,json=newMinaPublicKey,proto3" json:"new_mina_public_key,omitempty"`
-	CosmosSignature   []byte    `protobuf:"bytes,4,opt,name=cosmos_signature,json=cosmosSignature,proto3" json:"cosmos_signature,omitempty"`
-	NewMinaSignature  []byte    `protobuf:"bytes,5,opt,name=new_mina_signature,json=newMinaSignature,proto3" json:"new_mina_signature,omitempty"`
-	ActorType         ActorType `protobuf:"varint,6,opt,name=actor_type,json=actorType,proto3,enum=pulsarchain.keyregistry.v1.ActorType" json:"actor_type,omitempty"`
+// MsgUpdateUserKeys rotates a user's Mina key at the requested version.
+type MsgUpdateUserKeys struct {
+	Creator          string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	CosmosPublicKey  []byte `protobuf:"bytes,2,opt,name=cosmos_public_key,json=cosmosPublicKey,proto3" json:"cosmos_public_key,omitempty"`
+	NewMinaPublicKey []byte `protobuf:"bytes,3,opt,name=new_mina_public_key,json=newMinaPublicKey,proto3" json:"new_mina_public_key,omitempty"`
+	NewKeyVersion    uint64 `protobuf:"varint,4,opt,name=new_key_version,json=newKeyVersion,proto3" json:"new_key_version,omitempty"`
+	NewMinaSignature []byte `protobuf:"bytes,5,opt,name=new_mina_signature,json=newMinaSignature,proto3" json:"new_mina_signature,omitempty"`
 }
 
-func (m *MsgUpdateKeys) Reset()         { *m = MsgUpdateKeys{} }
-func (m *MsgUpdateKeys) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateKeys) ProtoMessage()    {}
-func (*MsgUpdateKeys) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateUserKeys) Reset()         { *m = MsgUpdateUserKeys{} }
+func (m *MsgUpdateUserKeys) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateUserKeys) ProtoMessage()    {}
+func (*MsgUpdateUserKeys) Descriptor() ([]byte, []int) {
 	return fileDescriptor_235f5fb22cc1f8d8, []int{4}
 }
-func (m *MsgUpdateKeys) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateUserKeys) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateUserKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateKeys.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateUserKeys.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -277,76 +261,69 @@ func (m *MsgUpdateKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateKeys) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateKeys.Merge(m, src)
+func (m *MsgUpdateUserKeys) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateUserKeys.Merge(m, src)
 }
-func (m *MsgUpdateKeys) XXX_Size() int {
+func (m *MsgUpdateUserKeys) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateKeys) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateKeys.DiscardUnknown(m)
+func (m *MsgUpdateUserKeys) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateUserKeys.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateKeys proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateUserKeys proto.InternalMessageInfo
 
-func (m *MsgUpdateKeys) GetCreator() string {
+func (m *MsgUpdateUserKeys) GetCreator() string {
 	if m != nil {
 		return m.Creator
 	}
 	return ""
 }
 
-func (m *MsgUpdateKeys) GetPrevMinaPublicKey() []byte {
+func (m *MsgUpdateUserKeys) GetCosmosPublicKey() []byte {
 	if m != nil {
-		return m.PrevMinaPublicKey
+		return m.CosmosPublicKey
 	}
 	return nil
 }
 
-func (m *MsgUpdateKeys) GetNewMinaPublicKey() []byte {
+func (m *MsgUpdateUserKeys) GetNewMinaPublicKey() []byte {
 	if m != nil {
 		return m.NewMinaPublicKey
 	}
 	return nil
 }
 
-func (m *MsgUpdateKeys) GetCosmosSignature() []byte {
+func (m *MsgUpdateUserKeys) GetNewKeyVersion() uint64 {
 	if m != nil {
-		return m.CosmosSignature
+		return m.NewKeyVersion
 	}
-	return nil
+	return 0
 }
 
-func (m *MsgUpdateKeys) GetNewMinaSignature() []byte {
+func (m *MsgUpdateUserKeys) GetNewMinaSignature() []byte {
 	if m != nil {
 		return m.NewMinaSignature
 	}
 	return nil
 }
 
-func (m *MsgUpdateKeys) GetActorType() ActorType {
-	if m != nil {
-		return m.ActorType
-	}
-	return ActorType_UNSPECIFIED
+// MsgUpdateUserKeysResponse is returned after a successful user key update.
+type MsgUpdateUserKeysResponse struct {
 }
 
-// MsgUpdateKeysResponse defines the MsgUpdateKeysResponse message.
-type MsgUpdateKeysResponse struct {
-}
-
-func (m *MsgUpdateKeysResponse) Reset()         { *m = MsgUpdateKeysResponse{} }
-func (m *MsgUpdateKeysResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgUpdateKeysResponse) ProtoMessage()    {}
-func (*MsgUpdateKeysResponse) Descriptor() ([]byte, []int) {
+func (m *MsgUpdateUserKeysResponse) Reset()         { *m = MsgUpdateUserKeysResponse{} }
+func (m *MsgUpdateUserKeysResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateUserKeysResponse) ProtoMessage()    {}
+func (*MsgUpdateUserKeysResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_235f5fb22cc1f8d8, []int{5}
 }
-func (m *MsgUpdateKeysResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgUpdateUserKeysResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgUpdateKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgUpdateUserKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgUpdateKeysResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgUpdateUserKeysResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -356,25 +333,266 @@ func (m *MsgUpdateKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return b[:n], nil
 	}
 }
-func (m *MsgUpdateKeysResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgUpdateKeysResponse.Merge(m, src)
+func (m *MsgUpdateUserKeysResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateUserKeysResponse.Merge(m, src)
 }
-func (m *MsgUpdateKeysResponse) XXX_Size() int {
+func (m *MsgUpdateUserKeysResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgUpdateKeysResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgUpdateKeysResponse.DiscardUnknown(m)
+func (m *MsgUpdateUserKeysResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateUserKeysResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgUpdateKeysResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgUpdateUserKeysResponse proto.InternalMessageInfo
+
+// MsgRegisterValidatorKeys creates a validator key association authorized by
+// the validator consensus key and the Mina key owner.
+type MsgRegisterValidatorKeys struct {
+	Creator                     string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	ValidatorConsensusPublicKey []byte `protobuf:"bytes,2,opt,name=validator_consensus_public_key,json=validatorConsensusPublicKey,proto3" json:"validator_consensus_public_key,omitempty"`
+	MinaPublicKey               []byte `protobuf:"bytes,3,opt,name=mina_public_key,json=minaPublicKey,proto3" json:"mina_public_key,omitempty"`
+	MinaSignature               []byte `protobuf:"bytes,4,opt,name=mina_signature,json=minaSignature,proto3" json:"mina_signature,omitempty"`
+	ValidatorConsensusSignature []byte `protobuf:"bytes,5,opt,name=validator_consensus_signature,json=validatorConsensusSignature,proto3" json:"validator_consensus_signature,omitempty"`
+}
+
+func (m *MsgRegisterValidatorKeys) Reset()         { *m = MsgRegisterValidatorKeys{} }
+func (m *MsgRegisterValidatorKeys) String() string { return proto.CompactTextString(m) }
+func (*MsgRegisterValidatorKeys) ProtoMessage()    {}
+func (*MsgRegisterValidatorKeys) Descriptor() ([]byte, []int) {
+	return fileDescriptor_235f5fb22cc1f8d8, []int{6}
+}
+func (m *MsgRegisterValidatorKeys) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgRegisterValidatorKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgRegisterValidatorKeys.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgRegisterValidatorKeys) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgRegisterValidatorKeys.Merge(m, src)
+}
+func (m *MsgRegisterValidatorKeys) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgRegisterValidatorKeys) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgRegisterValidatorKeys.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgRegisterValidatorKeys proto.InternalMessageInfo
+
+func (m *MsgRegisterValidatorKeys) GetCreator() string {
+	if m != nil {
+		return m.Creator
+	}
+	return ""
+}
+
+func (m *MsgRegisterValidatorKeys) GetValidatorConsensusPublicKey() []byte {
+	if m != nil {
+		return m.ValidatorConsensusPublicKey
+	}
+	return nil
+}
+
+func (m *MsgRegisterValidatorKeys) GetMinaPublicKey() []byte {
+	if m != nil {
+		return m.MinaPublicKey
+	}
+	return nil
+}
+
+func (m *MsgRegisterValidatorKeys) GetMinaSignature() []byte {
+	if m != nil {
+		return m.MinaSignature
+	}
+	return nil
+}
+
+func (m *MsgRegisterValidatorKeys) GetValidatorConsensusSignature() []byte {
+	if m != nil {
+		return m.ValidatorConsensusSignature
+	}
+	return nil
+}
+
+// MsgRegisterValidatorKeysResponse is returned after a successful validator registration.
+type MsgRegisterValidatorKeysResponse struct {
+}
+
+func (m *MsgRegisterValidatorKeysResponse) Reset()         { *m = MsgRegisterValidatorKeysResponse{} }
+func (m *MsgRegisterValidatorKeysResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgRegisterValidatorKeysResponse) ProtoMessage()    {}
+func (*MsgRegisterValidatorKeysResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_235f5fb22cc1f8d8, []int{7}
+}
+func (m *MsgRegisterValidatorKeysResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgRegisterValidatorKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgRegisterValidatorKeysResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgRegisterValidatorKeysResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgRegisterValidatorKeysResponse.Merge(m, src)
+}
+func (m *MsgRegisterValidatorKeysResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgRegisterValidatorKeysResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgRegisterValidatorKeysResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgRegisterValidatorKeysResponse proto.InternalMessageInfo
+
+// MsgUpdateValidatorKeys rotates a validator's Mina key at the requested version.
+type MsgUpdateValidatorKeys struct {
+	Creator                     string `protobuf:"bytes,1,opt,name=creator,proto3" json:"creator,omitempty"`
+	ValidatorConsensusPublicKey []byte `protobuf:"bytes,2,opt,name=validator_consensus_public_key,json=validatorConsensusPublicKey,proto3" json:"validator_consensus_public_key,omitempty"`
+	NewMinaPublicKey            []byte `protobuf:"bytes,3,opt,name=new_mina_public_key,json=newMinaPublicKey,proto3" json:"new_mina_public_key,omitempty"`
+	NewKeyVersion               uint64 `protobuf:"varint,4,opt,name=new_key_version,json=newKeyVersion,proto3" json:"new_key_version,omitempty"`
+	NewMinaSignature            []byte `protobuf:"bytes,5,opt,name=new_mina_signature,json=newMinaSignature,proto3" json:"new_mina_signature,omitempty"`
+	ValidatorConsensusSignature []byte `protobuf:"bytes,6,opt,name=validator_consensus_signature,json=validatorConsensusSignature,proto3" json:"validator_consensus_signature,omitempty"`
+}
+
+func (m *MsgUpdateValidatorKeys) Reset()         { *m = MsgUpdateValidatorKeys{} }
+func (m *MsgUpdateValidatorKeys) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateValidatorKeys) ProtoMessage()    {}
+func (*MsgUpdateValidatorKeys) Descriptor() ([]byte, []int) {
+	return fileDescriptor_235f5fb22cc1f8d8, []int{8}
+}
+func (m *MsgUpdateValidatorKeys) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateValidatorKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateValidatorKeys.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateValidatorKeys) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateValidatorKeys.Merge(m, src)
+}
+func (m *MsgUpdateValidatorKeys) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateValidatorKeys) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateValidatorKeys.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateValidatorKeys proto.InternalMessageInfo
+
+func (m *MsgUpdateValidatorKeys) GetCreator() string {
+	if m != nil {
+		return m.Creator
+	}
+	return ""
+}
+
+func (m *MsgUpdateValidatorKeys) GetValidatorConsensusPublicKey() []byte {
+	if m != nil {
+		return m.ValidatorConsensusPublicKey
+	}
+	return nil
+}
+
+func (m *MsgUpdateValidatorKeys) GetNewMinaPublicKey() []byte {
+	if m != nil {
+		return m.NewMinaPublicKey
+	}
+	return nil
+}
+
+func (m *MsgUpdateValidatorKeys) GetNewKeyVersion() uint64 {
+	if m != nil {
+		return m.NewKeyVersion
+	}
+	return 0
+}
+
+func (m *MsgUpdateValidatorKeys) GetNewMinaSignature() []byte {
+	if m != nil {
+		return m.NewMinaSignature
+	}
+	return nil
+}
+
+func (m *MsgUpdateValidatorKeys) GetValidatorConsensusSignature() []byte {
+	if m != nil {
+		return m.ValidatorConsensusSignature
+	}
+	return nil
+}
+
+// MsgUpdateValidatorKeysResponse is returned after a successful validator key update.
+type MsgUpdateValidatorKeysResponse struct {
+}
+
+func (m *MsgUpdateValidatorKeysResponse) Reset()         { *m = MsgUpdateValidatorKeysResponse{} }
+func (m *MsgUpdateValidatorKeysResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateValidatorKeysResponse) ProtoMessage()    {}
+func (*MsgUpdateValidatorKeysResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_235f5fb22cc1f8d8, []int{9}
+}
+func (m *MsgUpdateValidatorKeysResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateValidatorKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateValidatorKeysResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateValidatorKeysResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateValidatorKeysResponse.Merge(m, src)
+}
+func (m *MsgUpdateValidatorKeysResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateValidatorKeysResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateValidatorKeysResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateValidatorKeysResponse proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*MsgUpdateParams)(nil), "pulsarchain.keyregistry.v1.MsgUpdateParams")
 	proto.RegisterType((*MsgUpdateParamsResponse)(nil), "pulsarchain.keyregistry.v1.MsgUpdateParamsResponse")
-	proto.RegisterType((*MsgRegisterKeys)(nil), "pulsarchain.keyregistry.v1.MsgRegisterKeys")
-	proto.RegisterType((*MsgRegisterKeysResponse)(nil), "pulsarchain.keyregistry.v1.MsgRegisterKeysResponse")
-	proto.RegisterType((*MsgUpdateKeys)(nil), "pulsarchain.keyregistry.v1.MsgUpdateKeys")
-	proto.RegisterType((*MsgUpdateKeysResponse)(nil), "pulsarchain.keyregistry.v1.MsgUpdateKeysResponse")
+	proto.RegisterType((*MsgRegisterUserKeys)(nil), "pulsarchain.keyregistry.v1.MsgRegisterUserKeys")
+	proto.RegisterType((*MsgRegisterUserKeysResponse)(nil), "pulsarchain.keyregistry.v1.MsgRegisterUserKeysResponse")
+	proto.RegisterType((*MsgUpdateUserKeys)(nil), "pulsarchain.keyregistry.v1.MsgUpdateUserKeys")
+	proto.RegisterType((*MsgUpdateUserKeysResponse)(nil), "pulsarchain.keyregistry.v1.MsgUpdateUserKeysResponse")
+	proto.RegisterType((*MsgRegisterValidatorKeys)(nil), "pulsarchain.keyregistry.v1.MsgRegisterValidatorKeys")
+	proto.RegisterType((*MsgRegisterValidatorKeysResponse)(nil), "pulsarchain.keyregistry.v1.MsgRegisterValidatorKeysResponse")
+	proto.RegisterType((*MsgUpdateValidatorKeys)(nil), "pulsarchain.keyregistry.v1.MsgUpdateValidatorKeys")
+	proto.RegisterType((*MsgUpdateValidatorKeysResponse)(nil), "pulsarchain.keyregistry.v1.MsgUpdateValidatorKeysResponse")
 }
 
 func init() {
@@ -382,46 +600,52 @@ func init() {
 }
 
 var fileDescriptor_235f5fb22cc1f8d8 = []byte{
-	// 620 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x54, 0x3f, 0x6f, 0xd3, 0x4e,
-	0x18, 0x8e, 0xd3, 0x5f, 0xfb, 0x53, 0x8e, 0xfe, 0x35, 0x45, 0x49, 0x33, 0x98, 0x28, 0xa8, 0x90,
-	0x04, 0x62, 0x37, 0xa9, 0xd4, 0xa1, 0x62, 0x69, 0x04, 0x53, 0x15, 0x29, 0x72, 0x61, 0x61, 0xb1,
-	0x2e, 0xce, 0xc9, 0x31, 0xa9, 0x7d, 0xd6, 0xdd, 0x39, 0xad, 0x37, 0xc4, 0xc8, 0xc4, 0xc7, 0x60,
-	0xcc, 0xc0, 0xce, 0xda, 0x09, 0x45, 0x4c, 0x0c, 0x08, 0xa1, 0x64, 0xc8, 0xd7, 0x40, 0x3e, 0xdb,
-	0xb1, 0x13, 0x85, 0xa4, 0x54, 0x62, 0xb1, 0x7c, 0xef, 0xfb, 0xdc, 0xf3, 0xbc, 0xef, 0x73, 0xef,
-	0x1d, 0x78, 0xe4, 0xb8, 0x97, 0x14, 0x12, 0xbd, 0x0b, 0x4d, 0x5b, 0xe9, 0x21, 0x8f, 0x20, 0xc3,
-	0xa4, 0x8c, 0x78, 0x4a, 0xbf, 0xa6, 0xb0, 0x6b, 0xd9, 0x21, 0x98, 0x61, 0x31, 0x9f, 0x00, 0xc9,
-	0x09, 0x90, 0xdc, 0xaf, 0xe5, 0xf7, 0xa0, 0x65, 0xda, 0x58, 0xe1, 0xdf, 0x00, 0x9e, 0xcf, 0xea,
-	0x98, 0x5a, 0x98, 0x2a, 0x16, 0x35, 0x7c, 0x1a, 0x8b, 0x1a, 0x61, 0xe2, 0x20, 0x48, 0x68, 0x7c,
-	0xa5, 0x04, 0x8b, 0x30, 0xb5, 0x6f, 0x60, 0x03, 0x07, 0x71, 0xff, 0x2f, 0x8c, 0x1e, 0x2d, 0xa9,
-	0xae, 0x87, 0x3c, 0xcd, 0x75, 0x3a, 0x90, 0x21, 0x8d, 0x79, 0x0e, 0x0a, 0x77, 0x3c, 0x59, 0xb2,
-	0xc3, 0x81, 0x04, 0x5a, 0xa1, 0x60, 0xf1, 0xab, 0x00, 0x76, 0x9a, 0xd4, 0x78, 0xcd, 0x19, 0x5a,
-	0x3c, 0x23, 0x9e, 0x80, 0x0c, 0x74, 0x59, 0x17, 0x13, 0x93, 0x79, 0x39, 0xa1, 0x20, 0x94, 0x32,
-	0x8d, 0xdc, 0xb7, 0xcf, 0xd5, 0xfd, 0xb0, 0xd2, 0xb3, 0x4e, 0x87, 0x20, 0x4a, 0x2f, 0x18, 0x31,
-	0x6d, 0x43, 0x8d, 0xa1, 0xe2, 0x4b, 0xb0, 0x11, 0x70, 0xe7, 0xd2, 0x05, 0xa1, 0x74, 0xaf, 0x5e,
-	0x94, 0xff, 0x6c, 0x98, 0x1c, 0x68, 0x35, 0x32, 0x37, 0x3f, 0x1f, 0xa6, 0x3e, 0x4d, 0x06, 0x15,
-	0x41, 0x0d, 0x37, 0x9f, 0x3e, 0x7f, 0x3f, 0x19, 0x54, 0x62, 0xda, 0x0f, 0x93, 0x41, 0xa5, 0x9c,
-	0x6c, 0xe7, 0x7a, 0xa6, 0xa1, 0xb9, 0xe2, 0x8b, 0x07, 0x20, 0x3b, 0x17, 0x52, 0x11, 0x75, 0xb0,
-	0x4d, 0x51, 0xf1, 0x4b, 0x9a, 0xf7, 0xaa, 0xf2, 0xad, 0x88, 0x9c, 0x23, 0x8f, 0x8a, 0x75, 0xf0,
-	0xbf, 0x4e, 0x10, 0x64, 0x98, 0xac, 0xec, 0x34, 0x02, 0x8a, 0x15, 0xb0, 0x17, 0x9d, 0xa0, 0xdb,
-	0xbe, 0x34, 0x75, 0xad, 0x87, 0x3c, 0xde, 0xf2, 0xa6, 0xba, 0x13, 0x24, 0x5a, 0x3c, 0x7e, 0x8e,
-	0x3c, 0xf1, 0x31, 0xd8, 0xb1, 0x4c, 0x1b, 0x26, 0x91, 0x6b, 0x1c, 0xb9, 0xe5, 0x87, 0x63, 0x5c,
-	0x19, 0xec, 0x86, 0x9c, 0xd4, 0x34, 0x6c, 0xc8, 0x5c, 0x82, 0x72, 0xff, 0x25, 0x29, 0x2f, 0xa2,
-	0xb0, 0x78, 0x08, 0xb6, 0x39, 0x65, 0x0c, 0x5c, 0x8f, 0x19, 0x63, 0xd8, 0x0b, 0x00, 0xa0, 0xce,
-	0x30, 0xe1, 0x63, 0x91, 0xdb, 0x28, 0x08, 0xa5, 0xed, 0xfa, 0xe1, 0xb2, 0x13, 0x39, 0xf3, 0xd1,
-	0xaf, 0x3c, 0x07, 0xa9, 0x19, 0x18, 0xfd, 0x9e, 0x6e, 0xfa, 0x87, 0x11, 0x75, 0x1e, 0x9a, 0x9b,
-	0x34, 0x70, 0x6a, 0xee, 0x30, 0x0d, 0xb6, 0xa6, 0xc6, 0xdf, 0xd9, 0x5a, 0x05, 0xec, 0x3b, 0x04,
-	0xf5, 0xb5, 0x79, 0xcf, 0x02, 0x77, 0xf7, 0xfc, 0x5c, 0x73, 0xc6, 0xb7, 0x2a, 0xb8, 0x6f, 0xa3,
-	0x2b, 0x6d, 0xb1, 0xc7, 0xbb, 0x36, 0xba, 0x6a, 0xde, 0xd5, 0xe6, 0x67, 0x40, 0x9c, 0x32, 0xcf,
-	0x5b, 0x1d, 0x11, 0xff, 0x5b, 0xb7, 0xb3, 0xe0, 0xc1, 0x8c, 0xa3, 0x91, 0xd7, 0xf5, 0x1f, 0x69,
-	0xb0, 0xd6, 0xa4, 0x86, 0xe8, 0x80, 0xcd, 0x99, 0x8b, 0xfb, 0x74, 0x99, 0xe0, 0xdc, 0xad, 0xc8,
-	0x1f, 0xff, 0x05, 0x38, 0x52, 0xf6, 0x15, 0x67, 0xae, 0xcf, 0x2a, 0xc5, 0x24, 0x78, 0xa5, 0xe2,
-	0xa2, 0xb9, 0x12, 0xdf, 0x02, 0x90, 0x98, 0xa9, 0xf2, 0xad, 0x8a, 0xe6, 0x6a, 0xb5, 0x5b, 0x43,
-	0x23, 0xad, 0xfc, 0xfa, 0x3b, 0xff, 0x21, 0x6a, 0xb4, 0x6e, 0x46, 0x92, 0x30, 0x1c, 0x49, 0xc2,
-	0xaf, 0x91, 0x24, 0x7c, 0x1c, 0x4b, 0xa9, 0xe1, 0x58, 0x4a, 0x7d, 0x1f, 0x4b, 0xa9, 0x37, 0x27,
-	0x86, 0xc9, 0xba, 0x6e, 0x5b, 0xd6, 0xb1, 0xa5, 0xd8, 0xb8, 0x83, 0x6a, 0x47, 0xb5, 0xaa, 0x89,
-	0x95, 0x40, 0xa8, 0xba, 0xe8, 0x79, 0xf2, 0xc7, 0x81, 0xb6, 0x37, 0xf8, 0x63, 0x7b, 0xfc, 0x3b,
-	0x00, 0x00, 0xff, 0xff, 0xa3, 0x9c, 0xc6, 0x6b, 0x67, 0x06, 0x00, 0x00,
+	// 707 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x56, 0x4d, 0x4f, 0x13, 0x51,
+	0x14, 0xed, 0x94, 0x0f, 0xc3, 0x15, 0x28, 0x0c, 0x28, 0x65, 0x08, 0x63, 0x53, 0x23, 0x62, 0xb5,
+	0x1d, 0x0b, 0x8a, 0x09, 0x61, 0x63, 0x89, 0x2b, 0xd2, 0x84, 0x94, 0xc0, 0xc2, 0x4d, 0x33, 0xb4,
+	0x2f, 0xc3, 0x0b, 0xcc, 0x7b, 0x93, 0xf7, 0xa6, 0x85, 0x49, 0x5c, 0x18, 0x13, 0x5d, 0xe0, 0xc6,
+	0x9f, 0xe1, 0x92, 0x05, 0x3f, 0x82, 0x95, 0x21, 0xac, 0x5c, 0x19, 0x03, 0x0b, 0xfc, 0x19, 0x66,
+	0x3e, 0xdb, 0x19, 0xa6, 0xd0, 0x92, 0x68, 0xd8, 0x34, 0x9d, 0x7b, 0xcf, 0xb9, 0xf7, 0x9e, 0xf3,
+	0xa6, 0xb7, 0x0f, 0x1e, 0x1b, 0x8d, 0x3d, 0xae, 0xb2, 0xda, 0x8e, 0x8a, 0x89, 0xb2, 0x8b, 0x2c,
+	0x86, 0x34, 0xcc, 0x4d, 0x66, 0x29, 0xcd, 0xa2, 0x62, 0x1e, 0x14, 0x0c, 0x46, 0x4d, 0x2a, 0x4a,
+	0x6d, 0xa0, 0x42, 0x1b, 0xa8, 0xd0, 0x2c, 0x4a, 0xe3, 0xaa, 0x8e, 0x09, 0x55, 0x9c, 0x4f, 0x17,
+	0x2e, 0x4d, 0xd5, 0x28, 0xd7, 0x29, 0x57, 0x74, 0xae, 0xd9, 0x65, 0x74, 0xae, 0x79, 0x89, 0x69,
+	0x37, 0x51, 0x75, 0x9e, 0x14, 0xf7, 0xc1, 0x4b, 0x4d, 0x6a, 0x54, 0xa3, 0x6e, 0xdc, 0xfe, 0xe6,
+	0x45, 0x9f, 0x5e, 0x33, 0x9d, 0xa1, 0x32, 0x55, 0xf7, 0xe8, 0xd9, 0x1f, 0x02, 0xa4, 0xca, 0x5c,
+	0xdb, 0x34, 0xea, 0xaa, 0x89, 0xd6, 0x9d, 0x8c, 0xb8, 0x04, 0x43, 0x6a, 0xc3, 0xdc, 0xa1, 0x0c,
+	0x9b, 0x56, 0x5a, 0xc8, 0x08, 0xf3, 0x43, 0xa5, 0xf4, 0xd9, 0x71, 0x7e, 0xd2, 0xeb, 0xfb, 0xb6,
+	0x5e, 0x67, 0x88, 0xf3, 0x0d, 0x93, 0x61, 0xa2, 0x55, 0x5a, 0x50, 0xf1, 0x1d, 0x0c, 0xba, 0xb5,
+	0xd3, 0xc9, 0x8c, 0x30, 0x7f, 0x7f, 0x21, 0x5b, 0xe8, 0x2c, 0xbf, 0xe0, 0xf6, 0x2a, 0x0d, 0x9d,
+	0xfc, 0x7a, 0x94, 0xf8, 0x7e, 0x79, 0x94, 0x13, 0x2a, 0x1e, 0x79, 0x79, 0xe5, 0xd3, 0xe5, 0x51,
+	0xae, 0x55, 0xf6, 0xf0, 0xf2, 0x28, 0xf7, 0xac, 0x5d, 0xce, 0x41, 0x48, 0x50, 0x64, 0xf8, 0xec,
+	0x34, 0x4c, 0x45, 0x42, 0x15, 0xc4, 0x0d, 0x4a, 0x38, 0xca, 0x9e, 0x09, 0x30, 0x51, 0xe6, 0x5a,
+	0xc5, 0xa1, 0x22, 0xb6, 0xc9, 0x11, 0x5b, 0x43, 0x16, 0x17, 0x17, 0xe0, 0x5e, 0x8d, 0x21, 0xd5,
+	0xa4, 0xec, 0x46, 0xb5, 0x3e, 0x50, 0xcc, 0xc1, 0xb8, 0x7f, 0x26, 0x8d, 0xed, 0x3d, 0x5c, 0xab,
+	0xee, 0x22, 0xcb, 0x91, 0x3d, 0x5c, 0x49, 0xb9, 0x89, 0x75, 0x27, 0xbe, 0x86, 0x2c, 0x71, 0x0e,
+	0x52, 0x3a, 0x26, 0x6a, 0x3b, 0xb2, 0xcf, 0x41, 0x8e, 0xd8, 0xe1, 0x16, 0xee, 0x09, 0x8c, 0x3a,
+	0x38, 0x8e, 0x35, 0xa2, 0x9a, 0x0d, 0x86, 0xd2, 0xfd, 0x2d, 0xd8, 0x86, 0x1f, 0x5c, 0x1e, 0xb6,
+	0xfd, 0xf1, 0x07, 0xc9, 0xce, 0xc2, 0x4c, 0x8c, 0xa6, 0x40, 0xf3, 0x97, 0x24, 0x8c, 0x07, 0x7e,
+	0xfc, 0x37, 0xc5, 0x79, 0x98, 0x20, 0x68, 0xbf, 0x1a, 0xaf, 0x7a, 0x8c, 0xa0, 0xfd, 0x72, 0x48,
+	0xf8, 0x1c, 0xa4, 0x6c, 0xf8, 0x2e, 0xb2, 0xaa, 0x4d, 0xc4, 0x38, 0xa6, 0xc4, 0x51, 0xde, 0x5f,
+	0x19, 0x21, 0x68, 0x7f, 0x0d, 0x59, 0x5b, 0x6e, 0x50, 0x7c, 0x01, 0x62, 0x50, 0xb6, 0x65, 0xd2,
+	0x40, 0xa8, 0x6a, 0x27, 0x9f, 0x66, 0x60, 0xfa, 0x8a, 0x0f, 0x81, 0x4b, 0xc7, 0x49, 0x48, 0xb7,
+	0xb9, 0xb8, 0xa5, 0xee, 0xe1, 0xba, 0xcd, 0xba, 0xb5, 0x59, 0xab, 0x20, 0x37, 0xfd, 0x22, 0xd5,
+	0x9a, 0xdd, 0x83, 0xf0, 0x46, 0x8c, 0x73, 0x33, 0x01, 0x6a, 0xd5, 0x07, 0xfd, 0xab, 0xf7, 0x46,
+	0x2c, 0xc1, 0x6c, 0xdc, 0x4c, 0x51, 0x23, 0x63, 0x46, 0xea, 0xe4, 0x69, 0x16, 0x32, 0x9d, 0x5c,
+	0x0b, 0xac, 0xfd, 0x93, 0x84, 0x87, 0x81, 0xf1, 0x77, 0xc4, 0xd8, 0xbb, 0xf0, 0x7a, 0xde, 0x7c,
+	0x1c, 0x83, 0xbd, 0x1e, 0x47, 0x06, 0xe4, 0x78, 0xa7, 0xfd, 0xc3, 0x58, 0x38, 0x1c, 0x80, 0xbe,
+	0x32, 0xd7, 0x44, 0x03, 0x86, 0x43, 0x1b, 0xff, 0xf9, 0x75, 0x9b, 0x3a, 0xb2, 0x4e, 0xa5, 0xc5,
+	0x1e, 0xc0, 0x7e, 0x67, 0xf1, 0x03, 0x8c, 0x5d, 0xd9, 0xbb, 0xca, 0x0d, 0x85, 0xa2, 0x04, 0xe9,
+	0x4d, 0x8f, 0x84, 0xa0, 0x7b, 0x13, 0x46, 0x23, 0x1b, 0x30, 0xdf, 0x95, 0x88, 0xa0, 0xf3, 0xeb,
+	0x9e, 0xe0, 0x41, 0xdf, 0xaf, 0x02, 0x3c, 0x88, 0x5f, 0x2a, 0xaf, 0xba, 0x94, 0x12, 0x62, 0x49,
+	0x2b, 0xb7, 0x61, 0x05, 0xd3, 0x7c, 0x16, 0x60, 0x22, 0xf6, 0x77, 0xd8, 0x95, 0xb8, 0xf0, 0x24,
+	0xcb, 0xbd, 0x73, 0xfc, 0x39, 0xa4, 0x81, 0x8f, 0xf6, 0xff, 0x7d, 0x69, 0xfd, 0xe4, 0x5c, 0x16,
+	0x4e, 0xcf, 0x65, 0xe1, 0xf7, 0xb9, 0x2c, 0x7c, 0xbb, 0x90, 0x13, 0xa7, 0x17, 0x72, 0xe2, 0xe7,
+	0x85, 0x9c, 0x78, 0xbf, 0xa4, 0x61, 0x73, 0xa7, 0xb1, 0x5d, 0xa8, 0x51, 0x5d, 0x21, 0xb4, 0x8e,
+	0x8a, 0x2f, 0x8b, 0x79, 0x4c, 0x15, 0xb7, 0x63, 0x3e, 0xee, 0x16, 0x60, 0x5a, 0x06, 0xe2, 0xdb,
+	0x83, 0xce, 0x9d, 0x66, 0xf1, 0x6f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x1b, 0xd7, 0x01, 0xbf, 0x9c,
+	0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -439,10 +663,14 @@ type MsgClient interface {
 	// UpdateParams defines a (governance) operation for updating the module
 	// parameters. The authority defaults to the x/gov module account.
 	UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error)
-	// RegisterKeys defines the RegisterKeys RPC.
-	RegisterKeys(ctx context.Context, in *MsgRegisterKeys, opts ...grpc.CallOption) (*MsgRegisterKeysResponse, error)
-	// UpdateKeys defines the UpdateKeys RPC.
-	UpdateKeys(ctx context.Context, in *MsgUpdateKeys, opts ...grpc.CallOption) (*MsgUpdateKeysResponse, error)
+	// RegisterUserKeys associates the transaction signer's stable Cosmos key with a Mina key.
+	RegisterUserKeys(ctx context.Context, in *MsgRegisterUserKeys, opts ...grpc.CallOption) (*MsgRegisterUserKeysResponse, error)
+	// UpdateUserKeys replaces a registered user's Mina key.
+	UpdateUserKeys(ctx context.Context, in *MsgUpdateUserKeys, opts ...grpc.CallOption) (*MsgUpdateUserKeysResponse, error)
+	// RegisterValidatorKeys associates a validator consensus key with a Mina key.
+	RegisterValidatorKeys(ctx context.Context, in *MsgRegisterValidatorKeys, opts ...grpc.CallOption) (*MsgRegisterValidatorKeysResponse, error)
+	// UpdateValidatorKeys replaces a registered validator's Mina key.
+	UpdateValidatorKeys(ctx context.Context, in *MsgUpdateValidatorKeys, opts ...grpc.CallOption) (*MsgUpdateValidatorKeysResponse, error)
 }
 
 type msgClient struct {
@@ -462,18 +690,36 @@ func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts 
 	return out, nil
 }
 
-func (c *msgClient) RegisterKeys(ctx context.Context, in *MsgRegisterKeys, opts ...grpc.CallOption) (*MsgRegisterKeysResponse, error) {
-	out := new(MsgRegisterKeysResponse)
-	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Msg/RegisterKeys", in, out, opts...)
+func (c *msgClient) RegisterUserKeys(ctx context.Context, in *MsgRegisterUserKeys, opts ...grpc.CallOption) (*MsgRegisterUserKeysResponse, error) {
+	out := new(MsgRegisterUserKeysResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Msg/RegisterUserKeys", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *msgClient) UpdateKeys(ctx context.Context, in *MsgUpdateKeys, opts ...grpc.CallOption) (*MsgUpdateKeysResponse, error) {
-	out := new(MsgUpdateKeysResponse)
-	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Msg/UpdateKeys", in, out, opts...)
+func (c *msgClient) UpdateUserKeys(ctx context.Context, in *MsgUpdateUserKeys, opts ...grpc.CallOption) (*MsgUpdateUserKeysResponse, error) {
+	out := new(MsgUpdateUserKeysResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Msg/UpdateUserKeys", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) RegisterValidatorKeys(ctx context.Context, in *MsgRegisterValidatorKeys, opts ...grpc.CallOption) (*MsgRegisterValidatorKeysResponse, error) {
+	out := new(MsgRegisterValidatorKeysResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Msg/RegisterValidatorKeys", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) UpdateValidatorKeys(ctx context.Context, in *MsgUpdateValidatorKeys, opts ...grpc.CallOption) (*MsgUpdateValidatorKeysResponse, error) {
+	out := new(MsgUpdateValidatorKeysResponse)
+	err := c.cc.Invoke(ctx, "/pulsarchain.keyregistry.v1.Msg/UpdateValidatorKeys", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -485,10 +731,14 @@ type MsgServer interface {
 	// UpdateParams defines a (governance) operation for updating the module
 	// parameters. The authority defaults to the x/gov module account.
 	UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error)
-	// RegisterKeys defines the RegisterKeys RPC.
-	RegisterKeys(context.Context, *MsgRegisterKeys) (*MsgRegisterKeysResponse, error)
-	// UpdateKeys defines the UpdateKeys RPC.
-	UpdateKeys(context.Context, *MsgUpdateKeys) (*MsgUpdateKeysResponse, error)
+	// RegisterUserKeys associates the transaction signer's stable Cosmos key with a Mina key.
+	RegisterUserKeys(context.Context, *MsgRegisterUserKeys) (*MsgRegisterUserKeysResponse, error)
+	// UpdateUserKeys replaces a registered user's Mina key.
+	UpdateUserKeys(context.Context, *MsgUpdateUserKeys) (*MsgUpdateUserKeysResponse, error)
+	// RegisterValidatorKeys associates a validator consensus key with a Mina key.
+	RegisterValidatorKeys(context.Context, *MsgRegisterValidatorKeys) (*MsgRegisterValidatorKeysResponse, error)
+	// UpdateValidatorKeys replaces a registered validator's Mina key.
+	UpdateValidatorKeys(context.Context, *MsgUpdateValidatorKeys) (*MsgUpdateValidatorKeysResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
@@ -498,11 +748,17 @@ type UnimplementedMsgServer struct {
 func (*UnimplementedMsgServer) UpdateParams(ctx context.Context, req *MsgUpdateParams) (*MsgUpdateParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateParams not implemented")
 }
-func (*UnimplementedMsgServer) RegisterKeys(ctx context.Context, req *MsgRegisterKeys) (*MsgRegisterKeysResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RegisterKeys not implemented")
+func (*UnimplementedMsgServer) RegisterUserKeys(ctx context.Context, req *MsgRegisterUserKeys) (*MsgRegisterUserKeysResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterUserKeys not implemented")
 }
-func (*UnimplementedMsgServer) UpdateKeys(ctx context.Context, req *MsgUpdateKeys) (*MsgUpdateKeysResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateKeys not implemented")
+func (*UnimplementedMsgServer) UpdateUserKeys(ctx context.Context, req *MsgUpdateUserKeys) (*MsgUpdateUserKeysResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateUserKeys not implemented")
+}
+func (*UnimplementedMsgServer) RegisterValidatorKeys(ctx context.Context, req *MsgRegisterValidatorKeys) (*MsgRegisterValidatorKeysResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterValidatorKeys not implemented")
+}
+func (*UnimplementedMsgServer) UpdateValidatorKeys(ctx context.Context, req *MsgUpdateValidatorKeys) (*MsgUpdateValidatorKeysResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateValidatorKeys not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
@@ -527,38 +783,74 @@ func _Msg_UpdateParams_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_RegisterKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgRegisterKeys)
+func _Msg_RegisterUserKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgRegisterUserKeys)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).RegisterKeys(ctx, in)
+		return srv.(MsgServer).RegisterUserKeys(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pulsarchain.keyregistry.v1.Msg/RegisterKeys",
+		FullMethod: "/pulsarchain.keyregistry.v1.Msg/RegisterUserKeys",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).RegisterKeys(ctx, req.(*MsgRegisterKeys))
+		return srv.(MsgServer).RegisterUserKeys(ctx, req.(*MsgRegisterUserKeys))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Msg_UpdateKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgUpdateKeys)
+func _Msg_UpdateUserKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateUserKeys)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).UpdateKeys(ctx, in)
+		return srv.(MsgServer).UpdateUserKeys(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pulsarchain.keyregistry.v1.Msg/UpdateKeys",
+		FullMethod: "/pulsarchain.keyregistry.v1.Msg/UpdateUserKeys",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).UpdateKeys(ctx, req.(*MsgUpdateKeys))
+		return srv.(MsgServer).UpdateUserKeys(ctx, req.(*MsgUpdateUserKeys))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_RegisterValidatorKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgRegisterValidatorKeys)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).RegisterValidatorKeys(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.keyregistry.v1.Msg/RegisterValidatorKeys",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).RegisterValidatorKeys(ctx, req.(*MsgRegisterValidatorKeys))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_UpdateValidatorKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateValidatorKeys)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).UpdateValidatorKeys(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pulsarchain.keyregistry.v1.Msg/UpdateValidatorKeys",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).UpdateValidatorKeys(ctx, req.(*MsgUpdateValidatorKeys))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -573,12 +865,20 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Msg_UpdateParams_Handler,
 		},
 		{
-			MethodName: "RegisterKeys",
-			Handler:    _Msg_RegisterKeys_Handler,
+			MethodName: "RegisterUserKeys",
+			Handler:    _Msg_RegisterUserKeys_Handler,
 		},
 		{
-			MethodName: "UpdateKeys",
-			Handler:    _Msg_UpdateKeys_Handler,
+			MethodName: "UpdateUserKeys",
+			Handler:    _Msg_UpdateUserKeys_Handler,
+		},
+		{
+			MethodName: "RegisterValidatorKeys",
+			Handler:    _Msg_RegisterValidatorKeys_Handler,
+		},
+		{
+			MethodName: "UpdateValidatorKeys",
+			Handler:    _Msg_UpdateValidatorKeys_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -648,7 +948,7 @@ func (m *MsgUpdateParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgRegisterKeys) Marshal() (dAtA []byte, err error) {
+func (m *MsgRegisterUserKeys) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -658,32 +958,20 @@ func (m *MsgRegisterKeys) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgRegisterKeys) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgRegisterUserKeys) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgRegisterKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgRegisterUserKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ActorType != 0 {
-		i = encodeVarintTx(dAtA, i, uint64(m.ActorType))
-		i--
-		dAtA[i] = 0x30
-	}
 	if len(m.MinaSignature) > 0 {
 		i -= len(m.MinaSignature)
 		copy(dAtA[i:], m.MinaSignature)
 		i = encodeVarintTx(dAtA, i, uint64(len(m.MinaSignature)))
-		i--
-		dAtA[i] = 0x2a
-	}
-	if len(m.CosmosSignature) > 0 {
-		i -= len(m.CosmosSignature)
-		copy(dAtA[i:], m.CosmosSignature)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.CosmosSignature)))
 		i--
 		dAtA[i] = 0x22
 	}
@@ -711,7 +999,7 @@ func (m *MsgRegisterKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgRegisterKeysResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgRegisterUserKeysResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -721,12 +1009,12 @@ func (m *MsgRegisterKeysResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgRegisterKeysResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgRegisterUserKeysResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgRegisterKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgRegisterUserKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -734,7 +1022,7 @@ func (m *MsgRegisterKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateKeys) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateUserKeys) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -744,21 +1032,16 @@ func (m *MsgUpdateKeys) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateKeys) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateUserKeys) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateUserKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ActorType != 0 {
-		i = encodeVarintTx(dAtA, i, uint64(m.ActorType))
-		i--
-		dAtA[i] = 0x30
-	}
 	if len(m.NewMinaSignature) > 0 {
 		i -= len(m.NewMinaSignature)
 		copy(dAtA[i:], m.NewMinaSignature)
@@ -766,12 +1049,10 @@ func (m *MsgUpdateKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x2a
 	}
-	if len(m.CosmosSignature) > 0 {
-		i -= len(m.CosmosSignature)
-		copy(dAtA[i:], m.CosmosSignature)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.CosmosSignature)))
+	if m.NewKeyVersion != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.NewKeyVersion))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x20
 	}
 	if len(m.NewMinaPublicKey) > 0 {
 		i -= len(m.NewMinaPublicKey)
@@ -780,10 +1061,10 @@ func (m *MsgUpdateKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1a
 	}
-	if len(m.PrevMinaPublicKey) > 0 {
-		i -= len(m.PrevMinaPublicKey)
-		copy(dAtA[i:], m.PrevMinaPublicKey)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.PrevMinaPublicKey)))
+	if len(m.CosmosPublicKey) > 0 {
+		i -= len(m.CosmosPublicKey)
+		copy(dAtA[i:], m.CosmosPublicKey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.CosmosPublicKey)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -797,7 +1078,7 @@ func (m *MsgUpdateKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgUpdateKeysResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgUpdateUserKeysResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -807,12 +1088,179 @@ func (m *MsgUpdateKeysResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgUpdateKeysResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgUpdateUserKeysResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgUpdateKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgUpdateUserKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgRegisterValidatorKeys) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgRegisterValidatorKeys) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgRegisterValidatorKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ValidatorConsensusSignature) > 0 {
+		i -= len(m.ValidatorConsensusSignature)
+		copy(dAtA[i:], m.ValidatorConsensusSignature)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.ValidatorConsensusSignature)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.MinaSignature) > 0 {
+		i -= len(m.MinaSignature)
+		copy(dAtA[i:], m.MinaSignature)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.MinaSignature)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.MinaPublicKey) > 0 {
+		i -= len(m.MinaPublicKey)
+		copy(dAtA[i:], m.MinaPublicKey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.MinaPublicKey)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.ValidatorConsensusPublicKey) > 0 {
+		i -= len(m.ValidatorConsensusPublicKey)
+		copy(dAtA[i:], m.ValidatorConsensusPublicKey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.ValidatorConsensusPublicKey)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Creator) > 0 {
+		i -= len(m.Creator)
+		copy(dAtA[i:], m.Creator)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Creator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgRegisterValidatorKeysResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgRegisterValidatorKeysResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgRegisterValidatorKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateValidatorKeys) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateValidatorKeys) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateValidatorKeys) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ValidatorConsensusSignature) > 0 {
+		i -= len(m.ValidatorConsensusSignature)
+		copy(dAtA[i:], m.ValidatorConsensusSignature)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.ValidatorConsensusSignature)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if len(m.NewMinaSignature) > 0 {
+		i -= len(m.NewMinaSignature)
+		copy(dAtA[i:], m.NewMinaSignature)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.NewMinaSignature)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if m.NewKeyVersion != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.NewKeyVersion))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.NewMinaPublicKey) > 0 {
+		i -= len(m.NewMinaPublicKey)
+		copy(dAtA[i:], m.NewMinaPublicKey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.NewMinaPublicKey)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.ValidatorConsensusPublicKey) > 0 {
+		i -= len(m.ValidatorConsensusPublicKey)
+		copy(dAtA[i:], m.ValidatorConsensusPublicKey)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.ValidatorConsensusPublicKey)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Creator) > 0 {
+		i -= len(m.Creator)
+		copy(dAtA[i:], m.Creator)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Creator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateValidatorKeysResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateValidatorKeysResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateValidatorKeysResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -855,7 +1303,7 @@ func (m *MsgUpdateParamsResponse) Size() (n int) {
 	return n
 }
 
-func (m *MsgRegisterKeys) Size() (n int) {
+func (m *MsgRegisterUserKeys) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -873,21 +1321,14 @@ func (m *MsgRegisterKeys) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	l = len(m.CosmosSignature)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
 	l = len(m.MinaSignature)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	if m.ActorType != 0 {
-		n += 1 + sovTx(uint64(m.ActorType))
-	}
 	return n
 }
 
-func (m *MsgRegisterKeysResponse) Size() (n int) {
+func (m *MsgRegisterUserKeysResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -896,7 +1337,7 @@ func (m *MsgRegisterKeysResponse) Size() (n int) {
 	return n
 }
 
-func (m *MsgUpdateKeys) Size() (n int) {
+func (m *MsgUpdateUserKeys) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -906,7 +1347,7 @@ func (m *MsgUpdateKeys) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	l = len(m.PrevMinaPublicKey)
+	l = len(m.CosmosPublicKey)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
@@ -914,21 +1355,96 @@ func (m *MsgUpdateKeys) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	l = len(m.CosmosSignature)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
+	if m.NewKeyVersion != 0 {
+		n += 1 + sovTx(uint64(m.NewKeyVersion))
 	}
 	l = len(m.NewMinaSignature)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	if m.ActorType != 0 {
-		n += 1 + sovTx(uint64(m.ActorType))
+	return n
+}
+
+func (m *MsgUpdateUserKeysResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgRegisterValidatorKeys) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Creator)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.ValidatorConsensusPublicKey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.MinaPublicKey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.MinaSignature)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.ValidatorConsensusSignature)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
 	}
 	return n
 }
 
-func (m *MsgUpdateKeysResponse) Size() (n int) {
+func (m *MsgRegisterValidatorKeysResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgUpdateValidatorKeys) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Creator)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.ValidatorConsensusPublicKey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.NewMinaPublicKey)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.NewKeyVersion != 0 {
+		n += 1 + sovTx(uint64(m.NewKeyVersion))
+	}
+	l = len(m.NewMinaSignature)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.ValidatorConsensusSignature)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgUpdateValidatorKeysResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1108,7 +1624,7 @@ func (m *MsgUpdateParamsResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgRegisterKeys) Unmarshal(dAtA []byte) error {
+func (m *MsgRegisterUserKeys) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1131,10 +1647,10 @@ func (m *MsgRegisterKeys) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgRegisterKeys: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgRegisterUserKeys: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgRegisterKeys: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgRegisterUserKeys: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1239,40 +1755,6 @@ func (m *MsgRegisterKeys) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CosmosSignature", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.CosmosSignature = append(m.CosmosSignature[:0], dAtA[iNdEx:postIndex]...)
-			if m.CosmosSignature == nil {
-				m.CosmosSignature = []byte{}
-			}
-			iNdEx = postIndex
-		case 5:
-			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field MinaSignature", wireType)
 			}
 			var byteLen int
@@ -1305,25 +1787,6 @@ func (m *MsgRegisterKeys) Unmarshal(dAtA []byte) error {
 				m.MinaSignature = []byte{}
 			}
 			iNdEx = postIndex
-		case 6:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ActorType", wireType)
-			}
-			m.ActorType = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.ActorType |= ActorType(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])
@@ -1345,7 +1808,7 @@ func (m *MsgRegisterKeys) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgRegisterKeysResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgRegisterUserKeysResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1368,10 +1831,10 @@ func (m *MsgRegisterKeysResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgRegisterKeysResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgRegisterUserKeysResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgRegisterKeysResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgRegisterUserKeysResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:
@@ -1395,7 +1858,7 @@ func (m *MsgRegisterKeysResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateUserKeys) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1418,10 +1881,10 @@ func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateKeys: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateUserKeys: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateKeys: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateUserKeys: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1458,7 +1921,7 @@ func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PrevMinaPublicKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field CosmosPublicKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -1485,9 +1948,9 @@ func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.PrevMinaPublicKey = append(m.PrevMinaPublicKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.PrevMinaPublicKey == nil {
-				m.PrevMinaPublicKey = []byte{}
+			m.CosmosPublicKey = append(m.CosmosPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.CosmosPublicKey == nil {
+				m.CosmosPublicKey = []byte{}
 			}
 			iNdEx = postIndex
 		case 3:
@@ -1525,8 +1988,27 @@ func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
 			}
 			iNdEx = postIndex
 		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NewKeyVersion", wireType)
+			}
+			m.NewKeyVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.NewKeyVersion |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CosmosSignature", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field NewMinaSignature", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -1553,11 +2035,498 @@ func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.CosmosSignature = append(m.CosmosSignature[:0], dAtA[iNdEx:postIndex]...)
-			if m.CosmosSignature == nil {
-				m.CosmosSignature = []byte{}
+			m.NewMinaSignature = append(m.NewMinaSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.NewMinaSignature == nil {
+				m.NewMinaSignature = []byte{}
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateUserKeysResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateUserKeysResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateUserKeysResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgRegisterValidatorKeys) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgRegisterValidatorKeys: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgRegisterValidatorKeys: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Creator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Creator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorConsensusPublicKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorConsensusPublicKey = append(m.ValidatorConsensusPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorConsensusPublicKey == nil {
+				m.ValidatorConsensusPublicKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MinaPublicKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.MinaPublicKey = append(m.MinaPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.MinaPublicKey == nil {
+				m.MinaPublicKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MinaSignature", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.MinaSignature = append(m.MinaSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.MinaSignature == nil {
+				m.MinaSignature = []byte{}
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorConsensusSignature", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorConsensusSignature = append(m.ValidatorConsensusSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorConsensusSignature == nil {
+				m.ValidatorConsensusSignature = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgRegisterValidatorKeysResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgRegisterValidatorKeysResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgRegisterValidatorKeysResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateValidatorKeys) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateValidatorKeys: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateValidatorKeys: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Creator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Creator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorConsensusPublicKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorConsensusPublicKey = append(m.ValidatorConsensusPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorConsensusPublicKey == nil {
+				m.ValidatorConsensusPublicKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NewMinaPublicKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NewMinaPublicKey = append(m.NewMinaPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.NewMinaPublicKey == nil {
+				m.NewMinaPublicKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NewKeyVersion", wireType)
+			}
+			m.NewKeyVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.NewKeyVersion |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field NewMinaSignature", wireType)
@@ -1593,10 +2562,10 @@ func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
 			}
 			iNdEx = postIndex
 		case 6:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ActorType", wireType)
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorConsensusSignature", wireType)
 			}
-			m.ActorType = 0
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTx
@@ -1606,11 +2575,26 @@ func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.ActorType |= ActorType(b&0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorConsensusSignature = append(m.ValidatorConsensusSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorConsensusSignature == nil {
+				m.ValidatorConsensusSignature = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])
@@ -1632,7 +2616,7 @@ func (m *MsgUpdateKeys) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgUpdateKeysResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgUpdateValidatorKeysResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1655,10 +2639,10 @@ func (m *MsgUpdateKeysResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgUpdateKeysResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgUpdateValidatorKeysResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgUpdateKeysResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgUpdateValidatorKeysResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

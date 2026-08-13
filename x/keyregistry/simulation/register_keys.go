@@ -20,13 +20,17 @@ func SimulateMsgRegisterKeys(
 ) simtypes.Operation {
 	return func(r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context, accs []simtypes.Account, chainID string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
-		msgType := sdk.MsgTypeURL(&types.MsgRegisterKeys{})
+		actorType := randomActorType(r)
+		msgType := sdk.MsgTypeURL(&types.MsgRegisterUserKeys{})
+		if actorType == types.ActorType_ACTOR_TYPE_VALIDATOR {
+			msgType = sdk.MsgTypeURL(&types.MsgRegisterValidatorKeys{})
+		}
 		simAccount, noOpReason := randomSimulationAccount(r, accs)
 		if noOpReason != "" {
 			return simtypes.NoOpMsg(types.ModuleName, msgType, noOpReason), nil, nil
 		}
 
-		msg, noOpReason, err := buildRegisterKeysMsg(r, ctx, k, randomActorType(r), simAccount)
+		msg, noOpReason, err := buildRegisterKeysMsg(r, ctx, k, actorType, simAccount)
 		if err != nil {
 			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to build RegisterKeys msg"), nil, err
 		}
