@@ -90,7 +90,12 @@ func (k msgServer) updateUserKeys(ctx context.Context, msg *types.MsgUpdateKeys)
 		return types.ErrInvalidSignature
 	}
 
-	minaSigValidity, err := VerifyMinaSig(msg.NewMinaSignature, cosmosPublicKey, msg.NewMinaPublicKey, msg.ActorType)
+	challenge, err := types.RegistrationChallenge(msg.ActorType, cosmosPublicKey)
+	if err != nil {
+		return err
+	}
+
+	minaSigValidity, err := VerifyMinaSig(msg.NewMinaSignature, challenge, msg.NewMinaPublicKey)
 	if err != nil {
 		return err
 	}
@@ -157,7 +162,12 @@ func (k msgServer) updateValidatorKeys(ctx context.Context, msg *types.MsgUpdate
 		return types.ErrInvalidSignature
 	}
 
-	minaSigValidity, err := VerifyMinaSig(msg.NewMinaSignature, cosmosPublicKey, msg.NewMinaPublicKey, msg.ActorType)
+	challenge, err := types.RegistrationChallenge(msg.ActorType, cosmosPublicKey)
+	if err != nil {
+		return err
+	}
+
+	minaSigValidity, err := VerifyMinaSig(msg.NewMinaSignature, challenge, msg.NewMinaPublicKey)
 	if err != nil {
 		return err
 	}

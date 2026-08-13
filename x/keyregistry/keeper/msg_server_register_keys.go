@@ -8,14 +8,31 @@ import (
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	minafield "github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/publickey"
 	"github.com/node101-io/mina-signer-go/signature"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-func VerifyMinaSig(sig []byte, msg, minaAddress []byte, actorType types.ActorType) (bool, error) {
+// RegistrationNetworkID is the Mina signature domain registration signatures
+// are verified under. It must match the network users' wallets are connected
+// to: a wallet derives the domain from its own network and offers no way for
+// a dApp to override it, so a domain derived from anything else — the actor
+// type, say — is one no wallet can produce, locking every wallet-based client
+// out of registration.
+//
+// Mina devnet and testnet share this domain, so one constant covers both.
+// Pairing this chain with Mina MAINNET means changing it to mina.MainNet —
+// app.go refuses to start if this and app.toml's mina.network_id disagree,
+// so the two cannot silently drift.
+const RegistrationNetworkID = mina.TestNet
 
-	minaPk, err := publickey.NewPublicKeyFromBytes(minaAddress, mina.NetworkID(actorType.String()))
+// VerifyMinaSig checks a Mina signature over the registration challenge
+// against `minaAddress`. Domain separation between actors lives in the
+// challenge itself; see types.RegistrationChallenge.
+func VerifyMinaSig(sig []byte, challenge *minafield.FieldElement, minaAddress []byte) (bool, error) {
+
+	minaPk, err := publickey.NewPublicKeyFromBytes(minaAddress, RegistrationNetworkID)
 	if err != nil {
 		return false, errors.Wrapf(types.ErrInvalidPublicKey, "invalid mina public key: %v", err)
 	}
@@ -25,7 +42,7 @@ func VerifyMinaSig(sig []byte, msg, minaAddress []byte, actorType types.ActorTyp
 		return false, errors.Wrapf(types.ErrInvalidSignature, "invalid mina signature: %v", err)
 	}
 
-	valid, err := minaPk.VerifyBytes(minaSig, msg)
+	valid, err := minaPk.VerifyField(minaSig, challenge)
 	if err != nil {
 		return false, errors.Wrapf(types.ErrInvalidSignature, "failed to verify mina signature: %v", err)
 	}

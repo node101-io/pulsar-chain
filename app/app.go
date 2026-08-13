@@ -220,6 +220,19 @@ func New(
 		panic("mina.network_id is missing or not a string")
 	}
 
+	// Vote extensions and keyregistry registrations both verify Mina
+	// signatures, and a signature is only valid inside one network's domain.
+	// The registration domain is compiled in, so refuse to boot rather than
+	// let a node sign block state on one network while rejecting every
+	// registration made on the other.
+	if mina.NetworkID(networkId) != keyregistrymodulekeeper.RegistrationNetworkID {
+		panic(fmt.Sprintf(
+			"mina.network_id is %q but registrations are verified under %q — "+
+				"update keyregistry's RegistrationNetworkID to match",
+			networkId, keyregistrymodulekeeper.RegistrationNetworkID,
+		))
+	}
+
 	secondaryKey, err := parseSecondaryKey(appOpts, mina.NetworkID(networkId))
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))

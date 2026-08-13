@@ -56,7 +56,7 @@ func randomMinaPrivateKey(reader io.Reader, actorType types.ActorType) (*private
 			return nil, err
 		}
 
-		minaPrivKey, err := privatekey.NewPrivateKeyFromBytes(seed, mina.NetworkID(actorType.String()))
+		minaPrivKey, err := privatekey.NewPrivateKeyFromBytes(seed, simulationMinaNetworkID)
 		if err != nil {
 			lastErr = err
 			continue
@@ -98,6 +98,31 @@ func randomMinaPublicKey(reader io.Reader) []byte {
 	}
 
 	return minaPubKey
+}
+
+// simulationMinaNetworkID mirrors app.toml's mina.network_id, which the
+// keeper verifies registration signatures under.
+const simulationMinaNetworkID = mina.TestNet
+
+// signMinaRegistration signs the registration challenge for the given actor —
+// the same field element types.RegistrationChallenge produces for real
+// clients, so simulation exercises the production convention.
+func signMinaRegistration(
+	minaPrivKey *privatekey.PrivateKey,
+	actorType types.ActorType,
+	cosmosPublicKey []byte,
+) ([]byte, error) {
+	challenge, err := types.RegistrationChallenge(actorType, cosmosPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	minaSig, err := minaPrivKey.SignFieldElement(challenge)
+	if err != nil {
+		return nil, err
+	}
+
+	return minaSig.Bytes(), nil
 }
 
 func signMinaBytes(minaPrivKey *privatekey.PrivateKey, msg []byte) ([]byte, error) {
@@ -249,7 +274,7 @@ func buildRegisterKeysMsg(
 		return nil, noOpReason, nil
 	}
 
-	minaSignature, err := signMinaBytes(minaPrivKey, cosmosPublicKey)
+	minaSignature, err := signMinaRegistration(minaPrivKey, actorType, cosmosPublicKey)
 	if err != nil {
 		return nil, "", err
 	}
@@ -322,7 +347,7 @@ func buildUpdateKeysMsg(
 		return nil, simtypes.Account{}, noOpReason, nil
 	}
 
-	newMinaSignature, err := signMinaBytes(minaPrivKey, cosmosPublicKey)
+	newMinaSignature, err := signMinaRegistration(minaPrivKey, actorType, cosmosPublicKey)
 	if err != nil {
 		return nil, simtypes.Account{}, "", err
 	}

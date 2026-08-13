@@ -27,8 +27,13 @@ func malformedMinaSignature() []byte {
 	return []byte("bad-mina-signature")
 }
 
+// testMinaNetworkID mirrors app.toml's mina.network_id. Registration
+// signatures are verified under it, so tests must mint keys with the same
+// domain the keeper is configured for.
+const testMinaNetworkID = mina.TestNet
+
 func generateMinaKey(actorType types.ActorType) (*privatekey.PrivateKey, error) {
-	minaPrivKey, err := privatekey.NewPrivateKeyFromBytes([32]byte(MinaPriv), mina.NetworkID(actorType.String()))
+	minaPrivKey, err := privatekey.NewPrivateKeyFromBytes([32]byte(MinaPriv), testMinaNetworkID)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +41,7 @@ func generateMinaKey(actorType types.ActorType) (*privatekey.PrivateKey, error) 
 }
 
 func generateMinaSecondaryKeyPair(actorType types.ActorType) (*privatekey.PrivateKey, error) {
-	minaSecondaryPrivKey, err := privatekey.NewPrivateKeyFromBytes([32]byte(MinaSecondaryPriv), mina.NetworkID(actorType.String()))
+	minaSecondaryPrivKey, err := privatekey.NewPrivateKeyFromBytes([32]byte(MinaSecondaryPriv), testMinaNetworkID)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +60,12 @@ func generateValidatorCosmosPrivKey() cometed25519.PrivKey {
 func signUserRegistration(cosmosPriv secp256k1.PrivKey, minaPriv *privatekey.PrivateKey) (string, []byte, []byte, []byte, []byte, error) {
 	cosmosPubKey := cosmosPriv.PubKey()
 
-	minaSig, err := minaPriv.SignBytes(cosmosPubKey.Bytes())
+	challenge, err := types.RegistrationChallenge(types.ActorType_USER, cosmosPubKey.Bytes())
+	if err != nil {
+		return "", nil, nil, nil, nil, err
+	}
+
+	minaSig, err := minaPriv.SignFieldElement(challenge)
 	if err != nil {
 		return "", nil, nil, nil, nil, err
 	}
@@ -78,7 +88,12 @@ func signUserRegistration(cosmosPriv secp256k1.PrivKey, minaPriv *privatekey.Pri
 func signValidatorRegistration(cosmosPriv cometed25519.PrivKey, minaPriv *privatekey.PrivateKey) (string, []byte, []byte, []byte, []byte, error) {
 	cosmosPubKey := cosmosPriv.PubKey()
 
-	minaSig, err := minaPriv.SignBytes(cosmosPubKey.Bytes())
+	challenge, err := types.RegistrationChallenge(types.ActorType_VALIDATOR, cosmosPubKey.Bytes())
+	if err != nil {
+		return "", nil, nil, nil, nil, err
+	}
+
+	minaSig, err := minaPriv.SignFieldElement(challenge)
 	if err != nil {
 		return "", nil, nil, nil, nil, err
 	}
@@ -138,7 +153,10 @@ func TestUserRegisterKeysSuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, minaPriv)
 
-	minaSig, err := minaPriv.SignBytes(cosmosPubKey.Bytes())
+	challenge, err := types.RegistrationChallenge(types.ActorType_USER, cosmosPubKey.Bytes())
+	require.NoError(t, err)
+
+	minaSig, err := minaPriv.SignFieldElement(challenge)
 	require.NoError(t, err)
 	require.NotNil(t, minaSig)
 
