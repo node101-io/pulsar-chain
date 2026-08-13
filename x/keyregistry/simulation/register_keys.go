@@ -22,7 +22,7 @@ func SimulateMsgRegisterKeys(
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
 		actorType := randomActorType(r)
 		msgType := sdk.MsgTypeURL(&types.MsgRegisterUserKeys{})
-		if actorType == types.ActorType_VALIDATOR {
+		if actorType == types.ActorType_ACTOR_TYPE_VALIDATOR {
 			msgType = sdk.MsgTypeURL(&types.MsgRegisterValidatorKeys{})
 		}
 		simAccount, noOpReason := randomSimulationAccount(r, accs)

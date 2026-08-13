@@ -51,7 +51,7 @@ func TestBuildRegisterKeysMsgUsesUserSimulationAccountPublicKey(t *testing.T) {
 	ctx, k := initSimulationKeeperFixture(t)
 	simAccount := simtypes.RandomAccounts(r, 1)[0]
 
-	msg, noOpReason, err := buildRegisterKeysMsg(r, ctx, k, types.ActorType_USER, simAccount)
+	msg, noOpReason, err := buildRegisterKeysMsg(r, ctx, k, types.ActorType_ACTOR_TYPE_USER, simAccount)
 
 	require.NoError(t, err)
 	require.Empty(t, noOpReason)
@@ -72,7 +72,7 @@ func TestBuildRegisterKeysMsgUsesValidatorConsensusPublicKey(t *testing.T) {
 	ctx, k := initSimulationKeeperFixture(t)
 	simAccount := simtypes.RandomAccounts(r, 1)[0]
 
-	msg, noOpReason, err := buildRegisterKeysMsg(r, ctx, k, types.ActorType_VALIDATOR, simAccount)
+	msg, noOpReason, err := buildRegisterKeysMsg(r, ctx, k, types.ActorType_ACTOR_TYPE_VALIDATOR, simAccount)
 
 	require.NoError(t, err)
 	require.Empty(t, noOpReason)
@@ -94,9 +94,9 @@ func TestBuildUpdateKeysMsgUsesRegisteredUserPair(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	ctx, k := initSimulationKeeperFixture(t)
 	accs := simtypes.RandomAccounts(r, 1)
-	genesis := registerSimulationKeyPair(t, r, ctx, k, types.ActorType_USER, accs[0])
+	genesis := registerSimulationKeyPair(t, r, ctx, k, types.ActorType_ACTOR_TYPE_USER, accs[0])
 
-	msg, simAccount, noOpReason, err := buildUpdateKeysMsg(r, ctx, k, types.ActorType_USER, genesis, accs)
+	msg, simAccount, noOpReason, err := buildUpdateKeysMsg(r, ctx, k, types.ActorType_ACTOR_TYPE_USER, genesis, accs)
 
 	require.NoError(t, err)
 	require.Empty(t, noOpReason)
@@ -116,9 +116,9 @@ func TestBuildUpdateKeysMsgUsesRegisteredValidatorPair(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	ctx, k := initSimulationKeeperFixture(t)
 	accs := simtypes.RandomAccounts(r, 1)
-	genesis := registerSimulationKeyPair(t, r, ctx, k, types.ActorType_VALIDATOR, accs[0])
+	genesis := registerSimulationKeyPair(t, r, ctx, k, types.ActorType_ACTOR_TYPE_VALIDATOR, accs[0])
 
-	msg, simAccount, noOpReason, err := buildUpdateKeysMsg(r, ctx, k, types.ActorType_VALIDATOR, genesis, accs)
+	msg, simAccount, noOpReason, err := buildUpdateKeysMsg(r, ctx, k, types.ActorType_ACTOR_TYPE_VALIDATOR, genesis, accs)
 
 	require.NoError(t, err)
 	require.Empty(t, noOpReason)

@@ -93,7 +93,7 @@ func TestKeySigningChallengeBindsStateTransition(t *testing.T) {
 	require.NotEqual(t, baseChallenge, challengeBytes(t, registration))
 
 	validator := cloneSigningInput(base)
-	validator.ActorType = types.ActorType_VALIDATOR
+	validator.ActorType = types.ActorType_ACTOR_TYPE_VALIDATOR
 	validator.CosmosPublicKey = make([]byte, 32)
 	validator.CosmosPublicKey[0] = 1
 	require.NotEqual(t, baseChallenge, challengeBytes(t, validator))
@@ -115,7 +115,7 @@ func TestKeySigningChallengeRejectsInvalidTransitions(t *testing.T) {
 		{name: "invalid operation", mutate: func(input *types.KeySigningChallengeInput) {
 			input.Operation = types.KeySigningOperation_KEY_SIGNING_OPERATION_UNSPECIFIED
 		}, errIs: types.ErrInvalidSigningOperation},
-		{name: "invalid actor", mutate: func(input *types.KeySigningChallengeInput) { input.ActorType = types.ActorType_UNSPECIFIED }, errIs: types.ErrInvalidActorType},
+		{name: "invalid actor", mutate: func(input *types.KeySigningChallengeInput) { input.ActorType = types.ActorType_ACTOR_TYPE_UNSPECIFIED }, errIs: types.ErrInvalidActorType},
 		{name: "zero update version", mutate: func(input *types.KeySigningChallengeInput) { input.NewKeyVersion = 0 }, errIs: types.ErrInvalidKeyVersion},
 		{name: "unchanged key", mutate: func(input *types.KeySigningChallengeInput) {
 			input.NewMinaPublicKey = append([]byte(nil), input.CurrentMinaPublicKey...)
@@ -142,7 +142,7 @@ func signingInput(t *testing.T) types.KeySigningChallengeInput {
 	newKey := testMinaPublicKey(t, 2)
 	return types.KeySigningChallengeInput{
 		ChainID: "pulsar-test-1", Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE,
-		ActorType: types.ActorType_USER, CosmosPublicKey: cosmosKey,
+		ActorType: types.ActorType_ACTOR_TYPE_USER, CosmosPublicKey: cosmosKey,
 		CurrentMinaPublicKey: current, NewMinaPublicKey: newKey, NewKeyVersion: 1,
 	}
 }

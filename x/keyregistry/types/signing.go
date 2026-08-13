@@ -63,11 +63,11 @@ func validateKeySigningChallengeInput(input KeySigningChallengeInput) (string, e
 	}
 
 	switch input.ActorType {
-	case ActorType_USER:
+	case ActorType_ACTOR_TYPE_USER:
 		if err := ValidateUserCosmosPublicKey(input.CosmosPublicKey); err != nil {
 			return "", err
 		}
-	case ActorType_VALIDATOR:
+	case ActorType_ACTOR_TYPE_VALIDATOR:
 		if err := ValidateValidatorCosmosPublicKey(input.CosmosPublicKey); err != nil {
 			return "", err
 		}
@@ -99,13 +99,13 @@ func validateKeySigningChallengeInput(input KeySigningChallengeInput) (string, e
 	}
 
 	switch {
-	case input.ActorType == ActorType_USER && input.Operation == KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER:
+	case input.ActorType == ActorType_ACTOR_TYPE_USER && input.Operation == KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER:
 		return userRegistrationPrefix, nil
-	case input.ActorType == ActorType_USER && input.Operation == KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE:
+	case input.ActorType == ActorType_ACTOR_TYPE_USER && input.Operation == KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE:
 		return userUpdatePrefix, nil
-	case input.ActorType == ActorType_VALIDATOR && input.Operation == KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER:
+	case input.ActorType == ActorType_ACTOR_TYPE_VALIDATOR && input.Operation == KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER:
 		return validatorRegistrationPrefix, nil
-	case input.ActorType == ActorType_VALIDATOR && input.Operation == KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE:
+	case input.ActorType == ActorType_ACTOR_TYPE_VALIDATOR && input.Operation == KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE:
 		return validatorUpdatePrefix, nil
 	default:
 		return "", errorsmod.Wrapf(ErrInvalidSigningOperation, "actor=%s operation=%s", input.ActorType, input.Operation)

@@ -40,7 +40,7 @@ func (k msgServer) UpdateUserKeys(ctx context.Context, msg *types.MsgUpdateUserK
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
 		ChainID:              sdk.UnwrapSDKContext(ctx).ChainID(),
 		Operation:            types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE,
-		ActorType:            types.ActorType_USER,
+		ActorType:            types.ActorType_ACTOR_TYPE_USER,
 		CosmosPublicKey:      msg.CosmosPublicKey,
 		CurrentMinaPublicKey: currentMinaPublicKey,
 		NewMinaPublicKey:     msg.NewMinaPublicKey,
@@ -74,6 +74,9 @@ func (k msgServer) UpdateUserKeys(ctx context.Context, msg *types.MsgUpdateUserK
 }
 
 func (k msgServer) UpdateValidatorKeys(ctx context.Context, msg *types.MsgUpdateValidatorKeys) (*types.MsgUpdateValidatorKeysResponse, error) {
+	// TODO: Define an activation-height-aware rotation lifecycle before production.
+	// Registry updates take effect immediately, while ExtendVote keeps using the
+	// startup-loaded private key and can therefore produce signatures for the old key.
 	if _, err := sdk.AccAddressFromBech32(msg.Creator); err != nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddress, "creator address must be valid")
 	}
@@ -100,7 +103,7 @@ func (k msgServer) UpdateValidatorKeys(ctx context.Context, msg *types.MsgUpdate
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
 		ChainID:              sdk.UnwrapSDKContext(ctx).ChainID(),
 		Operation:            types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE,
-		ActorType:            types.ActorType_VALIDATOR,
+		ActorType:            types.ActorType_ACTOR_TYPE_VALIDATOR,
 		CosmosPublicKey:      msg.ValidatorConsensusPublicKey,
 		CurrentMinaPublicKey: currentMinaPublicKey,
 		NewMinaPublicKey:     msg.NewMinaPublicKey,
@@ -117,6 +120,8 @@ func (k msgServer) UpdateValidatorKeys(ctx context.Context, msg *types.MsgUpdate
 		return nil, types.ErrInvalidSignature
 	}
 
+	// TODO: Retain height-aware validator key history before production so historical
+	// vote-extension and prover verification can resolve the key active at the signed height.
 	if err := k.validatorMinaToCosmos.Remove(ctx, currentMinaPublicKey); err != nil {
 		return nil, err
 	}

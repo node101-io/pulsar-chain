@@ -48,11 +48,11 @@ func (q queryServer) GetKeySigningChallenge(ctx context.Context, req *types.Quer
 
 func validateChallengeQueryKeys(req *types.QueryGetKeySigningChallengeRequest) error {
 	switch req.ActorType {
-	case types.ActorType_USER:
+	case types.ActorType_ACTOR_TYPE_USER:
 		if err := types.ValidateUserCosmosPublicKey(req.CosmosPublicKey); err != nil {
 			return err
 		}
-	case types.ActorType_VALIDATOR:
+	case types.ActorType_ACTOR_TYPE_VALIDATOR:
 		if err := types.ValidateValidatorCosmosPublicKey(req.CosmosPublicKey); err != nil {
 			return err
 		}
@@ -104,21 +104,21 @@ func (q queryServer) resolveChallengeState(ctx context.Context, req *types.Query
 }
 
 func (q queryServer) actorStableKeyExists(ctx context.Context, actor types.ActorType, key []byte) (bool, error) {
-	if actor == types.ActorType_USER {
+	if actor == types.ActorType_ACTOR_TYPE_USER {
 		return q.k.userCosmosToMina.Has(ctx, key)
 	}
 	return q.k.validatorCosmosToMina.Has(ctx, key)
 }
 
 func (q queryServer) actorMinaKeyExists(ctx context.Context, actor types.ActorType, key []byte) (bool, error) {
-	if actor == types.ActorType_USER {
+	if actor == types.ActorType_ACTOR_TYPE_USER {
 		return q.k.userMinaToCosmos.Has(ctx, key)
 	}
 	return q.k.validatorMinaToCosmos.Has(ctx, key)
 }
 
 func (q queryServer) actorCurrentKeyState(ctx context.Context, actor types.ActorType, stableKey []byte) ([]byte, uint64, error) {
-	if actor == types.ActorType_USER {
+	if actor == types.ActorType_ACTOR_TYPE_USER {
 		exists, err := q.k.userCosmosToMina.Has(ctx, stableKey)
 		if err != nil {
 			return nil, 0, status.Error(codes.Internal, "failed to read key registry state")

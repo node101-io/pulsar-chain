@@ -17,7 +17,7 @@ func newValidatorRegistration(t *testing.T, f *fixture, consensusPrivateKey come
 	minaKey := minaPublicKey(t, minaPrivateKey)
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
 		ChainID: sdkChainID(f.ctx), Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER,
-		ActorType: types.ActorType_VALIDATOR, CosmosPublicKey: consensusPublicKey, NewMinaPublicKey: minaKey,
+		ActorType: types.ActorType_ACTOR_TYPE_VALIDATOR, CosmosPublicKey: consensusPublicKey, NewMinaPublicKey: minaKey,
 	})
 	require.NoError(t, err)
 	minaSignature, err := minaPrivateKey.SignFieldElement(challenge)
@@ -34,7 +34,7 @@ func newValidatorRegistration(t *testing.T, f *fixture, consensusPrivateKey come
 func TestRegisterValidatorKeysAllowsRelayer(t *testing.T) {
 	f := initFixture(t)
 	server := keeper.NewMsgServerImpl(f.keeper)
-	minaPrivateKey, err := generateMinaKey(types.ActorType_VALIDATOR)
+	minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 	msg := newValidatorRegistration(t, f, generateValidatorCosmosPrivKey(), minaPrivateKey)
 
@@ -51,7 +51,7 @@ func TestRegisterValidatorKeysRejectsEitherInvalidProof(t *testing.T) {
 		t.Run(field, func(t *testing.T) {
 			f := initFixture(t)
 			server := keeper.NewMsgServerImpl(f.keeper)
-			minaPrivateKey, err := generateMinaKey(types.ActorType_VALIDATOR)
+			minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_VALIDATOR)
 			require.NoError(t, err)
 			msg := newValidatorRegistration(t, f, generateValidatorCosmosPrivKey(), minaPrivateKey)
 			if field == "mina" {

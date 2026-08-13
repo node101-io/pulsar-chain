@@ -16,12 +16,12 @@ func TestGetKeySigningChallengeRegistrationAndUpdate(t *testing.T) {
 	queryServer := keeper.NewQueryServerImpl(f.keeper)
 	msgServer := keeper.NewMsgServerImpl(f.keeper)
 	cosmosPrivateKey := generateUserCosmosPrivKey()
-	minaPrivateKey, err := generateMinaKey(types.ActorType_USER)
+	minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 	registration := newUserRegistration(t, f.ctx, cosmosPrivateKey, minaPrivateKey)
 
 	registerResponse, err := queryServer.GetKeySigningChallenge(f.ctx, &types.QueryGetKeySigningChallengeRequest{
-		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER, ActorType: types.ActorType_USER,
+		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER, ActorType: types.ActorType_ACTOR_TYPE_USER,
 		CosmosPublicKey: registration.CosmosPublicKey, NewMinaPublicKey: registration.MinaPublicKey,
 	})
 	require.NoError(t, err)
@@ -31,10 +31,10 @@ func TestGetKeySigningChallengeRegistrationAndUpdate(t *testing.T) {
 
 	_, err = msgServer.RegisterUserKeys(f.ctx, registration)
 	require.NoError(t, err)
-	nextPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_USER)
+	nextPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 	updateResponse, err := queryServer.GetKeySigningChallenge(f.ctx, &types.QueryGetKeySigningChallengeRequest{
-		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE, ActorType: types.ActorType_USER,
+		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE, ActorType: types.ActorType_ACTOR_TYPE_USER,
 		CosmosPublicKey: registration.CosmosPublicKey, NewMinaPublicKey: minaPublicKey(t, nextPrivateKey),
 	})
 	require.NoError(t, err)
@@ -47,12 +47,12 @@ func TestGetKeySigningChallengeRejectsInvalidState(t *testing.T) {
 	f := initFixture(t)
 	queryServer := keeper.NewQueryServerImpl(f.keeper)
 	cosmosPrivateKey := generateUserCosmosPrivKey()
-	minaPrivateKey, err := generateMinaKey(types.ActorType_USER)
+	minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 	registration := newUserRegistration(t, f.ctx, cosmosPrivateKey, minaPrivateKey)
 
 	_, err = queryServer.GetKeySigningChallenge(f.ctx, &types.QueryGetKeySigningChallengeRequest{
-		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE, ActorType: types.ActorType_USER,
+		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE, ActorType: types.ActorType_ACTOR_TYPE_USER,
 		CosmosPublicKey: registration.CosmosPublicKey, NewMinaPublicKey: registration.MinaPublicKey,
 	})
 	require.Equal(t, codes.NotFound, status.Code(err))
@@ -60,12 +60,12 @@ func TestGetKeySigningChallengeRejectsInvalidState(t *testing.T) {
 	_, err = keeper.NewMsgServerImpl(f.keeper).RegisterUserKeys(f.ctx, registration)
 	require.NoError(t, err)
 	_, err = queryServer.GetKeySigningChallenge(f.ctx, &types.QueryGetKeySigningChallengeRequest{
-		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE, ActorType: types.ActorType_USER,
+		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE, ActorType: types.ActorType_ACTOR_TYPE_USER,
 		CosmosPublicKey: registration.CosmosPublicKey, NewMinaPublicKey: registration.MinaPublicKey,
 	})
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 	_, err = queryServer.GetKeySigningChallenge(f.ctx, &types.QueryGetKeySigningChallengeRequest{
-		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER, ActorType: types.ActorType_USER,
+		Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER, ActorType: types.ActorType_ACTOR_TYPE_USER,
 		CosmosPublicKey: registration.CosmosPublicKey, NewMinaPublicKey: registration.MinaPublicKey,
 	})
 	require.Equal(t, codes.AlreadyExists, status.Code(err))

@@ -7,8 +7,8 @@ import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "pulsarchain/common/validator_entry.proto";
+import "pulsarchain/keyregistry/v1/actor_type.proto";
 import "pulsarchain/keyregistry/v1/key_signing_operation.proto";
-import "pulsarchain/keyregistry/v1/key_update_type.proto";
 import "pulsarchain/keyregistry/v1/params.proto";
 import "pulsarchain/keyregistry/v1/registered_validator_set_entry.proto";
 

@@ -64,7 +64,7 @@ func TestUserCosmosToMina(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateUserCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
 	msg := newUserRegistration(t, f.ctx, cosmosPriv, minaPriv)
@@ -85,7 +85,7 @@ func TestUserMinaToCosmos(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateUserCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
 	msg := newUserRegistration(t, f.ctx, cosmosPriv, minaPriv)

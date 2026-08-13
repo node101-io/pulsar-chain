@@ -33,10 +33,10 @@ type registeredValidatorPair struct {
 
 func randomActorType(r *rand.Rand) types.ActorType {
 	if r.Intn(2) == 0 {
-		return types.ActorType_USER
+		return types.ActorType_ACTOR_TYPE_USER
 	}
 
-	return types.ActorType_VALIDATOR
+	return types.ActorType_ACTOR_TYPE_VALIDATOR
 }
 
 func randomBytes(r *rand.Rand, size int) []byte {
@@ -212,7 +212,7 @@ func buildRegisterKeysMsg(
 		return nil, "", err
 	}
 
-	if actorType == types.ActorType_USER {
+	if actorType == types.ActorType_ACTOR_TYPE_USER {
 		return &types.MsgRegisterUserKeys{
 			Creator:         simAccount.Address.String(),
 			CosmosPublicKey: cosmosPublicKey,
@@ -251,7 +251,7 @@ func buildUpdateKeysMsg(
 	)
 
 	switch actorType {
-	case types.ActorType_USER:
+	case types.ActorType_ACTOR_TYPE_USER:
 		userPair, ok := selectRegisteredUserPairWithSigner(r, genesis.UserKeyPairs, accs)
 		if !ok {
 			return nil, simtypes.Account{}, "no registered user key pair with simulation signer", nil
@@ -263,7 +263,7 @@ func buildUpdateKeysMsg(
 		currentMinaPublicKey = userPair.pair.MinaKey
 		currentKeyVersion = userPair.pair.KeyVersion
 
-	case types.ActorType_VALIDATOR:
+	case types.ActorType_ACTOR_TYPE_VALIDATOR:
 		validatorPair, ok := selectRegisteredValidatorPairWithSigner(r, genesis.ValidatorKeyPairs, accs)
 		if !ok {
 			return nil, simtypes.Account{}, "no registered validator key pair with simulation signer", nil
@@ -305,7 +305,7 @@ func buildUpdateKeysMsg(
 		return nil, simtypes.Account{}, "", err
 	}
 
-	if actorType == types.ActorType_USER {
+	if actorType == types.ActorType_ACTOR_TYPE_USER {
 		return &types.MsgUpdateUserKeys{
 			Creator:          txAccount.Address.String(),
 			CosmosPublicKey:  cosmosPublicKey,
@@ -331,14 +331,14 @@ func buildUpdateKeysMsg(
 
 func cosmosPublicKeyForActor(actorType types.ActorType, simAccount simtypes.Account) ([]byte, string) {
 	switch actorType {
-	case types.ActorType_USER:
+	case types.ActorType_ACTOR_TYPE_USER:
 		if simAccount.PubKey == nil {
 			return nil, "simulation account has no user public key"
 		}
 
 		return simAccount.PubKey.Bytes(), ""
 
-	case types.ActorType_VALIDATOR:
+	case types.ActorType_ACTOR_TYPE_VALIDATOR:
 		if simAccount.ConsKey == nil {
 			return nil, "simulation account has no validator consensus key"
 		}
@@ -352,9 +352,9 @@ func cosmosPublicKeyForActor(actorType types.ActorType, simAccount simtypes.Acco
 
 func actorCosmosKeyExists(ctx context.Context, k keeper.Keeper, actorType types.ActorType, cosmosPublicKey []byte) (bool, error) {
 	switch actorType {
-	case types.ActorType_USER:
+	case types.ActorType_ACTOR_TYPE_USER:
 		return k.UserCosmosToMinaHas(ctx, cosmosPublicKey)
-	case types.ActorType_VALIDATOR:
+	case types.ActorType_ACTOR_TYPE_VALIDATOR:
 		return k.ValidatorCosmosToMinaHas(ctx, cosmosPublicKey)
 	default:
 		return false, types.ErrInvalidActorType
@@ -366,9 +366,9 @@ func actorMinaKeyExistsFunc(
 	actorType types.ActorType,
 ) func(context.Context, []byte) (bool, error) {
 	switch actorType {
-	case types.ActorType_USER:
+	case types.ActorType_ACTOR_TYPE_USER:
 		return k.UserMinaToCosmosHas
-	case types.ActorType_VALIDATOR:
+	case types.ActorType_ACTOR_TYPE_VALIDATOR:
 		return k.ValidatorMinaToCosmosHas
 	default:
 		return func(context.Context, []byte) (bool, error) {

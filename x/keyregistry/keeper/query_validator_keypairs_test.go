@@ -55,7 +55,7 @@ func TestValidatorCosmosMapSuccess(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateValidatorCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 
 	msg := newValidatorRegistration(t, f, cosmosPriv, minaPriv)
@@ -83,7 +83,7 @@ func TestValidatorMinaMapSuccess(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateValidatorCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 
 	msg := newValidatorRegistration(t, f, cosmosPriv, minaPriv)
@@ -141,7 +141,7 @@ func TestValidatorCosmosMapPubkeyNotFound(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	minaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 	require.NotNil(t, minaPriv)
 

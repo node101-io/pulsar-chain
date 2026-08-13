@@ -34,7 +34,7 @@ func (k msgServer) RegisterUserKeys(ctx context.Context, msg *types.MsgRegisterU
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
 		ChainID:          sdk.UnwrapSDKContext(ctx).ChainID(),
 		Operation:        types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER,
-		ActorType:        types.ActorType_USER,
+		ActorType:        types.ActorType_ACTOR_TYPE_USER,
 		CosmosPublicKey:  msg.CosmosPublicKey,
 		NewMinaPublicKey: msg.MinaPublicKey,
 	})

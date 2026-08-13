@@ -89,7 +89,7 @@ func TestGetValidatorSetWithMinaKeysSuccess(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	firstCosmosPriv := generateValidatorCosmosPrivKey()
-	firstMinaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
+	firstMinaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 
 	firstMsg := newValidatorRegistration(t, f, firstCosmosPriv, firstMinaPriv)
@@ -98,7 +98,7 @@ func TestGetValidatorSetWithMinaKeysSuccess(t *testing.T) {
 	require.NotNil(t, resp)
 
 	secondCosmosPriv := generateValidatorCosmosPrivKey()
-	secondMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_VALIDATOR)
+	secondMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 
 	secondMsg := newValidatorRegistration(t, f, secondCosmosPriv, secondMinaPriv)

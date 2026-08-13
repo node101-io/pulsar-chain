@@ -61,7 +61,7 @@ func newUserRegistration(t *testing.T, ctx context.Context, cosmosPrivateKey sec
 		MinaPublicKey:   minaKey,
 		MinaSignature: signChallenge(t, minaPrivateKey, types.KeySigningChallengeInput{
 			ChainID: sdkChainID(ctx), Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER,
-			ActorType: types.ActorType_USER, CosmosPublicKey: cosmosPublicKey, NewMinaPublicKey: minaKey,
+			ActorType: types.ActorType_ACTOR_TYPE_USER, CosmosPublicKey: cosmosPublicKey, NewMinaPublicKey: minaKey,
 		}),
 	}
 }
@@ -69,7 +69,7 @@ func newUserRegistration(t *testing.T, ctx context.Context, cosmosPrivateKey sec
 func TestRegisterUserKeys(t *testing.T) {
 	f := initFixture(t)
 	server := keeper.NewMsgServerImpl(f.keeper)
-	minaPrivateKey, err := generateMinaKey(types.ActorType_USER)
+	minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 	msg := newUserRegistration(t, f.ctx, generateUserCosmosPrivKey(), minaPrivateKey)
 
@@ -95,7 +95,7 @@ func TestRegisterUserKeysRejectsInvalidProofsWithoutMutation(t *testing.T) {
 		{name: "malformed mina key", mutate: func(msg *types.MsgRegisterUserKeys) { msg.MinaPublicKey = malformedMinaPublicKey() }, errIs: types.ErrInvalidPublicKey},
 		{name: "malformed mina signature", mutate: func(msg *types.MsgRegisterUserKeys) { msg.MinaSignature = malformedMinaSignature() }, errIs: types.ErrInvalidSignature},
 		{name: "wrong mina signature", mutate: func(msg *types.MsgRegisterUserKeys) {
-			other, err := generateMinaSecondaryKeyPair(types.ActorType_USER)
+			other, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_USER)
 			require.NoError(t, err)
 			msg.MinaSignature = newUserRegistration(t, initFixture(t).ctx, generateUserCosmosPrivKey(), other).MinaSignature
 		}, errIs: types.ErrInvalidSignature},
@@ -103,7 +103,7 @@ func TestRegisterUserKeysRejectsInvalidProofsWithoutMutation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := initFixture(t)
 			server := keeper.NewMsgServerImpl(f.keeper)
-			minaPrivateKey, err := generateMinaKey(types.ActorType_USER)
+			minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 			require.NoError(t, err)
 			msg := newUserRegistration(t, f.ctx, generateUserCosmosPrivKey(), minaPrivateKey)
 			tc.mutate(msg)
@@ -119,7 +119,7 @@ func TestRegisterUserKeysRejectsInvalidProofsWithoutMutation(t *testing.T) {
 func TestRegisterUserKeysRejectsDuplicateKeys(t *testing.T) {
 	f := initFixture(t)
 	server := keeper.NewMsgServerImpl(f.keeper)
-	minaPrivateKey, err := generateMinaKey(types.ActorType_USER)
+	minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 	first := newUserRegistration(t, f.ctx, generateUserCosmosPrivKey(), minaPrivateKey)
 	_, err = server.RegisterUserKeys(f.ctx, first)

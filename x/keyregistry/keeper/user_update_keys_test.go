@@ -14,7 +14,7 @@ import (
 func registerUserForUpdate(t *testing.T, f *fixture) (secp256k1.PrivKey, []byte) {
 	t.Helper()
 	cosmosPrivateKey := generateUserCosmosPrivKey()
-	minaPrivateKey, err := generateMinaKey(types.ActorType_USER)
+	minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 	msg := newUserRegistration(t, f.ctx, cosmosPrivateKey, minaPrivateKey)
 	_, err = keeper.NewMsgServerImpl(f.keeper).RegisterUserKeys(f.ctx, msg)
@@ -31,7 +31,7 @@ func newUserUpdate(t *testing.T, f *fixture, cosmosPrivateKey secp256k1.PrivKey,
 		NewMinaPublicKey: newMinaPublicKey, NewKeyVersion: version,
 		NewMinaSignature: signChallenge(t, nextMinaPrivateKey, types.KeySigningChallengeInput{
 			ChainID: chainID, Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE,
-			ActorType: types.ActorType_USER, CosmosPublicKey: cosmosPublicKey,
+			ActorType: types.ActorType_ACTOR_TYPE_USER, CosmosPublicKey: cosmosPublicKey,
 			CurrentMinaPublicKey: currentMinaPublicKey, NewMinaPublicKey: newMinaPublicKey, NewKeyVersion: version,
 		}),
 	}
@@ -41,7 +41,7 @@ func TestUpdateUserKeysAndRejectReplay(t *testing.T) {
 	f := initFixture(t)
 	server := keeper.NewMsgServerImpl(f.keeper)
 	cosmosPrivateKey, keyA := registerUserForUpdate(t, f)
-	keyBPrivate, err := generateMinaSecondaryKeyPair(types.ActorType_USER)
+	keyBPrivate, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 	updateAB := newUserUpdate(t, f, cosmosPrivateKey, keyA, keyBPrivate, 1, sdkChainID(f.ctx))
 
@@ -53,7 +53,7 @@ func TestUpdateUserKeysAndRejectReplay(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 1, version)
 
-	keyAPrivate, err := generateMinaKey(types.ActorType_USER)
+	keyAPrivate, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 	staleBA := newUserUpdate(t, f, cosmosPrivateKey, keyB, keyAPrivate, 1, sdkChainID(f.ctx))
 	_, err = server.UpdateUserKeys(f.ctx, staleBA)
@@ -83,7 +83,7 @@ func TestUpdateUserKeysRejectsWrongContextWithoutMutation(t *testing.T) {
 			f := initFixture(t)
 			server := keeper.NewMsgServerImpl(f.keeper)
 			cosmosPrivateKey, current := registerUserForUpdate(t, f)
-			nextPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_USER)
+			nextPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_USER)
 			require.NoError(t, err)
 			signingChainID := sdkChainID(f.ctx)
 			if tc.name == "wrong chain signature" {
@@ -106,7 +106,7 @@ func TestUpdateUserKeysRejectsUnregisteredAndDuplicateKey(t *testing.T) {
 	server := keeper.NewMsgServerImpl(f.keeper)
 	firstCosmosPrivateKey, firstMinaKey := registerUserForUpdate(t, f)
 	secondCosmosPrivateKey := generateUserCosmosPrivKey()
-	secondMinaPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_USER)
+	secondMinaPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 	secondRegistration := newUserRegistration(t, f.ctx, secondCosmosPrivateKey, secondMinaPrivateKey)
 	_, err = server.RegisterUserKeys(f.ctx, secondRegistration)

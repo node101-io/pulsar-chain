@@ -13,7 +13,7 @@ import (
 func registerValidatorForUpdate(t *testing.T, f *fixture) (cometed25519.PrivKey, []byte) {
 	t.Helper()
 	consensusPrivateKey := generateValidatorCosmosPrivKey()
-	minaPrivateKey, err := generateMinaKey(types.ActorType_VALIDATOR)
+	minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 	msg := newValidatorRegistration(t, f, consensusPrivateKey, minaPrivateKey)
 	_, err = keeper.NewMsgServerImpl(f.keeper).RegisterValidatorKeys(f.ctx, msg)
@@ -27,7 +27,7 @@ func newValidatorUpdate(t *testing.T, f *fixture, consensusPrivateKey cometed255
 	newMinaPublicKey := minaPublicKey(t, nextMinaPrivateKey)
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
 		ChainID: sdkChainID(f.ctx), Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE,
-		ActorType: types.ActorType_VALIDATOR, CosmosPublicKey: consensusPublicKey,
+		ActorType: types.ActorType_ACTOR_TYPE_VALIDATOR, CosmosPublicKey: consensusPublicKey,
 		CurrentMinaPublicKey: currentMinaPublicKey, NewMinaPublicKey: newMinaPublicKey, NewKeyVersion: version,
 	})
 	require.NoError(t, err)
@@ -46,13 +46,13 @@ func TestUpdateValidatorKeysAndRejectReplay(t *testing.T) {
 	f := initFixture(t)
 	server := keeper.NewMsgServerImpl(f.keeper)
 	consensusPrivateKey, keyA := registerValidatorForUpdate(t, f)
-	keyBPrivate, err := generateMinaSecondaryKeyPair(types.ActorType_VALIDATOR)
+	keyBPrivate, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 	updateAB := newValidatorUpdate(t, f, consensusPrivateKey, keyA, keyBPrivate, 1)
 	_, err = server.UpdateValidatorKeys(f.ctx, updateAB)
 	require.NoError(t, err)
 
-	keyAPrivate, err := generateMinaKey(types.ActorType_VALIDATOR)
+	keyAPrivate, err := generateMinaKey(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 	staleBA := newValidatorUpdate(t, f, consensusPrivateKey, updateAB.NewMinaPublicKey, keyAPrivate, 1)
 	_, err = server.UpdateValidatorKeys(f.ctx, staleBA)
@@ -72,7 +72,7 @@ func TestUpdateValidatorKeysRequiresBothProofsWithoutMutation(t *testing.T) {
 			f := initFixture(t)
 			server := keeper.NewMsgServerImpl(f.keeper)
 			consensusPrivateKey, current := registerValidatorForUpdate(t, f)
-			nextPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_VALIDATOR)
+			nextPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_VALIDATOR)
 			require.NoError(t, err)
 			msg := newValidatorUpdate(t, f, consensusPrivateKey, current, nextPrivateKey, 1)
 			if proof == "mina" {

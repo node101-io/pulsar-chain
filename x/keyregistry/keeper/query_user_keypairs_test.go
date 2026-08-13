@@ -56,7 +56,7 @@ func TestUserCosmosMapSuccess(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateUserCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
 	msg := newUserRegistration(t, f.ctx, cosmosPriv, minaPriv)
@@ -86,7 +86,7 @@ func TestUserMinaMapSuccess(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateUserCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
 	msg := newUserRegistration(t, f.ctx, cosmosPriv, minaPriv)
@@ -144,7 +144,7 @@ func TestUserCosmosMapPubkeyNotFound(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
 	minaPubKey, err := minaPriv.ToPublicKey()
