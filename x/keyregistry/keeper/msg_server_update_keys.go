@@ -38,7 +38,7 @@ func (k msgServer) UpdateUserKeys(ctx context.Context, msg *types.MsgUpdateUserK
 	}
 
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
-		ChainID:              chainID(ctx),
+		ChainID:              sdk.UnwrapSDKContext(ctx).ChainID(),
 		Operation:            types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE,
 		ActorType:            types.ActorType_USER,
 		CosmosPublicKey:      msg.CosmosPublicKey,
@@ -98,7 +98,7 @@ func (k msgServer) UpdateValidatorKeys(ctx context.Context, msg *types.MsgUpdate
 	}
 
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
-		ChainID:              chainID(ctx),
+		ChainID:              sdk.UnwrapSDKContext(ctx).ChainID(),
 		Operation:            types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE,
 		ActorType:            types.ActorType_VALIDATOR,
 		CosmosPublicKey:      msg.ValidatorConsensusPublicKey,

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	errorsmod "cosmossdk.io/errors"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
@@ -31,7 +32,7 @@ func (k msgServer) RegisterUserKeys(ctx context.Context, msg *types.MsgRegisterU
 	}
 
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
-		ChainID:          chainID(ctx),
+		ChainID:          sdk.UnwrapSDKContext(ctx).ChainID(),
 		Operation:        types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER,
 		ActorType:        types.ActorType_USER,
 		CosmosPublicKey:  msg.CosmosPublicKey,

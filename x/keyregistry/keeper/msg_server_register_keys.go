@@ -1,8 +1,6 @@
 package keeper
 
 import (
-	"context"
-
 	errorsmod "cosmossdk.io/errors"
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	"github.com/cometbft/cometbft/crypto/ed25519"
@@ -42,8 +40,4 @@ func verifyValidatorConsensusSignature(signature, challenge, consensusPublicKey 
 func deriveUserAddress(cosmosPublicKey []byte) string {
 	publicKey := secp256k1.PubKey{Key: cosmosPublicKey}
 	return sdk.AccAddress(publicKey.Address()).String()
-}
-
-func chainID(ctx context.Context) string {
-	return sdk.UnwrapSDKContext(ctx).ChainID()
 }

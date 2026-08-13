@@ -29,7 +29,7 @@ func (k msgServer) RegisterValidatorKeys(ctx context.Context, msg *types.MsgRegi
 	}
 
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
-		ChainID:          chainID(ctx),
+		ChainID:          sdk.UnwrapSDKContext(ctx).ChainID(),
 		Operation:        types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER,
 		ActorType:        types.ActorType_VALIDATOR,
 		CosmosPublicKey:  msg.ValidatorConsensusPublicKey,
