@@ -97,7 +97,7 @@ func TestAuroWalletProofVerifiesOnlyUnderTestNetDomain(t *testing.T) {
 	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
 		ChainID:          auroWalletChainID,
 		Operation:        types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER,
-		ActorType:        types.ActorType_USER,
+		ActorType:        types.ActorType_ACTOR_TYPE_USER,
 		CosmosPublicKey:  cosmosPublicKey,
 		NewMinaPublicKey: minaPublicKey,
 	})
