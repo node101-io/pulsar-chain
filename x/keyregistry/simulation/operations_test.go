@@ -23,7 +23,7 @@ import (
 func TestRandomMinaPrivateKeyRetriesInvalidScalar(t *testing.T) {
 	reader := bytes.NewReader(append(bytes.Repeat([]byte{0x00}, 32), validSimulationMinaPrivateKeySeed()...))
 
-	privKey, err := randomMinaPrivateKey(reader, types.ActorType_USER)
+	privKey, err := randomMinaPrivateKey(reader)
 
 	require.NoError(t, err)
 	require.NotNil(t, privKey)
@@ -32,7 +32,7 @@ func TestRandomMinaPrivateKeyRetriesInvalidScalar(t *testing.T) {
 func TestRandomMinaPrivateKeyFailsAfterRetries(t *testing.T) {
 	reader := bytes.NewReader(bytes.Repeat([]byte{0x00}, maxMinaPrivateKeyRetries*32))
 
-	privKey, err := randomMinaPrivateKey(reader, types.ActorType_USER)
+	privKey, err := randomMinaPrivateKey(reader)
 
 	require.Error(t, err)
 	require.Nil(t, privKey)
@@ -55,14 +55,14 @@ func TestBuildRegisterKeysMsgUsesUserSimulationAccountPublicKey(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Empty(t, noOpReason)
-	require.Equal(t, simAccount.Address.String(), msg.Creator)
-	require.Equal(t, types.ActorType_USER, msg.ActorType)
-	require.Equal(t, simAccount.PubKey.Bytes(), msg.CosmosPublicKey)
-	require.NoError(t, types.ValidateMinaPublicKey(msg.MinaPublicKey))
-	require.NotEmpty(t, msg.CosmosSignature)
-	require.NotEmpty(t, msg.MinaSignature)
+	userMsg, ok := msg.(*types.MsgRegisterUserKeys)
+	require.True(t, ok)
+	require.Equal(t, simAccount.Address.String(), userMsg.Creator)
+	require.Equal(t, simAccount.PubKey.Bytes(), userMsg.CosmosPublicKey)
+	require.NoError(t, types.ValidateMinaPublicKey(userMsg.MinaPublicKey))
+	require.NotEmpty(t, userMsg.MinaSignature)
 
-	resp, err := keeper.NewMsgServerImpl(k).RegisterKeys(ctx, msg)
+	resp, err := keeper.NewMsgServerImpl(k).RegisterUserKeys(ctx, userMsg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 }
@@ -76,15 +76,16 @@ func TestBuildRegisterKeysMsgUsesValidatorConsensusPublicKey(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Empty(t, noOpReason)
-	require.Equal(t, simAccount.Address.String(), msg.Creator)
-	require.Equal(t, types.ActorType_VALIDATOR, msg.ActorType)
-	require.Equal(t, simAccount.ConsKey.PubKey().Bytes(), msg.CosmosPublicKey)
-	require.Len(t, msg.CosmosPublicKey, 32)
-	require.NoError(t, types.ValidateMinaPublicKey(msg.MinaPublicKey))
-	require.NotEmpty(t, msg.CosmosSignature)
-	require.NotEmpty(t, msg.MinaSignature)
+	validatorMsg, ok := msg.(*types.MsgRegisterValidatorKeys)
+	require.True(t, ok)
+	require.Equal(t, simAccount.Address.String(), validatorMsg.Creator)
+	require.Equal(t, simAccount.ConsKey.PubKey().Bytes(), validatorMsg.ValidatorConsensusPublicKey)
+	require.Len(t, validatorMsg.ValidatorConsensusPublicKey, 32)
+	require.NoError(t, types.ValidateMinaPublicKey(validatorMsg.MinaPublicKey))
+	require.NotEmpty(t, validatorMsg.ValidatorConsensusSignature)
+	require.NotEmpty(t, validatorMsg.MinaSignature)
 
-	resp, err := keeper.NewMsgServerImpl(k).RegisterKeys(ctx, msg)
+	resp, err := keeper.NewMsgServerImpl(k).RegisterValidatorKeys(ctx, validatorMsg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 }
@@ -100,13 +101,13 @@ func TestBuildUpdateKeysMsgUsesRegisteredUserPair(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, noOpReason)
 	require.True(t, simAccount.Address.Equals(accs[0].Address))
-	require.Equal(t, types.ActorType_USER, msg.ActorType)
-	require.NoError(t, types.ValidateMinaPublicKey(msg.PrevMinaPublicKey))
-	require.NoError(t, types.ValidateMinaPublicKey(msg.NewMinaPublicKey))
-	require.NotEmpty(t, msg.CosmosSignature)
-	require.NotEmpty(t, msg.NewMinaSignature)
+	userMsg, ok := msg.(*types.MsgUpdateUserKeys)
+	require.True(t, ok)
+	require.NoError(t, types.ValidateMinaPublicKey(userMsg.NewMinaPublicKey))
+	require.EqualValues(t, 1, userMsg.NewKeyVersion)
+	require.NotEmpty(t, userMsg.NewMinaSignature)
 
-	resp, err := keeper.NewMsgServerImpl(k).UpdateKeys(ctx, msg)
+	resp, err := keeper.NewMsgServerImpl(k).UpdateUserKeys(ctx, userMsg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 }
@@ -122,13 +123,14 @@ func TestBuildUpdateKeysMsgUsesRegisteredValidatorPair(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, noOpReason)
 	require.True(t, simAccount.Address.Equals(accs[0].Address))
-	require.Equal(t, types.ActorType_VALIDATOR, msg.ActorType)
-	require.NoError(t, types.ValidateMinaPublicKey(msg.PrevMinaPublicKey))
-	require.NoError(t, types.ValidateMinaPublicKey(msg.NewMinaPublicKey))
-	require.NotEmpty(t, msg.CosmosSignature)
-	require.NotEmpty(t, msg.NewMinaSignature)
+	validatorMsg, ok := msg.(*types.MsgUpdateValidatorKeys)
+	require.True(t, ok)
+	require.NoError(t, types.ValidateMinaPublicKey(validatorMsg.NewMinaPublicKey))
+	require.EqualValues(t, 1, validatorMsg.NewKeyVersion)
+	require.NotEmpty(t, validatorMsg.ValidatorConsensusSignature)
+	require.NotEmpty(t, validatorMsg.NewMinaSignature)
 
-	resp, err := keeper.NewMsgServerImpl(k).UpdateKeys(ctx, msg)
+	resp, err := keeper.NewMsgServerImpl(k).UpdateValidatorKeys(ctx, validatorMsg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 }
@@ -199,7 +201,16 @@ func registerSimulationKeyPair(
 	require.NoError(t, err)
 	require.Empty(t, noOpReason)
 
-	resp, err := keeper.NewMsgServerImpl(k).RegisterKeys(ctx, msg)
+	server := keeper.NewMsgServerImpl(k)
+	var resp any
+	switch typedMsg := msg.(type) {
+	case *types.MsgRegisterUserKeys:
+		resp, err = server.RegisterUserKeys(ctx, typedMsg)
+	case *types.MsgRegisterValidatorKeys:
+		resp, err = server.RegisterValidatorKeys(ctx, typedMsg)
+	default:
+		t.Fatalf("unexpected registration message type %T", msg)
+	}
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
@@ -220,7 +231,7 @@ func initSimulationKeeperFixture(t *testing.T) (context.Context, keeper.Keeper) 
 	addressCodec := addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
 	storeService := runtime.NewKVStoreService(storeKey)
-	ctx := testutil.DefaultContextWithDB(t, storeKey, storetypes.NewTransientStoreKey("transient_test")).Ctx
+	ctx := testutil.DefaultContextWithDB(t, storeKey, storetypes.NewTransientStoreKey("transient_test")).Ctx.WithChainID("pulsar-test-1")
 	authority := authtypes.NewModuleAddress(types.GovModuleName)
 	cdc := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 

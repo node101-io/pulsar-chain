@@ -12,6 +12,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	simutil "github.com/cosmos/cosmos-sdk/x/simulation"
+	minafield "github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
@@ -47,7 +48,7 @@ func randomBytes(r *rand.Rand, size int) []byte {
 	return bytes
 }
 
-func randomMinaPrivateKey(reader io.Reader, actorType types.ActorType) (*privatekey.PrivateKey, error) {
+func randomMinaPrivateKey(reader io.Reader) (*privatekey.PrivateKey, error) {
 	var lastErr error
 
 	for i := 0; i < maxMinaPrivateKeyRetries; i++ {
@@ -56,7 +57,7 @@ func randomMinaPrivateKey(reader io.Reader, actorType types.ActorType) (*private
 			return nil, err
 		}
 
-		minaPrivKey, err := privatekey.NewPrivateKeyFromBytes(seed, mina.NetworkID(actorType.String()))
+		minaPrivKey, err := privatekey.NewPrivateKeyFromBytes(seed, mina.TestNet)
 		if err != nil {
 			lastErr = err
 			continue
@@ -68,8 +69,8 @@ func randomMinaPrivateKey(reader io.Reader, actorType types.ActorType) (*private
 	return nil, fmt.Errorf("unable to generate valid mina private key after %d retries: %w", maxMinaPrivateKeyRetries, lastErr)
 }
 
-func randomMinaKeyPair(reader io.Reader, actorType types.ActorType) (*privatekey.PrivateKey, []byte, error) {
-	minaPrivKey, err := randomMinaPrivateKey(reader, actorType)
+func randomMinaKeyPair(reader io.Reader) (*privatekey.PrivateKey, []byte, error) {
+	minaPrivKey, err := randomMinaPrivateKey(reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -82,17 +83,8 @@ func randomMinaKeyPair(reader io.Reader, actorType types.ActorType) (*privatekey
 	return minaPrivKey, minaPubKey.Bytes(), nil
 }
 
-func randomMinaPublicKeyForActor(reader io.Reader, actorType types.ActorType) ([]byte, error) {
-	_, minaPubKey, err := randomMinaKeyPair(reader, actorType)
-	if err != nil {
-		return nil, err
-	}
-
-	return minaPubKey, nil
-}
-
 func randomMinaPublicKey(reader io.Reader) []byte {
-	minaPubKey, err := randomMinaPublicKeyForActor(reader, types.ActorType_USER)
+	_, minaPubKey, err := randomMinaKeyPair(reader)
 	if err != nil {
 		panic(err)
 	}
@@ -100,8 +92,8 @@ func randomMinaPublicKey(reader io.Reader) []byte {
 	return minaPubKey
 }
 
-func signMinaBytes(minaPrivKey *privatekey.PrivateKey, msg []byte) ([]byte, error) {
-	minaSig, err := minaPrivKey.SignBytes(msg)
+func signMinaChallenge(minaPrivKey *privatekey.PrivateKey, challenge *minafield.FieldElement) ([]byte, error) {
+	minaSig, err := minaPrivKey.SignFieldElement(challenge)
 	if err != nil {
 		return nil, err
 	}
@@ -109,49 +101,13 @@ func signMinaBytes(minaPrivKey *privatekey.PrivateKey, msg []byte) ([]byte, erro
 	return minaSig.Bytes(), nil
 }
 
-func signCosmosBytesForActor(
-	actorType types.ActorType,
-	simAccount simtypes.Account,
-	msg []byte,
-) ([]byte, string, error) {
-	switch actorType {
-	case types.ActorType_USER:
-		if simAccount.PrivKey == nil {
-			return nil, "simulation account has no user private key", nil
-		}
-
-		sig, err := simAccount.PrivKey.Sign(msg)
-		if err != nil {
-			return nil, "", err
-		}
-
-		return sig, "", nil
-
-	case types.ActorType_VALIDATOR:
-		if simAccount.ConsKey == nil {
-			return nil, "simulation account has no validator consensus private key", nil
-		}
-
-		sig, err := simAccount.ConsKey.Sign(msg)
-		if err != nil {
-			return nil, "", err
-		}
-
-		return sig, "", nil
-
-	default:
-		return nil, "invalid actor type", nil
-	}
-}
-
 func randomUniqueMinaKeyPair(
 	reader io.Reader,
 	ctx context.Context,
-	actorType types.ActorType,
 	hasMinaKey func(context.Context, []byte) (bool, error),
 ) (*privatekey.PrivateKey, []byte, bool, error) {
 	for i := 0; i < maxUniqueMinaKeyRetries; i++ {
-		minaPrivKey, minaPubKey, err := randomMinaKeyPair(reader, actorType)
+		minaPrivKey, minaPubKey, err := randomMinaKeyPair(reader)
 		if err != nil {
 			return nil, nil, false, err
 		}
@@ -174,7 +130,7 @@ func randomUniqueMinaPublicKey(
 	ctx context.Context,
 	hasMinaKey func(context.Context, []byte) (bool, error),
 ) ([]byte, bool, error) {
-	_, minaPubKey, ok, err := randomUniqueMinaKeyPair(reader, ctx, types.ActorType_USER, hasMinaKey)
+	_, minaPubKey, ok, err := randomUniqueMinaKeyPair(reader, ctx, hasMinaKey)
 	if err != nil {
 		return nil, false, err
 	}
@@ -219,7 +175,7 @@ func buildRegisterKeysMsg(
 	k keeper.Keeper,
 	actorType types.ActorType,
 	simAccount simtypes.Account,
-) (*types.MsgRegisterKeys, string, error) {
+) (sdk.Msg, string, error) {
 	cosmosPublicKey, noOpReason := cosmosPublicKeyForActor(actorType, simAccount)
 	if noOpReason != "" {
 		return nil, noOpReason, nil
@@ -233,7 +189,7 @@ func buildRegisterKeysMsg(
 		return nil, "cosmos public key already registered", nil
 	}
 
-	minaPrivKey, minaPublicKey, ok, err := randomUniqueMinaKeyPair(r, ctx, actorType, actorMinaKeyExistsFunc(k, actorType))
+	minaPrivKey, minaPublicKey, ok, err := randomUniqueMinaKeyPair(r, ctx, actorMinaKeyExistsFunc(k, actorType))
 	if err != nil {
 		return nil, "", err
 	}
@@ -241,26 +197,40 @@ func buildRegisterKeysMsg(
 		return nil, "unable to generate unique mina public key", nil
 	}
 
-	cosmosSignature, noOpReason, err := signCosmosBytesForActor(actorType, simAccount, minaPublicKey)
+	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
+		ChainID:          sdk.UnwrapSDKContext(ctx).ChainID(),
+		Operation:        types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER,
+		ActorType:        actorType,
+		CosmosPublicKey:  cosmosPublicKey,
+		NewMinaPublicKey: minaPublicKey,
+	})
 	if err != nil {
 		return nil, "", err
 	}
-	if noOpReason != "" {
-		return nil, noOpReason, nil
-	}
-
-	minaSignature, err := signMinaBytes(minaPrivKey, cosmosPublicKey)
+	minaSignature, err := signMinaChallenge(minaPrivKey, challenge)
 	if err != nil {
 		return nil, "", err
 	}
 
-	return &types.MsgRegisterKeys{
-		Creator:         simAccount.Address.String(),
-		CosmosPublicKey: cosmosPublicKey,
-		MinaPublicKey:   minaPublicKey,
-		CosmosSignature: cosmosSignature,
-		MinaSignature:   minaSignature,
-		ActorType:       actorType,
+	if actorType == types.ActorType_USER {
+		return &types.MsgRegisterUserKeys{
+			Creator:         simAccount.Address.String(),
+			CosmosPublicKey: cosmosPublicKey,
+			MinaPublicKey:   minaPublicKey,
+			MinaSignature:   minaSignature,
+		}, "", nil
+	}
+
+	consensusSignature, err := simAccount.ConsKey.Sign(challenge.Bytes())
+	if err != nil {
+		return nil, "", err
+	}
+	return &types.MsgRegisterValidatorKeys{
+		Creator:                     simAccount.Address.String(),
+		ValidatorConsensusPublicKey: cosmosPublicKey,
+		MinaPublicKey:               minaPublicKey,
+		MinaSignature:               minaSignature,
+		ValidatorConsensusSignature: consensusSignature,
 	}, "", nil
 }
 
@@ -271,12 +241,13 @@ func buildUpdateKeysMsg(
 	actorType types.ActorType,
 	genesis *types.GenesisState,
 	accs []simtypes.Account,
-) (*types.MsgUpdateKeys, simtypes.Account, string, error) {
+) (sdk.Msg, simtypes.Account, string, error) {
 	var (
-		txAccount         simtypes.Account
-		signerAccount     simtypes.Account
-		cosmosPublicKey   []byte
-		prevMinaPublicKey []byte
+		txAccount            simtypes.Account
+		signerAccount        simtypes.Account
+		cosmosPublicKey      []byte
+		currentMinaPublicKey []byte
+		currentKeyVersion    uint64
 	)
 
 	switch actorType {
@@ -289,7 +260,8 @@ func buildUpdateKeysMsg(
 		txAccount = userPair.account
 		signerAccount = userPair.account
 		cosmosPublicKey = userPair.pair.CosmosKey
-		prevMinaPublicKey = userPair.pair.MinaKey
+		currentMinaPublicKey = userPair.pair.MinaKey
+		currentKeyVersion = userPair.pair.KeyVersion
 
 	case types.ActorType_VALIDATOR:
 		validatorPair, ok := selectRegisteredValidatorPairWithSigner(r, genesis.ValidatorKeyPairs, accs)
@@ -300,13 +272,14 @@ func buildUpdateKeysMsg(
 		txAccount = validatorPair.account
 		signerAccount = validatorPair.account
 		cosmosPublicKey = validatorPair.pair.CosmosKey
-		prevMinaPublicKey = validatorPair.pair.MinaKey
+		currentMinaPublicKey = validatorPair.pair.MinaKey
+		currentKeyVersion = validatorPair.pair.KeyVersion
 
 	default:
 		return nil, simtypes.Account{}, "invalid actor type", nil
 	}
 
-	minaPrivKey, newMinaPublicKey, ok, err := randomUniqueMinaKeyPair(r, ctx, actorType, actorMinaKeyExistsFunc(k, actorType))
+	minaPrivKey, newMinaPublicKey, ok, err := randomUniqueMinaKeyPair(r, ctx, actorMinaKeyExistsFunc(k, actorType))
 	if err != nil {
 		return nil, simtypes.Account{}, "", err
 	}
@@ -314,26 +287,45 @@ func buildUpdateKeysMsg(
 		return nil, simtypes.Account{}, "unable to generate unique mina public key", nil
 	}
 
-	cosmosSignature, noOpReason, err := signCosmosBytesForActor(actorType, signerAccount, newMinaPublicKey)
+	newKeyVersion := currentKeyVersion + 1
+	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
+		ChainID:              sdk.UnwrapSDKContext(ctx).ChainID(),
+		Operation:            types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE,
+		ActorType:            actorType,
+		CosmosPublicKey:      cosmosPublicKey,
+		CurrentMinaPublicKey: currentMinaPublicKey,
+		NewMinaPublicKey:     newMinaPublicKey,
+		NewKeyVersion:        newKeyVersion,
+	})
 	if err != nil {
 		return nil, simtypes.Account{}, "", err
 	}
-	if noOpReason != "" {
-		return nil, simtypes.Account{}, noOpReason, nil
-	}
-
-	newMinaSignature, err := signMinaBytes(minaPrivKey, cosmosPublicKey)
+	newMinaSignature, err := signMinaChallenge(minaPrivKey, challenge)
 	if err != nil {
 		return nil, simtypes.Account{}, "", err
 	}
 
-	return &types.MsgUpdateKeys{
-		Creator:           txAccount.Address.String(),
-		PrevMinaPublicKey: prevMinaPublicKey,
-		NewMinaPublicKey:  newMinaPublicKey,
-		CosmosSignature:   cosmosSignature,
-		NewMinaSignature:  newMinaSignature,
-		ActorType:         actorType,
+	if actorType == types.ActorType_USER {
+		return &types.MsgUpdateUserKeys{
+			Creator:          txAccount.Address.String(),
+			CosmosPublicKey:  cosmosPublicKey,
+			NewMinaPublicKey: newMinaPublicKey,
+			NewKeyVersion:    newKeyVersion,
+			NewMinaSignature: newMinaSignature,
+		}, txAccount, "", nil
+	}
+
+	consensusSignature, err := signerAccount.ConsKey.Sign(challenge.Bytes())
+	if err != nil {
+		return nil, simtypes.Account{}, "", err
+	}
+	return &types.MsgUpdateValidatorKeys{
+		Creator:                     txAccount.Address.String(),
+		ValidatorConsensusPublicKey: cosmosPublicKey,
+		NewMinaPublicKey:            newMinaPublicKey,
+		NewKeyVersion:               newKeyVersion,
+		NewMinaSignature:            newMinaSignature,
+		ValidatorConsensusSignature: consensusSignature,
 	}, txAccount, "", nil
 }
 

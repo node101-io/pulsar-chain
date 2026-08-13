@@ -3,61 +3,58 @@ package keeper
 import (
 	"context"
 
-	"cosmossdk.io/errors"
+	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-// handleValidatorRegistration encapsulates the validator registration flow.
-// The creator is the transaction signer/submitter; validator ownership is
-// proven by the provided validator key and signatures.
-func (k msgServer) handleValidatorRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
-	_, err := sdk.AccAddressFromBech32(msg.Creator)
-	if err != nil {
-		return errors.Wrap(types.ErrInvalidCreatorAddress, "creator address must be a valid bech32 address")
+func (k msgServer) RegisterValidatorKeys(ctx context.Context, msg *types.MsgRegisterValidatorKeys) (*types.MsgRegisterValidatorKeysResponse, error) {
+	if _, err := sdk.AccAddressFromBech32(msg.Creator); err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddress, "creator address must be valid")
+	}
+	if err := (types.ValidatorPublicKeyPair{CosmosKey: msg.ValidatorConsensusPublicKey, MinaKey: msg.MinaPublicKey}).Validate(); err != nil {
+		return nil, err
 	}
 
-	err = types.ValidatorPublicKeyPair{
-		MinaKey:   msg.MinaPublicKey,
-		CosmosKey: msg.CosmosPublicKey,
-	}.Validate()
+	consensusKeyExists, err := k.validatorCosmosToMina.Has(ctx, msg.ValidatorConsensusPublicKey)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	minaKeyExists, err := k.validatorMinaToCosmos.Has(ctx, msg.MinaPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	if consensusKeyExists || minaKeyExists {
+		return nil, types.ErrValidatorSecondaryKeyExists
 	}
 
-	return k.persistValidatorRegistration(ctx, msg)
-}
-
-func (k msgServer) persistValidatorRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
-	cosmosKeyExists, err := k.Keeper.validatorCosmosToMina.Has(ctx, msg.CosmosPublicKey)
+	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
+		ChainID:          chainID(ctx),
+		Operation:        types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER,
+		ActorType:        types.ActorType_VALIDATOR,
+		CosmosPublicKey:  msg.ValidatorConsensusPublicKey,
+		NewMinaPublicKey: msg.MinaPublicKey,
+	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	minaKeyExists, err := k.Keeper.validatorMinaToCosmos.Has(ctx, msg.MinaPublicKey)
+	valid, err := verifyMinaFieldSignature(msg.MinaSignature, challenge, msg.MinaPublicKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if cosmosKeyExists || minaKeyExists {
-		return errors.Wrap(types.ErrValidatorSecondaryKeyExists, "provided cosmos or mina public key is already registered")
-	}
-
-	minaSigValidity, err := VerifyMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey, msg.ActorType)
-	if err != nil {
-		return err
-	}
-	cosmosSigValidity := VerifyValidatorCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
-	if !minaSigValidity || !cosmosSigValidity {
-		return errors.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
+	if !valid || !verifyValidatorConsensusSignature(msg.ValidatorConsensusSignature, challenge.Bytes(), msg.ValidatorConsensusPublicKey) {
+		return nil, types.ErrInvalidSignature
 	}
 
-	err = k.Keeper.validatorCosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)
-	if err != nil {
-		return err
+	if err := k.validatorCosmosToMina.Set(ctx, msg.ValidatorConsensusPublicKey, msg.MinaPublicKey); err != nil {
+		return nil, err
 	}
-	err = k.Keeper.validatorMinaToCosmos.Set(ctx, msg.MinaPublicKey, msg.CosmosPublicKey)
-	if err != nil {
-		return err
+	if err := k.validatorMinaToCosmos.Set(ctx, msg.MinaPublicKey, msg.ValidatorConsensusPublicKey); err != nil {
+		return nil, err
+	}
+	if err := k.validatorKeyVersion.Set(ctx, msg.ValidatorConsensusPublicKey, 0); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return &types.MsgRegisterValidatorKeysResponse{}, nil
 }

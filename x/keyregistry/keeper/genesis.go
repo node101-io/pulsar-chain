@@ -19,6 +19,9 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		if err != nil {
 			return err
 		}
+		if err := k.userKeyVersion.Set(ctx, keyPair.CosmosKey, keyPair.KeyVersion); err != nil {
+			return err
+		}
 		err = k.userMinaToCosmos.Set(ctx, keyPair.MinaKey, keyPair.CosmosKey)
 		if err != nil {
 			return err
@@ -32,6 +35,9 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 		}
 		err = k.validatorMinaToCosmos.Set(ctx, keyPair.MinaKey, keyPair.CosmosKey)
 		if err != nil {
+			return err
+		}
+		if err := k.validatorKeyVersion.Set(ctx, keyPair.CosmosKey, keyPair.KeyVersion); err != nil {
 			return err
 		}
 	}
@@ -91,10 +97,15 @@ func (k Keeper) exportUserGenesisKeyPairs(ctx context.Context) ([]*types.UserPub
 		if !bytes.Equal(reverseCosmosKey, cosmosKey) {
 			return nil, errorsmod.Wrap(types.ErrInvalidGenesisState, "user key pair reverse index mismatch")
 		}
+		keyVersion, err := k.userKeyVersion.Get(ctx, cosmosKey)
+		if err != nil {
+			return nil, errorsmod.Wrap(types.ErrInvalidGenesisState, "user key pair missing key version")
+		}
 
 		userKeyPairs = append(userKeyPairs, &types.UserPublicKeyPair{
-			MinaKey:   minaKey,
-			CosmosKey: cosmosKey,
+			MinaKey:    minaKey,
+			CosmosKey:  cosmosKey,
+			KeyVersion: keyVersion,
 		})
 
 		userCosmosToMinaIterator.Next()
@@ -126,6 +137,26 @@ func (k Keeper) exportUserGenesisKeyPairs(ctx context.Context) ([]*types.UserPub
 		userMinaToCosmosIterator.Next()
 	}
 
+	userVersionIterator, err := k.userKeyVersion.Iterate(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer userVersionIterator.Close()
+	for userVersionIterator.Valid() {
+		cosmosKey, err := userVersionIterator.Key()
+		if err != nil {
+			return nil, err
+		}
+		exists, err := k.userCosmosToMina.Has(ctx, cosmosKey)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, errorsmod.Wrap(types.ErrInvalidGenesisState, "user key version missing key pair")
+		}
+		userVersionIterator.Next()
+	}
+
 	return userKeyPairs, nil
 }
 
@@ -154,10 +185,15 @@ func (k Keeper) exportValidatorGenesisKeyPairs(ctx context.Context) ([]*types.Va
 		if !bytes.Equal(reverseCosmosKey, cosmosKey) {
 			return nil, errorsmod.Wrap(types.ErrInvalidGenesisState, "validator key pair reverse index mismatch")
 		}
+		keyVersion, err := k.validatorKeyVersion.Get(ctx, cosmosKey)
+		if err != nil {
+			return nil, errorsmod.Wrap(types.ErrInvalidGenesisState, "validator key pair missing key version")
+		}
 
 		keyPair := &types.ValidatorPublicKeyPair{
-			MinaKey:   minaKey,
-			CosmosKey: cosmosKey,
+			MinaKey:    minaKey,
+			CosmosKey:  cosmosKey,
+			KeyVersion: keyVersion,
 		}
 
 		validatorKeyPairs = append(validatorKeyPairs, keyPair)
@@ -189,6 +225,26 @@ func (k Keeper) exportValidatorGenesisKeyPairs(ctx context.Context) ([]*types.Va
 		}
 
 		validatorMinaToCosmosIterator.Next()
+	}
+
+	validatorVersionIterator, err := k.validatorKeyVersion.Iterate(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer validatorVersionIterator.Close()
+	for validatorVersionIterator.Valid() {
+		cosmosKey, err := validatorVersionIterator.Key()
+		if err != nil {
+			return nil, err
+		}
+		exists, err := k.validatorCosmosToMina.Has(ctx, cosmosKey)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, errorsmod.Wrap(types.ErrInvalidGenesisState, "validator key version missing key pair")
+		}
+		validatorVersionIterator.Next()
 	}
 
 	return validatorKeyPairs, nil

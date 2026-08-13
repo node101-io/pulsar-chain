@@ -21,17 +21,17 @@ func TestUserUpdateKeysMissingCosmosToMinaMapping(t *testing.T) {
 
 	cosmosPriv := secp256k1.GenPrivKey()
 	cosmosPubKey := cosmosPriv.PubKey().Bytes()
-	prevMinaPubKey := internalMinaPublicKey(t, types.ActorType_USER, internalMinaPriv)
-	newMinaPubKey := internalMinaPublicKey(t, types.ActorType_USER, internalMinaSecondaryPriv)
+	prevMinaPubKey := internalMinaPublicKey(t, internalMinaPriv)
+	newMinaPubKey := internalMinaPublicKey(t, internalMinaSecondaryPriv)
 
 	err := k.userMinaToCosmos.Set(ctx, prevMinaPubKey, cosmosPubKey)
 	require.NoError(t, err)
 
-	_, err = ms.UpdateKeys(ctx, &types.MsgUpdateKeys{
-		Creator:           sdk.AccAddress(cosmosPriv.PubKey().Address()).String(),
-		PrevMinaPublicKey: prevMinaPubKey,
-		NewMinaPublicKey:  newMinaPubKey,
-		ActorType:         types.ActorType_USER,
+	_, err = ms.UpdateUserKeys(ctx, &types.MsgUpdateUserKeys{
+		Creator:          sdk.AccAddress(cosmosPriv.PubKey().Address()).String(),
+		CosmosPublicKey:  cosmosPubKey,
+		NewMinaPublicKey: newMinaPubKey,
+		NewKeyVersion:    1,
 	})
 	require.ErrorIs(t, err, types.ErrUserNotRegistered)
 }
@@ -42,25 +42,25 @@ func TestValidatorUpdateKeysMissingCosmosToMinaMapping(t *testing.T) {
 
 	cosmosPriv := cometed25519.GenPrivKey()
 	cosmosPubKey := cosmosPriv.PubKey().Bytes()
-	prevMinaPubKey := internalMinaPublicKey(t, types.ActorType_VALIDATOR, internalMinaPriv)
-	newMinaPubKey := internalMinaPublicKey(t, types.ActorType_VALIDATOR, internalMinaSecondaryPriv)
+	prevMinaPubKey := internalMinaPublicKey(t, internalMinaPriv)
+	newMinaPubKey := internalMinaPublicKey(t, internalMinaSecondaryPriv)
 
 	err := k.validatorMinaToCosmos.Set(ctx, prevMinaPubKey, cosmosPubKey)
 	require.NoError(t, err)
 
-	_, err = ms.UpdateKeys(ctx, &types.MsgUpdateKeys{
-		Creator:           sdk.AccAddress(cosmosPriv.PubKey().Address()).String(),
-		PrevMinaPublicKey: prevMinaPubKey,
-		NewMinaPublicKey:  newMinaPubKey,
-		ActorType:         types.ActorType_VALIDATOR,
+	_, err = ms.UpdateValidatorKeys(ctx, &types.MsgUpdateValidatorKeys{
+		Creator:                     sdk.AccAddress(cosmosPriv.PubKey().Address()).String(),
+		ValidatorConsensusPublicKey: cosmosPubKey,
+		NewMinaPublicKey:            newMinaPubKey,
+		NewKeyVersion:               1,
 	})
 	require.ErrorIs(t, err, types.ErrValidatorNotRegistered)
 }
 
-func internalMinaPublicKey(t *testing.T, actorType types.ActorType, data []byte) []byte {
+func internalMinaPublicKey(t *testing.T, data []byte) []byte {
 	t.Helper()
 
-	privKey, err := privatekey.NewPrivateKeyFromBytes([32]byte(data), mina.NetworkID(actorType.String()))
+	privKey, err := privatekey.NewPrivateKeyFromBytes([32]byte(data), mina.TestNet)
 	require.NoError(t, err)
 
 	pubKey, err := privKey.ToPublicKey()

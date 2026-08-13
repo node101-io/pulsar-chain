@@ -1,0 +1,15 @@
+syntax = "proto3";
+package pulsarchain.keyregistry.v1;
+
+option go_package = "github.com/node101-io/pulsar-chain/x/keyregistry/types";
+
+// KeySigningOperation identifies the key-registry state transition authorized
+// by a wallet field signature.
+enum KeySigningOperation {
+  // KEY_SIGNING_OPERATION_UNSPECIFIED is invalid for signing requests.
+  KEY_SIGNING_OPERATION_UNSPECIFIED = 0;
+  // KEY_SIGNING_OPERATION_REGISTER creates the first stable-key association.
+  KEY_SIGNING_OPERATION_REGISTER = 1;
+  // KEY_SIGNING_OPERATION_UPDATE replaces an existing Mina key.
+  KEY_SIGNING_OPERATION_UPDATE = 2;
+}

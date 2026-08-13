@@ -3,12 +3,16 @@ package pulsarchain.keyregistry.v1;
 
 option go_package = "github.com/node101-io/pulsar-chain/x/keyregistry/types";
 
-// KeyPair defines the KeyPair message.
+// UserPublicKeyPair associates a user Cosmos key with its current Mina key.
 message UserPublicKeyPair {
   bytes mina_key = 1;
   bytes cosmos_key = 2;
+  uint64 key_version = 3;
 }
+
+// ValidatorPublicKeyPair associates a validator consensus key with its current Mina key.
 message ValidatorPublicKeyPair {
   bytes mina_key = 1;
   bytes cosmos_key = 2;
+  uint64 key_version = 3;
 }

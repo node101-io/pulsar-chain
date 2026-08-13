@@ -3,66 +3,60 @@ package keeper
 import (
 	"context"
 
-	"cosmossdk.io/errors"
+	errorsmod "cosmossdk.io/errors"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-func (k msgServer) handleUserRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
-	_, err := k.addressCodec.StringToBytes(msg.Creator)
-	if err != nil {
-		return errors.Wrap(types.ErrInvalidCreatorAddress, "creator address must be a valid bech32 address")
+func (k msgServer) RegisterUserKeys(ctx context.Context, msg *types.MsgRegisterUserKeys) (*types.MsgRegisterUserKeysResponse, error) {
+	if _, err := k.addressCodec.StringToBytes(msg.Creator); err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddress, "creator address must be valid")
+	}
+	if err := (types.UserPublicKeyPair{CosmosKey: msg.CosmosPublicKey, MinaKey: msg.MinaPublicKey}).Validate(); err != nil {
+		return nil, err
+	}
+	if msg.Creator != deriveUserAddress(msg.CosmosPublicKey) {
+		return nil, errorsmod.Wrap(types.ErrInvalidCreatorAddress, "creator does not match cosmos public key")
 	}
 
-	err = types.UserPublicKeyPair{
-		MinaKey:   msg.MinaPublicKey,
-		CosmosKey: msg.CosmosPublicKey,
-	}.Validate()
+	cosmosKeyExists, err := k.userCosmosToMina.Has(ctx, msg.CosmosPublicKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	cosmosAddr, err := deriveAddressFromPubkey(msg.ActorType, msg.CosmosPublicKey)
+	minaKeyExists, err := k.userMinaToCosmos.Has(ctx, msg.MinaPublicKey)
 	if err != nil {
-		return err
-	}
-
-	if msg.Creator != cosmosAddr {
-		return errors.Wrap(types.ErrInvalidCreatorAddress, "creator address does not match the provided cosmos public key")
-	}
-
-	return k.persistUserRegistration(ctx, msg)
-}
-
-func (k msgServer) persistUserRegistration(ctx context.Context, msg *types.MsgRegisterKeys) error {
-	cosmosKeyExists, err := k.Keeper.userCosmosToMina.Has(ctx, msg.CosmosPublicKey)
-	if err != nil {
-		return err
-	}
-	minaKeyExists, err := k.Keeper.userMinaToCosmos.Has(ctx, msg.MinaPublicKey)
-	if err != nil {
-		return err
+		return nil, err
 	}
 	if cosmosKeyExists || minaKeyExists {
-		return errors.Wrap(types.ErrUserSecondaryKeyExists, "provided cosmos or mina public key is already registered")
+		return nil, types.ErrUserSecondaryKeyExists
 	}
 
-	minaSigValidity, err := VerifyMinaSig(msg.MinaSignature, msg.CosmosPublicKey, msg.MinaPublicKey, msg.ActorType)
+	challenge, err := types.BuildKeySigningChallenge(types.KeySigningChallengeInput{
+		ChainID:          chainID(ctx),
+		Operation:        types.KeySigningOperation_KEY_SIGNING_OPERATION_REGISTER,
+		ActorType:        types.ActorType_USER,
+		CosmosPublicKey:  msg.CosmosPublicKey,
+		NewMinaPublicKey: msg.MinaPublicKey,
+	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	cosmosSigValidity := VerifyUserCosmosSig(msg.CosmosSignature, msg.MinaPublicKey, msg.CosmosPublicKey)
-	if !minaSigValidity || !cosmosSigValidity {
-		return errors.Wrap(types.ErrInvalidSignature, "invalid cosmos or mina signature")
+	valid, err := verifyMinaFieldSignature(msg.MinaSignature, challenge, msg.MinaPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	if !valid {
+		return nil, types.ErrInvalidSignature
 	}
 
-	err = k.Keeper.userCosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey)
-	if err != nil {
-		return err
+	if err := k.userCosmosToMina.Set(ctx, msg.CosmosPublicKey, msg.MinaPublicKey); err != nil {
+		return nil, err
 	}
-	err = k.Keeper.userMinaToCosmos.Set(ctx, msg.MinaPublicKey, msg.CosmosPublicKey)
-	if err != nil {
-		return err
+	if err := k.userMinaToCosmos.Set(ctx, msg.MinaPublicKey, msg.CosmosPublicKey); err != nil {
+		return nil, err
+	}
+	if err := k.userKeyVersion.Set(ctx, msg.CosmosPublicKey, 0); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return &types.MsgRegisterUserKeysResponse{}, nil
 }

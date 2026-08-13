@@ -3,93 +3,47 @@ package keeper
 import (
 	"context"
 
-	"cosmossdk.io/errors"
+	errorsmod "cosmossdk.io/errors"
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	minafield "github.com/node101-io/mina-signer-go/field"
 	"github.com/node101-io/mina-signer-go/publickey"
 	"github.com/node101-io/mina-signer-go/signature"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 )
 
-func VerifyMinaSig(sig []byte, msg, minaAddress []byte, actorType types.ActorType) (bool, error) {
+const walletFieldSignatureNetworkID = mina.TestNet
 
-	minaPk, err := publickey.NewPublicKeyFromBytes(minaAddress, mina.NetworkID(actorType.String()))
+func verifyMinaFieldSignature(sig []byte, challenge *minafield.FieldElement, minaPublicKey []byte) (bool, error) {
+	publicKey, err := publickey.NewPublicKeyFromBytes(minaPublicKey, walletFieldSignatureNetworkID)
 	if err != nil {
-		return false, errors.Wrapf(types.ErrInvalidPublicKey, "invalid mina public key: %v", err)
+		return false, errorsmod.Wrapf(types.ErrInvalidPublicKey, "invalid mina public key: %v", err)
 	}
 
-	minaSig, err := signature.NewSignatureFromBytes(sig)
+	minaSignature, err := signature.NewSignatureFromBytes(sig)
 	if err != nil {
-		return false, errors.Wrapf(types.ErrInvalidSignature, "invalid mina signature: %v", err)
+		return false, errorsmod.Wrapf(types.ErrInvalidSignature, "invalid mina signature: %v", err)
 	}
 
-	valid, err := minaPk.VerifyBytes(minaSig, msg)
+	valid, err := publicKey.VerifyField(minaSignature, challenge)
 	if err != nil {
-		return false, errors.Wrapf(types.ErrInvalidSignature, "failed to verify mina signature: %v", err)
+		return false, errorsmod.Wrapf(types.ErrInvalidSignature, "verify mina signature: %v", err)
 	}
 
 	return valid, nil
 }
 
-func VerifyUserCosmosSig(sig []byte, msg, cosmosAddress []byte) bool {
-
-	cosmosPk := secp256k1.PubKey{
-		Key: cosmosAddress,
-	}
-
-	return cosmosPk.VerifySignature(msg, sig)
+func verifyValidatorConsensusSignature(signature, challenge, consensusPublicKey []byte) bool {
+	return ed25519.PubKey(consensusPublicKey).VerifySignature(challenge, signature)
 }
 
-func VerifyValidatorCosmosSig(sig []byte, msg, cosmosAddress []byte) bool {
-
-	var cosmosValidatorPubKey ed25519.PubKey = cosmosAddress
-
-	return cosmosValidatorPubKey.VerifySignature(msg, sig)
+func deriveUserAddress(cosmosPublicKey []byte) string {
+	publicKey := secp256k1.PubKey{Key: cosmosPublicKey}
+	return sdk.AccAddress(publicKey.Address()).String()
 }
 
-// deriveAddressFromPubkey derives the expected signer address from the provided
-// key material.
-func deriveAddressFromPubkey(actorType types.ActorType, cosmosPublicKey []byte) (string, error) {
-
-	if actorType != types.ActorType_USER {
-		return "", types.ErrInvalidActorType
-	}
-
-	pubKey := secp256k1.PubKey{
-		Key: cosmosPublicKey,
-	}
-
-	addr := sdk.AccAddress(pubKey.Address())
-	return addr.String(), nil
-
-}
-
-// RegisterKeys registers a Mina and Cosmos public key pair on chain.
-// It verifies that:
-//   - the creator address is valid
-//   - the provided public keys match the actor-specific key formats
-//   - the creator address matches the provided cosmos public key for user registrations
-//   - neither the cosmos nor mina public key is already registered
-//   - both the mina and cosmos signatures are valid
-//
-// If all checks pass, the key pair is stored in both the CosmosToMina and MinaToCosmos maps.
-func (k msgServer) RegisterKeys(ctx context.Context, msg *types.MsgRegisterKeys) (*types.MsgRegisterKeysResponse, error) {
-
-	var err error
-
-	switch msg.ActorType {
-	case types.ActorType_USER:
-		err = k.handleUserRegistration(ctx, msg)
-	case types.ActorType_VALIDATOR:
-		err = k.handleValidatorRegistration(ctx, msg)
-	default:
-		return nil, types.ErrInvalidActorType
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.MsgRegisterKeysResponse{}, nil
+func chainID(ctx context.Context) string {
+	return sdk.UnwrapSDKContext(ctx).ChainID()
 }

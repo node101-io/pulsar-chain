@@ -13,9 +13,11 @@ import (
 
 const UserCosmosToMinaMapName string = "user_cosmos_to_mina"
 const UserMinaToCosmosMapName string = "user_mina_to_cosmos"
+const UserKeyVersionMapName string = "user_key_version"
 
 const ValidatorCosmosToMinaMapName string = "validator_cosmos_to_mina"
 const ValidatorMinaToCosmosMapName string = "validator_mina_to_cosmos"
+const ValidatorKeyVersionMapName string = "validator_key_version"
 
 type Keeper struct {
 	storeService corestore.KVStoreService
@@ -30,9 +32,11 @@ type Keeper struct {
 
 	userCosmosToMina collections.Map[[]byte, []byte] // Cosmos Public Key --> Mina Public Key
 	userMinaToCosmos collections.Map[[]byte, []byte] // Mina Public Key --> CosmosPublic Key
+	userKeyVersion   collections.Map[[]byte, uint64] // Cosmos Public Key --> Key Version
 
 	validatorCosmosToMina collections.Map[[]byte, []byte] // Validator Cosmos Public Key  --> Validator Mina Public Key
 	validatorMinaToCosmos collections.Map[[]byte, []byte] // Validator Mina Public Key  --> Validator Cosmos Public Key
+	validatorKeyVersion   collections.Map[[]byte, uint64] // Validator Cosmos Public Key --> Key Version
 }
 
 func NewKeeper(
@@ -58,9 +62,11 @@ func NewKeeper(
 
 		userCosmosToMina: collections.NewMap(sb, types.UserCosmosToMinaPrefix, UserCosmosToMinaMapName, collections.BytesKey, collections.BytesValue),
 		userMinaToCosmos: collections.NewMap(sb, types.UserMinaToCosmosPrefix, UserMinaToCosmosMapName, collections.BytesKey, collections.BytesValue),
+		userKeyVersion:   collections.NewMap(sb, types.UserKeyVersionPrefix, UserKeyVersionMapName, collections.BytesKey, collections.Uint64Value),
 
 		validatorCosmosToMina: collections.NewMap(sb, types.ValidatorCosmosToMinaPrefix, ValidatorCosmosToMinaMapName, collections.BytesKey, collections.BytesValue),
 		validatorMinaToCosmos: collections.NewMap(sb, types.ValidatorMinaToCosmosPrefix, ValidatorMinaToCosmosMapName, collections.BytesKey, collections.BytesValue),
+		validatorKeyVersion:   collections.NewMap(sb, types.ValidatorKeyVersionPrefix, ValidatorKeyVersionMapName, collections.BytesKey, collections.Uint64Value),
 	}
 	schema, err := sb.Build()
 	if err != nil {
@@ -92,6 +98,10 @@ func (k Keeper) UserMinaToCosmosHas(ctx context.Context, minaPubKey []byte) (boo
 	return k.userMinaToCosmos.Has(ctx, minaPubKey)
 }
 
+func (k Keeper) UserGetKeyVersion(ctx context.Context, cosmosPubKey []byte) (uint64, error) {
+	return k.userKeyVersion.Get(ctx, cosmosPubKey)
+}
+
 func (k Keeper) ValidatorGetCosmosToMina(ctx context.Context, consensusPubKey []byte) ([]byte, error) {
 	return k.validatorCosmosToMina.Get(ctx, consensusPubKey)
 }
@@ -106,4 +116,8 @@ func (k Keeper) ValidatorCosmosToMinaHas(ctx context.Context, consensusPubKey []
 
 func (k Keeper) ValidatorMinaToCosmosHas(ctx context.Context, minaPubKey []byte) (bool, error) {
 	return k.validatorMinaToCosmos.Has(ctx, minaPubKey)
+}
+
+func (k Keeper) ValidatorGetKeyVersion(ctx context.Context, consensusPubKey []byte) (uint64, error) {
+	return k.validatorKeyVersion.Get(ctx, consensusPubKey)
 }

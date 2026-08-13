@@ -20,14 +20,14 @@ const (
 func TestGenesisState_Validate(t *testing.T) {
 	userCosmosA := secp256k1.GenPrivKey().PubKey().Bytes()
 	userCosmosB := secp256k1.GenPrivKey().PubKey().Bytes()
-	userMinaX := minaPublicKeyBytes(t, minaPrivFixtureA, types.ActorType_USER)
-	userMinaY := minaPublicKeyBytes(t, minaPrivFixtureB, types.ActorType_USER)
+	userMinaX := minaPublicKeyBytes(t, minaPrivFixtureA)
+	userMinaY := minaPublicKeyBytes(t, minaPrivFixtureB)
 	malformedMinaKey := testBytes(32, 0xff)
 
 	validatorConsensusA := cometed25519.GenPrivKey().PubKey().Bytes()
 	validatorConsensusB := cometed25519.GenPrivKey().PubKey().Bytes()
-	validatorMinaX := minaPublicKeyBytes(t, minaPrivFixtureA, types.ActorType_VALIDATOR)
-	validatorMinaY := minaPublicKeyBytes(t, minaPrivFixtureB, types.ActorType_VALIDATOR)
+	validatorMinaX := minaPublicKeyBytes(t, minaPrivFixtureA)
+	validatorMinaY := minaPublicKeyBytes(t, minaPrivFixtureB)
 
 	tests := []struct {
 		desc        string
@@ -161,13 +161,13 @@ func TestGenesisState_Validate(t *testing.T) {
 	}
 }
 
-func minaPublicKeyBytes(t *testing.T, seed string, actorType types.ActorType) []byte {
+func minaPublicKeyBytes(t *testing.T, seed string) []byte {
 	t.Helper()
 
 	var privateKeyBytes [32]byte
 	copy(privateKeyBytes[:], []byte(seed))
 
-	privKey, err := privatekey.NewPrivateKeyFromBytes(privateKeyBytes, mina.NetworkID(actorType.String()))
+	privKey, err := privatekey.NewPrivateKeyFromBytes(privateKeyBytes, mina.TestNet)
 	require.NoError(t, err)
 
 	pubKey, err := privKey.ToPublicKey()

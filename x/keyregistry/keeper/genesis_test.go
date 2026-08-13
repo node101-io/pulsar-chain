@@ -50,14 +50,16 @@ func TestInitAndExportGenesis(t *testing.T) {
 		Params: types.DefaultParams(),
 		UserKeyPairs: []*types.UserPublicKeyPair{
 			{
-				MinaKey:   userMinaPubKey,
-				CosmosKey: userCosmosPubKey.Bytes(),
+				MinaKey:    userMinaPubKey,
+				CosmosKey:  userCosmosPubKey.Bytes(),
+				KeyVersion: 3,
 			},
 		},
 		ValidatorKeyPairs: []*types.ValidatorPublicKeyPair{
 			{
-				MinaKey:   validatorMinaPubKey,
-				CosmosKey: validatorPublicKey.Bytes(),
+				MinaKey:    validatorMinaPubKey,
+				CosmosKey:  validatorPublicKey.Bytes(),
+				KeyVersion: 7,
 			},
 		},
 	}
@@ -80,6 +82,12 @@ func TestInitAndExportGenesis(t *testing.T) {
 	validatorCosmosKey, err := f.keeper.ValidatorGetMinaToCosmos(f.ctx, validatorMinaPubKey)
 	require.NoError(t, err)
 	require.Equal(t, validatorPublicKey.Bytes(), validatorCosmosKey)
+	userVersion, err := f.keeper.UserGetKeyVersion(f.ctx, userCosmosPubKey.Bytes())
+	require.NoError(t, err)
+	require.EqualValues(t, 3, userVersion)
+	validatorVersion, err := f.keeper.ValidatorGetKeyVersion(f.ctx, validatorPublicKey.Bytes())
+	require.NoError(t, err)
+	require.EqualValues(t, 7, validatorVersion)
 
 	got, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)

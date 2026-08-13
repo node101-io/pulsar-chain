@@ -7,6 +7,8 @@ import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "pulsarchain/common/validator_entry.proto";
+import "pulsarchain/keyregistry/v1/key_signing_operation.proto";
+import "pulsarchain/keyregistry/v1/key_update_type.proto";
 import "pulsarchain/keyregistry/v1/params.proto";
 import "pulsarchain/keyregistry/v1/registered_validator_set_entry.proto";
 
@@ -42,6 +44,11 @@ service Query {
   // GetValidatorSetWithMinaKeys returns the supplied validator set with each validator's registered Mina public key.
   rpc GetValidatorSetWithMinaKeys(QueryGetValidatorSetWithMinaKeysRequest) returns (QueryGetValidatorSetWithMinaKeysResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/get_validator_set_with_mina_keys";
+  }
+
+  // GetKeySigningChallenge returns the state-bound field a Mina wallet must sign.
+  rpc GetKeySigningChallenge(QueryGetKeySigningChallengeRequest) returns (QueryGetKeySigningChallengeResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/keyregistry/v1/key_signing_challenge";
   }
 }
 
@@ -105,4 +112,20 @@ message QueryGetValidatorSetWithMinaKeysRequest {
 // QueryGetValidatorSetWithMinaKeysResponse defines the response for GetValidatorSetWithMinaKeys.
 message QueryGetValidatorSetWithMinaKeysResponse {
   repeated RegisteredValidatorSetEntry registered_validators = 1;
+}
+
+// QueryGetKeySigningChallengeRequest identifies a proposed registration or update.
+message QueryGetKeySigningChallengeRequest {
+  KeySigningOperation operation = 1;
+  ActorType actor_type = 2;
+  bytes cosmos_public_key = 3;
+  bytes new_mina_public_key = 4;
+}
+
+// QueryGetKeySigningChallengeResponse contains the exact field and state version to sign.
+message QueryGetKeySigningChallengeResponse {
+  string challenge = 1;
+  bytes challenge_bytes = 2;
+  bytes previous_mina_public_key = 3;
+  uint64 new_key_version = 4;
 }

@@ -58,26 +58,17 @@ func TestValidatorCosmosMapSuccess(t *testing.T) {
 	minaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
 	require.NoError(t, err)
 
-	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signValidatorRegistration(cosmosPriv, minaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         creator,
-		CosmosSignature: cosmosSig,
-		MinaSignature:   minaSig,
-		CosmosPublicKey: cosmosPubKey,
-		MinaPublicKey:   minaPubKey,
-		ActorType:       types.ActorType_VALIDATOR,
-	})
+	msg := newValidatorRegistration(t, f, cosmosPriv, minaPriv)
+	resp, err := ms.RegisterValidatorKeys(f.ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	queryResp, err := qs.GetValidatorMinaPubKey(f.ctx, &types.QueryGetValidatorMinaPubKeyRequest{
-		ValidatorCosmosPubKey: cosmosPubKey,
+		ValidatorCosmosPubKey: msg.ValidatorConsensusPublicKey,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, queryResp)
-	require.Equal(t, minaPubKey, queryResp.ValidatorMinaPubKey)
+	require.Equal(t, msg.MinaPublicKey, queryResp.ValidatorMinaPubKey)
 }
 
 // TestValidatorMinaMapSuccess verifies that a cosmos public key can be retrieved
@@ -95,26 +86,17 @@ func TestValidatorMinaMapSuccess(t *testing.T) {
 	minaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
 	require.NoError(t, err)
 
-	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signValidatorRegistration(cosmosPriv, minaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         creator,
-		CosmosSignature: cosmosSig,
-		MinaSignature:   minaSig,
-		CosmosPublicKey: cosmosPubKey,
-		MinaPublicKey:   minaPubKey,
-		ActorType:       types.ActorType_VALIDATOR,
-	})
+	msg := newValidatorRegistration(t, f, cosmosPriv, minaPriv)
+	resp, err := ms.RegisterValidatorKeys(f.ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	queryResp, err := qs.GetValidatorCosmosPubKey(f.ctx, &types.QueryGetValidatorCosmosPubKeyRequest{
-		ValidatorMinaPubKey: minaPubKey,
+		ValidatorMinaPubKey: msg.MinaPublicKey,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, queryResp)
-	require.Equal(t, cosmosPubKey, queryResp.ValidatorCosmosPubKey)
+	require.Equal(t, msg.ValidatorConsensusPublicKey, queryResp.ValidatorCosmosPubKey)
 }
 
 // TestValidatorMinaMapInvalidArgumentFail verifies that GetMinaPubKey returns

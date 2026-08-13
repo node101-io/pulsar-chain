@@ -19,4 +19,8 @@ var (
 	ErrInvalidActorType            = errors.Register(ModuleName, 1108, "invalid actor type")
 	ErrNilKeyPair                  = errors.Register(ModuleName, 1109, "nil keypair")
 	ErrInvalidGenesisState         = errors.Register(ModuleName, 1110, "invalid genesis state")
+	ErrInvalidSigningOperation     = errors.Register(ModuleName, 1111, "invalid key signing operation")
+	ErrInvalidKeyVersion           = errors.Register(ModuleName, 1112, "invalid key version")
+	ErrStaleKeyVersion             = errors.Register(ModuleName, 1113, "stale key version")
+	ErrUnchangedMinaPublicKey      = errors.Register(ModuleName, 1114, "new mina public key matches current key")
 )
