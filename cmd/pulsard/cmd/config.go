@@ -10,6 +10,10 @@ import (
 func initCometBFTConfig() *cmtcfg.Config {
 	cfg := cmtcfg.DefaultConfig()
 
+	// Browsers talk to the node directly; without this they discard responses
+	// the node answered fine.
+	cfg.RPC.CORSAllowedOrigins = []string{"*"}
+
 	// these values put a higher strain on node memory
 	// cfg.P2P.MaxNumInboundPeers = 100
 	// cfg.P2P.MaxNumOutboundPeers = 40
@@ -42,6 +46,11 @@ func initAppConfig() (string, interface{}) {
 	//
 	// In tests, we set the min gas prices to 0.
 	// srvCfg.MinGasPrices = "0stake"
+
+	// REST serves what a browser cannot reach over gRPC. The listen address
+	// stays at its localhost default.
+	srvCfg.API.Enable = true
+	srvCfg.API.EnableUnsafeCORS = true
 
 	customAppConfig := CustomAppConfig{
 		Config: *srvCfg,
