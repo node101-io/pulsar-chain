@@ -18,6 +18,8 @@ const (
 	validatorUpdatePrefix       = "pulsar-kr-val-upd-v1"
 )
 
+// KeySigningChallengeInput defines the complete key-registry state transition
+// bound to a Mina wallet signature.
 type KeySigningChallengeInput struct {
 	ChainID              string
 	Operation            KeySigningOperation
@@ -28,6 +30,9 @@ type KeySigningChallengeInput struct {
 	NewKeyVersion        uint64
 }
 
+// BuildKeySigningChallenge validates input and deterministically derives the
+// versioned field element that binds the chain ID, actor, stable Cosmos key,
+// current and new Mina keys, and key version.
 func BuildKeySigningChallenge(input KeySigningChallengeInput) (*minafield.FieldElement, error) {
 	prefix, err := validateKeySigningChallengeInput(input)
 	if err != nil {
