@@ -325,8 +325,8 @@ class E2EFixtureTest(unittest.TestCase):
         self.assertEqual(
             {
                 "latest_fetched_mina_height": "9",
-                "valid_action_hashes": [],
-                "valid_action_hashes_cosmos_block_height": "0",
+                "action_hashes": [],
+                "action_hashes_cosmos_block_height": "0",
                 "start_mina_height": "9",
             },
             bridge["bridge_state"],

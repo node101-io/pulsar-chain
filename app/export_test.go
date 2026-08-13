@@ -20,6 +20,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	minafield "github.com/node101-io/mina-signer-go/field"
+	merkle "github.com/node101-io/mina-signer-go/merklelist"
 	bridgetypes "github.com/node101-io/pulsar-chain/x/bridge/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -96,6 +97,22 @@ func canonicalRoot(value uint64) []byte {
 	return minafield.NewField().FromUint64(value).Bytes()
 }
 
+func actionsRootFromValues(t *testing.T, baseRoot []byte, values ...uint64) []byte {
+	t.Helper()
+
+	list, err := merkle.NewMerkleListFromRoot(
+		bridgetypes.ActionsReducedRootMerkleListPrefixV1,
+		baseRoot,
+	)
+	require.NoError(t, err)
+	fieldCodec := minafield.NewField()
+	for _, value := range values {
+		require.NoError(t, list.Append(fieldCodec.FromUint64(value).Bytes()))
+	}
+
+	return list.Root()
+}
+
 func bridgeGenesisFromExport(t *testing.T, app *App, appState []byte) bridgetypes.GenesisState {
 	t.Helper()
 
@@ -140,19 +157,20 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	require.NoError(t, err)
 
 	const minaCursor int64 = 500_000
+	newestRoot := actionsRootFromValues(t, canonicalRoot(102), 77, 78)
 	bridgeGenesis := bridgetypes.DefaultGenesis()
 	bridgeGenesis.Params = bridgetypes.DefaultTestParams()
 	bridgeGenesis.BridgeState = bridgetypes.BridgeState{
-		LatestFetchedMinaHeight:            minaCursor,
-		StartMinaHeight:                    499_990,
-		ValidActionHashesCosmosBlockHeight: 103,
-		ValidActionHashes: []string{
+		LatestFetchedMinaHeight:       minaCursor,
+		StartMinaHeight:               499_990,
+		ActionHashesCosmosBlockHeight: 103,
+		ActionHashes: []string{
 			minafield.NewField().FromUint64(77).String(),
 			minafield.NewField().FromUint64(78).String(),
 		},
 	}
 	bridgeGenesis.ActionsReducedRootSnapshots = nil
-	for height := int64(100); height <= 103; height++ {
+	for height := int64(100); height <= 102; height++ {
 		bridgeGenesis.ActionsReducedRootSnapshots = append(
 			bridgeGenesis.ActionsReducedRootSnapshots,
 			bridgetypes.ActionsReducedRootSnapshot{
@@ -161,6 +179,13 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 			},
 		)
 	}
+	bridgeGenesis.ActionsReducedRootSnapshots = append(
+		bridgeGenesis.ActionsReducedRootSnapshots,
+		bridgetypes.ActionsReducedRootSnapshot{
+			CosmosBlockHeight:  103,
+			ActionsReducedRoot: newestRoot,
+		},
+	)
 	genesisState[bridgetypes.ModuleName] = oldApp.AppCodec().MustMarshalJSON(bridgeGenesis)
 
 	appState, err := cmtjson.Marshal(genesisState)
@@ -179,7 +204,7 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	preExportCtx := oldApp.NewContextLegacy(true, cmtproto.Header{Height: oldApp.LastBlockHeight()})
 	preExportRoot, err := oldApp.BridgeKeeper.GetLatestActionsReducedRoot(preExportCtx)
 	require.NoError(t, err)
-	require.Equal(t, canonicalRoot(103), preExportRoot)
+	require.Equal(t, newestRoot, preExportRoot)
 
 	normalExport, err := oldApp.ExportAppStateAndValidators(false, nil, nil)
 	require.NoError(t, err)
@@ -200,12 +225,12 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 
 	exportedBridgeGenesis := bridgeGenesisFromExport(t, oldApp, exported.AppState)
 	require.Equal(t, minaCursor, exportedBridgeGenesis.BridgeState.LatestFetchedMinaHeight)
-	require.Empty(t, exportedBridgeGenesis.BridgeState.ValidActionHashes)
-	require.Equal(t, int64(0), exportedBridgeGenesis.BridgeState.ValidActionHashesCosmosBlockHeight)
+	require.Empty(t, exportedBridgeGenesis.BridgeState.ActionHashes)
+	require.Equal(t, int64(0), exportedBridgeGenesis.BridgeState.ActionHashesCosmosBlockHeight)
 	require.Equal(t, minaCursor, exportedBridgeGenesis.BridgeState.StartMinaHeight)
 	require.Len(t, exportedBridgeGenesis.ActionsReducedRootSnapshots, 1)
 	require.Equal(t, int64(0), exportedBridgeGenesis.ActionsReducedRootSnapshots[0].CosmosBlockHeight)
-	require.Equal(t, canonicalRoot(103), exportedBridgeGenesis.ActionsReducedRootSnapshots[0].ActionsReducedRoot)
+	require.Equal(t, newestRoot, exportedBridgeGenesis.ActionsReducedRootSnapshots[0].ActionsReducedRoot)
 	require.NoError(t, exportedBridgeGenesis.Validate())
 
 	newApp := newZeroHeightExportTestApp(t, wrapperAddress)
@@ -223,7 +248,7 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	ctx := newApp.NewContextLegacy(true, cmtproto.Header{Height: 0})
 	rootAtZero, err := newApp.BridgeKeeper.GetActionsReducedRootAtHeight(ctx, 0)
 	require.NoError(t, err)
-	require.Equal(t, canonicalRoot(103), rootAtZero)
+	require.Equal(t, newestRoot, rootAtZero)
 
 	require.NoError(t, newApp.BridgeKeeper.SetActionsReducedRoot(ctx, 1, canonicalRoot(201)))
 	latestRoot, err := newApp.BridgeKeeper.GetLatestActionsReducedRoot(ctx)
@@ -233,8 +258,8 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 	importedBridgeState, err := newApp.BridgeKeeper.GetBridgeState(ctx)
 	require.NoError(t, err)
 	require.Equal(t, minaCursor, importedBridgeState.LatestFetchedMinaHeight)
-	require.Empty(t, importedBridgeState.ValidActionHashes)
-	require.Equal(t, int64(0), importedBridgeState.ValidActionHashesCosmosBlockHeight)
+	require.Empty(t, importedBridgeState.ActionHashes)
+	require.Equal(t, int64(0), importedBridgeState.ActionHashesCosmosBlockHeight)
 	require.Equal(t, minaCursor, importedBridgeState.StartMinaHeight)
 	require.NoError(t, importedBridgeState.Validate())
 }

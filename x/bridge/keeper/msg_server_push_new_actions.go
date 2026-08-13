@@ -87,55 +87,59 @@ func (k msgServer) PushNewActions(ctx context.Context, msg *types.MsgPushNewActi
 		return nil, err
 	}
 
-	var validActionHashes []string
+	var actionHashes []string
 
 	for _, act := range actions {
-		valid, err := k.isValidAction(ctx, act)
-		if err != nil {
-			return nil, err
-		}
-		if !valid {
-			continue
-		}
-
-		if err := k.apply(ctx, act); err != nil {
-			return nil, err
-		}
-
-		fieldElement, err := act.ToFieldElement()
+		minaPublicKey, valid, err := k.validateAction(ctx, act)
 		if err != nil {
 			return nil, err
 		}
 
+		fieldElement, err := act.ToFieldElement(valid)
+		if err != nil {
+			return nil, err
+		}
+
+		if valid {
+			if err := k.apply(ctx, act, minaPublicKey); err != nil {
+				return nil, err
+			}
+		}
+
+		// Every action gets a leaf; only valid actions are applied.
 		if err := list.Append(fieldElement.Bytes()); err != nil {
 			return nil, err
 		}
 
-		validActionHashes = append(validActionHashes, fieldElement.String())
+		actionHashes = append(actionHashes, fieldElement.String())
 	}
 
 	newRoot := list.Root()
 
-	batchHashes := validActionHashes
+	batchHashes := actionHashes
 	currentCosmosBlockHeight := sdkCtx.BlockHeight()
 	batchStartMinaHeight := startMinaHeight
 
 	// Same-block successful pushes must preserve transaction execution order in
 	// the cumulative batch that query consumers use to rebuild the final root.
-	if bridgeState.ValidActionHashesCosmosBlockHeight == currentCosmosBlockHeight {
-		batchHashes = make([]string, 0, len(bridgeState.ValidActionHashes)+len(validActionHashes))
-		batchHashes = append(batchHashes, bridgeState.ValidActionHashes...)
-		batchHashes = append(batchHashes, validActionHashes...)
+	if bridgeState.ActionHashesCosmosBlockHeight == currentCosmosBlockHeight {
+		batchHashes = make(
+			[]string,
+			0,
+			len(bridgeState.ActionHashes)+len(actionHashes),
+		)
+		batchHashes = append(batchHashes, bridgeState.ActionHashes...)
+		batchHashes = append(batchHashes, actionHashes...)
 		batchStartMinaHeight = bridgeState.StartMinaHeight
 	}
 
 	// A successful batch advances the Mina cursor and stores the cumulative hash
 	// list visible for the current Cosmos block.
 	if err := k.Keeper.BridgeState.Set(ctx, types.BridgeState{
-		LatestFetchedMinaHeight:            msg.MinaBlockHeight,
-		ValidActionHashes:                  batchHashes,
-		ValidActionHashesCosmosBlockHeight: currentCosmosBlockHeight,
-		StartMinaHeight:                    batchStartMinaHeight,
+		LatestFetchedMinaHeight:       msg.MinaBlockHeight,
+		ActionHashes:                  batchHashes,
+		ActionHashesCosmosBlockHeight: currentCosmosBlockHeight,
+		StartMinaHeight:               batchStartMinaHeight,
 	}); err != nil {
 		return nil, err
 	}

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	minaaddress "github.com/node101-io/mina-signer-go/address"
 	minafield "github.com/node101-io/mina-signer-go/field"
 	merkle "github.com/node101-io/mina-signer-go/merklelist"
 	bridgetypes "github.com/node101-io/pulsar-chain/x/bridge/types"
@@ -19,17 +18,22 @@ type rootVector struct {
 	Decimal string `json:"decimal"`
 }
 
+type actionRootVector struct {
+	Name   string `json:"name"`
+	Action struct {
+		IsValidAction bool   `json:"isValidAction"`
+		XCoordinate   string `json:"xCoordinate"`
+		IsOdd         bool   `json:"isOdd"`
+		ActionType    string `json:"actionType"`
+		Amount        int64  `json:"amount"`
+	} `json:"action"`
+	ActionHash rootVector `json:"actionHash"`
+	Root       rootVector `json:"root"`
+}
+
 type actionsRootVectors struct {
-	EmptyRoot         rootVector `json:"emptyRoot"`
-	SingleDepositRoot struct {
-		Action struct {
-			BlockHeight int64  `json:"blockHeight"`
-			FeePayer    string `json:"feePayer"`
-			ActionType  string `json:"actionType"`
-			Amount      int64  `json:"amount"`
-		} `json:"action"`
-		rootVector
-	} `json:"singleDepositRoot"`
+	EmptyRoot        rootVector         `json:"emptyRoot"`
+	SingleActionRoot []actionRootVector `json:"singleActionRoots"`
 }
 
 func loadActionsRootVectors(t *testing.T) actionsRootVectors {
@@ -60,22 +64,29 @@ func TestActionsRootCrossLanguageVectors(t *testing.T) {
 	vectors := loadActionsRootVectors(t)
 	requireRootMatchesVector(t, bridgetypes.DefaultActionsReducedRoot(), vectors.EmptyRoot)
 
-	actionVector := vectors.SingleDepositRoot.Action
-	require.Equal(t, "ACTION_TYPE_DEPOSIT", actionVector.ActionType)
+	require.NotEmpty(t, vectors.SingleActionRoot)
+	for _, vector := range vectors.SingleActionRoot {
+		t.Run(vector.Name, func(t *testing.T) {
+			actionVector := vector.Action
+			require.Equal(t, "ACTION_TYPE_DEPOSIT", actionVector.ActionType)
 
-	feePayer, err := minaaddress.NewAddress(actionVector.FeePayer).Marshal()
-	require.NoError(t, err)
+			xCoordinate, err := base64.StdEncoding.DecodeString(actionVector.XCoordinate)
+			require.NoError(t, err)
 
-	action := bridgetypes.Action{
-		BlockHeight: actionVector.BlockHeight,
-		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      actionVector.Amount,
+			action := bridgetypes.Action{
+				BlockHeight: 1,
+				XCoordinate: xCoordinate,
+				IsOdd:       actionVector.IsOdd,
+				ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
+				Amount:      actionVector.Amount,
+			}
+			actionField, err := action.ToFieldElement(actionVector.IsValidAction)
+			require.NoError(t, err)
+			requireRootMatchesVector(t, actionField.Bytes(), vector.ActionHash)
+
+			list := merkle.NewMerkleList(bridgetypes.ActionsReducedRootMerkleListPrefixV1)
+			require.NoError(t, list.Append(actionField.Bytes()))
+			requireRootMatchesVector(t, list.Root(), vector.Root)
+		})
 	}
-	actionField, err := action.ToFieldElement()
-	require.NoError(t, err)
-
-	list := merkle.NewMerkleList(bridgetypes.ActionsReducedRootMerkleListPrefixV1)
-	require.NoError(t, list.Append(actionField.Bytes()))
-	requireRootMatchesVector(t, list.Root(), vectors.SingleDepositRoot.rootVector)
 }

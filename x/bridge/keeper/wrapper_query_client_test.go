@@ -3,13 +3,40 @@ package keeper
 import (
 	"context"
 	"testing"
+	"time"
 
+	wrapperactions "github.com/node101-io/archive-wrapper/actions"
+	wrapperquery "github.com/node101-io/archive-wrapper/query"
 	"github.com/stretchr/testify/require"
 
 	"github.com/node101-io/pulsar-chain/x/bridge/types"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+type stubWrapperQueryClient struct {
+	actionsResponse *wrapperquery.QueryGetActionsInRangeResponse
+	actionsErr      error
+	actionsRequest  *wrapperquery.QueryGetActionsInRangeRequest
+}
+
+func (s *stubWrapperQueryClient) GetActionsInRange(
+	_ context.Context,
+	req *wrapperquery.QueryGetActionsInRangeRequest,
+	_ ...grpc.CallOption,
+) (*wrapperquery.QueryGetActionsInRangeResponse, error) {
+	s.actionsRequest = req
+	return s.actionsResponse, s.actionsErr
+}
+
+func (s *stubWrapperQueryClient) GetMinaBlockHeight(
+	context.Context,
+	*wrapperquery.QueryGetMinaBlockHeightRequest,
+	...grpc.CallOption,
+) (*wrapperquery.QueryGetMinaBlockHeightResponse, error) {
+	return &wrapperquery.QueryGetMinaBlockHeightResponse{}, nil
+}
 
 func TestParseArchiveWrapperTransportMode(t *testing.T) {
 	for _, value := range []string{"loopback", "trusted-network"} {
@@ -257,4 +284,43 @@ func TestMapArchiveWrapperQueryError(t *testing.T) {
 
 	originalErr := status.Error(codes.FailedPrecondition, "earliest indexed height")
 	require.Equal(t, originalErr, mapArchiveWrapperQueryError(originalErr))
+}
+
+func TestArchiveWrapperClientGetActionsInRangeMapsNewActionFields(t *testing.T) {
+	xCoordinate := []byte{1, 2, 3}
+	queryClient := &stubWrapperQueryClient{
+		actionsResponse: &wrapperquery.QueryGetActionsInRangeResponse{
+			Actions: []*wrapperactions.Action{
+				nil,
+				{
+					BlockHeight: 11,
+					XCoordinate: xCoordinate,
+					IsOdd:       true,
+					ActionType:  wrapperactions.ActionType_DEPOSIT,
+					Amount:      7,
+				},
+			},
+		},
+	}
+	client := &ArchiveWrapperClient{
+		conn:         &grpc.ClientConn{},
+		query:        queryClient,
+		queryTimeout: time.Second,
+	}
+
+	actions, err := client.GetActionsInRange(context.Background(), 10, 12)
+	require.NoError(t, err)
+	require.Equal(t, &wrapperquery.QueryGetActionsInRangeRequest{
+		StartBlockHeight: 11,
+		EndBlockHeight:   12,
+	}, queryClient.actionsRequest)
+	require.Equal(t, []types.Action{
+		{
+			BlockHeight: 11,
+			XCoordinate: xCoordinate,
+			IsOdd:       true,
+			ActionType:  types.ActionType_ACTION_TYPE_DEPOSIT,
+			Amount:      7,
+		},
+	}, actions)
 }

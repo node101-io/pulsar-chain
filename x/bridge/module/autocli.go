@@ -25,9 +25,9 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				},
 
 				{
-					RpcMethod:      "LatestValidActionHashes",
-					Use:            "latest-valid-action-hashes",
-					Short:          "Query latest-valid-action-hashes",
+					RpcMethod:      "LatestActionHashes",
+					Use:            "latest-action-hashes",
+					Short:          "Query latest-action-hashes",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
 				},
 

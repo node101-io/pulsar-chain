@@ -8,12 +8,12 @@ import (
 	minafield "github.com/node101-io/mina-signer-go/field"
 )
 
-// Validate checks BridgeState height, batch-shape, and canonical valid_action_hashes invariants.
+// Validate checks BridgeState height, batch-shape, and canonical action_hashes invariants.
 func (s BridgeState) Validate() error {
 	if s.LatestFetchedMinaHeight < 0 {
 		return ErrInvalidLatestFetchedMinaHeight
 	}
-	if s.ValidActionHashesCosmosBlockHeight < 0 {
+	if s.ActionHashesCosmosBlockHeight < 0 {
 		return ErrInvalidBridgeStateHeight
 	}
 	if s.StartMinaHeight < 0 {
@@ -27,23 +27,23 @@ func (s BridgeState) Validate() error {
 			s.LatestFetchedMinaHeight,
 		)
 	}
-	if s.ValidActionHashesCosmosBlockHeight == 0 {
-		if len(s.ValidActionHashes) != 0 || s.StartMinaHeight != s.LatestFetchedMinaHeight {
+	if s.ActionHashesCosmosBlockHeight == 0 {
+		if len(s.ActionHashes) != 0 || s.StartMinaHeight != s.LatestFetchedMinaHeight {
 			return errorsmod.Wrap(
-				ErrInvalidValidActionBatch,
+				ErrInvalidActionBatch,
 				"initial batch must be empty and start_mina_height must equal latest_fetched_mina_height",
 			)
 		}
 	} else if s.StartMinaHeight >= s.LatestFetchedMinaHeight {
 		return errorsmod.Wrap(
-			ErrInvalidValidActionBatch,
+			ErrInvalidActionBatch,
 			"runtime batch must advance the Mina cursor",
 		)
 	}
 
-	for i, hash := range s.ValidActionHashes {
+	for i, hash := range s.ActionHashes {
 		if err := validateCanonicalActionHash(hash); err != nil {
-			return errorsmod.Wrapf(err, "valid_action_hashes[%d] must be a canonical Mina field element decimal", i)
+			return errorsmod.Wrapf(err, "action_hashes[%d] must be a canonical Mina field element decimal", i)
 		}
 	}
 
@@ -51,19 +51,24 @@ func (s BridgeState) Validate() error {
 }
 
 func validateCanonicalActionHash(hash string) error {
+	_, err := canonicalActionHashBytes(hash)
+	return err
+}
+
+func canonicalActionHashBytes(hash string) ([]byte, error) {
 	if strings.TrimSpace(hash) != hash || hash == "" {
-		return ErrInvalidValidActionHash
+		return nil, ErrInvalidActionHash
 	}
 
 	n, ok := new(big.Int).SetString(hash, 10)
 	if !ok || n.Sign() < 0 || n.String() != hash {
-		return ErrInvalidValidActionHash
+		return nil, ErrInvalidActionHash
 	}
 
 	field := minafield.NewField()
 	raw := n.Bytes()
 	if len(raw) > field.ElementSize() {
-		return ErrInvalidValidActionHash
+		return nil, ErrInvalidActionHash
 	}
 
 	fixed := make([]byte, field.ElementSize())
@@ -71,8 +76,8 @@ func validateCanonicalActionHash(hash string) error {
 
 	element, err := field.FromBytes(fixed)
 	if err != nil || element.String() != hash {
-		return ErrInvalidValidActionHash
+		return nil, ErrInvalidActionHash
 	}
 
-	return nil
+	return element.Bytes(), nil
 }

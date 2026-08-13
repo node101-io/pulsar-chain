@@ -23,7 +23,9 @@ import (
 	bridgetypes "github.com/node101-io/pulsar-chain/x/bridge/types"
 
 	minaaddress "github.com/node101-io/mina-signer-go/address"
+	minafield "github.com/node101-io/mina-signer-go/field"
 	merkle "github.com/node101-io/mina-signer-go/merklelist"
+	minapublickey "github.com/node101-io/mina-signer-go/publickey"
 )
 
 type stubArchiveWrapperQueryClient struct {
@@ -129,7 +131,7 @@ func (m *mockKeyregistryKeeper) UserGetMinaToCosmos(_ context.Context, minaKey [
 	return out, nil
 }
 
-func mustMinaFeePayerBytes(t *testing.T) []byte {
+func mustMinaPublicKeyBytes(t *testing.T) []byte {
 	t.Helper()
 
 	bz, err := minaaddress.NewAddress(testContractAddress).Marshal()
@@ -138,24 +140,67 @@ func mustMinaFeePayerBytes(t *testing.T) []byte {
 	return bz
 }
 
+func newAction(
+	t *testing.T,
+	minaPubKey []byte,
+	blockHeight int64,
+	actionType bridgetypes.ActionType,
+	amount int64,
+) bridgetypes.Action {
+	t.Helper()
+
+	pubKey, err := minapublickey.NewPublicKeyFromBytes(minaPubKey, "")
+	require.NoError(t, err)
+
+	xCoordinate, isOddField, err := pubKey.ToFields()
+	require.NoError(t, err)
+
+	return bridgetypes.Action{
+		BlockHeight: blockHeight,
+		XCoordinate: xCoordinate.Bytes(),
+		IsOdd:       !isOddField.IsZero(),
+		ActionType:  actionType,
+		Amount:      amount,
+	}
+}
+
+func invalidMinaXCoordinate(t *testing.T) []byte {
+	t.Helper()
+
+	f := minafield.NewField()
+	for value := uint64(0); value < 1024; value++ {
+		xCoordinate := f.FromUint64(value)
+		if _, err := minapublickey.NewPublicKeyFromFieldElement(xCoordinate, false, ""); err != nil {
+			return xCoordinate.Bytes()
+		}
+	}
+
+	t.Fatal("could not find a field element outside the Pallas curve")
+	return nil
+}
+
 func newUserMapping(t *testing.T) ([]byte, []byte, sdk.AccAddress) {
 	t.Helper()
 
-	feePayer := mustMinaFeePayerBytes(t)
+	minaPubKey := mustMinaPublicKeyBytes(t)
 	privKey := secp256k1.GenPrivKey()
 	cosmosPubKey := privKey.PubKey().Bytes()
 	cosmosAddr := sdk.AccAddress(privKey.PubKey().Address())
 
-	return feePayer, cosmosPubKey, cosmosAddr
+	return minaPubKey, cosmosPubKey, cosmosAddr
 }
 
-func expectedActionsReducedRoot(t *testing.T, actions ...bridgetypes.Action) []byte {
+func expectedActionsReducedRoot(
+	t *testing.T,
+	isValidAction bool,
+	actions ...bridgetypes.Action,
+) []byte {
 	t.Helper()
 
 	list := merkle.NewMerkleList(bridgetypes.ActionsReducedRootMerkleListPrefixV1)
 
 	for _, act := range actions {
-		fieldElement, err := act.ToFieldElement()
+		fieldElement, err := act.ToFieldElement(isValidAction)
 		require.NoError(t, err)
 		require.NoError(t, list.Append(fieldElement.Bytes()))
 	}
@@ -618,15 +663,16 @@ func TestPushNewActionsRejectsActionsOutsideRequestedRangeBeforeMutation(t *test
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			feePayer, cosmosPubKey, _ := newUserMapping(t)
+			minaPubKey, cosmosPubKey, _ := newUserMapping(t)
 			actions := make([]bridgetypes.Action, 0, len(tc.actionHeights))
 			for _, height := range tc.actionHeights {
-				actions = append(actions, bridgetypes.Action{
-					BlockHeight: height,
-					FeePayer:    feePayer,
-					ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
-					Amount:      7,
-				})
+				actions = append(actions, newAction(
+					t,
+					minaPubKey,
+					height,
+					bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
+					7,
+				))
 			}
 
 			client := &stubArchiveWrapperQueryClient{
@@ -636,7 +682,7 @@ func TestPushNewActionsRejectsActionsOutsideRequestedRangeBeforeMutation(t *test
 
 			bankKeeper := NewMockBankKeeper()
 			keyRegistryKeeper := NewMockKeyregistryKeeper()
-			keyRegistryKeeper.register(feePayer, cosmosPubKey)
+			keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 			f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 			seedPushNewActionsState(t, f, latestFetchedMinaHeight)
@@ -677,7 +723,7 @@ func TestPushNewActionsRejectsActionsOutsideRequestedRangeBeforeMutation(t *test
 	}
 }
 
-func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *testing.T) {
+func TestPushNewActionsRejectsNonPositiveAmountsWithoutMutation(t *testing.T) {
 	testCases := []struct {
 		name       string
 		actionType bridgetypes.ActionType
@@ -712,7 +758,6 @@ func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *te
 				actions: []bridgetypes.Action{
 					{
 						BlockHeight: 11,
-						FeePayer:    []byte("ignored"),
 						ActionType:  tc.actionType,
 						Amount:      tc.amount,
 					},
@@ -739,13 +784,12 @@ func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *te
 				MinaBlockHeight: 11,
 			})
 
-			require.NoError(t, err)
-			require.NotNil(t, resp)
+			require.ErrorIs(t, err, bridgetypes.ErrInvalidActionAmount)
+			require.Nil(t, resp)
 
 			afterState, err := f.keeper.GetBridgeState(f.ctx)
 			require.NoError(t, err)
-			require.Equal(t, int64(11), afterState.LatestFetchedMinaHeight)
-			require.NotEqual(t, beforeState.LatestFetchedMinaHeight, afterState.LatestFetchedMinaHeight)
+			require.Equal(t, beforeState, afterState)
 
 			afterRoot := latestActionsReducedRoot(t, f)
 			require.Equal(t, beforeRoot, afterRoot)
@@ -762,15 +806,139 @@ func TestPushNewActionsSkipsNonPositiveAmountsWithoutMutatingBalanceOrRoot(t *te
 		})
 	}
 }
-func TestPushNewActionsUserDepositHappyPath(t *testing.T) {
-	feePayer, cosmosPubKey, cosmosAddr := newUserMapping(t)
 
-	action := bridgetypes.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      7,
+func TestPushNewActionsRejectsMalformedFieldCoordinatesWithoutMutation(t *testing.T) {
+	testCases := []struct {
+		name        string
+		actionType  bridgetypes.ActionType
+		xCoordinate []byte
+	}{
+		{
+			name:        "deposit with malformed field bytes",
+			actionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
+			xCoordinate: []byte{1},
+		},
+		{
+			name:        "withdrawal with malformed field bytes",
+			actionType:  bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
+			xCoordinate: []byte{1},
+		},
 	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &stubArchiveWrapperQueryClient{
+				minaBlockHeight: 11,
+				actions: []bridgetypes.Action{
+					{
+						BlockHeight: 11,
+						XCoordinate: tc.xCoordinate,
+						ActionType:  tc.actionType,
+						Amount:      7,
+					},
+				},
+			}
+
+			bankKeeper := NewMockBankKeeper()
+			keyRegistryKeeper := NewMockKeyregistryKeeper()
+			f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
+			seedPushNewActionsState(t, f, 10)
+
+			beforeState, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+			beforeRoot := latestActionsReducedRoot(t, f)
+			resp, err := bridgekeeper.NewMsgServerImpl(f.keeper).PushNewActions(
+				f.ctx,
+				&bridgetypes.MsgPushNewActions{
+					Creator:         authorityString(t, f.addressCodec),
+					MinaBlockHeight: 11,
+				},
+			)
+
+			require.ErrorIs(t, err, bridgetypes.ErrInvalidActionXCoordinate)
+			require.Nil(t, resp)
+			state, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+			require.Equal(t, beforeState, state)
+			require.Equal(t, beforeRoot, latestActionsReducedRoot(t, f))
+			require.Zero(t, bankKeeper.spendableCalls)
+			require.Zero(t, bankKeeper.mintCoinsCalls)
+			require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
+			require.Zero(t, bankKeeper.sendCoinsToModuleCalls)
+			require.Zero(t, bankKeeper.burnCoinsCalls)
+		})
+	}
+}
+
+func TestPushNewActionsRecordsOffCurveCoordinatesAsInvalidLeaves(t *testing.T) {
+	testCases := []struct {
+		name       string
+		actionType bridgetypes.ActionType
+	}{
+		{
+			name:       "deposit",
+			actionType: bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
+		},
+		{
+			name:       "withdrawal",
+			actionType: bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			action := bridgetypes.Action{
+				BlockHeight: 11,
+				XCoordinate: invalidMinaXCoordinate(t),
+				ActionType:  tc.actionType,
+				Amount:      7,
+			}
+			client := &stubArchiveWrapperQueryClient{
+				minaBlockHeight: 11,
+				actions:         []bridgetypes.Action{action},
+			}
+
+			bankKeeper := NewMockBankKeeper()
+			keyRegistryKeeper := NewMockKeyregistryKeeper()
+			f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
+			seedPushNewActionsState(t, f, 10)
+
+			beforeRoot := latestActionsReducedRoot(t, f)
+			resp, err := bridgekeeper.NewMsgServerImpl(f.keeper).PushNewActions(
+				f.ctx,
+				&bridgetypes.MsgPushNewActions{
+					Creator:         authorityString(t, f.addressCodec),
+					MinaBlockHeight: 11,
+				},
+			)
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+
+			invalidField, err := action.ToFieldElement(false)
+			require.NoError(t, err)
+			state, err := f.keeper.GetBridgeState(f.ctx)
+			require.NoError(t, err)
+			require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
+			require.Equal(t, []string{invalidField.String()}, state.ActionHashes)
+			require.NotEqual(t, beforeRoot, latestActionsReducedRoot(t, f))
+			require.Equal(
+				t,
+				expectedActionsReducedRoot(t, false, action),
+				latestActionsReducedRoot(t, f),
+			)
+			require.Zero(t, bankKeeper.spendableCalls)
+			require.Zero(t, bankKeeper.mintCoinsCalls)
+			require.Zero(t, bankKeeper.sendCoinsFromModuleCalls)
+			require.Zero(t, bankKeeper.sendCoinsToModuleCalls)
+			require.Zero(t, bankKeeper.burnCoinsCalls)
+		})
+	}
+}
+
+func TestPushNewActionsUserDepositHappyPath(t *testing.T) {
+	minaPubKey, cosmosPubKey, cosmosAddr := newUserMapping(t)
+	action := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_DEPOSIT, 7)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 11,
@@ -779,7 +947,7 @@ func TestPushNewActionsUserDepositHappyPath(t *testing.T) {
 
 	bankKeeper := NewMockBankKeeper()
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -803,7 +971,7 @@ func TestPushNewActionsUserDepositHappyPath(t *testing.T) {
 	expectedCoins := sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 7))
 
 	require.NotEqual(t, beforeRoot, afterRoot)
-	require.Equal(t, expectedActionsReducedRoot(t, action), afterRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action), afterRoot)
 
 	require.Equal(t, 1, bankKeeper.mintCoinsCalls)
 	require.Equal(t, bridgetypes.ModuleName, bankKeeper.lastMintModule)
@@ -820,14 +988,8 @@ func TestPushNewActionsUserDepositHappyPath(t *testing.T) {
 }
 
 func TestPushNewActionsUserWithdrawalHappyPath(t *testing.T) {
-	feePayer, cosmosPubKey, cosmosAddr := newUserMapping(t)
-
-	action := bridgetypes.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
-		Amount:      7,
-	}
+	minaPubKey, cosmosPubKey, cosmosAddr := newUserMapping(t)
+	action := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_WITHDRAW, 7)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 11,
@@ -838,7 +1000,7 @@ func TestPushNewActionsUserWithdrawalHappyPath(t *testing.T) {
 	bankKeeper.spendable = sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 50))
 
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -862,7 +1024,7 @@ func TestPushNewActionsUserWithdrawalHappyPath(t *testing.T) {
 	expectedCoins := sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 7))
 
 	require.NotEqual(t, beforeRoot, afterRoot)
-	require.Equal(t, expectedActionsReducedRoot(t, action), afterRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action), afterRoot)
 
 	require.Equal(t, 2, bankKeeper.spendableCalls)
 	require.Equal(t, cosmosAddr, bankKeeper.lastSpendableAddr)
@@ -971,14 +1133,8 @@ func TestPushNewActionsRollsBackStateOnBankKeeperErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			feePayer, cosmosPubKey, _ := newUserMapping(t)
-
-			action := bridgetypes.Action{
-				BlockHeight: 11,
-				FeePayer:    feePayer,
-				ActionType:  tt.actionType,
-				Amount:      7,
-			}
+			minaPubKey, cosmosPubKey, _ := newUserMapping(t)
+			action := newAction(t, minaPubKey, 11, tt.actionType, 7)
 
 			client := &stubArchiveWrapperQueryClient{
 				minaBlockHeight: 11,
@@ -989,7 +1145,7 @@ func TestPushNewActionsRollsBackStateOnBankKeeperErrors(t *testing.T) {
 			tt.configureBankKeeper(bankKeeper)
 
 			keyRegistryKeeper := NewMockKeyregistryKeeper()
-			keyRegistryKeeper.register(feePayer, cosmosPubKey)
+			keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 			f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 			seedPushNewActionsState(t, f, 10)
@@ -1029,15 +1185,9 @@ func TestPushNewActionsRollsBackStateOnBankKeeperErrors(t *testing.T) {
 	}
 }
 
-func TestPushNewActionsSkipsUnknownDepositButAdvancesCursor(t *testing.T) {
-	feePayer := mustMinaFeePayerBytes(t)
-
-	action := bridgetypes.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      7,
-	}
+func TestPushNewActionsRecordsUnknownDepositAsInvalidLeaf(t *testing.T) {
+	minaPubKey := mustMinaPublicKeyBytes(t)
+	action := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_DEPOSIT, 7)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 11,
@@ -1064,9 +1214,13 @@ func TestPushNewActionsSkipsUnknownDepositButAdvancesCursor(t *testing.T) {
 	state, err := f.keeper.GetBridgeState(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
+	invalidField, err := action.ToFieldElement(false)
+	require.NoError(t, err)
+	require.Equal(t, []string{invalidField.String()}, state.ActionHashes)
 
 	afterRoot := latestActionsReducedRoot(t, f)
-	require.Equal(t, beforeRoot, afterRoot)
+	require.NotEqual(t, beforeRoot, afterRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, false, action), afterRoot)
 
 	require.Zero(t, bankKeeper.spendableCalls)
 	require.Zero(t, bankKeeper.mintCoinsCalls)
@@ -1075,15 +1229,9 @@ func TestPushNewActionsSkipsUnknownDepositButAdvancesCursor(t *testing.T) {
 	require.Zero(t, bankKeeper.burnCoinsCalls)
 }
 
-func TestPushNewActionsSkipsWithdrawalWithInsufficientBalanceButAdvancesCursor(t *testing.T) {
-	feePayer, cosmosPubKey, cosmosAddr := newUserMapping(t)
-
-	action := bridgetypes.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
-		Amount:      7,
-	}
+func TestPushNewActionsRecordsInsufficientWithdrawalAsInvalidLeaf(t *testing.T) {
+	minaPubKey, cosmosPubKey, cosmosAddr := newUserMapping(t)
+	action := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_WITHDRAW, 7)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 11,
@@ -1094,7 +1242,7 @@ func TestPushNewActionsSkipsWithdrawalWithInsufficientBalanceButAdvancesCursor(t
 	bankKeeper.spendable = sdk.NewCoins(sdk.NewInt64Coin(sdk.DefaultBondDenom, 3))
 
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -1113,9 +1261,13 @@ func TestPushNewActionsSkipsWithdrawalWithInsufficientBalanceButAdvancesCursor(t
 	state, err := f.keeper.GetBridgeState(f.ctx)
 	require.NoError(t, err)
 	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
+	invalidField, err := action.ToFieldElement(false)
+	require.NoError(t, err)
+	require.Equal(t, []string{invalidField.String()}, state.ActionHashes)
 
 	afterRoot := latestActionsReducedRoot(t, f)
-	require.Equal(t, beforeRoot, afterRoot)
+	require.NotEqual(t, beforeRoot, afterRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, false, action), afterRoot)
 
 	require.Equal(t, 1, bankKeeper.spendableCalls)
 	require.Equal(t, cosmosAddr, bankKeeper.lastSpendableAddr)
@@ -1127,14 +1279,8 @@ func TestPushNewActionsSkipsWithdrawalWithInsufficientBalanceButAdvancesCursor(t
 }
 
 func TestPushNewActionsWithdrawalBalanceAboveUint64DoesNotPanic(t *testing.T) {
-	feePayer, cosmosPubKey, cosmosAddr := newUserMapping(t)
-
-	action := bridgetypes.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_ACTION_TYPE_WITHDRAW,
-		Amount:      1,
-	}
+	minaPubKey, cosmosPubKey, cosmosAddr := newUserMapping(t)
+	action := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_WITHDRAW, 1)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 11,
@@ -1151,7 +1297,7 @@ func TestPushNewActionsWithdrawalBalanceAboveUint64DoesNotPanic(t *testing.T) {
 	)
 
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -1180,20 +1326,9 @@ func TestPushNewActionsWithdrawalBalanceAboveUint64DoesNotPanic(t *testing.T) {
 }
 
 func TestPushNewActionsPreservesWrapperActionOrderingInRoot(t *testing.T) {
-	feePayer, cosmosPubKey, _ := newUserMapping(t)
-
-	action1 := bridgetypes.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      5,
-	}
-	action2 := bridgetypes.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      9,
-	}
+	minaPubKey, cosmosPubKey, _ := newUserMapping(t)
+	action1 := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_DEPOSIT, 5)
+	action2 := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_DEPOSIT, 9)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 11,
@@ -1202,7 +1337,7 @@ func TestPushNewActionsPreservesWrapperActionOrderingInRoot(t *testing.T) {
 
 	bankKeeper := NewMockBankKeeper()
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -1217,8 +1352,8 @@ func TestPushNewActionsPreservesWrapperActionOrderingInRoot(t *testing.T) {
 	require.NotNil(t, resp)
 
 	gotRoot := latestActionsReducedRoot(t, f)
-	forwardRoot := expectedActionsReducedRoot(t, action1, action2)
-	reversedRoot := expectedActionsReducedRoot(t, action2, action1)
+	forwardRoot := expectedActionsReducedRoot(t, true, action1, action2)
+	reversedRoot := expectedActionsReducedRoot(t, true, action2, action1)
 
 	require.Equal(t, forwardRoot, gotRoot)
 	require.NotEqual(t, reversedRoot, gotRoot)
@@ -1230,14 +1365,8 @@ func TestPushNewActionsPreservesWrapperActionOrderingInRoot(t *testing.T) {
 }
 
 func TestPushNewActionsProcessesIdenticalActionOccurrences(t *testing.T) {
-	feePayer, cosmosPubKey, _ := newUserMapping(t)
-
-	action := bridgetypes.Action{
-		BlockHeight: 11,
-		FeePayer:    feePayer,
-		ActionType:  bridgetypes.ActionType_ACTION_TYPE_DEPOSIT,
-		Amount:      7,
-	}
+	minaPubKey, cosmosPubKey, _ := newUserMapping(t)
+	action := newAction(t, minaPubKey, 11, bridgetypes.ActionType_ACTION_TYPE_DEPOSIT, 7)
 
 	client := &stubArchiveWrapperQueryClient{
 		minaBlockHeight: 11,
@@ -1246,7 +1375,7 @@ func TestPushNewActionsProcessesIdenticalActionOccurrences(t *testing.T) {
 
 	bankKeeper := NewMockBankKeeper()
 	keyRegistryKeeper := NewMockKeyregistryKeeper()
-	keyRegistryKeeper.register(feePayer, cosmosPubKey)
+	keyRegistryKeeper.register(minaPubKey, cosmosPubKey)
 
 	f := initFixture(t, bankKeeper, client, keyRegistryKeeper)
 	seedPushNewActionsState(t, f, 10)
@@ -1272,8 +1401,8 @@ func TestPushNewActionsProcessesIdenticalActionOccurrences(t *testing.T) {
 	require.Equal(t, int64(11), state.LatestFetchedMinaHeight)
 
 	gotRoot := latestActionsReducedRoot(t, f)
-	require.Equal(t, expectedActionsReducedRoot(t, action, action), gotRoot)
-	require.NotEqual(t, expectedActionsReducedRoot(t, action), gotRoot)
+	require.Equal(t, expectedActionsReducedRoot(t, true, action, action), gotRoot)
+	require.NotEqual(t, expectedActionsReducedRoot(t, true, action), gotRoot)
 
 	require.Equal(t, 2, bankKeeper.mintCoinsCalls)
 	require.Equal(t, 2, bankKeeper.sendCoinsFromModuleCalls)

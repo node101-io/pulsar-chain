@@ -333,7 +333,8 @@ func (c *ArchiveWrapperClient) GetActionsInRange(
 
 		actions = append(actions, types.Action{
 			BlockHeight: act.BlockHeight,
-			FeePayer:    act.FeePayer,
+			XCoordinate: act.XCoordinate,
+			IsOdd:       act.IsOdd,
 			ActionType:  types.ActionType(act.ActionType),
 			Amount:      act.Amount,
 		})

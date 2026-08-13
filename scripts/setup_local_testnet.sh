@@ -632,7 +632,7 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   "$BINARY_PATH" genesis gentx "${NODE_KEY_NAMES[i]}" "${BOND_AMOUNT}${DENOM}" \
     --chain-id "$CHAIN_ID" \
     --home "${NODE_HOMES[i]}" \
-    --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
+    --keyring-backend "$KEYRING_BACKEND"
 done
 
 echo "==> Collecting gentxs..."

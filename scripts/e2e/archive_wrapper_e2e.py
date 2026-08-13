@@ -4,13 +4,14 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Optional
 
 
 POSTGRES_IMAGE = "postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394"
 
 
 def render_postgres_compose(
-    output: str, schema: str, seed: str, network_key: str | None
+    output: str, schema: str, seed: str, network_key: Optional[str]
 ) -> int:
     compose = {
         "services": {
@@ -100,14 +101,18 @@ def assert_wrapper_query(path: str) -> int:
     if payload.get("action_count") != 1 or len(actions) != 1:
         raise SystemExit("expected exactly one wrapper action")
     action = actions[0]
-    expected = {"block_height": 11, "action_type": 1, "amount": 42}
+    expected = {
+        "block_height": 11,
+        "x_coordinate": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE=",
+        "is_odd": True,
+        "action_type": 1,
+        "amount": 42,
+    }
     for key, value in expected.items():
         if action.get(key) != value:
             raise SystemExit(
                 f"unexpected wrapper action {key}: {action.get(key)!r}, want {value!r}"
             )
-    if not action.get("fee_payer"):
-        raise SystemExit("wrapper action is missing fee_payer")
     return 0
 
 
