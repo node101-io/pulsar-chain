@@ -728,6 +728,13 @@ def update_app_config(
         1,
     )
 
+    # The REST API and its permissive CORS policy are required by the local
+    # frontends that talk to the testnet nodes straight from the browser.
+    app_toml = upsert_toml_key(app_toml, "api", "enable", "true", quote_value=False)
+    app_toml = upsert_toml_key(
+        app_toml, "api", "enabled-unsafe-cors", "true", quote_value=False
+    )
+
     app_toml = upsert_toml_key(app_toml, "vote_extension", "priv_key", mina_priv_key)
 
     app_toml = upsert_toml_key(app_toml, "mina", "network_id", mina_network_id)

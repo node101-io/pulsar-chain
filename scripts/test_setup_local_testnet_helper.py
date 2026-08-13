@@ -237,6 +237,42 @@ network_id = "old"
         self.assertIn('wrapper_grpc_address = "archive-wrapper:9095"', content)
         self.assertIn('wrapper_grpc_transport_mode = "trusted-network"', content)
 
+    def test_update_app_config_enables_api_with_unsafe_cors(self):
+        app_config = self.write_temp(
+            """minimum-gas-prices = ""
+
+[api]
+enable = false
+enabled-unsafe-cors = false
+address = "tcp://localhost:1317"
+
+[bridge]
+
+[vote_extension]
+
+[mina]
+"""
+        )
+
+        self.assertEqual(
+            0,
+            helper.update_app_config(
+                str(app_config),
+                "0pmina",
+                "mina-private",
+                "testnet",
+                "archive-wrapper:9095",
+                "loopback",
+            ),
+        )
+
+        content = app_config.read_text(encoding="utf-8")
+        self.assertEqual(1, content.count("enable ="))
+        self.assertEqual(1, content.count("enabled-unsafe-cors ="))
+        self.assertIn("enable = true", content)
+        self.assertIn("enabled-unsafe-cors = true", content)
+        self.assertIn('address = "tcp://localhost:1317"', content)
+
     def test_update_app_config_rejects_empty_or_invalid_wrapper_values(self):
         for address, mode in (
             ("", "loopback"),

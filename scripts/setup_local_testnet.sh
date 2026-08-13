@@ -314,6 +314,7 @@ configure_node() {
   sed -E -i.bak "s|^persistent_peers = \".*\"|persistent_peers = \"${persistent_peers}\"|" "$home/config/config.toml"
   sed -i.bak 's|addr_book_strict = true|addr_book_strict = false|' "$home/config/config.toml"
   sed -i.bak 's|allow_duplicate_ip = false|allow_duplicate_ip = true|' "$home/config/config.toml"
+  sed -E -i.bak 's|^cors_allowed_origins = .*|cors_allowed_origins = ["*"]|' "$home/config/config.toml"
 
   sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://${API_BIND_HOST}:${api_port}\"|" "$home/config/app.toml"
   sed -i.bak "s|address = \"localhost:9090\"|address = \"0.0.0.0:${grpc_port}\"|" "$home/config/app.toml"
