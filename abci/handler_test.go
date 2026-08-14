@@ -7,10 +7,20 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
+
+	verificationtypes "github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
 func TestNewABCIHandlerValidatesSecondaryKey(t *testing.T) {
-	handler, err := NewABCIHandler(SecondaryKey{}, testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID, testBridgeKeeper{})
+	handler, err := NewABCIHandler(
+		SecondaryKey{},
+		testStakingKeeper{},
+		testKeyregistryKeeper{},
+		testVotePersistenceKeeper{},
+		NetworkID,
+		testBridgeKeeper{},
+		testVerificationKeeper{},
+	)
 
 	require.Nil(t, handler)
 	require.ErrorIs(t, err, ErrMissingSecondaryKey)
@@ -25,6 +35,7 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 		keyregistryKeeper     KeyregistryKeeper
 		votePersistenceKeeper VotePersistenceKeeper
 		bridgeKeeper          BridgeKeeper
+		verificationKeeper    VerificationKeeper
 		expectedErr           error
 	}{
 		{
@@ -33,6 +44,7 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 			keyregistryKeeper:     testKeyregistryKeeper{},
 			votePersistenceKeeper: testVotePersistenceKeeper{},
 			bridgeKeeper:          testBridgeKeeper{},
+			verificationKeeper:    testVerificationKeeper{},
 			expectedErr:           ErrMissingStakingKeeper,
 		},
 		{
@@ -41,6 +53,7 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 			keyregistryKeeper:     nil,
 			votePersistenceKeeper: testVotePersistenceKeeper{},
 			bridgeKeeper:          testBridgeKeeper{},
+			verificationKeeper:    testVerificationKeeper{},
 			expectedErr:           ErrMissingKeyregistryKeeper,
 		},
 		{
@@ -49,6 +62,7 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 			keyregistryKeeper:     testKeyregistryKeeper{},
 			bridgeKeeper:          testBridgeKeeper{},
 			votePersistenceKeeper: nil,
+			verificationKeeper:    testVerificationKeeper{},
 			expectedErr:           ErrMissingVotePersistenceKeeper,
 		},
 		{
@@ -57,13 +71,31 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 			keyregistryKeeper:     testKeyregistryKeeper{},
 			votePersistenceKeeper: testVotePersistenceKeeper{},
 			bridgeKeeper:          nil,
+			verificationKeeper:    testVerificationKeeper{},
 			expectedErr:           ErrMissingBridgeKeeper,
+		},
+		{
+			name:                  "missing verification keeper",
+			stakingKeeper:         testStakingKeeper{},
+			keyregistryKeeper:     testKeyregistryKeeper{},
+			votePersistenceKeeper: testVotePersistenceKeeper{},
+			bridgeKeeper:          testBridgeKeeper{},
+			verificationKeeper:    nil,
+			expectedErr:           ErrMissingVerificationKeeper,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID, tt.bridgeKeeper)
+			handler, err := NewABCIHandler(
+				secondaryKey,
+				tt.stakingKeeper,
+				tt.keyregistryKeeper,
+				tt.votePersistenceKeeper,
+				NetworkID,
+				tt.bridgeKeeper,
+				tt.verificationKeeper,
+			)
 
 			require.Nil(t, handler)
 			require.ErrorIs(t, err, tt.expectedErr)
@@ -77,6 +109,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 	var typedNilKeyregistryKeeper *testKeyregistryKeeper
 	var typedNilVotePersistenceKeeper *testVotePersistenceKeeper
 	var typedNilBridgeKeeper *testBridgeKeeper
+	var typedNilVerificationKeeper *testVerificationKeeper
 
 	tests := []struct {
 		name                  string
@@ -84,6 +117,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 		keyregistryKeeper     KeyregistryKeeper
 		votePersistenceKeeper VotePersistenceKeeper
 		bridgeKeeper          BridgeKeeper
+		verificationKeeper    VerificationKeeper
 		expectedErr           error
 	}{
 		{
@@ -92,6 +126,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 			keyregistryKeeper:     testKeyregistryKeeper{},
 			votePersistenceKeeper: testVotePersistenceKeeper{},
 			bridgeKeeper:          testBridgeKeeper{},
+			verificationKeeper:    testVerificationKeeper{},
 			expectedErr:           ErrMissingStakingKeeper,
 		},
 		{
@@ -100,6 +135,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 			keyregistryKeeper:     typedNilKeyregistryKeeper,
 			votePersistenceKeeper: testVotePersistenceKeeper{},
 			bridgeKeeper:          testBridgeKeeper{},
+			verificationKeeper:    testVerificationKeeper{},
 			expectedErr:           ErrMissingKeyregistryKeeper,
 		},
 		{
@@ -108,6 +144,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 			keyregistryKeeper:     testKeyregistryKeeper{},
 			bridgeKeeper:          testBridgeKeeper{},
 			votePersistenceKeeper: typedNilVotePersistenceKeeper,
+			verificationKeeper:    testVerificationKeeper{},
 			expectedErr:           ErrMissingVotePersistenceKeeper,
 		},
 		{
@@ -116,13 +153,31 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 			keyregistryKeeper:     testKeyregistryKeeper{},
 			votePersistenceKeeper: testVotePersistenceKeeper{},
 			bridgeKeeper:          typedNilBridgeKeeper,
+			verificationKeeper:    testVerificationKeeper{},
 			expectedErr:           ErrMissingBridgeKeeper,
+		},
+		{
+			name:                  "typed nil verification keeper",
+			stakingKeeper:         testStakingKeeper{},
+			keyregistryKeeper:     testKeyregistryKeeper{},
+			votePersistenceKeeper: testVotePersistenceKeeper{},
+			bridgeKeeper:          testBridgeKeeper{},
+			verificationKeeper:    typedNilVerificationKeeper,
+			expectedErr:           ErrMissingVerificationKeeper,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID, tt.bridgeKeeper)
+			handler, err := NewABCIHandler(
+				secondaryKey,
+				tt.stakingKeeper,
+				tt.keyregistryKeeper,
+				tt.votePersistenceKeeper,
+				NetworkID,
+				tt.bridgeKeeper,
+				tt.verificationKeeper,
+			)
 			require.Nil(t, handler)
 			require.ErrorIs(t, err, tt.expectedErr)
 		})
@@ -130,10 +185,20 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 }
 
 func TestNewABCIHandlerSuccess(t *testing.T) {
-	handler, err := NewABCIHandler(validSecondaryKey(), testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID, testBridgeKeeper{})
+	verificationKeeper := testVerificationKeeper{}
+	handler, err := NewABCIHandler(
+		validSecondaryKey(),
+		testStakingKeeper{},
+		testKeyregistryKeeper{},
+		testVotePersistenceKeeper{},
+		NetworkID,
+		testBridgeKeeper{},
+		verificationKeeper,
+	)
 
 	require.NoError(t, err)
 	require.NotNil(t, handler)
+	require.Equal(t, verificationKeeper, handler.verificationKeeper)
 }
 
 type testStakingKeeper struct{}
@@ -168,4 +233,14 @@ func (testVotePersistenceKeeper) Clear(context.Context) error {
 
 func (testVotePersistenceKeeper) SetVote(context.Context, int64, []byte, []byte) error {
 	return nil
+}
+
+type testVerificationKeeper struct{}
+
+func (testVerificationKeeper) GetProofIDByProofHash(context.Context, []byte) (int64, error) {
+	return 0, nil
+}
+
+func (testVerificationKeeper) GetParams(context.Context) (verificationtypes.Params, error) {
+	return verificationtypes.DefaultParams(), nil
 }

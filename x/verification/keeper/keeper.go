@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -180,4 +181,39 @@ func (k Keeper) GetNextPendingProofIndex(
 	}
 
 	return key.K2() + 1, nil
+}
+
+func (k Keeper) GetProofIDByProofHash(ctx context.Context, proofHash []byte) (int64, error) {
+
+	iter, err := k.IteratePendingProofs(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	defer iter.Close()
+
+	for ; iter.Valid(); iter.Next() {
+
+		pair, err := iter.Key()
+		if err != nil {
+			return 0, err
+		}
+
+		height, index := pair.K1(), pair.K2()
+
+		proof, err := k.GetPendingProof(ctx, height, index)
+		if err != nil {
+			return 0, err
+		}
+
+		if bytes.Equal(proof, proofHash) {
+			return index, nil
+		}
+	}
+
+	return 0, fmt.Errorf("pending proof not found")
+}
+
+func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
+	return k.Params.Get(ctx)
 }
