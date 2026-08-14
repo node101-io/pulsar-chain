@@ -10,8 +10,11 @@ option go_package = "github.com/node101-io/pulsar-chain/app/ante/types";
 enum TxAuthMode {
   option (gogoproto.goproto_enum_prefix) = false;
 
+  // TX_AUTH_MODE_UNSPECIFIED defaults to standard Cosmos signature verification.
   TX_AUTH_MODE_UNSPECIFIED = 0;
+  // TX_AUTH_MODE_COSMOS explicitly selects standard Cosmos signature verification.
   TX_AUTH_MODE_COSMOS = 1;
+  // TX_AUTH_MODE_MINA selects verification with the signer's registered Mina key.
   TX_AUTH_MODE_MINA = 2;
 }
 
