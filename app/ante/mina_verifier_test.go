@@ -2,7 +2,9 @@ package ante
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
+	"math/big"
 	"testing"
 	"time"
 
@@ -31,6 +33,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	gogoproto "github.com/cosmos/gogoproto/proto"
+	minaaddress "github.com/node101-io/mina-signer-go/address"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/mina-signer-go/publickey"
 	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
@@ -771,9 +774,76 @@ func TestMinaVerifierRejectsCryptographicallyInvalidSignature(t *testing.T) {
 	require.ErrorContains(t, err, "signature verification failed")
 }
 
-// TODO: Add a real Auro signFields fixture for a fixed SIGN_MODE_DIRECT tx.
-// Pin the sign bytes, decimal challenge, wallet public key, and raw signature,
-// then verify the fixture through MinaVerifier end to end.
+// Pinned inputs for the Auro wallet fixture. The tx is rebuilt from these
+// constants, so the sign bytes and challenge stay reproducible; the signature
+// is a real Auro signFields output over the challenge decimal, with the
+// base58check envelope stripped (r.x then s, 32 little-endian bytes each).
+const (
+	auroFixtureChainID          = "mytestnet"
+	auroFixtureAccountNumber    = 7
+	auroFixtureSequence         = 4
+	auroFixtureCosmosSecret     = "pulsar-tx-auth-fixture-v1"
+	auroFixtureSignBytesHex     = "0aa1010a8a010a1c2f636f736d6f732e62616e6b2e763162657461312e4d736753656e64126a0a2d636f736d6f73317274397134766675676a747a7277366b736e726c79706a7a74766a37306b7171336c367a6873122d636f736d6f733177656a687936747864396a687974746a7634336b6a75726676346838677466337472687368781a0a0a05706d696e6112013112126d696e612d76657269666965722d7465737412640a500a460a1f2f636f736d6f732e63727970746f2e736563703235366b312e5075624b657912230a210290dac513c0aa1d28ff3f84edbd9ea2a3a1b9b03321f322a9c3d63d0616e1efba12040a020801180412100a0a0a05706d696e6112013110c09a0c1a096d79746573746e65742007"
+	auroFixtureChallengeDecimal = "12257257702349105346219296062496834325698503218878437959425980317767459379361"
+	auroFixtureWalletAddress    = "B62qrRtUE4LbXmoYzkRVSHQ8pLBdfxEeNDKZU7dDkVUr2mrE1WAaZPw"
+	auroFixtureSignatureHex     = "18b3a3a1e4dffab21e517552d2e24c037d09568c9a0fc7766118e5360068a81ba52970c68d1e038ec83b0b23050d937216ff7aabf5a07c7cf54ba041edef1d0b"
+)
+
+// A signature produced by a real Auro wallet must verify end to end. Unlike
+// the tests above, nothing here is signed by this repo's own code, so this is
+// the wallet interoperability proof the challenge golden vector cannot give.
+func TestMinaVerifierAcceptsAuroWalletFixture(t *testing.T) {
+	t.Parallel()
+	cosmosPrivKey := secp256k1.GenPrivKeyFromSecret([]byte(auroFixtureCosmosSecret))
+	account := authtypes.NewBaseAccount(
+		sdk.AccAddress(cosmosPrivKey.PubKey().Address()),
+		cosmosPrivKey.PubKey(),
+		auroFixtureAccountNumber,
+		auroFixtureSequence,
+	)
+	registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	// A positive height keeps the account number in the sign bytes.
+	ctx := registryCtx.WithChainID(auroFixtureChainID).WithBlockHeight(2).WithIsSigverifyTx(true)
+
+	walletKeyBytes, err := minaaddress.NewAddress(auroFixtureWalletAddress).Marshal()
+	require.NoError(t, err)
+	registerMinaPublicKeyForAccount(t, registryCtx, keyregistryKeeper, account, walletKeyBytes)
+	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
+
+	signMode := signingtypes.SignMode(encoding.TxConfig.SignModeHandler().DefaultMode())
+	tx := buildVerifierTestTx(
+		t,
+		encoding.TxConfig,
+		account.GetAddress(),
+		cosmosPrivKey.PubKey(),
+		account.GetSequence(),
+		signMode,
+		nil,
+	)
+
+	// The wallet signed the pinned bytes; if today's encoding no longer
+	// reproduces them, the fixture is stale rather than the verifier wrong.
+	signBytes := buildVerifierSignBytes(t, ctx, encoding.TxConfig, tx, account, account.GetSequence(), signMode)
+	require.Equal(t, auroFixtureSignBytesHex, hex.EncodeToString(signBytes))
+
+	challenge, err := buildTxSigningChallenge(signBytes)
+	require.NoError(t, err)
+	require.Equal(t, auroFixtureChallengeDecimal, new(big.Int).SetBytes(challenge.Bytes()).String())
+
+	signatureBytes, err := hex.DecodeString(auroFixtureSignatureHex)
+	require.NoError(t, err)
+	tx = buildVerifierTestTx(
+		t,
+		encoding.TxConfig,
+		account.GetAddress(),
+		cosmosPrivKey.PubKey(),
+		account.GetSequence(),
+		signMode,
+		signatureBytes,
+	)
+
+	require.NoError(t, verifier.VerifySignatures(ctx, tx, false))
+}
 
 // A matching Mina key, real sign bytes and valid signature should pass end to end.
 // This is the main success path for the verifier's custom crypto flow.
