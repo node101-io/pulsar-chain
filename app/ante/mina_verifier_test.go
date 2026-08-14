@@ -2,7 +2,9 @@ package ante
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
+	"math/big"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 	txsigning "cosmossdk.io/x/tx/signing"
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
@@ -30,6 +33,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	gogoproto "github.com/cosmos/gogoproto/proto"
+	minaaddress "github.com/node101-io/mina-signer-go/address"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/mina-signer-go/publickey"
 	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
@@ -40,7 +44,38 @@ import (
 )
 
 // DefaultMinaNetworkID is used for tests only.
-const DefaultMinaNetworkID = "devnet"
+const DefaultMinaNetworkID = string(mina.TestNet)
+
+func TestResolveAuroFieldSignatureNetworkID(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		networkID mina.NetworkID
+		want      mina.NetworkID
+		wantErr   bool
+	}{
+		{name: "testnet", networkID: mina.TestNet, want: mina.TestNet},
+		{name: "mainnet", networkID: mina.MainNet, want: mina.TestNet},
+		{name: "unsupported", networkID: mina.NetworkID("unsupported"), wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			actual, err := resolveAuroFieldSignatureNetworkID(tc.networkID)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "unsupported Mina network ID")
+				require.Empty(t, actual)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tc.want, actual)
+		})
+	}
+}
 
 type verifierAccountKeeper struct {
 	account sdk.AccountI
@@ -179,7 +214,7 @@ func newVerifierForTest(
 		keyregistryKeeper,
 		verifierAccountKeeper{account: account},
 		&txsigning.HandlerMap{},
-		DefaultMinaNetworkID,
+		mina.TestNet,
 		log.NewNopLogger(),
 	)
 }
@@ -226,7 +261,7 @@ func newVerifierWithRealSignModeHandlerForTest(
 		keyregistryKeeper,
 		verifierAccountKeeper{account: account},
 		encoding.TxConfig.SignModeHandler(),
-		DefaultMinaNetworkID,
+		mina.TestNet,
 		log.NewNopLogger(),
 	), encoding
 }
@@ -250,7 +285,7 @@ func newMinaPrivateKeyForTest(t *testing.T, marker byte) *privatekey.PrivateKey 
 	var seed [32]byte
 	seed[0] = marker
 
-	privateKey, err := privatekey.NewPrivateKeyFromBytes(seed, DefaultMinaNetworkID)
+	privateKey, err := privatekey.NewPrivateKeyFromBytes(seed, mina.TestNet)
 	require.NoError(t, err)
 	require.NotNil(t, privateKey)
 
@@ -342,15 +377,20 @@ func buildVerifierSignBytes(
 
 // signMinaBytes turns raw sign bytes into the wire-format payload consumed by the verifier.
 // This keeps the success and crypto-failure tests working with real Mina signatures instead of stubs.
+// It signs the way a wallet does: the challenge FIELD derived from the sign
+// bytes, not the bytes themselves — the exact scheme verifySingleSignature
+// checks against.
 func signMinaBytes(
 	t *testing.T,
 	privateKey *privatekey.PrivateKey,
 	message []byte,
-	_ string,
 ) []byte {
 	t.Helper()
 
-	signature, err := privateKey.SignBytes(message)
+	challenge, err := buildTxSigningChallenge(message)
+	require.NoError(t, err)
+
+	signature, err := privateKey.SignFieldElement(challenge)
 	require.NoError(t, err)
 	require.NotNil(t, signature)
 
@@ -662,33 +702,45 @@ func TestMinaVerifierSkipsCryptoVerificationWhenSigverifyDisabled(t *testing.T) 
 	require.NoError(t, err)
 }
 
-// A decodable Mina signature is not enough if the sign mode has no registered handler.
-// This covers the sign-bytes generation failure branch inside verifySingleSignature.
+// Mina wallet authentication currently has one canonical authorization format.
+// Other SDK sign modes must fail before registry access or cryptographic verification.
 func TestMinaVerifierRejectsUnsupportedSignMode(t *testing.T) {
 	t.Parallel()
-	cosmosPrivKey, account := newVerifierAccount(t, 5, 9)
-	minaPrivKey := newMinaPrivateKeyForTest(t, 21)
-	registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
-	ctx := registryCtx.WithIsSigverifyTx(true)
-	registerMinaPublicKeyForAccount(t, registryCtx, keyregistryKeeper, account, minaPublicKeyBytesForTest(t, minaPrivKey))
-	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
-	// The signature must decode successfully so the verifier reaches sign-bytes generation.
-	signatureBytes := signMinaBytes(t, minaPrivKey, []byte("unsupported-sign-mode"), DefaultMinaNetworkID)
-	tx := buildVerifierTestTx(
-		t,
-		encoding.TxConfig,
-		account.GetAddress(),
-		cosmosPrivKey.PubKey(),
-		account.GetSequence(),
-		signingtypes.SignMode(999),
-		signatureBytes,
-	)
+	testCases := []struct {
+		name     string
+		signMode signingtypes.SignMode
+	}{
+		{name: "direct aux", signMode: signingtypes.SignMode_SIGN_MODE_DIRECT_AUX},
+		{name: "legacy amino JSON", signMode: signingtypes.SignMode_SIGN_MODE_LEGACY_AMINO_JSON},
+		{name: "unknown", signMode: signingtypes.SignMode(999)},
+	}
 
-	err := verifier.VerifySignatures(ctx, tx, false)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cosmosPrivKey, account := newVerifierAccount(t, 5, 9)
+			registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+			ctx := registryCtx.WithIsSigverifyTx(true)
+			verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
-	require.ErrorIs(t, err, sdkerrors.ErrInvalidType)
-	require.ErrorContains(t, err, "failed to generate sign bytes")
+			// No registry entry and malformed signature bytes ensure the mode check
+			// remains the first Mina-specific validation performed.
+			tx := buildVerifierTestTx(
+				t,
+				encoding.TxConfig,
+				account.GetAddress(),
+				cosmosPrivKey.PubKey(),
+				account.GetSequence(),
+				tc.signMode,
+				[]byte{1},
+			)
+
+			err := verifier.VerifySignatures(ctx, tx, false)
+
+			require.ErrorIs(t, err, sdkerrors.ErrNotSupported)
+			require.ErrorContains(t, err, "unsupported Mina transaction sign mode")
+		})
+	}
 }
 
 // The verifier must reject signatures that decode correctly but were made over the wrong message.
@@ -705,7 +757,7 @@ func TestMinaVerifierRejectsCryptographicallyInvalidSignature(t *testing.T) {
 	signMode := signingtypes.SignMode(encoding.TxConfig.SignModeHandler().DefaultMode())
 
 	// The signature is valid for a different message, so decoding succeeds but verification fails.
-	invalidSignatureBytes := signMinaBytes(t, minaPrivKey, []byte("different-sign-bytes"), DefaultMinaNetworkID)
+	invalidSignatureBytes := signMinaBytes(t, minaPrivKey, []byte("different-sign-bytes"))
 	tx := buildVerifierTestTx(
 		t,
 		encoding.TxConfig,
@@ -720,6 +772,77 @@ func TestMinaVerifierRejectsCryptographicallyInvalidSignature(t *testing.T) {
 
 	require.ErrorContains(t, err, "verification failed")
 	require.ErrorContains(t, err, "signature verification failed")
+}
+
+// Pinned inputs for the Auro wallet fixture. The tx is rebuilt from these
+// constants, so the sign bytes and challenge stay reproducible; the signature
+// is a real Auro signFields output over the challenge decimal, with the
+// base58check envelope stripped (r.x then s, 32 little-endian bytes each).
+const (
+	auroFixtureChainID          = "mytestnet"
+	auroFixtureAccountNumber    = 7
+	auroFixtureSequence         = 4
+	auroFixtureCosmosSecret     = "pulsar-tx-auth-fixture-v1"
+	auroFixtureSignBytesHex     = "0aa1010a8a010a1c2f636f736d6f732e62616e6b2e763162657461312e4d736753656e64126a0a2d636f736d6f73317274397134766675676a747a7277366b736e726c79706a7a74766a37306b7171336c367a6873122d636f736d6f733177656a687936747864396a687974746a7634336b6a75726676346838677466337472687368781a0a0a05706d696e6112013112126d696e612d76657269666965722d7465737412640a500a460a1f2f636f736d6f732e63727970746f2e736563703235366b312e5075624b657912230a210290dac513c0aa1d28ff3f84edbd9ea2a3a1b9b03321f322a9c3d63d0616e1efba12040a020801180412100a0a0a05706d696e6112013110c09a0c1a096d79746573746e65742007"
+	auroFixtureChallengeDecimal = "12257257702349105346219296062496834325698503218878437959425980317767459379361"
+	auroFixtureWalletAddress    = "B62qrRtUE4LbXmoYzkRVSHQ8pLBdfxEeNDKZU7dDkVUr2mrE1WAaZPw"
+	auroFixtureSignatureHex     = "18b3a3a1e4dffab21e517552d2e24c037d09568c9a0fc7766118e5360068a81ba52970c68d1e038ec83b0b23050d937216ff7aabf5a07c7cf54ba041edef1d0b"
+)
+
+// A signature produced by a real Auro wallet must verify end to end. Unlike
+// the tests above, nothing here is signed by this repo's own code, so this is
+// the wallet interoperability proof the challenge golden vector cannot give.
+func TestMinaVerifierAcceptsAuroWalletFixture(t *testing.T) {
+	t.Parallel()
+	cosmosPrivKey := secp256k1.GenPrivKeyFromSecret([]byte(auroFixtureCosmosSecret))
+	account := authtypes.NewBaseAccount(
+		sdk.AccAddress(cosmosPrivKey.PubKey().Address()),
+		cosmosPrivKey.PubKey(),
+		auroFixtureAccountNumber,
+		auroFixtureSequence,
+	)
+	registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+	// A positive height keeps the account number in the sign bytes.
+	ctx := registryCtx.WithChainID(auroFixtureChainID).WithBlockHeight(2).WithIsSigverifyTx(true)
+
+	walletKeyBytes, err := minaaddress.NewAddress(auroFixtureWalletAddress).Marshal()
+	require.NoError(t, err)
+	registerMinaPublicKeyForAccount(t, registryCtx, keyregistryKeeper, account, walletKeyBytes)
+	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
+
+	signMode := signingtypes.SignMode(encoding.TxConfig.SignModeHandler().DefaultMode())
+	tx := buildVerifierTestTx(
+		t,
+		encoding.TxConfig,
+		account.GetAddress(),
+		cosmosPrivKey.PubKey(),
+		account.GetSequence(),
+		signMode,
+		nil,
+	)
+
+	// The wallet signed the pinned bytes; if today's encoding no longer
+	// reproduces them, the fixture is stale rather than the verifier wrong.
+	signBytes := buildVerifierSignBytes(t, ctx, encoding.TxConfig, tx, account, account.GetSequence(), signMode)
+	require.Equal(t, auroFixtureSignBytesHex, hex.EncodeToString(signBytes))
+
+	challenge, err := buildTxSigningChallenge(signBytes)
+	require.NoError(t, err)
+	require.Equal(t, auroFixtureChallengeDecimal, new(big.Int).SetBytes(challenge.Bytes()).String())
+
+	signatureBytes, err := hex.DecodeString(auroFixtureSignatureHex)
+	require.NoError(t, err)
+	tx = buildVerifierTestTx(
+		t,
+		encoding.TxConfig,
+		account.GetAddress(),
+		cosmosPrivKey.PubKey(),
+		account.GetSequence(),
+		signMode,
+		signatureBytes,
+	)
+
+	require.NoError(t, verifier.VerifySignatures(ctx, tx, false))
 }
 
 // A matching Mina key, real sign bytes and valid signature should pass end to end.
@@ -745,7 +868,7 @@ func TestMinaVerifierAcceptsValidSignature(t *testing.T) {
 		nil,
 	)
 	signBytes := buildVerifierSignBytes(t, ctx, encoding.TxConfig, tx, account, account.GetSequence(), signMode)
-	signatureBytes := signMinaBytes(t, minaPrivKey, signBytes, DefaultMinaNetworkID)
+	signatureBytes := signMinaBytes(t, minaPrivKey, signBytes)
 	// Rebuild the tx with the real signature so VerifySignatures sees the same payload it validates.
 	tx = buildVerifierTestTx(
 		t,
@@ -785,7 +908,7 @@ func TestMinaVerifierUsesZeroAccountNumberAtGenesisHeight(t *testing.T) {
 		nil,
 	)
 	signBytes := buildVerifierSignBytes(t, ctx, encoding.TxConfig, tx, account, account.GetSequence(), signMode)
-	signatureBytes := signMinaBytes(t, minaPrivKey, signBytes, DefaultMinaNetworkID)
+	signatureBytes := signMinaBytes(t, minaPrivKey, signBytes)
 	// Rebuilding the tx with the real signature ensures the verifier sees the exact genesis-path payload.
 	tx = buildVerifierTestTx(
 		t,

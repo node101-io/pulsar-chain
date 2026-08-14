@@ -1,6 +1,8 @@
 package ante
 
 import (
+	"fmt"
+
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	txsigning "cosmossdk.io/x/tx/signing"
@@ -17,11 +19,11 @@ import (
 
 // MinaVerifier verifies tx signatures using Mina cryptography.
 type MinaVerifier struct {
-	keyregistryKeeper *keyregistrykeeper.Keeper
-	accountKeeper     authante.AccountKeeper
-	signModeHandler   *txsigning.HandlerMap
-	networkID         string
-	logger            log.Logger
+	keyregistryKeeper        *keyregistrykeeper.Keeper
+	accountKeeper            authante.AccountKeeper
+	signModeHandler          *txsigning.HandlerMap
+	walletSignatureNetworkID mina.NetworkID
+	logger                   log.Logger
 }
 
 // NewMinaVerifier creates a new Mina signature verifier.
@@ -29,15 +31,26 @@ func NewMinaVerifier(
 	keyregistryKeeper *keyregistrykeeper.Keeper,
 	accountKeeper authante.AccountKeeper,
 	signModeHandler *txsigning.HandlerMap,
-	networkID string,
+	walletSignatureNetworkID mina.NetworkID,
 	logger log.Logger,
 ) MinaVerifier {
 	return MinaVerifier{
-		keyregistryKeeper: keyregistryKeeper,
-		accountKeeper:     accountKeeper,
-		signModeHandler:   signModeHandler,
-		networkID:         networkID,
-		logger:            logger,
+		keyregistryKeeper:        keyregistryKeeper,
+		accountKeeper:            accountKeeper,
+		signModeHandler:          signModeHandler,
+		walletSignatureNetworkID: walletSignatureNetworkID,
+		logger:                   logger,
+	}
+}
+
+// resolveAuroFieldSignatureNetworkID maps the configured Mina source network
+// to the domain currently used by Auro signFields signatures.
+func resolveAuroFieldSignatureNetworkID(networkID mina.NetworkID) (mina.NetworkID, error) {
+	switch networkID {
+	case mina.TestNet, mina.MainNet:
+		return mina.TestNet, nil
+	default:
+		return "", fmt.Errorf("unsupported Mina network ID %q", networkID)
 	}
 }
 
@@ -114,6 +127,16 @@ func (v MinaVerifier) verifySingleSignature(
 	signatureData *signing.SingleSignatureData,
 	sequence uint64,
 ) error {
+	// TODO: Support SIGN_MODE_DIRECT_AUX after defining its authorization
+	// contract and adding wallet interoperability vectors.
+	if signatureData.SignMode != signing.SignMode_SIGN_MODE_DIRECT {
+		return errorsmod.Wrapf(
+			sdkerrors.ErrNotSupported,
+			"unsupported Mina transaction sign mode: %s",
+			signatureData.SignMode,
+		)
+	}
+
 	cosmosPubKey := account.GetPubKey()
 	if cosmosPubKey == nil {
 		return errorsmod.Wrapf(
@@ -132,7 +155,7 @@ func (v MinaVerifier) verifySingleSignature(
 		)
 	}
 
-	minaPubKey, err := publickey.NewPublicKeyFromBytes(minaPubKeyBytes, mina.NetworkID(v.networkID))
+	minaPubKey, err := publickey.NewPublicKeyFromBytes(minaPubKeyBytes, v.walletSignatureNetworkID)
 	if err != nil {
 		return errorsmod.Wrapf(
 			sdkerrors.ErrInvalidPubKey,
@@ -175,7 +198,14 @@ func (v MinaVerifier) verifySingleSignature(
 		)
 	}
 
-	valid, err := minaPubKey.VerifyBytes(minaSignature, signBytes)
+	// Auro signs the domain-separated field challenge derived from the
+	// canonical DIRECT sign bytes rather than the bytes themselves.
+	challenge, err := buildTxSigningChallenge(signBytes)
+	if err != nil {
+		return err
+	}
+
+	valid, err := minaPubKey.VerifyField(minaSignature, challenge)
 	if err != nil {
 		return err
 	}
