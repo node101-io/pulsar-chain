@@ -14,4 +14,8 @@ Archive-wrapper is a mandatory runtime dependency for validator startup. See
 [Archive-wrapper deployment](docs/archive-wrapper-deployment.md) for the supported
 shared, per-validator, and external topologies.
 
+For a reproducible local Mina Lightnet, archive-wrapper, and multi-validator
+Pulsar environment, see
+[Local Lightnet deployment](docs/local-lightnet-deployment.md).
+
 For more information, you can reach out from [hello@node101.io](mailto:hello@node101.io) or write from Telegram (@ygurlek).

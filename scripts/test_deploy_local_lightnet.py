@@ -245,6 +245,25 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
             timeout=20,
         )
 
+    def test_help_documents_cleanup_options_and_lifecycle_guide(self):
+        result = self.run_deploy("--help")
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        for expected in (
+            "Destructive behavior:",
+            "LIGHTNET_CONTAINER",
+            "LIGHTNET_IMAGE",
+            "LIGHTNET_READY_HEIGHT",
+            "PULSAR_DOCKER_STATE_ROOT",
+            "PULSAR_DOCKER_IMAGE",
+            "BRIDGE_CONFIRMATION_DEPTH",
+            "docs/local-lightnet-deployment.md",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, result.stdout)
+        self.assertEqual([], self.read_calls(self.docker_log))
+        self.assertEqual([], self.read_calls(self.git_log))
+
     def test_cleans_only_selected_project_and_reuses_owned_running_lightnet(self):
         _, selected_sentinel = self.create_owned_project(self.project)
         unrelated_root, unrelated_sentinel = self.create_owned_project(

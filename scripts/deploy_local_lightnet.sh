@@ -42,19 +42,35 @@ Recreates the local development stack with:
   - one shared archive-wrapper in Docker
   - the requested number of Pulsar validators in Docker
 
-Only the selected Compose project's marker-owned state is replaced. Unrelated
-Docker resources and host-side ~/.pulsar* directories are left untouched.
+Destructive behavior:
+  The selected Compose project's validator and archive-wrapper volumes are
+  removed before redeployment, but only after its ownership marker is verified.
+  A running owned Lightnet is reused. A stopped owned Lightnet is replaced.
+  Unrelated Docker resources, images, and host-side ~/.pulsar* directories are
+  left untouched.
 
 Optional environment variables:
-  ARCHIVE_WRAPPER_SOURCE   archive-wrapper checkout (default: ../archive-wrapper)
-  ARCHIVE_WRAPPER_SHA      archive-wrapper commit to build
-  DOCKER_PLATFORM          linux/arm64 or linux/amd64
-  LIGHTNET_IMAGE           Mina Lightnet image override (default pinned by digest)
-  LIGHTNET_POSTGRES_PORT   host PostgreSQL port (default: 15432)
-  PULSAR_DOCKER_PROJECT    Compose project name (default: pulsar-testnet-N)
+  LIGHTNET_CONTAINER         container name (default: mina-local-lightnet)
+  LIGHTNET_IMAGE             image override (default pinned below)
+  LIGHTNET_POSTGRES_PORT     host PostgreSQL port (default: 15432)
+  LIGHTNET_READY_HEIGHT      minimum archive height (default: 4)
+  ARCHIVE_WRAPPER_SOURCE     checkout path (default: ../archive-wrapper)
+  ARCHIVE_WRAPPER_SHA        commit to build (default pinned in the script)
+  ARCHIVE_WRAPPER_IMAGE      built image name (default: archive-wrapper:lightnet)
+  PULSAR_DOCKER_PROJECT      Compose project (default: pulsar-testnet-N)
+  PULSAR_DOCKER_STATE_ROOT   generated state root (default: .docker)
+  PULSAR_DOCKER_IMAGE        Pulsar image name (default derived from N)
+  DOCKER_PLATFORM            linux/arm64 or linux/amd64 (default: host arch)
+  VALIDATOR_STARTUP_TIMEOUT  Compose wait timeout in seconds (default: 600)
+  BRIDGE_CONFIRMATION_DEPTH  local bridge confirmation depth (default: 3)
+  BRIDGE_START_BLOCK_HEIGHT  local bridge start height (default: 1)
+  BRIDGE_MAX_BLOCK_RANGE     local bridge query range (default: 1000)
 
 Default Mina Lightnet image:
   o1labs/mina-local-network@sha256:33e349241f5f3e8d336e5de9b35de2d4339fd8713b309e2b1b5fc375c2605b58
+
+Full prerequisites, lifecycle, cleanup, and reset documentation:
+  docs/local-lightnet-deployment.md
 EOF
 }
 
