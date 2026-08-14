@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Recreates the local Mina/Pulsar development stack. Existing Pulsar and
-# archive-wrapper state is removed, while a running Mina Lightnet is reused.
+# Recreates one local Mina/Pulsar development stack. Only the selected Pulsar
+# Compose project's owned state is removed; a running owned Lightnet is reused.
 
 set -Eeuo pipefail
 
@@ -17,6 +17,8 @@ LIGHTNET_CONTAINER="${LIGHTNET_CONTAINER:-mina-local-lightnet}"
 LIGHTNET_IMAGE="${LIGHTNET_IMAGE:-o1labs/mina-local-network:compatible-latest-lightnet}"
 LIGHTNET_POSTGRES_PORT="${LIGHTNET_POSTGRES_PORT:-15432}"
 LIGHTNET_READY_HEIGHT="${LIGHTNET_READY_HEIGHT:-4}"
+LIGHTNET_OWNERSHIP_LABEL="io.node101.pulsar.local-testnet"
+LIGHTNET_OWNERSHIP_VALUE="mina-lightnet"
 
 WRAPPER_SOURCE="${ARCHIVE_WRAPPER_SOURCE:-$REPO_ROOT/../archive-wrapper}"
 WRAPPER_SHA="${ARCHIVE_WRAPPER_SHA:-cd42a203ac6b43d24d9fbd57c323ecd52ea52bd5}"
@@ -38,6 +40,9 @@ Recreates the local development stack with:
   - the blocks_inserted LISTEN/NOTIFY trigger
   - one shared archive-wrapper in Docker
   - the requested number of Pulsar validators in Docker
+
+Only the selected Compose project's marker-owned state is replaced. Unrelated
+Docker resources and host-side ~/.pulsar* directories are left untouched.
 
 Optional environment variables:
   ARCHIVE_WRAPPER_SOURCE   archive-wrapper checkout (default: ../archive-wrapper)
@@ -76,44 +81,6 @@ validate_port() {
   fi
 }
 
-is_related_container() {
-  local image="$1"
-  local name="$2"
-
-  if [[ "$name" == "$PROJECT_NAME"-* ]]; then
-    return 0
-  fi
-
-  case "$name" in
-    pulsar-testnet-* | pulsar-wrapper-* | archive-wrapper* | mina-local-lightnet*)
-      return 0
-      ;;
-  esac
-
-  case "$image" in
-    pulsar-chain:* | pulsar-chain@* | */pulsar-chain:* | */pulsar-chain@* | \
-      archive-wrapper:* | archive-wrapper@* | */archive-wrapper:* | */archive-wrapper@* | \
-      o1labs/mina-local-network:* | o1labs/mina-local-network@*)
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
-is_related_resource_name() {
-  if [[ "$1" == "${PROJECT_NAME}_"* || "$1" == "$PROJECT_NAME"-* ]]; then
-    return 0
-  fi
-
-  case "$1" in
-    pulsar-testnet-* | pulsar-wrapper-* | archive-wrapper* | mina-local-lightnet*)
-      return 0
-      ;;
-    *) return 1 ;;
-  esac
-}
-
 install_notification_trigger() {
   docker exec -i "$LIGHTNET_CONTAINER" \
     psql -v ON_ERROR_STOP=1 -U postgres -d archive <<'SQL'
@@ -139,156 +106,86 @@ EXECUTE FUNCTION public.archive_wrapper_notify_block_inserted();
 SQL
 }
 
-cleanup_generated_projects() {
+cleanup_selected_project() {
   local compose_file
   local generated_root
   local marker
   local marker_content
-  local project
 
-  if [[ ! -d "$STATE_ROOT" ]]; then
+  generated_root="$STATE_ROOT/$PROJECT_NAME"
+  compose_file="$generated_root/compose.json"
+  marker="$generated_root/.pulsar-docker-project"
+
+  if [[ ! -e "$generated_root" && ! -L "$generated_root" ]]; then
+    echo "    no previous state for Compose project: $PROJECT_NAME"
     return
   fi
 
-  while IFS= read -r compose_file; do
-    generated_root="$(dirname -- "$compose_file")"
-    project="$(basename -- "$generated_root")"
-    marker="$generated_root/.pulsar-docker-project"
+  if [[ ! -d "$generated_root" || -L "$generated_root" ]]; then
+    echo "refusing unsafe generated project directory: $generated_root" >&2
+    exit 1
+  fi
 
-    if [[ "$project" != pulsar-testnet-* && "$project" != "$PROJECT_NAME" ]]; then
-      continue
-    fi
+  if [[ ! -f "$marker" || -L "$marker" ]]; then
+    echo "refusing to remove unowned generated directory: $generated_root" >&2
+    exit 1
+  fi
 
-    case "$generated_root/" in
-      "$STATE_ROOT/"*) ;;
-      *)
-        echo "refusing generated project path outside state root: $generated_root" >&2
-        exit 1
-        ;;
-    esac
+  marker_content="$(cat -- "$marker")"
+  if [[ "$marker_content" != "pulsar-docker-project:$PROJECT_NAME" ]]; then
+    echo "refusing to remove generated directory with invalid marker: $generated_root" >&2
+    exit 1
+  fi
 
-    if [[ ! -f "$marker" || -L "$marker" ]]; then
-      echo "skipping unowned generated directory: $generated_root" >&2
-      continue
-    fi
+  if [[ ! -f "$compose_file" || -L "$compose_file" ]]; then
+    echo "refusing to remove project without an owned Compose file: $compose_file" >&2
+    exit 1
+  fi
 
-    marker_content="$(cat -- "$marker")"
-    if [[ "$marker_content" != "pulsar-docker-project:$project" ]]; then
-      echo "skipping generated directory with invalid marker: $generated_root" >&2
-      continue
-    fi
+  echo "    stopping Compose project: $PROJECT_NAME"
+  docker compose \
+    --project-name "$PROJECT_NAME" \
+    -f "$compose_file" \
+    down --volumes --remove-orphans || true
 
-    echo "    stopping Compose project: $project"
-    docker compose \
-      --project-name "$project" \
-      -f "$compose_file" \
-      down --volumes --remove-orphans || true
-
-    rm -rf -- "$generated_root"
-  done < <(find "$STATE_ROOT" -mindepth 2 -maxdepth 2 -type f -name compose.json -print)
+  rm -rf -- "$generated_root"
 }
 
-cleanup_related_containers() {
+lightnet_container_exists() {
+  local inspected_name
+
+  inspected_name="$(docker inspect -f '{{.Name}}' "$LIGHTNET_CONTAINER" 2>/dev/null || true)"
+  [[ "$inspected_name" == "/$LIGHTNET_CONTAINER" ]]
+}
+
+lightnet_container_is_owned() {
+  local container_ref="${1:-$LIGHTNET_CONTAINER}"
+  local ownership
+
+  ownership="$(docker inspect \
+    -f "{{ index .Config.Labels \"$LIGHTNET_OWNERSHIP_LABEL\" }}" \
+    "$container_ref" 2>/dev/null || true)"
+  [[ "$ownership" == "$LIGHTNET_OWNERSHIP_VALUE" ]]
+}
+
+cleanup_owned_stale_lightnet() {
   local container_id
-  local container_image
-  local container_name
-  local -a ids=()
-  local -a names=()
+  local inspected_name
 
-  while IFS=$'\t' read -r container_id container_image container_name; do
-    if (( REUSE_LIGHTNET == 1 )) && [[ "$container_name" == "$LIGHTNET_CONTAINER" ]]; then
-      continue
-    fi
-
-    if is_related_container "$container_image" "$container_name"; then
-      ids+=("$container_id")
-      names+=("$container_name")
-    fi
-  done < <(docker ps -a --format '{{.ID}}\t{{.Image}}\t{{.Names}}')
-
-  if (( ${#ids[@]} == 0 )); then
-    echo "    no related containers found"
+  if (( REUSE_LIGHTNET == 1 )) || ! lightnet_container_exists; then
     return
   fi
 
-  echo "    removing containers: ${names[*]}"
-  docker rm -fv "${ids[@]}"
-}
-
-cleanup_related_volumes() {
-  local name
-  local -a volumes=()
-
-  while IFS= read -r name; do
-    if (( REUSE_LIGHTNET == 1 )) && [[ "$name" == mina-local-lightnet* ]]; then
-      continue
-    fi
-
-    if is_related_resource_name "$name"; then
-      volumes+=("$name")
-    fi
-  done < <(docker volume ls --format '{{.Name}}')
-
-  if (( ${#volumes[@]} == 0 )); then
-    echo "    no related named volumes found"
-    return
+  container_id="$(docker inspect -f '{{.Id}}' "$LIGHTNET_CONTAINER")"
+  inspected_name="$(docker inspect -f '{{.Name}}' "$container_id")"
+  if [[ "$inspected_name" != "/$LIGHTNET_CONTAINER" ]] || \
+    ! lightnet_container_is_owned "$container_id"; then
+    echo "refusing to remove unowned container named $LIGHTNET_CONTAINER" >&2
+    exit 1
   fi
 
-  echo "    removing volumes: ${volumes[*]}"
-  docker volume rm -f "${volumes[@]}"
-}
-
-cleanup_related_networks() {
-  local name
-  local -a networks=()
-
-  while IFS= read -r name; do
-    if (( REUSE_LIGHTNET == 1 )) && [[ "$name" == mina-local-lightnet* ]]; then
-      continue
-    fi
-
-    if is_related_resource_name "$name"; then
-      networks+=("$name")
-    fi
-  done < <(docker network ls --format '{{.Name}}')
-
-  if (( ${#networks[@]} == 0 )); then
-    echo "    no related networks found"
-    return
-  fi
-
-  echo "    removing networks: ${networks[*]}"
-  docker network rm "${networks[@]}" || true
-}
-
-cleanup_related_images() {
-  local basename
-  local repository
-  local tag
-  local -a images=()
-
-  while IFS=$'\t' read -r repository tag; do
-    basename="${repository##*/}"
-    case "$basename" in
-      pulsar-chain | archive-wrapper | mina-local-network)
-        if (( REUSE_LIGHTNET == 1 )) && [[ "$basename" == "mina-local-network" ]]; then
-          continue
-        fi
-
-        if [[ "$tag" != "<none>" ]]; then
-          images+=("${repository}:${tag}")
-        fi
-        ;;
-    esac
-  done < <(docker image ls --format '{{.Repository}}\t{{.Tag}}')
-
-  if (( ${#images[@]} == 0 )); then
-    echo "    no related images found"
-    return
-  fi
-
-  echo "    removing images: ${images[*]}"
-  docker image rm -f "${images[@]}"
+  echo "    removing stopped owned Lightnet container: $LIGHTNET_CONTAINER"
+  docker rm -fv "$container_id"
 }
 
 wait_for_lightnet_archive() {
@@ -330,35 +227,19 @@ wait_for_lightnet_archive() {
 }
 
 detect_running_lightnet() {
-  local container_image
-  local container_name
-  local -a candidates=()
-
-  if [[ "$(docker inspect -f '{{.State.Running}}' "$LIGHTNET_CONTAINER" 2>/dev/null || true)" == "true" ]]; then
-    REUSE_LIGHTNET=1
+  if ! lightnet_container_exists; then
     return
   fi
 
-  while IFS=$'\t' read -r container_image container_name; do
-    case "$container_image" in
-      o1labs/mina-local-network:* | o1labs/mina-local-network@*)
-        candidates+=("$container_name")
-        ;;
-    esac
-  done < <(docker ps --format '{{.Image}}\t{{.Names}}')
+  if ! lightnet_container_is_owned; then
+    echo "container name $LIGHTNET_CONTAINER is already used by an unowned container" >&2
+    echo "choose another LIGHTNET_CONTAINER or remove it explicitly" >&2
+    exit 1
+  fi
 
-  case "${#candidates[@]}" in
-    0) return ;;
-    1)
-      LIGHTNET_CONTAINER="${candidates[0]}"
-      REUSE_LIGHTNET=1
-      ;;
-    *)
-      echo "multiple running Mina Lightnet containers found: ${candidates[*]}" >&2
-      echo "set LIGHTNET_CONTAINER to select one" >&2
-      exit 1
-      ;;
-  esac
+  if [[ "$(docker inspect -f '{{.State.Running}}' "$LIGHTNET_CONTAINER")" == "true" ]]; then
+    REUSE_LIGHTNET=1
+  fi
 }
 
 case "${1:-}" in
@@ -384,7 +265,6 @@ PULSAR_IMAGE="${PULSAR_DOCKER_IMAGE:-pulsar-chain:local-${VALIDATOR_COUNT}-valid
 require_cmd awk
 require_cmd curl
 require_cmd docker
-require_cmd find
 require_cmd git
 require_cmd python3
 
@@ -426,24 +306,12 @@ detect_running_lightnet
 
 echo "==> 1/5 Removing previous Pulsar and archive-wrapper state"
 if (( REUSE_LIGHTNET == 1 )); then
-  echo "    preserving running Lightnet container: $LIGHTNET_CONTAINER"
+  echo "    preserving running owned Lightnet container: $LIGHTNET_CONTAINER"
 else
-  echo "    no running Lightnet found; stale Lightnet resources will be removed"
+  echo "    no running owned Lightnet found"
 fi
-cleanup_generated_projects
-cleanup_related_containers
-cleanup_related_volumes
-cleanup_related_networks
-cleanup_related_images
-
-rm -rf -- "$HOME/.pulsar"
-while IFS= read -r node_home; do
-  node_home_name="$(basename -- "$node_home")"
-  if ! [[ "$node_home_name" =~ ^\.pulsar-node[0-9]+$ ]]; then
-    continue
-  fi
-  rm -rf -- "$node_home"
-done < <(find "$HOME" -mindepth 1 -maxdepth 1 -type d -name '.pulsar-node[0-9]*' -print)
+cleanup_selected_project
+cleanup_owned_stale_lightnet
 
 if (( REUSE_LIGHTNET == 1 )); then
   echo "==> 2/5 Reusing running Mina Lightnet with archive PostgreSQL"
@@ -451,7 +319,7 @@ else
   echo "==> 2/5 Starting Mina Lightnet with archive PostgreSQL"
   docker run -d \
     --name "$LIGHTNET_CONTAINER" \
-    --label io.node101.pulsar.local-testnet=mina-lightnet \
+    --label "${LIGHTNET_OWNERSHIP_LABEL}=${LIGHTNET_OWNERSHIP_VALUE}" \
     -p 127.0.0.1:3085:3085 \
     -p 127.0.0.1:8080:8080 \
     -p 127.0.0.1:8181:8181 \
