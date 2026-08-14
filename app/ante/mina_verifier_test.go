@@ -342,6 +342,9 @@ func buildVerifierSignBytes(
 
 // signMinaBytes turns raw sign bytes into the wire-format payload consumed by the verifier.
 // This keeps the success and crypto-failure tests working with real Mina signatures instead of stubs.
+// It signs the way a wallet does: the challenge FIELD derived from the sign
+// bytes, not the bytes themselves — the exact scheme verifySingleSignature
+// checks against.
 func signMinaBytes(
 	t *testing.T,
 	privateKey *privatekey.PrivateKey,
@@ -350,7 +353,10 @@ func signMinaBytes(
 ) []byte {
 	t.Helper()
 
-	signature, err := privateKey.SignBytes(message)
+	challenge, err := BuildTxSigningChallenge(message)
+	require.NoError(t, err)
+
+	signature, err := privateKey.SignFieldElement(challenge)
 	require.NoError(t, err)
 	require.NotNil(t, signature)
 
