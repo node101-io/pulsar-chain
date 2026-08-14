@@ -93,6 +93,23 @@ class RenderDockerTestnetTest(unittest.TestCase):
         ]
         self.assertEqual(len(data_mounts), len(set(data_mounts)))
 
+    def test_wrapper_services_map_host_docker_internal_to_host_gateway(self):
+        for mode in ("shared", "per-validator"):
+            with self.subTest(mode=mode):
+                compose = renderer.render_compose(self.args(mode))
+                wrappers = [
+                    service
+                    for name, service in compose["services"].items()
+                    if name.startswith("archive-wrapper")
+                ]
+
+                self.assertTrue(wrappers)
+                for wrapper in wrappers:
+                    self.assertEqual(
+                        ["host.docker.internal:host-gateway"],
+                        wrapper["extra_hosts"],
+                    )
+
     def test_external_topology_has_no_wrapper_artifacts(self):
         compose = renderer.render_compose(
             self.args("external", external_network="wrapper-network")

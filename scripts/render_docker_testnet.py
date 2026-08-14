@@ -133,6 +133,7 @@ def wrapper_service(
         "stop_grace_period": "15s",
         "depends_on": {"setup": {"condition": "service_completed_successfully"}},
         "environment": {"POSTGRES_URI": "${POSTGRES_URI:-}"},
+        "extra_hosts": ["host.docker.internal:host-gateway"],
         "volumes": [
             f"{config_mount}:/etc/archive-wrapper/config.yaml:ro",
             f"{validator_volume}:/var/lib/pulsar:ro",
