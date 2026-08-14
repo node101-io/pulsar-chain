@@ -771,6 +771,10 @@ func TestMinaVerifierRejectsCryptographicallyInvalidSignature(t *testing.T) {
 	require.ErrorContains(t, err, "signature verification failed")
 }
 
+// TODO: Add a real Auro signFields fixture for a fixed SIGN_MODE_DIRECT tx.
+// Pin the sign bytes, decimal challenge, wallet public key, and raw signature,
+// then verify the fixture through MinaVerifier end to end.
+
 // A matching Mina key, real sign bytes and valid signature should pass end to end.
 // This is the main success path for the verifier's custom crypto flow.
 func TestMinaVerifierAcceptsValidSignature(t *testing.T) {
