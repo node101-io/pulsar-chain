@@ -699,33 +699,45 @@ func TestMinaVerifierSkipsCryptoVerificationWhenSigverifyDisabled(t *testing.T) 
 	require.NoError(t, err)
 }
 
-// A decodable Mina signature is not enough if the sign mode has no registered handler.
-// This covers the sign-bytes generation failure branch inside verifySingleSignature.
+// Mina wallet authentication currently has one canonical authorization format.
+// Other SDK sign modes must fail before registry access or cryptographic verification.
 func TestMinaVerifierRejectsUnsupportedSignMode(t *testing.T) {
 	t.Parallel()
-	cosmosPrivKey, account := newVerifierAccount(t, 5, 9)
-	minaPrivKey := newMinaPrivateKeyForTest(t, 21)
-	registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
-	ctx := registryCtx.WithIsSigverifyTx(true)
-	registerMinaPublicKeyForAccount(t, registryCtx, keyregistryKeeper, account, minaPublicKeyBytesForTest(t, minaPrivKey))
-	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
-	// The signature must decode successfully so the verifier reaches sign-bytes generation.
-	signatureBytes := signMinaBytes(t, minaPrivKey, []byte("unsupported-sign-mode"))
-	tx := buildVerifierTestTx(
-		t,
-		encoding.TxConfig,
-		account.GetAddress(),
-		cosmosPrivKey.PubKey(),
-		account.GetSequence(),
-		signingtypes.SignMode(999),
-		signatureBytes,
-	)
+	testCases := []struct {
+		name     string
+		signMode signingtypes.SignMode
+	}{
+		{name: "direct aux", signMode: signingtypes.SignMode_SIGN_MODE_DIRECT_AUX},
+		{name: "legacy amino JSON", signMode: signingtypes.SignMode_SIGN_MODE_LEGACY_AMINO_JSON},
+		{name: "unknown", signMode: signingtypes.SignMode(999)},
+	}
 
-	err := verifier.VerifySignatures(ctx, tx, false)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cosmosPrivKey, account := newVerifierAccount(t, 5, 9)
+			registryCtx, keyregistryKeeper := newKeyregistryKeeperForTest(t)
+			ctx := registryCtx.WithIsSigverifyTx(true)
+			verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
-	require.ErrorIs(t, err, sdkerrors.ErrInvalidType)
-	require.ErrorContains(t, err, "failed to generate sign bytes")
+			// No registry entry and malformed signature bytes ensure the mode check
+			// remains the first Mina-specific validation performed.
+			tx := buildVerifierTestTx(
+				t,
+				encoding.TxConfig,
+				account.GetAddress(),
+				cosmosPrivKey.PubKey(),
+				account.GetSequence(),
+				tc.signMode,
+				[]byte{1},
+			)
+
+			err := verifier.VerifySignatures(ctx, tx, false)
+
+			require.ErrorIs(t, err, sdkerrors.ErrNotSupported)
+			require.ErrorContains(t, err, "unsupported Mina transaction sign mode")
+		})
+	}
 }
 
 // The verifier must reject signatures that decode correctly but were made over the wrong message.

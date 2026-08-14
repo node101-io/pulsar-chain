@@ -127,6 +127,16 @@ func (v MinaVerifier) verifySingleSignature(
 	signatureData *signing.SingleSignatureData,
 	sequence uint64,
 ) error {
+	// TODO: Support SIGN_MODE_DIRECT_AUX after defining its authorization
+	// contract and adding wallet interoperability vectors.
+	if signatureData.SignMode != signing.SignMode_SIGN_MODE_DIRECT {
+		return errorsmod.Wrapf(
+			sdkerrors.ErrNotSupported,
+			"unsupported Mina transaction sign mode: %s",
+			signatureData.SignMode,
+		)
+	}
+
 	cosmosPubKey := account.GetPubKey()
 	if cosmosPubKey == nil {
 		return errorsmod.Wrapf(
