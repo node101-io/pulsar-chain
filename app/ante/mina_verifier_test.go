@@ -10,6 +10,7 @@ import (
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 	txsigning "cosmossdk.io/x/tx/signing"
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
@@ -40,7 +41,38 @@ import (
 )
 
 // DefaultMinaNetworkID is used for tests only.
-const DefaultMinaNetworkID = "devnet"
+const DefaultMinaNetworkID = string(mina.TestNet)
+
+func TestResolveAuroFieldSignatureNetworkID(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		networkID mina.NetworkID
+		want      mina.NetworkID
+		wantErr   bool
+	}{
+		{name: "testnet", networkID: mina.TestNet, want: mina.TestNet},
+		{name: "mainnet", networkID: mina.MainNet, want: mina.TestNet},
+		{name: "unsupported", networkID: mina.NetworkID("unsupported"), wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			actual, err := resolveAuroFieldSignatureNetworkID(tc.networkID)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "unsupported Mina network ID")
+				require.Empty(t, actual)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tc.want, actual)
+		})
+	}
+}
 
 type verifierAccountKeeper struct {
 	account sdk.AccountI
@@ -179,7 +211,7 @@ func newVerifierForTest(
 		keyregistryKeeper,
 		verifierAccountKeeper{account: account},
 		&txsigning.HandlerMap{},
-		DefaultMinaNetworkID,
+		mina.TestNet,
 		log.NewNopLogger(),
 	)
 }
@@ -226,7 +258,7 @@ func newVerifierWithRealSignModeHandlerForTest(
 		keyregistryKeeper,
 		verifierAccountKeeper{account: account},
 		encoding.TxConfig.SignModeHandler(),
-		DefaultMinaNetworkID,
+		mina.TestNet,
 		log.NewNopLogger(),
 	), encoding
 }
@@ -250,7 +282,7 @@ func newMinaPrivateKeyForTest(t *testing.T, marker byte) *privatekey.PrivateKey 
 	var seed [32]byte
 	seed[0] = marker
 
-	privateKey, err := privatekey.NewPrivateKeyFromBytes(seed, DefaultMinaNetworkID)
+	privateKey, err := privatekey.NewPrivateKeyFromBytes(seed, mina.TestNet)
 	require.NoError(t, err)
 	require.NotNil(t, privateKey)
 
@@ -349,7 +381,6 @@ func signMinaBytes(
 	t *testing.T,
 	privateKey *privatekey.PrivateKey,
 	message []byte,
-	_ string,
 ) []byte {
 	t.Helper()
 
@@ -680,7 +711,7 @@ func TestMinaVerifierRejectsUnsupportedSignMode(t *testing.T) {
 	verifier, encoding := newVerifierWithRealSignModeHandlerForTest(t, account, keyregistryKeeper)
 
 	// The signature must decode successfully so the verifier reaches sign-bytes generation.
-	signatureBytes := signMinaBytes(t, minaPrivKey, []byte("unsupported-sign-mode"), DefaultMinaNetworkID)
+	signatureBytes := signMinaBytes(t, minaPrivKey, []byte("unsupported-sign-mode"))
 	tx := buildVerifierTestTx(
 		t,
 		encoding.TxConfig,
@@ -711,7 +742,7 @@ func TestMinaVerifierRejectsCryptographicallyInvalidSignature(t *testing.T) {
 	signMode := signingtypes.SignMode(encoding.TxConfig.SignModeHandler().DefaultMode())
 
 	// The signature is valid for a different message, so decoding succeeds but verification fails.
-	invalidSignatureBytes := signMinaBytes(t, minaPrivKey, []byte("different-sign-bytes"), DefaultMinaNetworkID)
+	invalidSignatureBytes := signMinaBytes(t, minaPrivKey, []byte("different-sign-bytes"))
 	tx := buildVerifierTestTx(
 		t,
 		encoding.TxConfig,
@@ -751,7 +782,7 @@ func TestMinaVerifierAcceptsValidSignature(t *testing.T) {
 		nil,
 	)
 	signBytes := buildVerifierSignBytes(t, ctx, encoding.TxConfig, tx, account, account.GetSequence(), signMode)
-	signatureBytes := signMinaBytes(t, minaPrivKey, signBytes, DefaultMinaNetworkID)
+	signatureBytes := signMinaBytes(t, minaPrivKey, signBytes)
 	// Rebuild the tx with the real signature so VerifySignatures sees the same payload it validates.
 	tx = buildVerifierTestTx(
 		t,
@@ -791,7 +822,7 @@ func TestMinaVerifierUsesZeroAccountNumberAtGenesisHeight(t *testing.T) {
 		nil,
 	)
 	signBytes := buildVerifierSignBytes(t, ctx, encoding.TxConfig, tx, account, account.GetSequence(), signMode)
-	signatureBytes := signMinaBytes(t, minaPrivKey, signBytes, DefaultMinaNetworkID)
+	signatureBytes := signMinaBytes(t, minaPrivKey, signBytes)
 	// Rebuilding the tx with the real signature ensures the verifier sees the exact genesis-path payload.
 	tx = buildVerifierTestTx(
 		t,

@@ -1,6 +1,8 @@
 package ante
 
 import (
+	"fmt"
+
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	txsigning "cosmossdk.io/x/tx/signing"
@@ -17,11 +19,11 @@ import (
 
 // MinaVerifier verifies tx signatures using Mina cryptography.
 type MinaVerifier struct {
-	keyregistryKeeper *keyregistrykeeper.Keeper
-	accountKeeper     authante.AccountKeeper
-	signModeHandler   *txsigning.HandlerMap
-	networkID         string
-	logger            log.Logger
+	keyregistryKeeper        *keyregistrykeeper.Keeper
+	accountKeeper            authante.AccountKeeper
+	signModeHandler          *txsigning.HandlerMap
+	walletSignatureNetworkID mina.NetworkID
+	logger                   log.Logger
 }
 
 // NewMinaVerifier creates a new Mina signature verifier.
@@ -29,15 +31,26 @@ func NewMinaVerifier(
 	keyregistryKeeper *keyregistrykeeper.Keeper,
 	accountKeeper authante.AccountKeeper,
 	signModeHandler *txsigning.HandlerMap,
-	networkID string,
+	walletSignatureNetworkID mina.NetworkID,
 	logger log.Logger,
 ) MinaVerifier {
 	return MinaVerifier{
-		keyregistryKeeper: keyregistryKeeper,
-		accountKeeper:     accountKeeper,
-		signModeHandler:   signModeHandler,
-		networkID:         networkID,
-		logger:            logger,
+		keyregistryKeeper:        keyregistryKeeper,
+		accountKeeper:            accountKeeper,
+		signModeHandler:          signModeHandler,
+		walletSignatureNetworkID: walletSignatureNetworkID,
+		logger:                   logger,
+	}
+}
+
+// resolveAuroFieldSignatureNetworkID maps the configured Mina source network
+// to the domain currently used by Auro signFields signatures.
+func resolveAuroFieldSignatureNetworkID(networkID mina.NetworkID) (mina.NetworkID, error) {
+	switch networkID {
+	case mina.TestNet, mina.MainNet:
+		return mina.TestNet, nil
+	default:
+		return "", fmt.Errorf("unsupported Mina network ID %q", networkID)
 	}
 }
 
@@ -132,7 +145,7 @@ func (v MinaVerifier) verifySingleSignature(
 		)
 	}
 
-	minaPubKey, err := publickey.NewPublicKeyFromBytes(minaPubKeyBytes, mina.NetworkID(v.networkID))
+	minaPubKey, err := publickey.NewPublicKeyFromBytes(minaPubKeyBytes, v.walletSignatureNetworkID)
 	if err != nil {
 		return errorsmod.Wrapf(
 			sdkerrors.ErrInvalidPubKey,
