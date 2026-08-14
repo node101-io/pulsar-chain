@@ -27,7 +27,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // Params defines the parameters for the module.
 type Params struct {
 	PendingProofBlocksWindowSize int64 `protobuf:"varint,1,opt,name=pending_proof_blocks_window_size,json=pendingProofBlocksWindowSize,proto3" json:"pending_proof_blocks_window_size,omitempty"`
-	// Maximum number of proofs in a block.
+	// max_proof_range is the maximum number of pending proofs allowed in one block.
 	MaxProofRange int64 `protobuf:"varint,2,opt,name=max_proof_range,json=maxProofRange,proto3" json:"max_proof_range,omitempty"`
 }
 
