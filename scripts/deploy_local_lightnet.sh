@@ -14,7 +14,8 @@ STATE_ROOT="${PULSAR_DOCKER_STATE_ROOT:-$REPO_ROOT/.docker}"
 REUSE_LIGHTNET=0
 
 LIGHTNET_CONTAINER="${LIGHTNET_CONTAINER:-mina-local-lightnet}"
-LIGHTNET_IMAGE="${LIGHTNET_IMAGE:-o1labs/mina-local-network:compatible-latest-lightnet}"
+DEFAULT_LIGHTNET_IMAGE="o1labs/mina-local-network@sha256:33e349241f5f3e8d336e5de9b35de2d4339fd8713b309e2b1b5fc375c2605b58"
+LIGHTNET_IMAGE="${LIGHTNET_IMAGE:-$DEFAULT_LIGHTNET_IMAGE}"
 LIGHTNET_POSTGRES_PORT="${LIGHTNET_POSTGRES_PORT:-15432}"
 LIGHTNET_READY_HEIGHT="${LIGHTNET_READY_HEIGHT:-4}"
 LIGHTNET_OWNERSHIP_LABEL="io.node101.pulsar.local-testnet"
@@ -48,8 +49,12 @@ Optional environment variables:
   ARCHIVE_WRAPPER_SOURCE   archive-wrapper checkout (default: ../archive-wrapper)
   ARCHIVE_WRAPPER_SHA      archive-wrapper commit to build
   DOCKER_PLATFORM          linux/arm64 or linux/amd64
+  LIGHTNET_IMAGE           Mina Lightnet image override (default pinned by digest)
   LIGHTNET_POSTGRES_PORT   host PostgreSQL port (default: 15432)
   PULSAR_DOCKER_PROJECT    Compose project name (default: pulsar-testnet-N)
+
+Default Mina Lightnet image:
+  o1labs/mina-local-network@sha256:33e349241f5f3e8d336e5de9b35de2d4339fd8713b309e2b1b5fc375c2605b58
 EOF
 }
 

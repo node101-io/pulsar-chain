@@ -12,6 +12,10 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 DEPLOY_SCRIPT = SCRIPT_DIR / "deploy_local_lightnet.sh"
+DEFAULT_LIGHTNET_IMAGE = (
+    "o1labs/mina-local-network@"
+    "sha256:33e349241f5f3e8d336e5de9b35de2d4339fd8713b309e2b1b5fc375c2605b58"
+)
 
 
 FAKE_DOCKER = r"""#!/usr/bin/env python3
@@ -299,6 +303,19 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
         run_calls = [call for call in docker_calls if call[:1] == ["run"]]
         self.assertEqual(1, len(run_calls))
         self.assertIn("mina-local-lightnet", run_calls[0])
+        self.assertEqual(DEFAULT_LIGHTNET_IMAGE, run_calls[0][-1])
+
+    def test_allows_an_explicit_lightnet_image_override(self):
+        self.set_lightnet_state("absent")
+        override = "example.test/mina-lightnet@sha256:override"
+
+        result = self.run_deploy(LIGHTNET_IMAGE=override)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        docker_calls = self.read_calls(self.docker_log)
+        run_calls = [call for call in docker_calls if call[:1] == ["run"]]
+        self.assertEqual(1, len(run_calls))
+        self.assertEqual(override, run_calls[0][-1])
 
     def test_rejects_unowned_lightnet_without_mutating_project(self):
         _, selected_sentinel = self.create_owned_project(self.project)
