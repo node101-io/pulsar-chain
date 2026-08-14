@@ -384,7 +384,7 @@ func signMinaBytes(
 ) []byte {
 	t.Helper()
 
-	challenge, err := BuildTxSigningChallenge(message)
+	challenge, err := buildTxSigningChallenge(message)
 	require.NoError(t, err)
 
 	signature, err := privateKey.SignFieldElement(challenge)

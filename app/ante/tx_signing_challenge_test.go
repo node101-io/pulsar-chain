@@ -10,34 +10,34 @@ import (
 )
 
 func TestBuildTxSigningChallengeIsDeterministic(t *testing.T) {
-	first, err := BuildTxSigningChallenge([]byte("payload"))
+	first, err := buildTxSigningChallenge([]byte("payload"))
 	require.NoError(t, err)
-	second, err := BuildTxSigningChallenge([]byte("payload"))
+	second, err := buildTxSigningChallenge([]byte("payload"))
 	require.NoError(t, err)
 
 	require.Equal(t, first.Bytes(), second.Bytes())
 }
 
 func TestBuildTxSigningChallengeSeparatesPayloads(t *testing.T) {
-	first, err := BuildTxSigningChallenge([]byte("payload-a"))
+	first, err := buildTxSigningChallenge([]byte("payload-a"))
 	require.NoError(t, err)
-	second, err := BuildTxSigningChallenge([]byte("payload-b"))
+	second, err := buildTxSigningChallenge([]byte("payload-b"))
 	require.NoError(t, err)
 
 	require.NotEqual(t, first.Bytes(), second.Bytes())
 }
 
 func TestBuildTxSigningChallengeRejectsEmptySignBytes(t *testing.T) {
-	_, err := BuildTxSigningChallenge(nil)
+	_, err := buildTxSigningChallenge(nil)
 	require.Error(t, err)
-	_, err = BuildTxSigningChallenge([]byte{})
+	_, err = buildTxSigningChallenge([]byte{})
 	require.Error(t, err)
 }
 
 // This golden vector detects accidental wire-format drift. It is not an
 // independent cross-language or wallet interoperability proof.
 func TestBuildTxSigningChallengeVector(t *testing.T) {
-	challenge, err := BuildTxSigningChallenge([]byte("pulsar-tx-vector-01"))
+	challenge, err := buildTxSigningChallenge([]byte("pulsar-tx-vector-01"))
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -65,7 +65,7 @@ func TestKeyRegistrationSignatureCannotAuthorizeTransaction(t *testing.T) {
 	registrationSignature, err := minaPrivateKey.SignFieldElement(registration)
 	require.NoError(t, err)
 
-	txChallenge, err := BuildTxSigningChallenge(registration.Bytes())
+	txChallenge, err := buildTxSigningChallenge(registration.Bytes())
 	require.NoError(t, err)
 	minaPublicKey, err := minaPrivateKey.ToPublicKey()
 	require.NoError(t, err)

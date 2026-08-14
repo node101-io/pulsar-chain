@@ -198,13 +198,9 @@ func (v MinaVerifier) verifySingleSignature(
 		)
 	}
 
-	// Verified as a FIELD signature over the challenge derived from the sign
-	// bytes, not as a byte signature over the bytes themselves: field signing
-	// is the one scheme browser wallets can produce (Auro signFields), and the
-	// challenge commits to the full sign bytes, so nothing is lost in the
-	// reduction. This mirrors how x/keyregistry verifies wallet signatures on
-	// registration — see BuildTxSigningChallenge for the derivation contract.
-	challenge, err := BuildTxSigningChallenge(signBytes)
+	// Auro signs the domain-separated field challenge derived from the
+	// canonical DIRECT sign bytes rather than the bytes themselves.
+	challenge, err := buildTxSigningChallenge(signBytes)
 	if err != nil {
 		return err
 	}

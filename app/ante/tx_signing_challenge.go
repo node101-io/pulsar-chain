@@ -10,39 +10,24 @@ import (
 	"github.com/node101-io/mina-signer-go/poseidon"
 )
 
-// The field element a Mina wallet signs to authorize a Pulsar transaction.
+// This transaction flow uses Auro field signing, so Pulsar clients derive the
+// field below from canonical SIGN_MODE_DIRECT sign bytes:
 //
-// A wallet is the whole reason this derivation exists: browser wallets expose
-// field signing (Auro's signFields) but never raw byte signing over arbitrary
-// payloads — that would take the private key out of the wallet's hands. So the
-// transaction's canonical sign bytes are reduced to one field element here,
-// the wallet signs that field, and verifySingleSignature recomputes the same
-// field from the same bytes. Clients MUST reproduce this derivation
-// byte-for-byte; it is intentionally shaped like the key-registry challenges
-// in x/keyregistry/types/signing.go so both sides of the bridge maintain one
-// idiom:
+//	challenge = PoseidonHashWithPrefix(prefix, version || uint32_be(len(signBytes)) || signBytes)
 //
-//	challenge = PoseidonHashWithPrefix(prefix, version || len(signBytes) || signBytes)
-//
-// The sign bytes already bind chain ID, account number, sequence, fee and
-// every message, so the challenge inherits replay protection from the same
-// place Cosmos signatures get it.
-//
-// The prefix domain-separates this signature from everything else a Mina
-// wallet is ever asked to sign on Pulsar — see the registration/update
-// prefixes in x/keyregistry/types/signing.go. Every such prefix must be
-// globally unique: two contexts sharing one prefix would let a signature
-// gathered in one be replayed in the other. Never reuse or retire a prefix;
-// a derivation change gets a NEW versioned prefix instead.
+// The prefix separates transaction authorization from key registration and
+// other wallet-signing contexts. Changing the prefix, version, or framing is a
+// protocol change and requires new client implementations and test vectors.
 const txSigningChallengePrefix = "pulsar-tx-auth-v1"
 
 const txSigningChallengeVersion byte = 1
 
-// BuildTxSigningChallenge derives the field element a Mina wallet signs for
-// the given canonical sign bytes. Exported for the ante tests and as the
-// reference for client-side mirrors (pulsar-chain-client pins this via test
-// vectors, the way keySigningChallenge is pinned).
-func BuildTxSigningChallenge(signBytes []byte) (*minafield.FieldElement, error) {
+// TODO: Use mina-signer-go's wallet interoperability API once it provides
+// Auro-compatible field and message signing with cross-language vectors.
+
+// buildTxSigningChallenge derives the domain-separated commitment a Mina
+// wallet signs for the given canonical sign bytes.
+func buildTxSigningChallenge(signBytes []byte) (*minafield.FieldElement, error) {
 	// Empty sign bytes cannot come out of GetSignBytesAdapter for a real tx;
 	// seeing them means the caller is broken, and hashing them anyway would
 	// mint a well-formed challenge for a payload that authorizes nothing.
