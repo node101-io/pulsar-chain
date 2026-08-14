@@ -143,10 +143,14 @@ cleanup_selected_project() {
   fi
 
   echo "    stopping Compose project: $PROJECT_NAME"
-  docker compose \
+  if ! docker compose \
     --project-name "$PROJECT_NAME" \
     -f "$compose_file" \
-    down --volumes --remove-orphans || true
+    down --volumes --remove-orphans; then
+    echo "failed to clean Compose project: $PROJECT_NAME" >&2
+    echo "preserving project metadata at: $generated_root" >&2
+    exit 1
+  fi
 
   rm -rf -- "$generated_root"
 }
