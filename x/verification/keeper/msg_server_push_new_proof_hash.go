@@ -28,9 +28,24 @@ func (k msgServer) PushNewProofHash(ctx context.Context, msg *types.MsgPushNewPr
 		)
 	}
 
+	exists, err := k.Keeper.ProofHashExists(ctx, msg.ProofHash)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			"check pending proof hash existence: %v",
+			err,
+		)
+	}
+	if exists {
+		return nil, status.Error(
+			codes.AlreadyExists,
+			types.ErrPendingProofAlreadyExists.Error(),
+		)
+	}
+
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	err := k.Keeper.AppendPendingProof(ctx, msg.ProofHash, sdkCtx.BlockHeight())
+	err = k.Keeper.AppendPendingProof(ctx, msg.ProofHash, sdkCtx.BlockHeight())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "%s: %v", types.ErrFailedToAppendPendingProof, err)
 	}

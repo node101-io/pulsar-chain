@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math"
@@ -218,6 +219,30 @@ func (k Keeper) GetProofHashesByBlockHeight(
 
 	}
 	return hashes, proofIDs, nil
+}
+
+func (k Keeper) ProofHashExists(ctx context.Context, proofHash []byte) (bool, error) {
+
+	iter, err := k.IteratePendingProofs(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	defer iter.Close()
+
+	for ; iter.Valid(); iter.Next() {
+
+		value, err := iter.Value()
+		if err != nil {
+			return false, err
+		}
+
+		if bytes.Equal(proofHash, value) {
+			return true, nil
+		}
+
+	}
+	return false, nil
 }
 
 func pendingProofsByBlockHeightRange(blockHeight int64) *collections.Range[types.ProofID] {
