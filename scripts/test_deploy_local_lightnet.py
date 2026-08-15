@@ -175,6 +175,9 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
             "ARCHIVE_WRAPPER_IMAGE",
             "ARCHIVE_WRAPPER_SHA",
             "ARCHIVE_WRAPPER_SOURCE",
+            "BRIDGE_CONFIRMATION_DEPTH",
+            "BRIDGE_MAX_BLOCK_RANGE",
+            "BRIDGE_START_BLOCK_HEIGHT",
             "DOCKER_PLATFORM",
             "LIGHTNET_CONTAINER",
             "LIGHTNET_IMAGE",
@@ -183,6 +186,7 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
             "PULSAR_DOCKER_IMAGE",
             "PULSAR_DOCKER_PROJECT",
             "PULSAR_DOCKER_STATE_ROOT",
+            "VALIDATOR_STARTUP_TIMEOUT",
         ):
             self.env.pop(key, None)
         self.env.update(
@@ -360,6 +364,33 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
                 self.assertIn("positive integer", result.stderr)
 
         self.assertTrue(selected_sentinel.exists())
+        self.assertEqual([], self.read_calls(self.docker_log))
+        self.assertEqual([], self.read_calls(self.git_log))
+
+    def test_invalid_runtime_overrides_are_rejected_before_cleanup(self):
+        _, selected_sentinel = self.create_owned_project(self.project)
+        self.set_lightnet_state("running-owned")
+        invalid_overrides = (
+            ("VALIDATOR_STARTUP_TIMEOUT", "invalid", "positive integer"),
+            ("BRIDGE_CONFIRMATION_DEPTH", "0", "positive integer"),
+            ("BRIDGE_START_BLOCK_HEIGHT", "0", "positive integer"),
+            ("BRIDGE_MAX_BLOCK_RANGE", "0", "positive integer"),
+            ("DOCKER_PLATFORM", "linux/s390x", "Docker platform"),
+        )
+
+        for name, value, expected_error in invalid_overrides:
+            with self.subTest(name=name, value=value):
+                result = self.run_deploy(**{name: value})
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn(expected_error, result.stderr)
+                self.assertTrue(selected_sentinel.exists())
+                self.assertFalse(
+                    any(
+                        "down" in call
+                        for call in self.read_calls(self.docker_log)
+                    )
+                )
+
         self.assertEqual([], self.read_calls(self.docker_log))
         self.assertEqual([], self.read_calls(self.git_log))
 

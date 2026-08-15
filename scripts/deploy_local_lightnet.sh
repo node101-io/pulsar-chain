@@ -25,6 +25,10 @@ WRAPPER_SOURCE="${ARCHIVE_WRAPPER_SOURCE:-$REPO_ROOT/../archive-wrapper}"
 WRAPPER_SHA="${ARCHIVE_WRAPPER_SHA:-cd42a203ac6b43d24d9fbd57c323ecd52ea52bd5}"
 WRAPPER_IMAGE="${ARCHIVE_WRAPPER_IMAGE:-archive-wrapper:lightnet}"
 PULSAR_IMAGE=""
+BRIDGE_CONFIRMATION_DEPTH="${BRIDGE_CONFIRMATION_DEPTH:-3}"
+BRIDGE_START_BLOCK_HEIGHT="${BRIDGE_START_BLOCK_HEIGHT:-1}"
+BRIDGE_MAX_BLOCK_RANGE="${BRIDGE_MAX_BLOCK_RANGE:-1000}"
+VALIDATOR_STARTUP_TIMEOUT="${VALIDATOR_STARTUP_TIMEOUT:-600}"
 
 case "$(uname -m)" in
   arm64 | aarch64) DEFAULT_DOCKER_PLATFORM="linux/arm64" ;;
@@ -287,15 +291,6 @@ validate_port "last validator REST port" "$((1317 + VALIDATOR_COUNT - 1))"
 PROJECT_NAME="${PULSAR_DOCKER_PROJECT:-pulsar-testnet-${VALIDATOR_COUNT}}"
 PULSAR_IMAGE="${PULSAR_DOCKER_IMAGE:-pulsar-chain:local-${VALIDATOR_COUNT}-validators}"
 
-require_cmd awk
-require_cmd curl
-require_cmd docker
-require_cmd git
-require_cmd python3
-
-docker compose version >/dev/null
-docker buildx version >/dev/null
-
 if ! [[ "$PROJECT_NAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]; then
   echo "invalid Docker Compose project name: $PROJECT_NAME" >&2
   exit 1
@@ -308,6 +303,27 @@ fi
 
 validate_port "Lightnet PostgreSQL port" "$LIGHTNET_POSTGRES_PORT"
 validate_positive_int "Lightnet ready height" "$LIGHTNET_READY_HEIGHT"
+validate_positive_int "validator startup timeout" "$VALIDATOR_STARTUP_TIMEOUT"
+validate_positive_int "bridge confirmation depth" "$BRIDGE_CONFIRMATION_DEPTH"
+validate_positive_int "bridge start block height" "$BRIDGE_START_BLOCK_HEIGHT"
+validate_positive_int "bridge max block range" "$BRIDGE_MAX_BLOCK_RANGE"
+
+case "$DOCKER_PLATFORM" in
+  linux/arm64 | linux/amd64) ;;
+  *)
+    echo "Docker platform must be linux/arm64 or linux/amd64, got: $DOCKER_PLATFORM" >&2
+    exit 1
+    ;;
+esac
+
+require_cmd awk
+require_cmd curl
+require_cmd docker
+require_cmd git
+require_cmd python3
+
+docker compose version >/dev/null
+docker buildx version >/dev/null
 
 STATE_ROOT="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$STATE_ROOT")"
 if [[ "$STATE_ROOT" == "/" || "$STATE_ROOT" == "$REPO_ROOT" || "$STATE_ROOT" == "$HOME" ]]; then
@@ -401,10 +417,10 @@ export PULSAR_DOCKER_PROJECT="$PROJECT_NAME"
 export PULSAR_DOCKER_STATE_ROOT="$STATE_ROOT"
 export PULSAR_BIND_HOST="127.0.0.1"
 export POSTGRES_URI="postgres://${PG_USER}:${PG_PASSWORD}@host.docker.internal:${MAPPED_PG_PORT}/${PG_DB}?sslmode=disable"
-export BRIDGE_CONFIRMATION_DEPTH="${BRIDGE_CONFIRMATION_DEPTH:-3}"
-export BRIDGE_START_BLOCK_HEIGHT="${BRIDGE_START_BLOCK_HEIGHT:-1}"
-export BRIDGE_MAX_BLOCK_RANGE="${BRIDGE_MAX_BLOCK_RANGE:-1000}"
-export VALIDATOR_STARTUP_TIMEOUT="${VALIDATOR_STARTUP_TIMEOUT:-600}"
+export BRIDGE_CONFIRMATION_DEPTH
+export BRIDGE_START_BLOCK_HEIGHT
+export BRIDGE_MAX_BLOCK_RANGE
+export VALIDATOR_STARTUP_TIMEOUT
 
 echo "==> 5/5 Starting Pulsar with $VALIDATOR_COUNT validators"
 "$SCRIPT_DIR/docker_testnet.sh" up "$VALIDATOR_COUNT"
