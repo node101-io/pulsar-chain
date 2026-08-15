@@ -143,6 +143,35 @@ func TestPushNewProofHash(t *testing.T) {
 	}
 }
 
+func TestPushNewProofHashRejectsDuplicate(t *testing.T) {
+	f := initFixture(t)
+	creator, err := f.addressCodec.BytesToString(f.keeper.GetAuthority())
+	require.NoError(t, err)
+
+	proofHash := bytes.Repeat([]byte{0x11}, types.ProofHashLength)
+	msg := &types.MsgPushNewProofHash{
+		Creator:   creator,
+		ProofHash: proofHash,
+	}
+	msgServer := keeper.NewMsgServerImpl(f.keeper)
+
+	firstCtx := sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(41)
+	_, err = msgServer.PushNewProofHash(firstCtx, msg)
+	require.NoError(t, err)
+
+	secondCtx := firstCtx.WithBlockHeight(42)
+	_, err = msgServer.PushNewProofHash(secondCtx, msg)
+	require.Equal(t, codes.AlreadyExists, status.Code(err))
+	require.ErrorContains(t, err, types.ErrPendingProofAlreadyExists.Error())
+
+	exists, err := f.keeper.PendingProofExists(secondCtx, types.ProofID{
+		BlockHeight: 42,
+		ProofIndex:  0,
+	})
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
 func TestPushNewProofHashErrors(t *testing.T) {
 	tests := []struct {
 		name         string
