@@ -58,8 +58,10 @@ var (
 	ErrVoteExtSigningFailed            error = errors.New("failed to sign vote extension body")
 	ErrVoteExtSignatureMarshalFailed   error = errors.New("failed to marshal vote extension signature")
 	ErrInvalidVoteExtMinaPublicKey     error = errors.New("invalid vote extension mina public key")
+	ErrInvalidVoteExtensionEncoding    error = errors.New("invalid vote extension encoding")
 	ErrInvalidVoteExtSignatureEncoding error = errors.New("invalid vote extension signature encoding")
 	ErrInvalidVoteExtSignature         error = errors.New("invalid vote extension signature")
+	ErrInvalidProofCommitment          error = errors.New("invalid proof commitment")
 
 	// Validator-set root construction errors.
 	ErrValidatorMinaKeyNotFound   error = errors.New("validator mina key not found")

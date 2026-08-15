@@ -91,6 +91,11 @@ func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, voteExtensi
 
 		seenConsensusPubKeys[consPubKeyKey] = struct{}{}
 
+		voteExtension, err := decodeVoteExtension(vote.VoteExtension)
+		if err != nil {
+			return verifiedPayloadVoteExtensions{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
+		}
+
 		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, vote.ConsensusPublicKey)
 		if err != nil {
 			return verifiedPayloadVoteExtensions{}, err
@@ -104,7 +109,14 @@ func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, voteExtensi
 			return verifiedPayloadVoteExtensions{}, err
 		}
 
-		if err := verifyVoteExtSig(poseidonHash, vote.VoteExtension, body, minaKey, h.networkID); err != nil {
+		if err := verifyVoteExtSig(
+			poseidonHash,
+			voteExtension.Signature,
+			body,
+			voteExtension.ProofCommitment,
+			minaKey,
+			h.networkID,
+		); err != nil {
 			if errors.Is(err, ErrInvalidVoteExtSignatureEncoding) || errors.Is(err, ErrInvalidVoteExtSignature) {
 				return verifiedPayloadVoteExtensions{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
 			}

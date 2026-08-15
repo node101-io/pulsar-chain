@@ -82,7 +82,11 @@ func TestVerifyVoteExtensionReturnsErrorForKeyregistryReadFailure(t *testing.T) 
 
 func TestVerifyVoteExtensionRejectsMalformedSignatureWithoutError(t *testing.T) {
 	handler, ctx, req := newValidVerifyVoteExtensionTestCase(t)
-	req.request.VoteExtension = []byte("not-a-signature")
+	req.request.VoteExtension = marshalVoteExtensionForTest(
+		t,
+		[]byte("not-a-signature"),
+		testProofCommitment(),
+	)
 
 	response, err := handler.VerifyVoteExtensionHandler()(ctx, req.request)
 
@@ -92,9 +96,10 @@ func TestVerifyVoteExtensionRejectsMalformedSignatureWithoutError(t *testing.T) 
 
 func TestVerifyVoteExtensionRejectsSignatureMismatchWithoutError(t *testing.T) {
 	handler, ctx, req := newValidVerifyVoteExtensionTestCase(t)
-	signature, err := req.secondaryKey.SignVoteExtBody(validVoteExtBody())
+	proofCommitment := testProofCommitment()
+	signature, err := req.secondaryKey.SignVoteExtension(validVoteExtBody(), proofCommitment)
 	require.NoError(t, err)
-	req.request.VoteExtension = signature
+	req.request.VoteExtension = marshalVoteExtensionForTest(t, signature, proofCommitment)
 
 	response, err := handler.VerifyVoteExtensionHandler()(ctx, req.request)
 
@@ -145,14 +150,15 @@ func newValidVerifyVoteExtensionTestCase(t *testing.T) (*ABCIHandler, sdk.Contex
 	ctx := prepareProposalTestContext(reqHeight)
 	body, err := handler.constructVoteExtBody(ctx, reqHeight)
 	require.NoError(t, err)
-	signature, err := secondaryKey.SignVoteExtBody(body)
+	proofCommitment := testProofCommitment()
+	signature, err := secondaryKey.SignVoteExtension(body, proofCommitment)
 	require.NoError(t, err)
 
 	return handler, ctx, verifyVoteExtensionTestCase{
 		request: &cometabci.RequestVerifyVoteExtension{
 			Height:           reqHeight,
 			ValidatorAddress: consensusAddress(t, validator),
-			VoteExtension:    signature,
+			VoteExtension:    marshalVoteExtensionForTest(t, signature, proofCommitment),
 		},
 		validator:     validator,
 		secondaryKey:  secondaryKey,
@@ -230,7 +236,8 @@ func TestVerifyVoteExtensionRejectsSignatureSignedAgainstOldHistoricalRoot(t *te
 	body, err := handler.constructVoteExtBody(ctx, reqHeight)
 	require.NoError(t, err)
 
-	signature, err := secondaryKey.SignVoteExtBody(body)
+	proofCommitment := testProofCommitment()
+	signature, err := secondaryKey.SignVoteExtension(body, proofCommitment)
 	require.NoError(t, err)
 
 	handler.bridgeKeeper = testBridgeKeeper{
@@ -243,7 +250,7 @@ func TestVerifyVoteExtensionRejectsSignatureSignedAgainstOldHistoricalRoot(t *te
 	response, err := handler.VerifyVoteExtensionHandler()(ctx, &cometabci.RequestVerifyVoteExtension{
 		Height:           reqHeight,
 		ValidatorAddress: consensusAddress(t, validator),
-		VoteExtension:    signature,
+		VoteExtension:    marshalVoteExtensionForTest(t, signature, proofCommitment),
 	})
 
 	require.NoError(t, err)

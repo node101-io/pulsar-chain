@@ -25,6 +25,14 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, nil
 		}
 
+		logger := ctx.Logger()
+		logger.Info("verify vote ext called")
+
+		voteExtension, err := decodeVoteExtension(req.VoteExtension)
+		if err != nil {
+			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, nil
+		}
+
 		cosmosValidatorPubKey, err := h.getConsPubKeyByConsAddr(ctx, req.ValidatorAddress)
 		if err != nil {
 			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
@@ -50,7 +58,14 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		}
 		poseidonHash := poseidon.NewPoseidon()
 
-		if err := verifyVoteExtSig(poseidonHash, req.VoteExtension, body, minaKey, h.networkID); err != nil {
+		if err := verifyVoteExtSig(
+			poseidonHash,
+			voteExtension.Signature,
+			body,
+			voteExtension.ProofCommitment,
+			minaKey,
+			h.networkID,
+		); err != nil {
 			if errors.Is(err, keyregistryTypes.ErrValidatorNotRegistered) ||
 				errors.Is(err, ErrInvalidVoteExtSignatureEncoding) ||
 				errors.Is(err, ErrInvalidVoteExtSignature) {
@@ -59,6 +74,8 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 
 			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
 		}
+
+		logger.Info("vote ext verified")
 
 		return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_ACCEPT}, nil
 	}

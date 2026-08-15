@@ -22,7 +22,20 @@ func (h *ABCIHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return nil, err
 		}
 
-		bz, err := h.secondaryKey.SignVoteExtBody(body)
+		proofCommitment, err := h.GenerateCommitmentForVerifiedProofs(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		signature, err := h.secondaryKey.SignVoteExtension(body, proofCommitment)
+		if err != nil {
+			return nil, err
+		}
+
+		bz, err := (&VoteExtension{
+			Signature:       signature,
+			ProofCommitment: proofCommitment,
+		}).Marshal()
 		if err != nil {
 			return nil, err
 		}

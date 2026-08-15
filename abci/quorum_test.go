@@ -206,12 +206,13 @@ func newQuorumTestHandler(t *testing.T, validators []stakingtypes.Validator, key
 func signedPayloadVoteExtension(t *testing.T, validator stakingtypes.Validator, secondaryKey SecondaryKey, body votepersistencetypes.VoteExtBody) *PayloadVoteExtension {
 	t.Helper()
 
-	signature, err := secondaryKey.SignVoteExtBody(body)
+	proofCommitment := testProofCommitment()
+	signature, err := secondaryKey.SignVoteExtension(body, proofCommitment)
 	require.NoError(t, err)
 
 	return &PayloadVoteExtension{
 		ConsensusPublicKey: consensusPubKeyBytes(t, validator),
-		VoteExtension:      signature,
+		VoteExtension:      marshalVoteExtensionForTest(t, signature, proofCommitment),
 	}
 }
 
