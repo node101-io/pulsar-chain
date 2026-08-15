@@ -42,7 +42,6 @@ func validateProofCommitment(commitment []byte) bool {
 func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) ([]byte, error) {
 
 	var verifiedProofFirst, verifiedProofSecond []byte
-	var lengthFirst, lengthSecond int
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	currentBlockHeight := sdkCtx.BlockHeight()
@@ -103,7 +102,6 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) (
 			}
 
 			verifiedProofFirst = append(verifiedProofFirst, marshalled...)
-			lengthFirst++
 
 		} else {
 			commitment := verificationTypes.ProofCommitment{
@@ -117,7 +115,6 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) (
 			}
 
 			verifiedProofSecond = append(verifiedProofSecond, marshalled...)
-			lengthSecond++
 		}
 	}
 
@@ -125,14 +122,14 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) (
 	secretSaltSecond := generateSecretSalt()
 
 	firstInput := append([]byte{}, secretSaltFirst...)
-	firstInput = append(firstInput, encodeLength(lengthFirst)...)
+	firstInput = append(firstInput, encodeLength(len(verifiedProofFirst))...)
 	firstInput = append(firstInput, verifiedProofFirst...)
 
 	firstHash := sha256.Sum256(firstInput)
 	first128 := firstHash[:16]
 
 	secondInput := append([]byte{}, secretSaltSecond...)
-	secondInput = append(secondInput, encodeLength(lengthSecond)...)
+	secondInput = append(secondInput, encodeLength(len(verifiedProofSecond))...)
 	secondInput = append(secondInput, verifiedProofSecond...)
 
 	secondHash := sha256.Sum256(secondInput)
