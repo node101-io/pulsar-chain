@@ -237,10 +237,9 @@ func (testVotePersistenceKeeper) SetVote(context.Context, int64, []byte, []byte)
 
 type testVerificationKeeper struct{}
 
-func (testVerificationKeeper) GetProofIDByProofHash(context.Context, []byte) (int64, error) {
-	return 0, nil
-}
-
-func (testVerificationKeeper) GetParams(context.Context) (verificationtypes.Params, error) {
-	return verificationtypes.DefaultParams(), nil
+func (testVerificationKeeper) GetProofHashesByBlockHeight(
+	context.Context,
+	int64,
+) ([][]byte, []verificationtypes.ProofID, error) {
+	return nil, nil, nil
 }

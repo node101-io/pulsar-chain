@@ -29,6 +29,5 @@ type BridgeKeeper interface {
 }
 
 type VerificationKeeper interface {
-	GetProofIDByProofHash(ctx context.Context, proofHash []byte) (int64, error)
-	GetParams(ctx context.Context) (verificationTypes.Params, error)
+	GetProofHashesByBlockHeight(ctx context.Context, blockHeight int64) ([][]byte, []verificationTypes.ProofID, error)
 }

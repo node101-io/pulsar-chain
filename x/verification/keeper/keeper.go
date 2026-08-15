@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
@@ -183,37 +182,42 @@ func (k Keeper) GetNextPendingProofIndex(
 	return key.K2() + 1, nil
 }
 
-func (k Keeper) GetProofIDByProofHash(ctx context.Context, proofHash []byte) (int64, error) {
-
-	iter, err := k.IteratePendingProofs(ctx)
+func (k Keeper) GetProofHashesByBlockHeight(
+	ctx context.Context,
+	blockHeight int64,
+) ([][]byte, []types.ProofID, error) {
+	iter, err := k.pendingProofs.Iterate(
+		ctx,
+		collections.NewPrefixedPairRange[int64, int64](blockHeight),
+	)
 	if err != nil {
-		return 0, err
+		return nil, nil, err
 	}
-
 	defer iter.Close()
+
+	var hashes [][]byte
+	var proofIds []types.ProofID
 
 	for ; iter.Valid(); iter.Next() {
 
-		pair, err := iter.Key()
+		key, err := iter.Key()
 		if err != nil {
-			return 0, err
+			return nil, nil, err
 		}
 
-		height, index := pair.K1(), pair.K2()
-
-		proof, err := k.GetPendingProof(ctx, height, index)
+		value, err := iter.Value()
 		if err != nil {
-			return 0, err
+			return nil, nil, err
 		}
 
-		if bytes.Equal(proof, proofHash) {
-			return index, nil
+		if key.K1() == blockHeight {
+			hashes = append(hashes, value)
+			proofIds = append(proofIds, types.ProofID{
+				BlockHeight: key.K1(),
+				ProofIndex:  key.K2(),
+			})
 		}
+
 	}
-
-	return 0, fmt.Errorf("pending proof not found")
-}
-
-func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
-	return k.Params.Get(ctx)
+	return hashes, proofIds, nil
 }
