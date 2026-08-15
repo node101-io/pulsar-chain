@@ -125,15 +125,15 @@ def wrapper_service(
     config_mount: str,
     validator_volume: str,
     data_volume: str,
+    add_host_gateway: bool = False,
 ) -> dict:
-    return {
+    service = {
         "image": image,
         "read_only": True,
         "restart": "unless-stopped",
         "stop_grace_period": "15s",
         "depends_on": {"setup": {"condition": "service_completed_successfully"}},
         "environment": {"POSTGRES_URI": "${POSTGRES_URI:-}"},
-        "extra_hosts": ["host.docker.internal:host-gateway"],
         "volumes": [
             f"{config_mount}:/etc/archive-wrapper/config.yaml:ro",
             f"{validator_volume}:/var/lib/pulsar:ro",
@@ -141,6 +141,9 @@ def wrapper_service(
         ],
         "tmpfs": ["/run/archive-wrapper:uid=65532,gid=65532,mode=0700"],
     }
+    if add_host_gateway:
+        service["extra_hosts"] = ["host.docker.internal:host-gateway"]
+    return service
 
 
 def render_compose(args: argparse.Namespace) -> dict:
@@ -200,6 +203,7 @@ def render_compose(args: argparse.Namespace) -> dict:
             f"{generated_mount_dir}/{config_name}",
             "validator1_data",
             "archive-wrapper_data",
+            args.add_host_gateway,
         )
         volumes["archive-wrapper_data"] = {}
     elif args.mode == "per-validator":
@@ -215,6 +219,7 @@ def render_compose(args: argparse.Namespace) -> dict:
                 f"{generated_mount_dir}/{config_name}",
                 f"validator{index}_data",
                 data_volume,
+                args.add_host_gateway,
             )
             volumes[data_volume] = {}
     else:
@@ -309,6 +314,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--external-address")
     parser.add_argument("--external-transport-mode")
     parser.add_argument("--external-network")
+    parser.add_argument("--add-host-gateway", action="store_true")
     return parser
 
 

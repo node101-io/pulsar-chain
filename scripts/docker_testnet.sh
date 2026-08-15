@@ -146,6 +146,10 @@ render_compose_file() {
       ;;
   esac
 
+  if [[ "${ARCHIVE_WRAPPER_ADD_HOST_GATEWAY:-0}" == "1" ]]; then
+    args+=(--add-host-gateway)
+  fi
+
   python3 "$RENDERER" "${args[@]}"
 
   local marker_tmp="$PROJECT_MARKER.tmp.$$"
