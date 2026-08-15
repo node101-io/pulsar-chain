@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"cosmossdk.io/collections"
 	"cosmossdk.io/core/address"
@@ -24,7 +25,7 @@ type Keeper struct {
 	authority []byte
 
 	pendingProofs collections.Map[
-		collections.Pair[int64, int64],
+		types.ProofID,
 		[]byte,
 	]
 
@@ -54,7 +55,7 @@ func NewKeeper(
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
 
 		pendingProofs: collections.NewMap(sb, types.PendingProofsKey, PendingProofsMapName,
-			collections.PairKeyCodec(collections.Int64Key, collections.Int64Key), collections.BytesValue),
+			newProofIDKeyCodec(), collections.BytesValue),
 	}
 
 	schema, err := sb.Build()
@@ -92,7 +93,10 @@ func (k Keeper) AppendPendingProof(ctx context.Context, pendingProof []byte,
 		)
 	}
 
-	key := collections.Join(blockHeight, pendingProofIndex)
+	key := types.ProofID{
+		BlockHeight: blockHeight,
+		ProofIndex:  pendingProofIndex,
+	}
 
 	if err := k.pendingProofs.Set(ctx, key, pendingProof); err != nil {
 		return err
@@ -105,15 +109,15 @@ func (k Keeper) AppendPendingProof(ctx context.Context, pendingProof []byte,
 	return nil
 }
 
-func (k Keeper) GetPendingProof(ctx context.Context, blockHeight, pendingProofIndex int64) ([]byte, error) {
-	return k.pendingProofs.Get(ctx, collections.Join(blockHeight, pendingProofIndex))
+func (k Keeper) GetPendingProof(ctx context.Context, proofID types.ProofID) ([]byte, error) {
+	return k.pendingProofs.Get(ctx, proofID)
 }
 
-func (k Keeper) PendingProofExists(ctx context.Context, blockHeight, pendingProofIndex int64) (bool, error) {
-	return k.pendingProofs.Has(ctx, collections.Join(blockHeight, pendingProofIndex))
+func (k Keeper) PendingProofExists(ctx context.Context, proofID types.ProofID) (bool, error) {
+	return k.pendingProofs.Has(ctx, proofID)
 }
 
-func (k Keeper) IteratePendingProofs(ctx context.Context) (collections.Iterator[collections.Pair[int64, int64], []byte], error) {
+func (k Keeper) IteratePendingProofs(ctx context.Context) (collections.Iterator[types.ProofID, []byte], error) {
 	return k.pendingProofs.Iterate(ctx, nil)
 }
 
@@ -136,7 +140,7 @@ func (k Keeper) prunePendingProofs(ctx context.Context, blockHeight int64) error
 
 	return k.pendingProofs.Clear(
 		ctx,
-		collections.NewPrefixedPairRange[int64, int64](pruneHeight),
+		pendingProofsByBlockHeightRange(pruneHeight),
 	)
 }
 
@@ -146,7 +150,7 @@ func (k Keeper) PendingProofBlockExists(
 ) (bool, error) {
 	iter, err := k.pendingProofs.Iterate(
 		ctx,
-		collections.NewPrefixedPairRange[int64, int64](blockHeight),
+		pendingProofsByBlockHeightRange(blockHeight),
 	)
 	if err != nil {
 		return false, err
@@ -162,8 +166,7 @@ func (k Keeper) GetNextPendingProofIndex(
 ) (int64, error) {
 	iter, err := k.pendingProofs.Iterate(
 		ctx,
-		collections.NewPrefixedPairRange[int64, int64](blockHeight).
-			Descending(),
+		pendingProofsByBlockHeightRange(blockHeight).Descending(),
 	)
 	if err != nil {
 		return 0, err
@@ -179,7 +182,7 @@ func (k Keeper) GetNextPendingProofIndex(
 		return 0, err
 	}
 
-	return key.K2() + 1, nil
+	return key.ProofIndex + 1, nil
 }
 
 func (k Keeper) GetProofHashesByBlockHeight(
@@ -188,7 +191,7 @@ func (k Keeper) GetProofHashesByBlockHeight(
 ) ([][]byte, []types.ProofID, error) {
 	iter, err := k.pendingProofs.Iterate(
 		ctx,
-		collections.NewPrefixedPairRange[int64, int64](blockHeight),
+		pendingProofsByBlockHeightRange(blockHeight),
 	)
 	if err != nil {
 		return nil, nil, err
@@ -196,7 +199,7 @@ func (k Keeper) GetProofHashesByBlockHeight(
 	defer iter.Close()
 
 	var hashes [][]byte
-	var proofIds []types.ProofID
+	var proofIDs []types.ProofID
 
 	for ; iter.Valid(); iter.Next() {
 
@@ -210,14 +213,21 @@ func (k Keeper) GetProofHashesByBlockHeight(
 			return nil, nil, err
 		}
 
-		if key.K1() == blockHeight {
-			hashes = append(hashes, value)
-			proofIds = append(proofIds, types.ProofID{
-				BlockHeight: key.K1(),
-				ProofIndex:  key.K2(),
-			})
-		}
+		hashes = append(hashes, value)
+		proofIDs = append(proofIDs, key)
 
 	}
-	return hashes, proofIds, nil
+	return hashes, proofIDs, nil
+}
+
+func pendingProofsByBlockHeightRange(blockHeight int64) *collections.Range[types.ProofID] {
+	return (&collections.Range[types.ProofID]{}).
+		StartInclusive(types.ProofID{
+			BlockHeight: blockHeight,
+			ProofIndex:  math.MinInt64,
+		}).
+		EndInclusive(types.ProofID{
+			BlockHeight: blockHeight,
+			ProofIndex:  math.MaxInt64,
+		})
 }
