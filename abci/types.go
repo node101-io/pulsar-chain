@@ -27,6 +27,11 @@ var voteExtMarkerBytes = []byte(VoteExtMarker)
 // the first height with both sides of that transition available.
 const MinPulsarVoteExtensionHeight int64 = 2
 
+const (
+	secretSaltLength      = 16
+	proofCommitmentLength = 16
+)
+
 // For testing purposes only.
 const NetworkID mina.NetworkID = mina.TestNet
 
