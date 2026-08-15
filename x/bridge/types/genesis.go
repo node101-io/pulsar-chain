@@ -55,12 +55,62 @@ func (gs GenesisState) Validate() error {
 	}
 
 	newestSnapshot := gs.ActionsReducedRootSnapshots[len(gs.ActionsReducedRootSnapshots)-1]
-	if gs.BridgeState.ValidActionHashesCosmosBlockHeight != newestSnapshot.CosmosBlockHeight {
+	if gs.BridgeState.ActionHashesCosmosBlockHeight != newestSnapshot.CosmosBlockHeight {
 		return errorsmod.Wrapf(
-			ErrInvalidValidActionBatch,
+			ErrInvalidActionBatch,
 			"batch cosmos height %d must match newest root snapshot height %d",
-			gs.BridgeState.ValidActionHashesCosmosBlockHeight,
+			gs.BridgeState.ActionHashesCosmosBlockHeight,
 			newestSnapshot.CosmosBlockHeight,
+		)
+	}
+	if err := validateRuntimeActionBatchRoot(
+		gs.BridgeState,
+		gs.ActionsReducedRootSnapshots,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateRuntimeActionBatchRoot(
+	bridgeState BridgeState,
+	snapshots []ActionsReducedRootSnapshot,
+) error {
+	if bridgeState.ActionHashesCosmosBlockHeight == 0 {
+		return nil
+	}
+	if len(snapshots) < 2 {
+		return errorsmod.Wrap(
+			ErrInvalidActionBatch,
+			"runtime batch requires the preceding actions reduced root snapshot",
+		)
+	}
+
+	previousSnapshot := snapshots[len(snapshots)-2]
+	newestSnapshot := snapshots[len(snapshots)-1]
+	list, err := minasignergo.NewMerkleListFromRoot(
+		ActionsReducedRootMerkleListPrefixV1,
+		previousSnapshot.ActionsReducedRoot,
+	)
+	if err != nil {
+		return errorsmod.Wrap(ErrInvalidActionBatch, err.Error())
+	}
+
+	for i, hash := range bridgeState.ActionHashes {
+		hashBytes, err := canonicalActionHashBytes(hash)
+		if err != nil {
+			return errorsmod.Wrapf(ErrInvalidActionBatch, "action_hashes[%d]: %v", i, err)
+		}
+		if err := list.Append(hashBytes); err != nil {
+			return errorsmod.Wrapf(ErrInvalidActionBatch, "append action_hashes[%d]: %v", i, err)
+		}
+	}
+
+	if !bytes.Equal(list.Root(), newestSnapshot.ActionsReducedRoot) {
+		return errorsmod.Wrap(
+			ErrInvalidActionBatch,
+			"action_hashes do not reproduce the newest actions reduced root snapshot",
 		)
 	}
 
@@ -70,19 +120,19 @@ func (gs GenesisState) Validate() error {
 // DefaultBridgeState returns the default bridge state.
 func DefaultBridgeState() BridgeState {
 	return BridgeState{
-		ValidActionHashes:                  []string{},
-		ValidActionHashesCosmosBlockHeight: 0,
-		StartMinaHeight:                    0,
+		ActionHashes:                  []string{},
+		ActionHashesCosmosBlockHeight: 0,
+		StartMinaHeight:               0,
 	}
 }
 
 // DefaultTestBridgeState returns the initial bridge state for tests and simulation.
 func DefaultTestBridgeState() BridgeState {
 	return BridgeState{
-		LatestFetchedMinaHeight:            defaultStartBlockHeight - 1,
-		ValidActionHashes:                  []string{},
-		ValidActionHashesCosmosBlockHeight: 0,
-		StartMinaHeight:                    defaultStartBlockHeight - 1,
+		LatestFetchedMinaHeight:       defaultStartBlockHeight - 1,
+		ActionHashes:                  []string{},
+		ActionHashesCosmosBlockHeight: 0,
+		StartMinaHeight:               defaultStartBlockHeight - 1,
 	}
 }
 
@@ -90,10 +140,10 @@ func DefaultTestBridgeState() BridgeState {
 // exactly at startBlockHeight.
 func NewInitialBridgeState(startBlockHeight int64) BridgeState {
 	return BridgeState{
-		LatestFetchedMinaHeight:            startBlockHeight - 1,
-		ValidActionHashes:                  []string{},
-		ValidActionHashesCosmosBlockHeight: 0,
-		StartMinaHeight:                    startBlockHeight - 1,
+		LatestFetchedMinaHeight:       startBlockHeight - 1,
+		ActionHashes:                  []string{},
+		ActionHashesCosmosBlockHeight: 0,
+		StartMinaHeight:               startBlockHeight - 1,
 	}
 }
 

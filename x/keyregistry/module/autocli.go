@@ -51,6 +51,17 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:          "Query a validator set with registered Mina public keys",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
 				},
+				{
+					RpcMethod: "GetKeySigningChallenge",
+					Use:       "get-key-signing-challenge [operation] [actor-type] [cosmos-public-key] [new-mina-public-key]",
+					Short:     "Build the field challenge used for key registration or update",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
+						{ProtoField: "operation"},
+						{ProtoField: "actor_type"},
+						{ProtoField: "cosmos_public_key"},
+						{ProtoField: "new_mina_public_key"},
+					},
+				},
 
 				// this line is used by ignite scaffolding # autocli/query
 			},
@@ -64,27 +75,47 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Skip:      true, // skipped because authority gated
 				},
 				{
-					RpcMethod: "RegisterKeys",
-					Use:       "register-keys [actor-type] [cosmos-signature] [mina-signature] [cosmos-public-key] [mina-public-key]",
-					Short:     "Send a RegisterKeys tx",
+					RpcMethod: "RegisterUserKeys",
+					Use:       "register-user-keys [cosmos-public-key] [mina-public-key] [mina-signature]",
+					Short:     "Register user Cosmos and Mina keys",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
-						{ProtoField: "actor_type"},
-						{ProtoField: "cosmos_signature"},
-						{ProtoField: "mina_signature"},
 						{ProtoField: "cosmos_public_key"},
 						{ProtoField: "mina_public_key"},
+						{ProtoField: "mina_signature"},
 					},
 				},
 				{
-					RpcMethod: "UpdateKeys",
-					Use:       "update-keys [actor-type] [prev-mina-public-key] [new-mina-public-key] [cosmos-signature] [new-mina-signature]",
-					Short:     "Send an UpdateKeys tx",
+					RpcMethod: "UpdateUserKeys",
+					Use:       "update-user-keys [cosmos-public-key] [new-mina-public-key] [new-key-version] [new-mina-signature]",
+					Short:     "Update a user's Mina key",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
-						{ProtoField: "actor_type"},
-						{ProtoField: "prev_mina_public_key"},
+						{ProtoField: "cosmos_public_key"},
 						{ProtoField: "new_mina_public_key"},
-						{ProtoField: "cosmos_signature"},
+						{ProtoField: "new_key_version"},
 						{ProtoField: "new_mina_signature"},
+					},
+				},
+				{
+					RpcMethod: "RegisterValidatorKeys",
+					Use:       "register-validator-keys [validator-consensus-public-key] [mina-public-key] [mina-signature] [validator-consensus-signature]",
+					Short:     "Register validator consensus and Mina keys",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
+						{ProtoField: "validator_consensus_public_key"},
+						{ProtoField: "mina_public_key"},
+						{ProtoField: "mina_signature"},
+						{ProtoField: "validator_consensus_signature"},
+					},
+				},
+				{
+					RpcMethod: "UpdateValidatorKeys",
+					Use:       "update-validator-keys [validator-consensus-public-key] [new-mina-public-key] [new-key-version] [new-mina-signature] [validator-consensus-signature]",
+					Short:     "Update a validator's Mina key",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
+						{ProtoField: "validator_consensus_public_key"},
+						{ProtoField: "new_mina_public_key"},
+						{ProtoField: "new_key_version"},
+						{ProtoField: "new_mina_signature"},
+						{ProtoField: "validator_consensus_signature"},
 					},
 				},
 			},

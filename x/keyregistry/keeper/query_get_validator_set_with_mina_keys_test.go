@@ -89,49 +89,31 @@ func TestGetValidatorSetWithMinaKeysSuccess(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	firstCosmosPriv := generateValidatorCosmosPrivKey()
-	firstMinaPriv, err := generateMinaKey(types.ActorType_VALIDATOR)
+	firstMinaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 
-	firstCreator, firstCosmosPubKey, firstMinaPubKey, firstCosmosSig, firstMinaSig, err := signValidatorRegistration(firstCosmosPriv, firstMinaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         firstCreator,
-		CosmosSignature: firstCosmosSig,
-		MinaSignature:   firstMinaSig,
-		CosmosPublicKey: firstCosmosPubKey,
-		MinaPublicKey:   firstMinaPubKey,
-		ActorType:       types.ActorType_VALIDATOR,
-	})
+	firstMsg := newValidatorRegistration(t, f, firstCosmosPriv, firstMinaPriv)
+	resp, err := ms.RegisterValidatorKeys(f.ctx, firstMsg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	secondCosmosPriv := generateValidatorCosmosPrivKey()
-	secondMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_VALIDATOR)
+	secondMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_VALIDATOR)
 	require.NoError(t, err)
 
-	secondCreator, secondCosmosPubKey, secondMinaPubKey, secondCosmosSig, secondMinaSig, err := signValidatorRegistration(secondCosmosPriv, secondMinaPriv)
-	require.NoError(t, err)
-
-	resp, err = ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         secondCreator,
-		CosmosSignature: secondCosmosSig,
-		MinaSignature:   secondMinaSig,
-		CosmosPublicKey: secondCosmosPubKey,
-		MinaPublicKey:   secondMinaPubKey,
-		ActorType:       types.ActorType_VALIDATOR,
-	})
+	secondMsg := newValidatorRegistration(t, f, secondCosmosPriv, secondMinaPriv)
+	resp, err = ms.RegisterValidatorKeys(f.ctx, secondMsg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	queryResp, err := qs.GetValidatorSetWithMinaKeys(f.ctx, &types.QueryGetValidatorSetWithMinaKeysRequest{
 		Validators: []*common.ValidatorEntry{
 			{
-				ValidatorCosmosPubKey: firstCosmosPubKey,
+				ValidatorCosmosPubKey: firstMsg.ValidatorConsensusPublicKey,
 				ConsensusPower:        10,
 			},
 			{
-				ValidatorCosmosPubKey: secondCosmosPubKey,
+				ValidatorCosmosPubKey: secondMsg.ValidatorConsensusPublicKey,
 				ConsensusPower:        5,
 			},
 		},
@@ -140,13 +122,13 @@ func TestGetValidatorSetWithMinaKeysSuccess(t *testing.T) {
 	require.NotNil(t, queryResp)
 	require.Equal(t, []*types.RegisteredValidatorSetEntry{
 		{
-			ValidatorCosmosPubKey: firstCosmosPubKey,
-			ValidatorMinaPubKey:   firstMinaPubKey,
+			ValidatorCosmosPubKey: firstMsg.ValidatorConsensusPublicKey,
+			ValidatorMinaPubKey:   firstMsg.MinaPublicKey,
 			ConsensusPower:        10,
 		},
 		{
-			ValidatorCosmosPubKey: secondCosmosPubKey,
-			ValidatorMinaPubKey:   secondMinaPubKey,
+			ValidatorCosmosPubKey: secondMsg.ValidatorConsensusPublicKey,
+			ValidatorMinaPubKey:   secondMsg.MinaPublicKey,
 			ConsensusPower:        5,
 		},
 	}, queryResp.RegisteredValidators)

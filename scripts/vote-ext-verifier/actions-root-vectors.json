@@ -3,14 +3,42 @@
     "base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     "decimal": "0"
   },
-  "singleDepositRoot": {
-    "action": {
-      "blockHeight": 42,
-      "feePayer": "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf",
-      "actionType": "ACTION_TYPE_DEPOSIT",
-      "amount": 7
+  "singleActionRoots": [
+    {
+      "name": "valid deposit",
+      "action": {
+        "isValidAction": true,
+        "xCoordinate": "EGWIOOff33rBsBqbXogXN3UwpEqWYae4ovV1zZwlwRw=",
+        "isOdd": true,
+        "actionType": "ACTION_TYPE_DEPOSIT",
+        "amount": 7
+      },
+      "actionHash": {
+        "base64": "DXZhWKw0xWZ5y6ejjAVWhhMFyxTVoAErqD1szt7/DCw=",
+        "decimal": "6089226845232680729970251736124941372777127819185706222148945734002926357548"
+      },
+      "root": {
+        "base64": "P0bJxWcZFhcSK3QVPXIu97IGbv8MEsJ6CoiyhMg7XAw=",
+        "decimal": "28620781328262953645388048961023233287935478190987326331595051964271972539404"
+      }
     },
-    "base64": "KKhZhIikWJfh4jhbhfpmmeq1ZdrPvTIbZtwKcsCe9Ro=",
-    "decimal": "18389962078741328244067350182709210827719642147845999328709309946826497914138"
-  }
+    {
+      "name": "invalid deposit",
+      "action": {
+        "isValidAction": false,
+        "xCoordinate": "EGWIOOff33rBsBqbXogXN3UwpEqWYae4ovV1zZwlwRw=",
+        "isOdd": true,
+        "actionType": "ACTION_TYPE_DEPOSIT",
+        "amount": 7
+      },
+      "actionHash": {
+        "base64": "KCWJiRF/7Fre+H5gOnU7e6mZlAOK//kLExbTmxxlG/Y=",
+        "decimal": "18158836519332592997849325743152261116944535509625132491448207325920506485750"
+      },
+      "root": {
+        "base64": "GMUx37Ssu9ZnolqVj4qeqZKPhigVNkkjU+dhR6DfmKo=",
+        "decimal": "11203921454426105585666204295640777788249854370685382569905077626987798829226"
+      }
+    }
+  ]
 }

@@ -4,274 +4,120 @@ import (
 	"testing"
 
 	"github.com/cometbft/cometbft/crypto/secp256k1"
-	"github.com/node101-io/mina-signer-go/privatekey"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	"github.com/node101-io/pulsar-chain/x/keyregistry/types"
 	"github.com/stretchr/testify/require"
 )
 
-func registerUserKeysForUpdateTest(t *testing.T, f *fixture, ms types.MsgServer) (secp256k1.PrivKey, []byte, *privatekey.PrivateKey) {
+func registerUserForUpdate(t *testing.T, f *fixture) (secp256k1.PrivKey, []byte) {
 	t.Helper()
-
-	cosmosPriv := generateUserCosmosPrivKey()
-
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	cosmosPrivateKey := generateUserCosmosPrivKey()
+	minaPrivateKey, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
-
-	newMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_USER)
+	msg := newUserRegistration(t, f.ctx, cosmosPrivateKey, minaPrivateKey)
+	_, err = keeper.NewMsgServerImpl(f.keeper).RegisterUserKeys(f.ctx, msg)
 	require.NoError(t, err)
-
-	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signUserRegistration(cosmosPriv, minaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         creator,
-		CosmosSignature: cosmosSig,
-		MinaSignature:   minaSig,
-		CosmosPublicKey: cosmosPubKey,
-		MinaPublicKey:   minaPubKey,
-		ActorType:       types.ActorType_USER,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-
-	return cosmosPriv, minaPubKey, newMinaPriv
+	return cosmosPrivateKey, msg.MinaPublicKey
 }
 
-func TestUserUpdateKeysSuccess(t *testing.T) {
-
-	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	cosmosPriv, prevMinaPublicKey, newMinaPriv := registerUserKeysForUpdateTest(t, f, ms)
-
-	creator, cosmosPubKey, newMinaPublicKey, cosmosSig, newMinaSig, err := signUserRegistration(cosmosPriv, newMinaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           creator,
-		PrevMinaPublicKey: prevMinaPublicKey,
-		NewMinaPublicKey:  newMinaPublicKey,
-		CosmosSignature:   cosmosSig,
-		NewMinaSignature:  newMinaSig,
-		ActorType:         types.ActorType_USER,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-
-	exists, err := f.keeper.UserMinaToCosmosHas(f.ctx, prevMinaPublicKey)
-	require.NoError(t, err)
-	require.False(t, exists)
-
-	exists, err = f.keeper.UserMinaToCosmosHas(f.ctx, newMinaPublicKey)
-	require.NoError(t, err)
-	require.True(t, exists)
-
-	minaAddr, err := f.keeper.UserGetCosmosToMina(f.ctx, cosmosPubKey)
-	require.NoError(t, err)
-	require.Equal(t, newMinaPublicKey, minaAddr)
-
-	storedCosmosAddr, err := f.keeper.UserGetMinaToCosmos(f.ctx, newMinaPublicKey)
-	require.NoError(t, err)
-	require.Equal(t, cosmosPubKey, storedCosmosAddr)
+func newUserUpdate(t *testing.T, f *fixture, cosmosPrivateKey secp256k1.PrivKey, currentMinaPublicKey []byte, nextMinaPrivateKey *privatekey.PrivateKey, version uint64, chainID string) *types.MsgUpdateUserKeys {
+	t.Helper()
+	cosmosPublicKey := cosmosPrivateKey.PubKey().Bytes()
+	newMinaPublicKey := minaPublicKey(t, nextMinaPrivateKey)
+	return &types.MsgUpdateUserKeys{
+		Creator: sdk.AccAddress(cosmosPrivateKey.PubKey().Address()).String(), CosmosPublicKey: cosmosPublicKey,
+		NewMinaPublicKey: newMinaPublicKey, NewKeyVersion: version,
+		NewMinaSignature: signChallenge(t, nextMinaPrivateKey, types.KeySigningChallengeInput{
+			ChainID: chainID, Operation: types.KeySigningOperation_KEY_SIGNING_OPERATION_UPDATE,
+			ActorType: types.ActorType_ACTOR_TYPE_USER, CosmosPublicKey: cosmosPublicKey,
+			CurrentMinaPublicKey: currentMinaPublicKey, NewMinaPublicKey: newMinaPublicKey, NewKeyVersion: version,
+		}),
+	}
 }
 
-func TestUserUpdateKeysNotRegistered(t *testing.T) {
-
+func TestUpdateUserKeysAndRejectReplay(t *testing.T) {
 	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	cosmosPriv := generateUserCosmosPrivKey()
-
-	prevMinaPriv, err := generateMinaKey(types.ActorType_USER)
+	server := keeper.NewMsgServerImpl(f.keeper)
+	cosmosPrivateKey, keyA := registerUserForUpdate(t, f)
+	keyBPrivate, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
+	updateAB := newUserUpdate(t, f, cosmosPrivateKey, keyA, keyBPrivate, 1, sdkChainID(f.ctx))
 
-	newMinaPriv, err := generateMinaSecondaryKeyPair(types.ActorType_USER)
+	_, err = server.UpdateUserKeys(f.ctx, updateAB)
 	require.NoError(t, err)
-
-	prevMinaPk, err := prevMinaPriv.ToPublicKey()
+	keyB := updateAB.NewMinaPublicKey
+	require.Equal(t, keyB, mustUserMinaKey(t, f, updateAB.CosmosPublicKey))
+	version, err := f.keeper.UserGetKeyVersion(f.ctx, updateAB.CosmosPublicKey)
 	require.NoError(t, err)
+	require.EqualValues(t, 1, version)
 
-	creator, _, newMinaPublicKey, cosmosSig, newMinaSig, err := signUserRegistration(cosmosPriv, newMinaPriv)
+	keyAPrivate, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
+	staleBA := newUserUpdate(t, f, cosmosPrivateKey, keyB, keyAPrivate, 1, sdkChainID(f.ctx))
+	_, err = server.UpdateUserKeys(f.ctx, staleBA)
+	require.ErrorIs(t, err, types.ErrStaleKeyVersion)
+	require.Equal(t, keyB, mustUserMinaKey(t, f, updateAB.CosmosPublicKey))
 
-	_, err = ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           creator,
-		PrevMinaPublicKey: prevMinaPk.Bytes(),
-		NewMinaPublicKey:  newMinaPublicKey,
-		CosmosSignature:   cosmosSig,
-		NewMinaSignature:  newMinaSig,
-		ActorType:         types.ActorType_USER,
-	})
-	require.ErrorIs(t, err, types.ErrUserNotRegistered)
+	freshBA := newUserUpdate(t, f, cosmosPrivateKey, keyB, keyAPrivate, 2, sdkChainID(f.ctx))
+	_, err = server.UpdateUserKeys(f.ctx, freshBA)
+	require.NoError(t, err)
+	require.Equal(t, keyA, mustUserMinaKey(t, f, updateAB.CosmosPublicKey))
 }
 
-func TestUserUpdateKeysMalformedPreviousMinaPublicKey(t *testing.T) {
-
-	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	cosmosPriv, _, newMinaPriv := registerUserKeysForUpdateTest(t, f, ms)
-
-	creator, _, newMinaPublicKey, cosmosSig, newMinaSig, err := signUserRegistration(cosmosPriv, newMinaPriv)
-	require.NoError(t, err)
-
-	_, err = ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           creator,
-		PrevMinaPublicKey: malformedMinaPublicKey(),
-		NewMinaPublicKey:  newMinaPublicKey,
-		CosmosSignature:   cosmosSig,
-		NewMinaSignature:  newMinaSig,
-		ActorType:         types.ActorType_USER,
-	})
-	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
+func TestUpdateUserKeysRejectsWrongContextWithoutMutation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(*types.MsgUpdateUserKeys)
+		errIs  error
+	}{
+		{name: "wrong chain signature", mutate: func(msg *types.MsgUpdateUserKeys) {}, errIs: types.ErrInvalidSignature},
+		{name: "stale version", mutate: func(msg *types.MsgUpdateUserKeys) { msg.NewKeyVersion = 2 }, errIs: types.ErrStaleKeyVersion},
+		{name: "wrong creator", mutate: func(msg *types.MsgUpdateUserKeys) {
+			msg.Creator = sdk.AccAddress(generateUserCosmosPrivKey().PubKey().Address()).String()
+		}, errIs: types.ErrInvalidCreatorAddress},
+		{name: "malformed signature", mutate: func(msg *types.MsgUpdateUserKeys) { msg.NewMinaSignature = malformedMinaSignature() }, errIs: types.ErrInvalidSignature},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := initFixture(t)
+			server := keeper.NewMsgServerImpl(f.keeper)
+			cosmosPrivateKey, current := registerUserForUpdate(t, f)
+			nextPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_USER)
+			require.NoError(t, err)
+			signingChainID := sdkChainID(f.ctx)
+			if tc.name == "wrong chain signature" {
+				signingChainID = "another-pulsar-chain"
+			}
+			msg := newUserUpdate(t, f, cosmosPrivateKey, current, nextPrivateKey, 1, signingChainID)
+			tc.mutate(msg)
+			_, err = server.UpdateUserKeys(f.ctx, msg)
+			require.ErrorIs(t, err, tc.errIs)
+			require.Equal(t, current, mustUserMinaKey(t, f, msg.CosmosPublicKey))
+			version, stateErr := f.keeper.UserGetKeyVersion(f.ctx, msg.CosmosPublicKey)
+			require.NoError(t, stateErr)
+			require.Zero(t, version)
+		})
+	}
 }
 
-func TestUserUpdateKeysMalformedNewMinaPublicKey(t *testing.T) {
-
+func TestUpdateUserKeysRejectsUnregisteredAndDuplicateKey(t *testing.T) {
 	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	cosmosPriv, prevMinaPublicKey, newMinaPriv := registerUserKeysForUpdateTest(t, f, ms)
-
-	creator, _, _, cosmosSig, newMinaSig, err := signUserRegistration(cosmosPriv, newMinaPriv)
+	server := keeper.NewMsgServerImpl(f.keeper)
+	firstCosmosPrivateKey, firstMinaKey := registerUserForUpdate(t, f)
+	secondCosmosPrivateKey := generateUserCosmosPrivKey()
+	secondMinaPrivateKey, err := generateMinaSecondaryKeyPair(types.ActorType_ACTOR_TYPE_USER)
+	require.NoError(t, err)
+	secondRegistration := newUserRegistration(t, f.ctx, secondCosmosPrivateKey, secondMinaPrivateKey)
+	_, err = server.RegisterUserKeys(f.ctx, secondRegistration)
 	require.NoError(t, err)
 
-	_, err = ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           creator,
-		PrevMinaPublicKey: prevMinaPublicKey,
-		NewMinaPublicKey:  malformedMinaPublicKey(),
-		CosmosSignature:   cosmosSig,
-		NewMinaSignature:  newMinaSig,
-		ActorType:         types.ActorType_USER,
-	})
-	require.ErrorIs(t, err, types.ErrInvalidPublicKey)
-}
-
-func TestUserUpdateKeysInvalidCreatorAddress(t *testing.T) {
-
-	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	cosmosPriv, prevMinaPublicKey, newMinaPriv := registerUserKeysForUpdateTest(t, f, ms)
-
-	_, _, newMinaPublicKey, cosmosSig, newMinaSig, err := signUserRegistration(cosmosPriv, newMinaPriv)
-	require.NoError(t, err)
-
-	_, err = ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           "creator",
-		PrevMinaPublicKey: prevMinaPublicKey,
-		NewMinaPublicKey:  newMinaPublicKey,
-		CosmosSignature:   cosmosSig,
-		NewMinaSignature:  newMinaSig,
-		ActorType:         types.ActorType_USER,
-	})
-	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
-}
-
-func TestUserUpdateKeysInvalidSigner(t *testing.T) {
-
-	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	cosmosPriv, prevMinaPublicKey, newMinaPriv := registerUserKeysForUpdateTest(t, f, ms)
-
-	_, _, newMinaPublicKey, cosmosSig, newMinaSig, err := signUserRegistration(cosmosPriv, newMinaPriv)
-	require.NoError(t, err)
-
-	secondaryCreator := sdk.AccAddress(generateUserCosmosPrivKey().PubKey().Address()).String()
-
-	_, err = ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           secondaryCreator,
-		PrevMinaPublicKey: prevMinaPublicKey,
-		NewMinaPublicKey:  newMinaPublicKey,
-		CosmosSignature:   cosmosSig,
-		NewMinaSignature:  newMinaSig,
-		ActorType:         types.ActorType_USER,
-	})
-	require.ErrorIs(t, err, types.ErrInvalidCreatorAddress)
-}
-
-func TestUserUpdateKeysInvalidSignature(t *testing.T) {
-
-	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	cosmosPriv, prevMinaPublicKey, newMinaPriv := registerUserKeysForUpdateTest(t, f, ms)
-
-	creator, _, newMinaPublicKey, _, newMinaSig, err := signUserRegistration(cosmosPriv, newMinaPriv)
-	require.NoError(t, err)
-
-	wrongCosmosSig, err := generateUserCosmosPrivKey().Sign(newMinaPublicKey)
-	require.NoError(t, err)
-
-	_, err = ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           creator,
-		PrevMinaPublicKey: prevMinaPublicKey,
-		NewMinaPublicKey:  newMinaPublicKey,
-		CosmosSignature:   wrongCosmosSig,
-		NewMinaSignature:  newMinaSig,
-		ActorType:         types.ActorType_USER,
-	})
-	require.ErrorIs(t, err, types.ErrInvalidSignature)
-}
-
-func TestUserUpdateKeysMalformedMinaSignature(t *testing.T) {
-
-	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	cosmosPriv, prevMinaPublicKey, newMinaPriv := registerUserKeysForUpdateTest(t, f, ms)
-
-	creator, _, newMinaPublicKey, cosmosSig, _, err := signUserRegistration(cosmosPriv, newMinaPriv)
-	require.NoError(t, err)
-
-	_, err = ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           creator,
-		PrevMinaPublicKey: prevMinaPublicKey,
-		NewMinaPublicKey:  newMinaPublicKey,
-		CosmosSignature:   cosmosSig,
-		NewMinaSignature:  malformedMinaSignature(),
-		ActorType:         types.ActorType_USER,
-	})
-	require.ErrorIs(t, err, types.ErrInvalidSignature)
-}
-
-func TestUserUpdateKeysInsertSecondaryKeysFail(t *testing.T) {
-
-	f := initFixture(t)
-	ms := keeper.NewMsgServerImpl(f.keeper)
-
-	firstCosmosPriv, prevMinaPublicKey, targetMinaPriv := registerUserKeysForUpdateTest(t, f, ms)
-
-	secondCosmosPriv := generateUserCosmosPrivKey()
-
-	creator, cosmosPubKey, targetMinaPublicKey, cosmosSig, targetMinaSig, err := signUserRegistration(secondCosmosPriv, targetMinaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         creator,
-		CosmosSignature: cosmosSig,
-		MinaSignature:   targetMinaSig,
-		CosmosPublicKey: cosmosPubKey,
-		MinaPublicKey:   targetMinaPublicKey,
-		ActorType:       types.ActorType_USER,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-
-	creator, _, targetMinaPublicKey, cosmosSig, targetMinaSig, err = signUserRegistration(firstCosmosPriv, targetMinaPriv)
-	require.NoError(t, err)
-
-	_, err = ms.UpdateKeys(f.ctx, &types.MsgUpdateKeys{
-		Creator:           creator,
-		PrevMinaPublicKey: prevMinaPublicKey,
-		NewMinaPublicKey:  targetMinaPublicKey,
-		CosmosSignature:   cosmosSig,
-		NewMinaSignature:  targetMinaSig,
-		ActorType:         types.ActorType_USER,
-	})
+	duplicate := newUserUpdate(t, f, firstCosmosPrivateKey, firstMinaKey, secondMinaPrivateKey, 1, sdkChainID(f.ctx))
+	_, err = server.UpdateUserKeys(f.ctx, duplicate)
 	require.ErrorIs(t, err, types.ErrUserSecondaryKeyExists)
+
+	unregisteredPrivateKey := generateUserCosmosPrivKey()
+	unregistered := newUserUpdate(t, f, unregisteredPrivateKey, firstMinaKey, secondMinaPrivateKey, 1, sdkChainID(f.ctx))
+	_, err = server.UpdateUserKeys(f.ctx, unregistered)
+	require.ErrorIs(t, err, types.ErrUserNotRegistered)
 }

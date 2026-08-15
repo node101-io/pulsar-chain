@@ -19,6 +19,8 @@ const (
 var ParamsKey = collections.NewPrefix("p_keyregistry")
 var UserCosmosToMinaPrefix = collections.NewPrefix("user_cosmos_map")
 var UserMinaToCosmosPrefix = collections.NewPrefix("user_mina_map")
+var UserKeyVersionPrefix = collections.NewPrefix("user_key_version")
 
 var ValidatorCosmosToMinaPrefix = collections.NewPrefix("validator_cosmos_map")
 var ValidatorMinaToCosmosPrefix = collections.NewPrefix("validator_mina_map")
+var ValidatorKeyVersionPrefix = collections.NewPrefix("validator_key_version")

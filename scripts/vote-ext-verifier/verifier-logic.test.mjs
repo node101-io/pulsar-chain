@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { Field } from 'o1js';
+import { Field, Poseidon } from 'o1js';
 
 import {
   fieldFromCanonicalBytes,
@@ -21,15 +21,42 @@ function bigIntToBytesBE(value) {
 test('fieldFromCanonicalBytes decodes the shared action-root vectors', async (t) => {
   const vectors = loadJSON('./actions-root-vectors.json');
 
-  for (const [name, vector] of Object.entries({
-    emptyRoot: vectors.emptyRoot,
-    singleDepositRoot: vectors.singleDepositRoot,
-  })) {
+  for (const [name, vector] of Object.entries({ emptyRoot: vectors.emptyRoot })) {
     await t.test(name, () => {
       const bytes = Buffer.from(vector.base64, 'base64');
       const field = fieldFromCanonicalBytes(bytes, name);
 
       assert.equal(field.toString(), vector.decimal);
+    });
+  }
+});
+
+test('o1js reconstructs the shared action hashes and roots', async (t) => {
+  const vectors = loadJSON('./actions-root-vectors.json');
+  const actionTypes = { ACTION_TYPE_DEPOSIT: 1, ACTION_TYPE_WITHDRAW: 2 };
+
+  for (const vector of vectors.singleActionRoots) {
+    await t.test(vector.name, () => {
+      const action = vector.action;
+      const xCoordinate = fieldFromCanonicalBytes(
+        Buffer.from(action.xCoordinate, 'base64'),
+        `${vector.name} x-coordinate`,
+      );
+      const actionHash = Poseidon.hashWithPrefix('pulsar_bridge_action_v1', [
+        Field(action.isValidAction ? 1 : 0),
+        xCoordinate,
+        Field(action.isOdd ? 1 : 0),
+        Field(actionTypes[action.actionType]),
+        Field(action.amount),
+      ]);
+
+      assert.equal(actionHash.toString(), vector.actionHash.decimal);
+
+      const root = Poseidon.hashWithPrefix('pulsar_bridge_actions_root_v1', [
+        Field(0),
+        actionHash,
+      ]);
+      assert.equal(root.toString(), vector.root.decimal);
     });
   }
 });

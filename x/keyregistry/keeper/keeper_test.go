@@ -33,7 +33,7 @@ func initFixture(t *testing.T) *fixture {
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
 
 	storeService := runtime.NewKVStoreService(storeKey)
-	ctx := testutil.DefaultContextWithDB(t, storeKey, storetypes.NewTransientStoreKey("transient_test")).Ctx
+	ctx := testutil.DefaultContextWithDB(t, storeKey, storetypes.NewTransientStoreKey("transient_test")).Ctx.WithChainID("pulsar-test-1")
 
 	authority := authtypes.NewModuleAddress(types.GovModuleName)
 
@@ -64,26 +64,17 @@ func TestUserCosmosToMina(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateUserCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
-	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signUserRegistration(cosmosPriv, minaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         creator,
-		CosmosSignature: cosmosSig,
-		MinaSignature:   minaSig,
-		CosmosPublicKey: cosmosPubKey,
-		MinaPublicKey:   minaPubKey,
-		ActorType:       types.ActorType_USER,
-	})
+	msg := newUserRegistration(t, f.ctx, cosmosPriv, minaPriv)
+	resp, err := ms.RegisterUserKeys(f.ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	pubKey, err := f.keeper.UserGetCosmosToMina(f.ctx, cosmosPubKey)
+	pubKey, err := f.keeper.UserGetCosmosToMina(f.ctx, msg.CosmosPublicKey)
 	require.NoError(t, err)
-	require.Equal(t, minaPubKey, pubKey)
+	require.Equal(t, msg.MinaPublicKey, pubKey)
 }
 
 // TestMinaToCosmos verifies that a mina public key can be stored in the
@@ -94,24 +85,15 @@ func TestUserMinaToCosmos(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateUserCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
-	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signUserRegistration(cosmosPriv, minaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         creator,
-		CosmosSignature: cosmosSig,
-		MinaSignature:   minaSig,
-		CosmosPublicKey: cosmosPubKey,
-		MinaPublicKey:   minaPubKey,
-		ActorType:       types.ActorType_USER,
-	})
+	msg := newUserRegistration(t, f.ctx, cosmosPriv, minaPriv)
+	resp, err := ms.RegisterUserKeys(f.ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	pubKey, err := f.keeper.UserGetMinaToCosmos(f.ctx, minaPubKey)
+	pubKey, err := f.keeper.UserGetMinaToCosmos(f.ctx, msg.MinaPublicKey)
 	require.NoError(t, err)
-	require.Equal(t, cosmosPubKey, pubKey)
+	require.Equal(t, msg.CosmosPublicKey, pubKey)
 }

@@ -17,10 +17,14 @@ enum ActionType {
 message Action {
   // block_height is the Mina block height containing the action.
   int64 block_height = 1;
-  // fee_payer is the serialized Mina public key associated with the action.
-  bytes fee_payer = 2;
+
+  // x_coordinate is the 32-byte canonical big-endian encoding of the
+  // account's affine Pallas x-coordinate.
+  bytes x_coordinate = 2;
+  // is_odd selects the affine y-coordinate with odd parity for x_coordinate.
+  bool is_odd = 3;
   // action_type identifies the bridge operation to execute.
-  ActionType action_type = 3;
+  ActionType action_type = 4;
   // amount is the pmina amount handled by the action.
-  int64 amount = 4;
+  int64 amount = 5;
 }

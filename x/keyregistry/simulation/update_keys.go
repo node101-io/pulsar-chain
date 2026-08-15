@@ -20,13 +20,17 @@ func SimulateMsgUpdateKeys(
 ) simtypes.Operation {
 	return func(r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context, accs []simtypes.Account, chainID string,
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
-		msgType := sdk.MsgTypeURL(&types.MsgUpdateKeys{})
+		actorType := randomActorType(r)
+		msgType := sdk.MsgTypeURL(&types.MsgUpdateUserKeys{})
+		if actorType == types.ActorType_ACTOR_TYPE_VALIDATOR {
+			msgType = sdk.MsgTypeURL(&types.MsgUpdateValidatorKeys{})
+		}
 		genesis, err := k.ExportGenesis(ctx)
 		if err != nil {
 			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to export keyregistry genesis"), nil, err
 		}
 
-		msg, simAccount, noOpReason, err := buildUpdateKeysMsg(r, ctx, k, randomActorType(r), genesis, accs)
+		msg, simAccount, noOpReason, err := buildUpdateKeysMsg(r, ctx, k, actorType, genesis, accs)
 		if err != nil {
 			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to build UpdateKeys msg"), nil, err
 		}

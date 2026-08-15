@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (q queryServer) LatestValidActionHashes(ctx context.Context, req *types.QueryLatestValidActionHashesRequest) (*types.QueryLatestValidActionHashesResponse, error) {
+func (q queryServer) LatestActionHashes(ctx context.Context, req *types.QueryLatestActionHashesRequest) (*types.QueryLatestActionHashesResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
@@ -31,10 +31,10 @@ func (q queryServer) LatestValidActionHashes(ctx context.Context, req *types.Que
 		return nil, status.Error(codes.Internal, "invalid bridge state")
 	}
 
-	return &types.QueryLatestValidActionHashesResponse{
-		LatestFetchedMinaHeight:            bridgeState.LatestFetchedMinaHeight,
-		ValidActionHashes:                  bridgeState.ValidActionHashes,
-		StartMinaHeight:                    bridgeState.StartMinaHeight,
-		ValidActionHashesCosmosBlockHeight: bridgeState.ValidActionHashesCosmosBlockHeight,
+	return &types.QueryLatestActionHashesResponse{
+		LatestFetchedMinaHeight:       bridgeState.LatestFetchedMinaHeight,
+		ActionHashes:                  bridgeState.ActionHashes,
+		StartMinaHeight:               bridgeState.StartMinaHeight,
+		ActionHashesCosmosBlockHeight: bridgeState.ActionHashesCosmosBlockHeight,
 	}, nil
 }

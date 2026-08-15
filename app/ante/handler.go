@@ -6,6 +6,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	txsigning "cosmossdk.io/x/tx/signing"
 
+	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	signing "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -50,6 +51,10 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 	if options.MinaNetworkID == "" {
 		return nil, errorsmod.Wrap(sdkerrors.ErrLogic, "mina network ID is required for ante builder")
 	}
+	walletSignatureNetworkID, err := resolveAuroFieldSignatureNetworkID(mina.NetworkID(options.MinaNetworkID))
+	if err != nil {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrLogic, "resolve Auro field signature domain: %v", err)
+	}
 
 	if options.Logger == nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrLogic, "logger is required for ante builder")
@@ -68,7 +73,7 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 		options.KeyregistryKeeper,
 		options.AccountKeeper,
 		options.SignModeHandler,
-		options.MinaNetworkID,
+		walletSignatureNetworkID,
 		options.Logger,
 	)
 

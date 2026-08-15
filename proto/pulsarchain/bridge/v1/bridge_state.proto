@@ -9,14 +9,14 @@ message BridgeState {
   // latest_fetched_mina_height is the latest Mina height processed by the bridge.
   int64 latest_fetched_mina_height = 1;
 
-  // valid_action_hashes is the cumulative ordered canonical hash batch built
+  // action_hashes is the cumulative ordered canonical hash batch built
   // from successful PushNewActions calls in the same Cosmos block. Execution
   // order is part of the root reconstruction contract.
-  repeated string valid_action_hashes = 2;
+  repeated string action_hashes = 2;
 
-  // valid_action_hashes_cosmos_block_height is the Cosmos block height of the
-  // batch represented by valid_action_hashes.
-  int64 valid_action_hashes_cosmos_block_height = 3;
+  // action_hashes_cosmos_block_height is the Cosmos block height of the
+  // batch represented by action_hashes.
+  int64 action_hashes_cosmos_block_height = 3;
 
   // start_mina_height is the starting Mina cursor for the current query batch.
   int64 start_mina_height = 4;

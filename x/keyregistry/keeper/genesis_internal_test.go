@@ -44,6 +44,21 @@ func TestExportGenesisRejectsInconsistentRuntimeIndexes(t *testing.T) {
 			},
 		},
 		{
+			name: "user indexes missing version",
+			corrupt: func(ctx context.Context, k Keeper) error {
+				if err := k.userCosmosToMina.Set(ctx, testGenesisBytes(33, 'a'), testGenesisBytes(33, 'x')); err != nil {
+					return err
+				}
+				return k.userMinaToCosmos.Set(ctx, testGenesisBytes(33, 'x'), testGenesisBytes(33, 'a'))
+			},
+		},
+		{
+			name: "orphan user version",
+			corrupt: func(ctx context.Context, k Keeper) error {
+				return k.userKeyVersion.Set(ctx, testGenesisBytes(33, 'a'), 1)
+			},
+		},
+		{
 			name: "validator forward missing reverse",
 			corrupt: func(ctx context.Context, k Keeper) error {
 				return k.validatorCosmosToMina.Set(ctx, testGenesisBytes(32, 'a'), testGenesisBytes(33, 'x'))
@@ -65,12 +80,30 @@ func TestExportGenesisRejectsInconsistentRuntimeIndexes(t *testing.T) {
 			},
 		},
 		{
+			name: "validator indexes missing version",
+			corrupt: func(ctx context.Context, k Keeper) error {
+				if err := k.validatorCosmosToMina.Set(ctx, testGenesisBytes(32, 'a'), testGenesisBytes(33, 'x')); err != nil {
+					return err
+				}
+				return k.validatorMinaToCosmos.Set(ctx, testGenesisBytes(33, 'x'), testGenesisBytes(32, 'a'))
+			},
+		},
+		{
+			name: "orphan validator version",
+			corrupt: func(ctx context.Context, k Keeper) error {
+				return k.validatorKeyVersion.Set(ctx, testGenesisBytes(32, 'a'), 1)
+			},
+		},
+		{
 			name: "consistent indexes with invalid exported key length",
 			corrupt: func(ctx context.Context, k Keeper) error {
 				if err := k.userCosmosToMina.Set(ctx, testGenesisBytes(32, 'a'), testGenesisBytes(33, 'x')); err != nil {
 					return err
 				}
-				return k.userMinaToCosmos.Set(ctx, testGenesisBytes(33, 'x'), testGenesisBytes(32, 'a'))
+				if err := k.userMinaToCosmos.Set(ctx, testGenesisBytes(33, 'x'), testGenesisBytes(32, 'a')); err != nil {
+					return err
+				}
+				return k.userKeyVersion.Set(ctx, testGenesisBytes(32, 'a'), 0)
 			},
 		},
 	}

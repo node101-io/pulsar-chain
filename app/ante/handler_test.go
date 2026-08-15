@@ -9,6 +9,7 @@ import (
 	"cosmossdk.io/log"
 	txsigning "cosmossdk.io/x/tx/signing"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
@@ -170,6 +171,25 @@ func TestNewAnteHandlerRequiresMinaNetworkID(t *testing.T) {
 	})
 
 	require.ErrorContains(t, err, "mina network ID is required for ante builder")
+	require.Nil(t, anteHandler)
+}
+
+// Mina network IDs reach this constructor from runtime configuration. Rejecting
+// unknown values at startup prevents an unusable wallet verifier from being installed.
+func TestNewAnteHandlerRejectsUnsupportedMinaNetworkID(t *testing.T) {
+	t.Parallel()
+
+	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
+		AccountKeeper:     stubAccountKeeper{},
+		BankKeeper:        stubBankKeeper{},
+		SignModeHandler:   &txsigning.HandlerMap{},
+		KeyregistryKeeper: stubKeyregistryKeeper,
+		MinaNetworkID:     "unsupported",
+		Logger:            log.NewNopLogger(),
+	})
+
+	require.ErrorIs(t, err, sdkerrors.ErrLogic)
+	require.ErrorContains(t, err, "unsupported Mina network ID")
 	require.Nil(t, anteHandler)
 }
 

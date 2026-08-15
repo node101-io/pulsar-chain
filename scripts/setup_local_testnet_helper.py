@@ -760,8 +760,8 @@ def patch_bridge_genesis(
     initial_mina_height = str(start_block_height_int - 1)
     bridge["bridge_state"] = {
         "latest_fetched_mina_height": initial_mina_height,
-        "valid_action_hashes": [],
-        "valid_action_hashes_cosmos_block_height": "0",
+        "action_hashes": [],
+        "action_hashes_cosmos_block_height": "0",
         "start_mina_height": initial_mina_height,
     }
 
@@ -845,6 +845,13 @@ def update_app_config(
         'minimum-gas-prices = ""',
         f'minimum-gas-prices = "{min_gas_price}"',
         1,
+    )
+
+    # The REST API and its permissive CORS policy are required by the local
+    # frontends that talk to the testnet nodes straight from the browser.
+    app_toml = upsert_toml_key(app_toml, "api", "enable", "true", quote_value=False)
+    app_toml = upsert_toml_key(
+        app_toml, "api", "enabled-unsafe-cors", "true", quote_value=False
     )
 
     app_toml = upsert_toml_key(app_toml, "vote_extension", "priv_key", mina_priv_key)

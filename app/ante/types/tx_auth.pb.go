@@ -27,9 +27,12 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type TxAuthMode int32
 
 const (
+	// TX_AUTH_MODE_UNSPECIFIED defaults to standard Cosmos signature verification.
 	TX_AUTH_MODE_UNSPECIFIED TxAuthMode = 0
-	TX_AUTH_MODE_COSMOS      TxAuthMode = 1
-	TX_AUTH_MODE_MINA        TxAuthMode = 2
+	// TX_AUTH_MODE_COSMOS explicitly selects standard Cosmos signature verification.
+	TX_AUTH_MODE_COSMOS TxAuthMode = 1
+	// TX_AUTH_MODE_MINA selects verification with the signer's registered Mina key.
+	TX_AUTH_MODE_MINA TxAuthMode = 2
 )
 
 var TxAuthMode_name = map[int32]string{

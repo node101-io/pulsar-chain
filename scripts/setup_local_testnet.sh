@@ -27,6 +27,14 @@ RESET_TESTNET="${RESET_TESTNET:-0}"
 DEFAULT_VALIDATOR_NAME_PREFIX="validator"
 DEFAULT_NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
 DEFAULT_NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
+DEFAULT_FUNDED_GENESIS_ACCOUNT1_ADDRESS="pulsar1gzr7gqtls7ae9u08f03y04euj9zu4lvtzuusme"
+DEFAULT_FUNDED_GENESIS_ACCOUNT1_COINS="1000000000000pmina"
+DEFAULT_FUNDED_GENESIS_ACCOUNT2_ADDRESS="pulsar134w5hzxjjs4q7cgppwf9y2wa563jk9dxa65lg5"
+DEFAULT_FUNDED_GENESIS_ACCOUNT2_COINS="1000000000000pmina"
+FUNDED_GENESIS_ACCOUNT1_ADDRESS="${FUNDED_GENESIS_ACCOUNT1_ADDRESS:-$DEFAULT_FUNDED_GENESIS_ACCOUNT1_ADDRESS}"
+FUNDED_GENESIS_ACCOUNT1_COINS="${FUNDED_GENESIS_ACCOUNT1_COINS:-$DEFAULT_FUNDED_GENESIS_ACCOUNT1_COINS}"
+FUNDED_GENESIS_ACCOUNT2_ADDRESS="${FUNDED_GENESIS_ACCOUNT2_ADDRESS:-$DEFAULT_FUNDED_GENESIS_ACCOUNT2_ADDRESS}"
+FUNDED_GENESIS_ACCOUNT2_COINS="${FUNDED_GENESIS_ACCOUNT2_COINS:-$DEFAULT_FUNDED_GENESIS_ACCOUNT2_COINS}"
 DEVTOOLS_BINARY_PATH="${DEVTOOLS_BINARY_PATH:-$BIN_DIR/pulsar-devtools}"
 
 usage() {
@@ -314,6 +322,7 @@ configure_node() {
   sed -E -i.bak "s|^persistent_peers = \".*\"|persistent_peers = \"${persistent_peers}\"|" "$home/config/config.toml"
   sed -i.bak 's|addr_book_strict = true|addr_book_strict = false|' "$home/config/config.toml"
   sed -i.bak 's|allow_duplicate_ip = false|allow_duplicate_ip = true|' "$home/config/config.toml"
+  sed -E -i.bak 's|^cors_allowed_origins = .*|cors_allowed_origins = ["*"]|' "$home/config/config.toml"
 
   sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://${API_BIND_HOST}:${api_port}\"|" "$home/config/app.toml"
   sed -i.bak "s|address = \"localhost:9090\"|address = \"0.0.0.0:${grpc_port}\"|" "$home/config/app.toml"
@@ -633,6 +642,23 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   "$BINARY_PATH" genesis add-genesis-account "${NODE_ADDRS[i]}" "${STAKE_AMOUNT}${DENOM}" --home "$PRIMARY_HOME" >/dev/null 2>&1
 done
 
+FUNDED_GENESIS_ACCOUNT_ADDRESSES=(
+  "$FUNDED_GENESIS_ACCOUNT1_ADDRESS"
+  "$FUNDED_GENESIS_ACCOUNT2_ADDRESS"
+)
+FUNDED_GENESIS_ACCOUNT_COINS=(
+  "$FUNDED_GENESIS_ACCOUNT1_COINS"
+  "$FUNDED_GENESIS_ACCOUNT2_COINS"
+)
+for ((i = 0; i < ${#FUNDED_GENESIS_ACCOUNT_ADDRESSES[@]}; i++)); do
+  validate_non_empty "funded genesis account $((i + 1)) address" "${FUNDED_GENESIS_ACCOUNT_ADDRESSES[i]}"
+  validate_non_empty "funded genesis account $((i + 1)) coins" "${FUNDED_GENESIS_ACCOUNT_COINS[i]}"
+  "$BINARY_PATH" genesis add-genesis-account \
+    "${FUNDED_GENESIS_ACCOUNT_ADDRESSES[i]}" \
+    "${FUNDED_GENESIS_ACCOUNT_COINS[i]}" \
+    --home "$PRIMARY_HOME" >/dev/null 2>&1
+done
+
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   if (( i > PRIMARY_NODE_INDEX )); then
     echo "==> Copying shared genesis to ${NODE_MONIKERS[i]}..."
@@ -643,7 +669,7 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   "$BINARY_PATH" genesis gentx "${NODE_KEY_NAMES[i]}" "${BOND_AMOUNT}${DENOM}" \
     --chain-id "$CHAIN_ID" \
     --home "${NODE_HOMES[i]}" \
-    --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
+    --keyring-backend "$KEYRING_BACKEND"
 done
 
 echo "==> Collecting gentxs..."

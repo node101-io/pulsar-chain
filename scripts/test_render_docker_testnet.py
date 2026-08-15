@@ -36,6 +36,7 @@ class RenderDockerTestnetTest(unittest.TestCase):
             "external_address": "external-wrapper:9095",
             "external_transport_mode": "trusted-network",
             "external_network": None,
+            "add_host_gateway": False,
         }
         values.update(overrides)
         return argparse.Namespace(**values)
@@ -92,6 +93,39 @@ class RenderDockerTestnetTest(unittest.TestCase):
             if mount.endswith(":/var/lib/archive-wrapper")
         ]
         self.assertEqual(len(data_mounts), len(set(data_mounts)))
+
+    def test_wrapper_services_do_not_map_host_gateway_by_default(self):
+        for mode in ("shared", "per-validator"):
+            with self.subTest(mode=mode):
+                compose = renderer.render_compose(self.args(mode))
+                wrappers = [
+                    service
+                    for name, service in compose["services"].items()
+                    if name.startswith("archive-wrapper")
+                ]
+
+                self.assertTrue(wrappers)
+                for wrapper in wrappers:
+                    self.assertNotIn("extra_hosts", wrapper)
+
+    def test_wrapper_services_map_host_gateway_when_enabled(self):
+        for mode in ("shared", "per-validator"):
+            with self.subTest(mode=mode):
+                compose = renderer.render_compose(
+                    self.args(mode, add_host_gateway=True)
+                )
+                wrappers = [
+                    service
+                    for name, service in compose["services"].items()
+                    if name.startswith("archive-wrapper")
+                ]
+
+                self.assertTrue(wrappers)
+                for wrapper in wrappers:
+                    self.assertEqual(
+                        ["host.docker.internal:host-gateway"],
+                        wrapper["extra_hosts"],
+                    )
 
     def test_external_topology_has_no_wrapper_artifacts(self):
         compose = renderer.render_compose(
@@ -194,6 +228,7 @@ class DockerTestnetScriptTest(unittest.TestCase):
             "ARCHIVE_WRAPPER_EXTERNAL_ADDRESS",
             "ARCHIVE_WRAPPER_EXTERNAL_TRANSPORT_MODE",
             "ARCHIVE_WRAPPER_EXTERNAL_NETWORK",
+            "ARCHIVE_WRAPPER_ADD_HOST_GATEWAY",
             "PULSAR_DOCKER_STATE_ROOT",
             "COMPOSE_FILE",
             "GENERATED_DIR",

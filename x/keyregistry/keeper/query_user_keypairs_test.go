@@ -56,30 +56,21 @@ func TestUserCosmosMapSuccess(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateUserCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
-	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signUserRegistration(cosmosPriv, minaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         creator,
-		CosmosSignature: cosmosSig,
-		MinaSignature:   minaSig,
-		CosmosPublicKey: cosmosPubKey,
-		MinaPublicKey:   minaPubKey,
-		ActorType:       types.ActorType_USER,
-	})
+	msg := newUserRegistration(t, f.ctx, cosmosPriv, minaPriv)
+	resp, err := ms.RegisterUserKeys(f.ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	queryResp, err := qs.GetUserMinaPublicKey(f.ctx, &types.QueryGetUserMinaPublicKeyRequest{
-		UserCosmosPublicKey: cosmosPubKey,
+		UserCosmosPublicKey: msg.CosmosPublicKey,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, queryResp)
 
-	require.Equal(t, minaPubKey, queryResp.UserMinaPublicKey)
+	require.Equal(t, msg.MinaPublicKey, queryResp.UserMinaPublicKey)
 }
 
 // TestUserMinaMapSuccess verifies that a cosmos public key can be retrieved
@@ -95,30 +86,21 @@ func TestUserMinaMapSuccess(t *testing.T) {
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
 	cosmosPriv := generateUserCosmosPrivKey()
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
-	creator, cosmosPubKey, minaPubKey, cosmosSig, minaSig, err := signUserRegistration(cosmosPriv, minaPriv)
-	require.NoError(t, err)
-
-	resp, err := ms.RegisterKeys(f.ctx, &types.MsgRegisterKeys{
-		Creator:         creator,
-		CosmosSignature: cosmosSig,
-		MinaSignature:   minaSig,
-		CosmosPublicKey: cosmosPubKey,
-		MinaPublicKey:   minaPubKey,
-		ActorType:       types.ActorType_USER,
-	})
+	msg := newUserRegistration(t, f.ctx, cosmosPriv, minaPriv)
+	resp, err := ms.RegisterUserKeys(f.ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	queryResp, err := qs.GetUserCosmosPublicKey(f.ctx, &types.QueryGetUserCosmosPublicKeyRequest{
-		UserMinaPublicKey: minaPubKey,
+		UserMinaPublicKey: msg.MinaPublicKey,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, queryResp)
 
-	require.Equal(t, cosmosPubKey, queryResp.UserCosmosPublicKey)
+	require.Equal(t, msg.CosmosPublicKey, queryResp.UserCosmosPublicKey)
 }
 
 // TestUserMinaMapInvalidArgumentFail verifies that GetMinaPubKey returns
@@ -162,7 +144,7 @@ func TestUserCosmosMapPubkeyNotFound(t *testing.T) {
 	params := types.DefaultParams()
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
-	minaPriv, err := generateMinaKey(types.ActorType_USER)
+	minaPriv, err := generateMinaKey(types.ActorType_ACTOR_TYPE_USER)
 	require.NoError(t, err)
 
 	minaPubKey, err := minaPriv.ToPublicKey()
