@@ -133,6 +133,44 @@ func TestConstructVoteExtBodyChangesActionRootWhenBridgeSnapshotAdvances(t *test
 	require.Equal(t, []int64{8, 7, 8}, stakingKeeper.requestedHistoricalHeights)
 }
 
+func TestConstructVoteExtBodyUsesHistoricalValidatorConsensusPublicKey(t *testing.T) {
+	voteExtensionHeight := int64(8)
+	signedStateHeight := voteExtensionHeight - 2
+	validator := newTestBondedValidator(t, 10)
+	stateRoot := testStateRoot32()
+	actionsRoot := mustReduceToFieldBytes([]byte("historical-validator-actions-root"))
+
+	stakingKeeper := &voteExtBodyTestStakingKeeper{
+		historicalInfo: map[int64]stakingtypes.HistoricalInfo{
+			voteExtensionHeight: {
+				Valset: []stakingtypes.Validator{validator},
+			},
+			voteExtensionHeight - 1: {
+				Header: tmproto.Header{AppHash: stateRoot},
+			},
+		},
+	}
+	handler := &ABCIHandler{
+		stakingKeeper: stakingKeeper,
+		keyregistryKeeper: validatorSetTestKeyregistryKeeper{cosmosToMina: map[string][]byte{
+			string(consensusPubKeyBytes(t, validator)): testMinaPublicKey(t, [32]byte{1}),
+		}},
+		bridgeKeeper: testBridgeKeeper{rootsByHeight: map[int64][]byte{
+			signedStateHeight: actionsRoot,
+		}},
+	}
+	ctx := sdk.Context{}.WithBlockHeight(voteExtensionHeight + 1)
+
+	body, err := handler.constructVoteExtBody(ctx, voteExtensionHeight)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, body.NextValidatorSetHash)
+	require.Equal(t, signedStateHeight, body.CurrentBlockHeight)
+	require.Equal(t, stateRoot, body.CurrentStateRoot)
+	require.Equal(t, actionsRoot, body.ActionsReducedRoot)
+	require.Equal(t, []int64{voteExtensionHeight, voteExtensionHeight - 1}, stakingKeeper.requestedHistoricalHeights)
+}
+
 func TestCalculateValidatorSetRootSuccess(t *testing.T) {
 	firstValidator := newTestBondedValidator(t, 5)
 	secondValidator := newTestBondedValidator(t, 10)
