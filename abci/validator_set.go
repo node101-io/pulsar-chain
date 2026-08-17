@@ -99,17 +99,7 @@ func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []staki
 	}
 
 	for _, validator := range valInfo {
-		consAddr, err := validator.GetConsAddr()
-		if err != nil {
-			return nil, fmt.Errorf("failed to read validator consensus address: %w", err)
-		}
-
-		cosmosValidatorInfo, err := h.stakingKeeper.GetValidatorByConsAddr(ctx, sdk.ConsAddress(consAddr))
-		if err != nil {
-			return nil, err
-		}
-
-		cosmosValidatorPubKey, err := cosmosValidatorInfo.ConsPubKey()
+		cosmosValidatorPubKey, err := validator.ConsPubKey()
 		if err != nil {
 			return nil, err
 		}
