@@ -14,6 +14,7 @@ type ABCIHandler struct {
 	networkID             mina.NetworkID
 	bridgeKeeper          BridgeKeeper
 	verificationKeeper    VerificationKeeper
+	revealStore           *revealStore
 }
 
 func NewABCIHandler(
@@ -52,6 +53,7 @@ func NewABCIHandler(
 		networkID:             networkId,
 		bridgeKeeper:          bridgeKeeper,
 		verificationKeeper:    verificationKeeper,
+		revealStore:           NewRevealStore(),
 	}, nil
 }
 

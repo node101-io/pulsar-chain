@@ -1,7 +1,6 @@
 package abci
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
@@ -34,13 +33,14 @@ func validateProofCommitment(commitment []byte) bool {
 	return len(commitment) == proofCommitmentLength
 }
 
-func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) ([]byte, error) {
+func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx sdk.Context) ([]byte, error) {
 
 	var verifiedProofFirst, verifiedProofSecond []byte
 	var proofHashCountFirstBlock, proofHashCountSecondBlock int
 
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	currentBlockHeight := sdkCtx.BlockHeight()
+	var firstBlockProofs []verificationTypes.ProofCommitment
+
+	currentBlockHeight := ctx.BlockHeight()
 
 	firstBlockProofHashes, firstBlockProofIndexes, err := h.verificationKeeper.GetProofHashesByBlockHeight(ctx, currentBlockHeight-3)
 	if err != nil {
@@ -92,6 +92,8 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) (
 				IsProofValid: verifiedProofs[i],
 			}
 
+			firstBlockProofs = append(firstBlockProofs, commitment)
+
 			marshalled, err := commitment.Marshal()
 			if err != nil {
 				return nil, err
@@ -138,6 +140,12 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) (
 
 	finalHash := sha256.Sum256(finalInput)
 	truncate := truncate128(finalHash)
+
+	h.revealStore.Set(ctx.BlockHeight(), verificationTypes.ProofCommitmentReveal{
+		FirstSecretSalt:  secretSaltFirst,
+		FirstBlockProofs: firstBlockProofs,
+		SecondLeafHash:   second128,
+	})
 
 	return truncate[:], nil
 }

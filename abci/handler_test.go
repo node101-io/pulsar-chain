@@ -233,6 +233,10 @@ func (testVotePersistenceKeeper) SetVote(context.Context, int64, []byte, []byte)
 	return nil
 }
 
+func (testVotePersistenceKeeper) GetVote(context.Context, int64, []byte) ([]byte, error) {
+	return nil, nil
+}
+
 type testVerificationKeeper struct{}
 
 func (testVerificationKeeper) GetProofHashesByBlockHeight(

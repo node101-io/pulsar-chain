@@ -2,6 +2,7 @@ package abci
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"testing"
 
@@ -314,6 +315,16 @@ func (k *quorumTestVotePersistenceKeeper) SetVote(_ context.Context, height int6
 		voteExtension: voteExtension,
 	})
 	return nil
+}
+
+func (k *quorumTestVotePersistenceKeeper) GetVote(_ context.Context, height int64, minaPublicKey []byte) ([]byte, error) {
+	for _, vote := range k.setVotes {
+		if vote.height == height && string(vote.minaPublicKey) == string(minaPublicKey) {
+			return vote.voteExtension, nil
+		}
+	}
+
+	return nil, fmt.Errorf("vote not found")
 }
 
 type quorumTestPersistedVote struct {

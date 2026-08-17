@@ -124,6 +124,21 @@ func (h *ABCIHandler) validatePayloadVoteExtensions(ctx sdk.Context, voteExtensi
 			return verifiedPayloadVoteExtensions{}, err
 		}
 
+		if voteExtension.Reveal != nil {
+			previousCommitment, err := h.getPreviousProofCommitment(
+				ctx,
+				voteExtensionHeight,
+				minaKey,
+			)
+			if err != nil {
+				return verifiedPayloadVoteExtensions{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
+			}
+
+			if err := verifyReveal(voteExtension.Reveal, previousCommitment); err != nil {
+				return verifiedPayloadVoteExtensions{}, votepersistenceTypes.ErrInvalidVoteExtension.Wrap(err.Error())
+			}
+		}
+
 		verifiedVotes.votes = append(verifiedVotes.votes, verifiedPayloadVoteExtension{
 			consensusPublicKey: vote.ConsensusPublicKey,
 			minaPublicKey:      minaKey,

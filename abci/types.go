@@ -71,6 +71,8 @@ var (
 	// Validator-set root construction errors.
 	ErrValidatorMinaKeyNotFound   error = errors.New("validator mina key not found")
 	ErrValidatorSetRootHashFailed error = errors.New("failed to hash validator set root")
+
+	ErrRevealNotFound error = errors.New("reveal not found")
 )
 
 func shouldExtendVoteAtHeight(ctx sdk.Context, height int64) (bool, error) {

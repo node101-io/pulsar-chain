@@ -21,6 +21,7 @@ type KeyregistryKeeper interface {
 type VotePersistenceKeeper interface {
 	Clear(context.Context) error
 	SetVote(context.Context, int64, []byte, []byte) error
+	GetVote(context.Context, int64, []byte) ([]byte, error)
 }
 
 type BridgeKeeper interface {

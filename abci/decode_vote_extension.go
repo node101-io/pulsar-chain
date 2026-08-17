@@ -1,6 +1,10 @@
 package abci
 
-import "fmt"
+import (
+	"fmt"
+
+	verificationTypes "github.com/node101-io/pulsar-chain/x/verification/types"
+)
 
 func decodeVoteExtension(bz []byte) (VoteExtension, error) {
 	var voteExtension VoteExtension
@@ -21,5 +25,24 @@ func decodeVoteExtension(bz []byte) (VoteExtension, error) {
 		)
 	}
 
+	if voteExtension.Reveal != nil {
+		if err := validateReveal(*voteExtension.Reveal); err != nil {
+			return VoteExtension{}, err
+		}
+	}
+
 	return voteExtension, nil
+}
+
+func validateReveal(reveal verificationTypes.ProofCommitmentReveal) error {
+
+	if len(reveal.SecondLeafHash) != 16 {
+		return fmt.Errorf("")
+	}
+
+	if len(reveal.FirstSecretSalt) != 16 {
+		return fmt.Errorf("")
+	}
+
+	return nil
 }
