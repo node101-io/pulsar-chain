@@ -7,8 +7,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
-
-	verificationtypes "github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
 func TestNewABCIHandlerValidatesSecondaryKey(t *testing.T) {
@@ -240,6 +238,6 @@ type testVerificationKeeper struct{}
 func (testVerificationKeeper) GetProofHashesByBlockHeight(
 	context.Context,
 	int64,
-) ([][]byte, []verificationtypes.ProofID, error) {
+) ([][]byte, []int64, error) {
 	return nil, nil, nil
 }

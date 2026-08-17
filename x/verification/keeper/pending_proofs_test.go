@@ -62,17 +62,11 @@ func TestAppendPendingProof(t *testing.T) {
 	require.NoError(t, f.keeper.AppendPendingProof(f.ctx, firstProof, currentBlockHeight))
 	require.NoError(t, f.keeper.AppendPendingProof(f.ctx, secondProof, currentBlockHeight))
 
-	storedFirstProof, err := f.keeper.GetPendingProof(f.ctx, types.ProofID{
-		BlockHeight: currentBlockHeight,
-		ProofIndex:  0,
-	})
+	storedFirstProof, err := f.keeper.GetPendingProof(f.ctx, currentBlockHeight, 0)
 	require.NoError(t, err)
 	require.Equal(t, firstProof, storedFirstProof)
 
-	storedSecondProof, err := f.keeper.GetPendingProof(f.ctx, types.ProofID{
-		BlockHeight: currentBlockHeight,
-		ProofIndex:  1,
-	})
+	storedSecondProof, err := f.keeper.GetPendingProof(f.ctx, currentBlockHeight, 1)
 	require.NoError(t, err)
 	require.Equal(t, secondProof, storedSecondProof)
 
@@ -91,13 +85,10 @@ func TestGetProofHashesByBlockHeight(t *testing.T) {
 	require.NoError(t, f.keeper.AppendPendingProof(f.ctx, secondProof, blockHeight))
 	require.NoError(t, f.keeper.AppendPendingProof(f.ctx, []byte("next-block-proof"), blockHeight+1))
 
-	proofHashes, proofIDs, err := f.keeper.GetProofHashesByBlockHeight(f.ctx, blockHeight)
+	proofHashes, proofIndexes, err := f.keeper.GetProofHashesByBlockHeight(f.ctx, blockHeight)
 	require.NoError(t, err)
 	require.Equal(t, [][]byte{firstProof, secondProof}, proofHashes)
-	require.Equal(t, []types.ProofID{
-		{BlockHeight: blockHeight, ProofIndex: 0},
-		{BlockHeight: blockHeight, ProofIndex: 1},
-	}, proofIDs)
+	require.Equal(t, []int64{0, 1}, proofIndexes)
 }
 
 func TestAppendPendingProofRejectsBlockProofLimit(t *testing.T) {
@@ -134,10 +125,7 @@ func TestPushNewProofHash(t *testing.T) {
 	}
 
 	for index, proofHash := range proofHashes {
-		storedProofHash, err := f.keeper.GetPendingProof(ctx, types.ProofID{
-			BlockHeight: blockHeight,
-			ProofIndex:  int64(index),
-		})
+		storedProofHash, err := f.keeper.GetPendingProof(ctx, blockHeight, int64(index))
 		require.NoError(t, err)
 		require.Equal(t, proofHash, storedProofHash)
 	}
@@ -164,10 +152,7 @@ func TestPushNewProofHashRejectsDuplicate(t *testing.T) {
 	require.Equal(t, codes.AlreadyExists, status.Code(err))
 	require.ErrorContains(t, err, types.ErrPendingProofAlreadyExists.Error())
 
-	exists, err := f.keeper.PendingProofExists(secondCtx, types.ProofID{
-		BlockHeight: 42,
-		ProofIndex:  0,
-	})
+	exists, err := f.keeper.PendingProofExists(secondCtx, 42, 0)
 	require.NoError(t, err)
 	require.False(t, exists)
 }

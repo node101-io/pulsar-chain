@@ -42,20 +42,20 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) (
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	currentBlockHeight := sdkCtx.BlockHeight()
 
-	firstBlockProofHashes, firstBlockProofIDs, err := h.verificationKeeper.GetProofHashesByBlockHeight(ctx, currentBlockHeight-3)
+	firstBlockProofHashes, firstBlockProofIndexes, err := h.verificationKeeper.GetProofHashesByBlockHeight(ctx, currentBlockHeight-3)
 	if err != nil {
 		return nil, err
 	}
-	if len(firstBlockProofHashes) != len(firstBlockProofIDs) {
-		return nil, fmt.Errorf("first block proof hash/ID count mismatch")
+	if len(firstBlockProofHashes) != len(firstBlockProofIndexes) {
+		return nil, fmt.Errorf("first block proof hash/index count mismatch")
 	}
 
-	secondBlockProofHashes, secondBlockProofIDs, err := h.verificationKeeper.GetProofHashesByBlockHeight(ctx, currentBlockHeight-2)
+	secondBlockProofHashes, secondBlockProofIndexes, err := h.verificationKeeper.GetProofHashesByBlockHeight(ctx, currentBlockHeight-2)
 	if err != nil {
 		return nil, err
 	}
-	if len(secondBlockProofHashes) != len(secondBlockProofIDs) {
-		return nil, fmt.Errorf("second block proof hash/ID count mismatch")
+	if len(secondBlockProofHashes) != len(secondBlockProofIndexes) {
+		return nil, fmt.Errorf("second block proof hash/index count mismatch")
 	}
 
 	var proofHashes [][]byte
@@ -88,7 +88,7 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) (
 
 		if isFirstBlock {
 			commitment := verificationTypes.ProofCommitment{
-				ProofId:      &firstBlockProofIDs[i],
+				ProofIndex:   firstBlockProofIndexes[i],
 				IsProofValid: verifiedProofs[i],
 			}
 
@@ -102,7 +102,7 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx context.Context) (
 
 		} else {
 			commitment := verificationTypes.ProofCommitment{
-				ProofId:      &secondBlockProofIDs[i-numberOfProofHashesFirstBlock],
+				ProofIndex:   secondBlockProofIndexes[i-numberOfProofHashesFirstBlock],
 				IsProofValid: verifiedProofs[i],
 			}
 

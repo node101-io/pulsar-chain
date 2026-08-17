@@ -5,7 +5,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	verificationTypes "github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
 type StakingKeeper interface {
@@ -29,5 +28,5 @@ type BridgeKeeper interface {
 }
 
 type VerificationKeeper interface {
-	GetProofHashesByBlockHeight(ctx context.Context, blockHeight int64) ([][]byte, []verificationTypes.ProofID, error)
+	GetProofHashesByBlockHeight(ctx context.Context, blockHeight int64) ([][]byte, []int64, error)
 }
