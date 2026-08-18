@@ -36,12 +36,14 @@ func decodeVoteExtension(bz []byte) (VoteExtension, error) {
 
 func validateReveal(reveal verificationTypes.ProofCommitmentReveal) error {
 
-	if len(reveal.SecondLeafHash) != 16 {
-		return fmt.Errorf("")
+	if len(reveal.SecondLeafHash) != secondaryHashLength {
+		return fmt.Errorf("got %d bytes, should received %d bytes : %w",
+			len(reveal.SecondLeafHash), secondaryHashLength, ErrInvalidLengthForSecondLeafHash)
 	}
 
-	if len(reveal.FirstSecretSalt) != 16 {
-		return fmt.Errorf("")
+	if len(reveal.FirstSecretSalt) != secretSaltLength {
+		return fmt.Errorf("got %d bytes, should received %d bytes : %w",
+			len(reveal.FirstSecretSalt), secretSaltLength, ErrInvalıdLengthForSalt)
 	}
 
 	return nil

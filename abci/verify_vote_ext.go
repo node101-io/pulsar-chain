@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	cosmosErrors "cosmossdk.io/errors"
+
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/mina-signer-go/poseidon"
@@ -104,7 +106,7 @@ func verifyReveal(reveal *verificationTypes.ProofCommitmentReveal,
 	reconstructed := finalHash[:16]
 
 	if !bytes.Equal(reconstructed, previousCommitment) {
-		return fmt.Errorf("")
+		return cosmosErrors.Wrap(ErrInvalidReveal, "reveal hash does not match with commitment")
 	}
 
 	return nil

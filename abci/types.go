@@ -30,6 +30,7 @@ const MinPulsarVoteExtensionHeight int64 = 2
 const (
 	secretSaltLength      = 16
 	proofCommitmentLength = 16
+	secondaryHashLength   = 16
 )
 
 // For testing purposes only.
@@ -72,7 +73,10 @@ var (
 	ErrValidatorMinaKeyNotFound   error = errors.New("validator mina key not found")
 	ErrValidatorSetRootHashFailed error = errors.New("failed to hash validator set root")
 
-	ErrRevealNotFound error = errors.New("reveal not found")
+	ErrRevealNotFound                 error = errors.New("reveal not found")
+	ErrInvalidReveal                  error = errors.New("invalid reveal")
+	ErrInvalidLengthForSecondLeafHash error = errors.New("invalid length for second leaf hash")
+	ErrInvalıdLengthForSalt           error = errors.New("invalid length for salt")
 )
 
 func shouldExtendVoteAtHeight(ctx sdk.Context, height int64) (bool, error) {
