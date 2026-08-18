@@ -271,6 +271,125 @@ def read_config_path_value(config_path: str, path: list[str]) -> Optional[str]:
     return read_scalar_in_block(lines, start_index, end_index, parent_indent, path[-1])
 
 
+def read_config_block_scalars(config_path: str, path: list[str]) -> dict[str, object]:
+    lines = read_text(config_path).splitlines()
+    start_index = 0
+    end_index = len(lines)
+    parent_indent = -1
+
+    for block_name in path:
+        block = find_named_block(
+            lines, start_index, end_index, parent_indent, block_name
+        )
+        if block is None:
+            return {}
+
+        start_index, end_index, parent_indent = block
+
+    direct_indent = None
+    for index in range(start_index, end_index):
+        line = lines[index]
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= parent_indent:
+            break
+        if direct_indent is None or indent < direct_indent:
+            direct_indent = indent
+
+    if direct_indent is None:
+        return {}
+
+    scalar_pattern = re.compile(
+        r'^\s*([A-Za-z0-9_-]+):\s*'
+        r'(?:(?:"([^"]*)")|(?:\'([^\']*)\')|([^#\n]+?))'
+        r"\s*(?:#.*)?$"
+    )
+    values = {}
+
+    for index in range(start_index, end_index):
+        line = lines[index]
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent != direct_indent:
+            continue
+
+        match = scalar_pattern.match(line)
+        if match is None:
+            continue
+
+        key, double_quoted, single_quoted, unquoted = match.groups()
+        if double_quoted is not None:
+            value = double_quoted
+        elif single_quoted is not None:
+            value = single_quoted
+        else:
+            raw_value = unquoted.strip()
+            lowered = raw_value.lower()
+            if lowered == "true":
+                value = True
+            elif lowered == "false":
+                value = False
+            elif lowered in ("null", "~"):
+                value = None
+            elif re.fullmatch(r"[-+]?\d+", raw_value):
+                value = int(raw_value)
+            else:
+                value = raw_value
+
+        values[key] = value
+
+    return values
+
+
+def sync_genesis_module_params(
+    genesis_path: str, config_path: str, module_name: str
+) -> int:
+    params = read_config_block_scalars(
+        config_path,
+        ["genesis", "app_state", module_name, "params"],
+    )
+    if not params:
+        raise SystemExit(f"no genesis params found for module {module_name}")
+
+    genesis = read_json(genesis_path)
+    module_state = genesis.setdefault("app_state", {}).setdefault(module_name, {})
+    module_state.setdefault("params", {}).update(params)
+    write_json(genesis_path, genesis)
+    return 0
+
+
+def verify_genesis_module_params(
+    genesis_path: str, config_path: str, module_name: str
+) -> int:
+    expected_params = read_config_block_scalars(
+        config_path,
+        ["genesis", "app_state", module_name, "params"],
+    )
+    if not expected_params:
+        raise SystemExit(f"no genesis params found for module {module_name}")
+
+    genesis = read_json(genesis_path)
+    actual_params = (
+        genesis.get("app_state", {}).get(module_name, {}).get("params", {})
+    )
+    mismatched_keys = [
+        key
+        for key, expected_value in expected_params.items()
+        if actual_params.get(key) != expected_value
+    ]
+    if mismatched_keys:
+        raise SystemExit(
+            f"{module_name} genesis params do not match config: "
+            + ", ".join(sorted(mismatched_keys))
+        )
+
+    return 0
+
+
 def read_bridge_genesis_param(config_path: str, key_name: str) -> int:
     value = read_config_path_value(
         config_path,
@@ -838,6 +957,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--actions-reduced-root-snapshot-window-size", required=True
     )
 
+    sync_params = subparsers.add_parser("sync-genesis-module-params")
+    sync_params.add_argument("--genesis", required=True)
+    sync_params.add_argument("--config", required=True)
+    sync_params.add_argument("--module", required=True)
+
+    verify_params = subparsers.add_parser("verify-genesis-module-params")
+    verify_params.add_argument("--genesis", required=True)
+    verify_params.add_argument("--config", required=True)
+    verify_params.add_argument("--module", required=True)
+
     verify_registry = subparsers.add_parser("verify-validator-key-pairs")
     verify_registry.add_argument("--genesis", required=True)
     verify_registry.add_argument("--cosmos-key", action="append", required=True)
@@ -911,6 +1040,18 @@ def main() -> int:
             args.start_block_height,
             args.max_block_range,
             args.actions_reduced_root_snapshot_window_size,
+        )
+    if args.command == "sync-genesis-module-params":
+        return sync_genesis_module_params(
+            args.genesis,
+            args.config,
+            args.module,
+        )
+    if args.command == "verify-genesis-module-params":
+        return verify_genesis_module_params(
+            args.genesis,
+            args.config,
+            args.module,
         )
     if args.command == "verify-validator-key-pairs":
         return verify_validator_key_pairs(args.genesis, args.cosmos_key)

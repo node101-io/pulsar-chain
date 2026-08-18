@@ -65,6 +65,10 @@ genesis:
         start_block_height: "541000"
         max_block_range: "1000"
         actions_reduced_root_snapshot_window_size: "4"
+    verification:
+      params: 
+        pending_proof_blocks_window_size: "6"
+        max_proof_range: "256"
   consensus:
     params:
       abci:

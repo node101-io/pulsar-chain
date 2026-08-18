@@ -37,14 +37,17 @@ func (s SecondaryKey) Validate() error {
 	return nil
 }
 
-func (s SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBody) ([]byte, error) {
+func (s SecondaryKey) SignVoteExtension(
+	voteExtBody votepersistenceTypes.VoteExtBody,
+	proofCommitment []byte,
+) ([]byte, error) {
 	if s.SecretKey == nil {
 		return nil, ErrMissingSecondaryKey
 	}
 
 	poseidonHash := poseidon.NewPoseidon()
 
-	msgHash, err := hashVoteExtBody(poseidonHash, voteExtBody)
+	msgHash, err := hashVoteExtension(poseidonHash, voteExtBody, proofCommitment)
 	if err != nil {
 		return nil, err
 	}
@@ -57,13 +60,20 @@ func (s SecondaryKey) SignVoteExtBody(voteExtBody votepersistenceTypes.VoteExtBo
 	return sig.Bytes(), nil
 }
 
-func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message votepersistenceTypes.VoteExtBody, minaKey []byte, networkID mina.NetworkID) error {
+func verifyVoteExtSig(
+	poseidonHash *poseidon.Poseidon,
+	signature []byte,
+	message votepersistenceTypes.VoteExtBody,
+	proofCommitment []byte,
+	minaKey []byte,
+	networkID mina.NetworkID,
+) error {
 	pubKey, err := publickey.NewPublicKeyFromBytes(minaKey, networkID)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidVoteExtMinaPublicKey, err)
 	}
 
-	msgHash, err := hashVoteExtBody(poseidonHash, message)
+	msgHash, err := hashVoteExtension(poseidonHash, message, proofCommitment)
 	if err != nil {
 		return err
 	}
@@ -82,6 +92,38 @@ func verifyVoteExtSig(poseidonHash *poseidon.Poseidon, signature []byte, message
 	}
 
 	return nil
+}
+
+func hashVoteExtension(
+	poseidonHash *poseidon.Poseidon,
+	voteExtBody votepersistenceTypes.VoteExtBody,
+	proofCommitment []byte,
+) (*field.FieldElement, error) {
+	bodyHash, err := hashVoteExtBody(poseidonHash, voteExtBody)
+	if err != nil {
+		return nil, err
+	}
+
+	if !validateProofCommitment(proofCommitment) {
+		return nil, fmt.Errorf(
+			"%w: expected %d bytes, got %d",
+			ErrInvalidProofCommitment,
+			proofCommitmentLength,
+			len(proofCommitment),
+		)
+	}
+
+	commitmentField, err := field.NewField().FromBytesBEReduce(proofCommitment)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidProofCommitment, err)
+	}
+
+	hash, err := poseidonHash.HashFieldElements(bodyHash, commitmentField)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrVoteExtBodyHashFailed, err)
+	}
+
+	return hash, nil
 }
 
 func hashVoteExtBody(poseidonHash *poseidon.Poseidon, voteExtBody votepersistenceTypes.VoteExtBody) (*field.FieldElement, error) {

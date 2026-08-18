@@ -1,0 +1,18 @@
+syntax = "proto3";
+package pulsarchain.verification.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/verification/types";
+
+// Params defines the parameters for the module.
+message Params {
+  option (amino.name) = "pulsarchain/x/verification/Params";
+  option (gogoproto.equal) = true;
+
+  int64 pending_proof_blocks_window_size = 1;
+
+  // max_proof_range is the maximum number of pending proofs allowed in one block.
+  int64 max_proof_range = 2;
+}

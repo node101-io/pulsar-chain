@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package pulsarchain.abci;
+
+import "pulsarchain/verification/v1/commitment_reveal.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/abci;abci";
+
+message VoteExtension {
+  bytes signature = 1;
+  bytes proof_commitment = 2;
+  pulsarchain.verification.v1.ProofCommitmentReveal reveal = 3;
+}

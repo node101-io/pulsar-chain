@@ -12,24 +12,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSignVoteExtBodyRoundTrip(t *testing.T) {
+func TestSignVoteExtensionRoundTrip(t *testing.T) {
 	secondaryKey := validSecondaryKey()
 	body := validVoteExtBody()
+	proofCommitment := testProofCommitment()
 
-	signature, err := secondaryKey.SignVoteExtBody(body)
+	signature, err := secondaryKey.SignVoteExtension(body, proofCommitment)
 	require.NoError(t, err)
 	require.NotEmpty(t, signature)
 
 	minaPublicKey := secondaryKey.PublicKey.Bytes()
 
 	poseidonHash := testPoseidonHash()
-	require.NoError(t, verifyVoteExtSig(poseidonHash, signature, body, minaPublicKey, NetworkID))
+	require.NoError(t, verifyVoteExtSig(
+		poseidonHash,
+		signature,
+		body,
+		proofCommitment,
+		minaPublicKey,
+		NetworkID,
+	))
 }
 
 func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 	secondaryKey := validSecondaryKey()
 	body := validVoteExtBody()
-	signature, err := secondaryKey.SignVoteExtBody(body)
+	proofCommitment := testProofCommitment()
+	signature, err := secondaryKey.SignVoteExtension(body, proofCommitment)
 	require.NoError(t, err)
 	minaPublicKey := secondaryKey.PublicKey.Bytes()
 
@@ -82,10 +91,37 @@ func TestVerifyVoteExtSigFailureModes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := verifyVoteExtSig(tt.poseidon, tt.signature, tt.message, tt.minaKey, NetworkID)
+			err := verifyVoteExtSig(
+				tt.poseidon,
+				tt.signature,
+				tt.message,
+				proofCommitment,
+				tt.minaKey,
+				NetworkID,
+			)
 			require.ErrorIs(t, err, tt.expectedErr)
 		})
 	}
+}
+
+func testProofCommitment() []byte {
+	return bytes.Repeat([]byte{0x01}, proofCommitmentLength)
+}
+
+func marshalVoteExtensionForTest(
+	t *testing.T,
+	signature []byte,
+	proofCommitment []byte,
+) []byte {
+	t.Helper()
+
+	bz, err := (&VoteExtension{
+		Signature:       signature,
+		ProofCommitment: proofCommitment,
+	}).Marshal()
+	require.NoError(t, err)
+
+	return bz
 }
 
 func TestSecondaryKeyValidate(t *testing.T) {

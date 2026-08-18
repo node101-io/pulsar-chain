@@ -1,0 +1,14 @@
+syntax = "proto3";
+package pulsarchain.verification.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "pulsarchain/verification/v1/proof_id.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/verification/types";
+
+// ProofCommitment records a validator's result for one proof position.
+message ProofCommitment {
+   ProofID proof_id = 1;
+   bool is_proof_valid = 2;
+}

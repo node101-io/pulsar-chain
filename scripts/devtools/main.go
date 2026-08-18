@@ -18,7 +18,6 @@ import (
 	"github.com/node101-io/mina-signer-go/privatekey"
 	"github.com/node101-io/mina-signer-go/publickey"
 	minasignature "github.com/node101-io/mina-signer-go/signature"
-	"github.com/node101-io/pulsar-chain/abci"
 	abcitypes "github.com/node101-io/pulsar-chain/abci"
 	bridgekeeper "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrytypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
@@ -290,13 +289,27 @@ func verifyStoredVote(
 	return nil
 }
 
-func verifyVoteExtensionSignature(body *votepersistencetypes.VoteExtBody, minaPublicKey, signatureBytes []byte, networkID string) error {
+func verifyVoteExtensionSignature(body *votepersistencetypes.VoteExtBody, minaPublicKey, voteExtensionBytes []byte, networkID string) error {
+	var voteExtension abcitypes.VoteExtension
+	if err := voteExtension.Unmarshal(voteExtensionBytes); err != nil {
+		return fmt.Errorf("decode vote extension: %w", err)
+	}
+	if len(voteExtension.GetSignature()) == 0 {
+		return fmt.Errorf("decode vote extension: empty signature")
+	}
+	if len(voteExtension.GetProofCommitment()) != 16 {
+		return fmt.Errorf(
+			"decode vote extension: proof commitment must be 16 bytes, got %d",
+			len(voteExtension.GetProofCommitment()),
+		)
+	}
+
 	publicKey, err := publickey.NewPublicKeyFromBytes(minaPublicKey, mina.NetworkID(networkID))
 	if err != nil {
 		return fmt.Errorf("decode mina public key: %w", err)
 	}
 
-	signature, err := minasignature.NewSignatureFromBytes(signatureBytes)
+	signature, err := minasignature.NewSignatureFromBytes(voteExtension.GetSignature())
 	if err != nil {
 		return fmt.Errorf("decode vote extension signature: %w", err)
 	}
@@ -304,9 +317,17 @@ func verifyVoteExtensionSignature(body *votepersistencetypes.VoteExtBody, minaPu
 	poseidonHash := poseidon.NewPoseidon()
 	minaField := field.NewField()
 
-	messageHash, err := hashVoteExtBody(minaField, poseidonHash, *body)
+	bodyHash, err := hashVoteExtBody(minaField, poseidonHash, *body)
 	if err != nil {
 		return err
+	}
+	commitmentField, err := minaField.FromBytesBEReduce(voteExtension.GetProofCommitment())
+	if err != nil {
+		return fmt.Errorf("decode proof commitment: %w", err)
+	}
+	messageHash, err := poseidonHash.HashFieldElements(bodyHash, commitmentField)
+	if err != nil {
+		return fmt.Errorf("hash vote extension: %w", err)
 	}
 
 	valid, err := publicKey.VerifyField(signature, messageHash)
@@ -322,30 +343,30 @@ func verifyVoteExtensionSignature(body *votepersistencetypes.VoteExtBody, minaPu
 
 func hashVoteExtBody(minaField *field.Field, poseidonHash *poseidon.Poseidon, voteExtBody votepersistencetypes.VoteExtBody) (*field.FieldElement, error) {
 	if poseidonHash == nil {
-		return nil, abci.ErrVoteExtBodyHashFailed
+		return nil, abcitypes.ErrVoteExtBodyHashFailed
 	}
 
 	if minaField == nil {
-		return nil, abci.ErrVoteExtBodyHashFailed
+		return nil, abcitypes.ErrVoteExtBodyHashFailed
 	}
 
 	if voteExtBody.CurrentBlockHeight < 0 {
-		return nil, fmt.Errorf("%w: current block height must be non-negative", abci.ErrVoteExtBodyHashFailed)
+		return nil, fmt.Errorf("%w: current block height must be non-negative", abcitypes.ErrVoteExtBodyHashFailed)
 	}
 
 	validatorSetRoot, err := minaField.FromBytes(voteExtBody.NextValidatorSetHash)
 	if err != nil {
-		return nil, fmt.Errorf("%w: invalid validator set root: %v", abci.ErrVoteExtBodyHashFailed, err)
+		return nil, fmt.Errorf("%w: invalid validator set root: %v", abcitypes.ErrVoteExtBodyHashFailed, err)
 	}
 
 	voteExtBodyHash, err := encodeVoteExtBodyForHash(poseidonHash, minaField, voteExtBody.CurrentStateRoot)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", abci.ErrVoteExtBodyHashFailed, err)
+		return nil, fmt.Errorf("%w: %v", abcitypes.ErrVoteExtBodyHashFailed, err)
 	}
 
 	actionsRoot, err := minaField.FromBytesBEReduce([]byte(voteExtBody.ActionsReducedRoot))
 	if err != nil {
-		return nil, fmt.Errorf("%w: invalid actions reduced root: %v", abci.ErrVoteExtBodyHashFailed, err)
+		return nil, fmt.Errorf("%w: invalid actions reduced root: %v", abcitypes.ErrVoteExtBodyHashFailed, err)
 	}
 
 	inner, err := poseidonHash.HashFieldElements(
@@ -354,7 +375,7 @@ func hashVoteExtBody(minaField *field.Field, poseidonHash *poseidon.Poseidon, vo
 		minaField.FromUint64(uint64(voteExtBody.CurrentBlockHeight)),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", abci.ErrVoteExtBodyHashFailed, err)
+		return nil, fmt.Errorf("%w: %v", abcitypes.ErrVoteExtBodyHashFailed, err)
 	}
 
 	root, err := field.NewFieldElement(actionsRoot.Bytes())

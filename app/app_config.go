@@ -7,6 +7,8 @@ import (
 	bridgemoduletypes "github.com/node101-io/pulsar-chain/x/bridge/types"
 	_ "github.com/node101-io/pulsar-chain/x/keyregistry/module"
 	keyregistrymoduletypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
+	_ "github.com/node101-io/pulsar-chain/x/verification/module"
+	verificationmoduletypes "github.com/node101-io/pulsar-chain/x/verification/types"
 	_ "github.com/node101-io/pulsar-chain/x/votepersistence/module"
 	votepersistencemoduletypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 
@@ -134,6 +136,7 @@ var (
 						// chain modules
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
+						verificationmoduletypes.ModuleName,
 					},
 					EndBlockers: []string{
 						govtypes.ModuleName,
@@ -143,6 +146,7 @@ var (
 						// chain modules
 						keyregistrymoduletypes.ModuleName,
 						votepersistencemoduletypes.ModuleName,
+						verificationmoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/endBlockers
 					},
 					// The following is mostly only needed when ModuleName != StoreKey name.
@@ -183,6 +187,7 @@ var (
 						// chain modules
 						votepersistencemoduletypes.ModuleName,
 						bridgemoduletypes.ModuleName,
+						verificationmoduletypes.ModuleName,
 						// this line is used by starport scaffolding # stargate/app/initGenesis
 					},
 				}),
@@ -290,6 +295,10 @@ var (
 			{
 				Name:   votepersistencemoduletypes.ModuleName,
 				Config: appconfig.WrapAny(&votepersistencemoduletypes.Module{}),
+			},
+			{
+				Name:   verificationmoduletypes.ModuleName,
+				Config: appconfig.WrapAny(&verificationmoduletypes.Module{}),
 			},
 			// this line is used by starport scaffolding # stargate/app/moduleConfig
 		},

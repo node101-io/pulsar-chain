@@ -399,6 +399,11 @@ primary_genesis_matches_expected() {
   actual_chain_id="$(read_genesis_chain_id "$PRIMARY_GENESIS_FILE" 2>/dev/null)" || return 1
   [[ "$actual_chain_id" == "$CHAIN_ID" ]] || return 1
 
+  python3 "$PYTHON_HELPER" verify-genesis-module-params \
+    --genesis "$PRIMARY_GENESIS_FILE" \
+    --config "$CHAIN_CONFIG_PATH" \
+    --module verification >/dev/null 2>&1 || return 1
+
   for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
     consensus_pub_key="$(read_consensus_pub_key "${NODE_HOMES[i]}/config/priv_validator_key.json" 2>/dev/null)" || return 1
     verify_keyregistry_args+=(--cosmos-key "$consensus_pub_key")
@@ -606,6 +611,12 @@ python3 "$PYTHON_HELPER" patch-bridge-genesis \
   --start-block-height "$BRIDGE_START_BLOCK_HEIGHT" \
   --max-block-range "$BRIDGE_MAX_BLOCK_RANGE" \
   --actions-reduced-root-snapshot-window-size "$BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE"
+
+echo "==> Setting verification genesis params..."
+python3 "$PYTHON_HELPER" sync-genesis-module-params \
+  --genesis "$PRIMARY_GENESIS_FILE" \
+  --config "$CHAIN_CONFIG_PATH" \
+  --module verification
 
 echo "==> Creating validator keys..."
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do

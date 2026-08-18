@@ -5,6 +5,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	verificationtypes "github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
 type StakingKeeper interface {
@@ -21,8 +22,13 @@ type KeyregistryKeeper interface {
 type VotePersistenceKeeper interface {
 	Clear(context.Context) error
 	SetVote(context.Context, int64, []byte, []byte) error
+	GetVote(context.Context, int64, []byte) ([]byte, error)
 }
 
 type BridgeKeeper interface {
 	GetActionsReducedRootAtHeight(context.Context, int64) ([]byte, error)
+}
+
+type VerificationKeeper interface {
+	GetProofHashesByBlockHeight(ctx context.Context, blockHeight int64) ([][]byte, []verificationtypes.ProofID, error)
 }

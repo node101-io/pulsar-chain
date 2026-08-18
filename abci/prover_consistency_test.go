@@ -67,7 +67,8 @@ func TestVoteExtSignatureMatchesFieldVerifierVector(t *testing.T) {
 		ActionsReducedRoot:   actionsReducedRoot,
 	}
 
-	signature, err := validators[0].secondaryKey.SignVoteExtBody(body)
+	proofCommitment := testProofCommitment()
+	signature, err := validators[0].secondaryKey.SignVoteExtension(body, proofCommitment)
 	require.NoError(t, err)
 	require.NotEmpty(t, signature)
 
@@ -78,6 +79,7 @@ func TestVoteExtSignatureMatchesFieldVerifierVector(t *testing.T) {
 		poseidonHash,
 		signature,
 		body,
+		proofCommitment,
 		validators[0].secondaryKey.PublicKey.Bytes(),
 		NetworkID,
 	)

@@ -1,0 +1,54 @@
+package verification
+
+import (
+	"math/rand"
+
+	"github.com/cosmos/cosmos-sdk/types/module"
+	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
+	"github.com/cosmos/cosmos-sdk/x/simulation"
+
+	verificationsimulation "github.com/node101-io/pulsar-chain/x/verification/simulation"
+	"github.com/node101-io/pulsar-chain/x/verification/types"
+)
+
+// GenerateGenesisState creates a randomized GenState of the module.
+func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
+	accs := make([]string, len(simState.Accounts))
+	for i, acc := range simState.Accounts {
+		accs[i] = acc.Address.String()
+	}
+	verificationGenesis := types.GenesisState{
+		Params: types.DefaultParams(),
+	}
+	simState.GenState[types.ModuleName] = simState.Cdc.MustMarshalJSON(&verificationGenesis)
+}
+
+// RegisterStoreDecoder registers a decoder.
+func (am AppModule) RegisterStoreDecoder(_ simtypes.StoreDecoderRegistry) {}
+
+// WeightedOperations returns the all the gov module operations with their respective weights.
+func (am AppModule) WeightedOperations(simState module.SimulationState) []simtypes.WeightedOperation {
+	operations := make([]simtypes.WeightedOperation, 0)
+	const (
+		opWeightMsgPushNewProofHash          = "op_weight_msg_verification"
+		defaultWeightMsgPushNewProofHash int = 100
+	)
+
+	var weightMsgPushNewProofHash int
+	simState.AppParams.GetOrGenerate(opWeightMsgPushNewProofHash, &weightMsgPushNewProofHash, nil,
+		func(_ *rand.Rand) {
+			weightMsgPushNewProofHash = defaultWeightMsgPushNewProofHash
+		},
+	)
+	operations = append(operations, simulation.NewWeightedOperation(
+		weightMsgPushNewProofHash,
+		verificationsimulation.SimulateMsgPushNewProofHash(am.authKeeper, am.bankKeeper, am.keeper, simState.TxConfig),
+	))
+
+	return operations
+}
+
+// ProposalMsgs returns msgs used for governance proposals for simulations.
+func (am AppModule) ProposalMsgs(simState module.SimulationState) []simtypes.WeightedProposalMsg {
+	return []simtypes.WeightedProposalMsg{}
+}

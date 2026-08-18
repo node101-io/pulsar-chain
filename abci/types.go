@@ -27,6 +27,12 @@ var voteExtMarkerBytes = []byte(VoteExtMarker)
 // the first height with both sides of that transition available.
 const MinPulsarVoteExtensionHeight int64 = 2
 
+const (
+	secretSaltLength      = 16
+	proofCommitmentLength = 16
+	secondaryHashLength   = 16
+)
+
 // For testing purposes only.
 const NetworkID mina.NetworkID = mina.TestNet
 
@@ -51,18 +57,26 @@ var (
 	ErrMissingKeyregistryKeeper     error = errors.New("missing keyregistry keeper")
 	ErrMissingVotePersistenceKeeper error = errors.New("missing vote persistence keeper")
 	ErrMissingBridgeKeeper          error = errors.New("missing bridge keeper")
+	ErrMissingVerificationKeeper    error = errors.New("missing verification keeper")
 
 	// Vote-extension signing and verification errors.
 	ErrVoteExtBodyHashFailed           error = errors.New("failed to hash vote extension body")
 	ErrVoteExtSigningFailed            error = errors.New("failed to sign vote extension body")
 	ErrVoteExtSignatureMarshalFailed   error = errors.New("failed to marshal vote extension signature")
 	ErrInvalidVoteExtMinaPublicKey     error = errors.New("invalid vote extension mina public key")
+	ErrInvalidVoteExtensionEncoding    error = errors.New("invalid vote extension encoding")
 	ErrInvalidVoteExtSignatureEncoding error = errors.New("invalid vote extension signature encoding")
 	ErrInvalidVoteExtSignature         error = errors.New("invalid vote extension signature")
+	ErrInvalidProofCommitment          error = errors.New("invalid proof commitment")
 
 	// Validator-set root construction errors.
 	ErrValidatorMinaKeyNotFound   error = errors.New("validator mina key not found")
 	ErrValidatorSetRootHashFailed error = errors.New("failed to hash validator set root")
+
+	ErrRevealNotFound                 error = errors.New("reveal not found")
+	ErrInvalidReveal                  error = errors.New("invalid reveal")
+	ErrInvalidLengthForSecondLeafHash error = errors.New("invalid length for second leaf hash")
+	ErrInvalıdLengthForSalt           error = errors.New("invalid length for salt")
 )
 
 func shouldExtendVoteAtHeight(ctx sdk.Context, height int64) (bool, error) {
