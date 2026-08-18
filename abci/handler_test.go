@@ -6,6 +6,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	verificationtypes "github.com/node101-io/pulsar-chain/x/verification/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -242,6 +243,6 @@ type testVerificationKeeper struct{}
 func (testVerificationKeeper) GetProofHashesByBlockHeight(
 	context.Context,
 	int64,
-) ([][]byte, []int64, error) {
+) ([][]byte, []verificationtypes.ProofID, error) {
 	return nil, nil, nil
 }

@@ -88,7 +88,7 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx sdk.Context) ([]by
 
 		if isFirstBlock {
 			commitment := verificationTypes.ProofCommitment{
-				ProofIndex:   firstBlockProofIndexes[i],
+				ProofId:      &firstBlockProofIndexes[i],
 				IsProofValid: verifiedProofs[i],
 			}
 
@@ -104,7 +104,7 @@ func (h *ABCIHandler) GenerateCommitmentForVerifiedProofs(ctx sdk.Context) ([]by
 
 		} else {
 			commitment := verificationTypes.ProofCommitment{
-				ProofIndex:   secondBlockProofIndexes[i-numberOfProofHashesFirstBlock],
+				ProofId:      &secondBlockProofIndexes[i-numberOfProofHashesFirstBlock],
 				IsProofValid: verifiedProofs[i],
 			}
 
