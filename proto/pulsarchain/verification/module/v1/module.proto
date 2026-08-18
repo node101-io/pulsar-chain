@@ -1,0 +1,13 @@
+syntax = "proto3";
+package pulsarchain.verification.module.v1;
+
+import "cosmos/app/v1alpha1/module.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/verification/types";
+
+// Module configures the verification module for app wiring.
+message Module {
+  option (cosmos.app.v1alpha1.module) = {go_import: "github.com/node101-io/pulsar-chain/x/verification/module"};
+
+  string authority = 1;
+}

@@ -25,10 +25,23 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, nil
 		}
 
-		cosmosValidatorPubKey, err := h.getConsPubKeyByConsAddr(ctx, req.ValidatorAddress)
+		composite, err := decodeCompositeVoteExtension(req.VoteExtension)
+		if err != nil {
+			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, nil
+		}
+		if err := validateVerificationPayloadStructure(composite.VerificationPayload, uint64(req.GetHeight()+1)); err != nil {
+			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, nil
+		}
+
+		validator, err := h.getValidatorByConsAddrAtHeight(ctx, req.GetHeight(), req.ValidatorAddress)
 		if err != nil {
 			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
 		}
+		consensusPublicKey, err := validator.ConsPubKey()
+		if err != nil {
+			return &cometabci.ResponseVerifyVoteExtension{Status: cometabci.ResponseVerifyVoteExtension_REJECT}, err
+		}
+		cosmosValidatorPubKey := consensusPublicKey.Bytes()
 
 		exists, err := h.keyregistryKeeper.ValidatorCosmosToMinaHas(ctx, cosmosValidatorPubKey)
 		if err != nil {
@@ -50,7 +63,7 @@ func (h *ABCIHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtensionHandle
 		}
 		poseidonHash := poseidon.NewPoseidon()
 
-		if err := verifyVoteExtSig(poseidonHash, req.VoteExtension, body, minaKey, h.networkID); err != nil {
+		if err := verifyVoteExtSig(poseidonHash, composite.TransitionSignature, body, minaKey, h.networkID); err != nil {
 			if errors.Is(err, keyregistryTypes.ErrValidatorNotRegistered) ||
 				errors.Is(err, ErrInvalidVoteExtSignatureEncoding) ||
 				errors.Is(err, ErrInvalidVoteExtSignature) {

@@ -1,10 +1,16 @@
 package abci
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/bronlabs/bron-crypto/pkg/signatures/schnorrlike/mina"
+	verificationvalidator "github.com/node101-io/pulsar-chain/x/verification/validator"
 )
+
+type VerificationPayloadBuilder interface {
+	Build(context.Context, verificationvalidator.Identity, uint64) verificationvalidator.BuildOutcome
+}
 
 type ABCIHandler struct {
 	secondaryKey          SecondaryKey
@@ -13,6 +19,8 @@ type ABCIHandler struct {
 	votePersistenceKeeper VotePersistenceKeeper
 	networkID             mina.NetworkID
 	bridgeKeeper          BridgeKeeper
+	verificationKeeper    VerificationKeeper
+	verificationBuilder   VerificationPayloadBuilder
 }
 
 func NewABCIHandler(
@@ -22,6 +30,8 @@ func NewABCIHandler(
 	votepersistenceKeeper VotePersistenceKeeper,
 	networkId mina.NetworkID,
 	bridgeKeeper BridgeKeeper,
+	verificationKeeper VerificationKeeper,
+	verificationBuilder VerificationPayloadBuilder,
 ) (*ABCIHandler, error) {
 	if err := secondaryKey.Validate(); err != nil {
 		return nil, err
@@ -38,7 +48,6 @@ func NewABCIHandler(
 	if isNilDependency(bridgeKeeper) {
 		return nil, ErrMissingBridgeKeeper
 	}
-
 	return &ABCIHandler{
 		secondaryKey:          secondaryKey,
 		stakingKeeper:         stakingKeeper,
@@ -46,6 +55,8 @@ func NewABCIHandler(
 		votePersistenceKeeper: votepersistenceKeeper,
 		networkID:             networkId,
 		bridgeKeeper:          bridgeKeeper,
+		verificationKeeper:    verificationKeeper,
+		verificationBuilder:   verificationBuilder,
 	}, nil
 }
 

@@ -3,6 +3,7 @@ package abci
 import (
 	"bytes"
 	"fmt"
+	"sort"
 
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -17,6 +18,11 @@ func extractPayload(txs [][]byte) (Payload, bool, error) {
 
 	if len(txs) == 0 {
 		return Payload{}, false, nil
+	}
+	for _, tx := range txs[1:] {
+		if bytes.HasPrefix(tx, voteExtMarkerBytes) {
+			return Payload{}, true, ErrInvalidPayload
+		}
 	}
 
 	if !bytes.HasPrefix(txs[0], voteExtMarkerBytes) {
@@ -49,11 +55,11 @@ func validatePayloadHeight(pl Payload, expectedHeight int64) error {
 // LocalLastCommit.Votes. CometBFT builds that list with one slot per validator
 // index; duplicate handling for proposer-supplied payload bytes belongs in the
 // payload validation path, not in this construction path.
-func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
+func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, round int32, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
 
 	var voteExtsForGivenBlock []*PayloadVoteExtension
+	var verificationEntries []*PayloadVerificationEntry
 
-	currentValidatorSetMap := make(map[string]bool)
 	// A proposal at height P carries the vote extensions produced by consensus
 	// for height P-1. The payload height records that consensus production height,
 	// not the proposal height and not the signed state height inside the body.
@@ -65,20 +71,15 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, vo
 	if err != nil {
 		return Payload{}, err
 	}
-
-	for _, currentValidator := range currentValidatorSet {
-
-		consAddr, err := currentValidator.GetConsAddr()
-		if err != nil {
-			continue
-		}
-
-		currentValidatorSetMap[string(consAddr)] = true
+	currentValidatorSetMap, err := validatorSetByConsensusAddress(currentValidatorSet)
+	if err != nil {
+		return Payload{}, err
 	}
 
 	for _, vote := range voteExtensions {
 
-		if !currentValidatorSetMap[string(vote.Validator.Address)] {
+		validator, eligible := currentValidatorSetMap[string(vote.Validator.Address)]
+		if !eligible {
 			continue
 		}
 
@@ -90,14 +91,43 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, vo
 			continue
 		}
 
-		cosmosValidatorPubKey, err := h.getConsPubKeyByConsAddr(ctx, vote.Validator.Address)
+		composite, err := decodeCompositeVoteExtension(vote.VoteExtension)
+		if err != nil {
+			continue
+		}
+		consensusPublicKey, err := validator.ConsPubKey()
 		if err != nil {
 			return Payload{}, err
 		}
+		cosmosValidatorPubKey := consensusPublicKey.Bytes()
 
 		voteExtsForGivenBlock = append(voteExtsForGivenBlock, &PayloadVoteExtension{
 			ConsensusPublicKey: cosmosValidatorPubKey,
-			VoteExtension:      vote.VoteExtension,
+			VoteExtension:      composite.TransitionSignature,
+		})
+
+		verificationPayload := composite.VerificationPayload
+		if verificationPayload == nil || h.verificationKeeper == nil {
+			continue
+		}
+		if err := validateVerificationPayloadStructure(verificationPayload, uint64(proposalHeight)); err != nil {
+			continue
+		}
+		operator, err := sdk.ValAddressFromBech32(validator.GetOperator())
+		if err != nil {
+			continue
+		}
+		if err := h.verificationKeeper.ValidateVerificationPayload(
+			ctx, operator, uint64(proposalHeight), verificationPayload.Commitment, verificationPayload.Revelations,
+		); err != nil {
+			continue
+		}
+		verificationEntries = append(verificationEntries, &PayloadVerificationEntry{
+			ValidatorAddress:       append([]byte(nil), vote.Validator.Address...),
+			SourceHeight:           voteExtensionHeight,
+			Round:                  round,
+			CompositeVoteExtension: append([]byte(nil), vote.VoteExtension...),
+			ExtensionSignature:     append([]byte(nil), vote.ExtensionSignature...),
 		})
 	}
 
@@ -105,5 +135,13 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, vo
 		return Payload{}, ErrNoVoteExtensionsForPayload
 	}
 
-	return Payload{VoteExtensionHeight: voteExtensionHeight, VoteExtensions: voteExtsForGivenBlock}, nil
+	sort.Slice(verificationEntries, func(i, j int) bool {
+		return bytes.Compare(verificationEntries[i].ValidatorAddress, verificationEntries[j].ValidatorAddress) < 0
+	})
+
+	return Payload{
+		VoteExtensionHeight: voteExtensionHeight,
+		VoteExtensions:      voteExtsForGivenBlock,
+		VerificationEntries: verificationEntries,
+	}, nil
 }

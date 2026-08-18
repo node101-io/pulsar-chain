@@ -87,6 +87,22 @@ func sortValidatorsByPower(validators []stakingTypes.ValidatorI) error {
 	return nil
 }
 
+func validatorSetByConsensusAddress(validators []stakingTypes.ValidatorI) (map[string]stakingTypes.ValidatorI, error) {
+	indexed := make(map[string]stakingTypes.ValidatorI, len(validators))
+	for _, validator := range validators {
+		consAddr, err := validator.GetConsAddr()
+		if err != nil {
+			return nil, err
+		}
+		key := string(consAddr)
+		if _, duplicate := indexed[key]; duplicate {
+			return nil, ErrInvalidPayload
+		}
+		indexed[key] = validator
+	}
+	return indexed, nil
+}
+
 func (h *ABCIHandler) calculateValidatorSetRoot(ctx sdk.Context, valInfo []stakingTypes.ValidatorI, poseidonHash *poseidon.Poseidon) ([]byte, error) {
 	if poseidonHash == nil {
 		return nil, ErrValidatorSetRootHashFailed
@@ -208,4 +224,26 @@ func (h *ABCIHandler) getConsPubKeyByConsAddr(ctx sdk.Context, validatorAddr []b
 	}
 
 	return cosmosValidatorPubKey.Bytes(), nil
+}
+
+func (h *ABCIHandler) getValidatorByConsAddrAtHeight(
+	ctx sdk.Context,
+	height int64,
+	validatorAddr []byte,
+) (stakingTypes.ValidatorI, error) {
+	validators, err := h.getValidatorSet(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	for _, validator := range validators {
+		consAddr, err := validator.GetConsAddr()
+		if err != nil {
+			return nil, err
+		}
+		if bytes.Equal(consAddr, validatorAddr) {
+			return validator, nil
+		}
+	}
+
+	return nil, fmt.Errorf("validator %X is not in validator set at height %d", validatorAddr, height)
 }

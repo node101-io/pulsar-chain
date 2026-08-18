@@ -21,6 +21,11 @@ lint:
         - SERVICE_SUFFIX
     ignore:
         - proto/tendermint
+    ignore_only:
+        ENUM_ZERO_VALUE_SUFFIX:
+            - proto/pulsarchain/verification/v1/types.proto
+        RPC_REQUEST_RESPONSE_UNIQUE:
+            - proto/pulsarchain/verification/v1/query.proto
     use:
         - COMMENTS
         - STANDARD

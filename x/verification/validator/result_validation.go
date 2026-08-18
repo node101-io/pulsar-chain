@@ -1,0 +1,103 @@
+package validator
+
+import (
+	"bytes"
+	"fmt"
+	"sort"
+
+	"github.com/node101-io/pulsar-chain/x/verification/sidecar"
+	verificationtypes "github.com/node101-io/pulsar-chain/x/verification/types"
+)
+
+type requestedProof struct {
+	height uint64
+	index  uint32
+}
+
+func buildResultRequest(
+	leftHeight, rightHeight uint64,
+	leftProofs, rightProofs []verificationtypes.ProofEntry,
+	excludedLeft map[uint32]struct{},
+) ([][]byte, map[string]requestedProof, error) {
+	capacity := len(leftProofs) + len(rightProofs)
+	if capacity > verificationtypes.MaxVoteIndexExclusive*2 {
+		return nil, nil, verificationtypes.ErrTooManyVotes
+	}
+	request := make([][]byte, 0, capacity)
+	index := make(map[string]requestedProof, capacity)
+	appendProofs := func(expectedHeight uint64, proofs []verificationtypes.ProofEntry, excluded map[uint32]struct{}) error {
+		for _, proof := range proofs {
+			if proof.Key.SubmissionHeight != expectedHeight || proof.Key.IndexInBlock >= verificationtypes.MaxVoteIndexExclusive ||
+				len(proof.Record.ProofHash) != verificationtypes.ProofHashSize {
+				return verificationtypes.ErrProofStateCorrupted
+			}
+			if _, skip := excluded[proof.Key.IndexInBlock]; skip {
+				continue
+			}
+			key := string(proof.Record.ProofHash)
+			if _, duplicate := index[key]; duplicate {
+				return verificationtypes.ErrProofStateCorrupted
+			}
+			index[key] = requestedProof{height: expectedHeight, index: proof.Key.IndexInBlock}
+			request = append(request, bytes.Clone(proof.Record.ProofHash))
+		}
+		return nil
+	}
+	if err := appendProofs(leftHeight, leftProofs, excludedLeft); err != nil {
+		return nil, nil, err
+	}
+	if err := appendProofs(rightHeight, rightProofs, nil); err != nil {
+		return nil, nil, err
+	}
+	return request, index, nil
+}
+
+func validateResults(
+	requested map[string]requestedProof,
+	results []sidecar.VerificationResult,
+	leftHeight uint64,
+) ([]verificationtypes.ProofVote, []verificationtypes.ProofVote, error) {
+	if len(results) > len(requested) {
+		return nil, nil, fmt.Errorf("sidecar returned more results than requested")
+	}
+	seen := make(map[string]struct{}, len(results))
+	leftVotes := make([]verificationtypes.ProofVote, 0, len(results))
+	rightVotes := make([]verificationtypes.ProofVote, 0, len(results))
+	for _, result := range results {
+		if len(result.ProofHash) != verificationtypes.ProofHashSize {
+			return nil, nil, verificationtypes.ErrInvalidProofHash
+		}
+		key := string(result.ProofHash)
+		proof, ok := requested[key]
+		if !ok {
+			return nil, nil, fmt.Errorf("sidecar returned an unrequested proof hash")
+		}
+		if _, duplicate := seen[key]; duplicate {
+			return nil, nil, fmt.Errorf("sidecar returned a duplicate proof hash")
+		}
+		seen[key] = struct{}{}
+		vote := verificationtypes.ProofVote{IndexInBlock: proof.index}
+		switch result.Result {
+		case sidecar.ResultValid:
+			vote.Result = true
+		case sidecar.ResultInvalid:
+			vote.Result = false
+		default:
+			return nil, nil, fmt.Errorf("sidecar returned an unspecified verification result")
+		}
+		if proof.height == leftHeight {
+			leftVotes = append(leftVotes, vote)
+		} else {
+			rightVotes = append(rightVotes, vote)
+		}
+	}
+	sort.Slice(leftVotes, func(i, j int) bool { return leftVotes[i].IndexInBlock < leftVotes[j].IndexInBlock })
+	sort.Slice(rightVotes, func(i, j int) bool { return rightVotes[i].IndexInBlock < rightVotes[j].IndexInBlock })
+	if err := verificationtypes.ValidateCanonicalVotes(leftVotes); err != nil {
+		return nil, nil, err
+	}
+	if err := verificationtypes.ValidateCanonicalVotes(rightVotes); err != nil {
+		return nil, nil, err
+	}
+	return leftVotes, rightVotes, nil
+}

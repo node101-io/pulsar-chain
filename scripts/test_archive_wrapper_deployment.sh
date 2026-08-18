@@ -420,4 +420,16 @@ for validator in validator1 validator2 validator3; do
   validator_health "$validator" >/dev/null
 done
 
+declare -a latest_heights
+for index in 1 2 3; do
+  status_file="$TMP_DIR/status-${index}.json"
+  curl -fsS "http://127.0.0.1:${HOST_RPC_PORTS[index]}/status" >"$status_file"
+  latest_heights[index]="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" \
+    json-value --input "$status_file" --path result.sync_info.latest_block_height)"
+  compose exec -T "validator${index}" test ! -e \
+    "/testnet/.pulsar-node${index}/data/verification_commitment_state.json"
+done
+
+echo "${MODE} E2E evidence: tx_height=${TX_HEIGHT} app_hash=${APP_HASH_1} latest_heights=${latest_heights[1]},${latest_heights[2]},${latest_heights[3]} validators=healthy verification_sidecar=noop verification_local_state=absent"
+
 echo "$MODE archive-wrapper deployment E2E passed"

@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewABCIHandlerValidatesSecondaryKey(t *testing.T) {
-	handler, err := NewABCIHandler(SecondaryKey{}, testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID, testBridgeKeeper{})
+	handler, err := NewABCIHandler(SecondaryKey{}, testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID, testBridgeKeeper{}, nil, nil)
 
 	require.Nil(t, handler)
 	require.ErrorIs(t, err, ErrMissingSecondaryKey)
@@ -63,7 +63,7 @@ func TestNewABCIHandlerValidatesKeeperDependencies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID, tt.bridgeKeeper)
+			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID, tt.bridgeKeeper, nil, nil)
 
 			require.Nil(t, handler)
 			require.ErrorIs(t, err, tt.expectedErr)
@@ -122,7 +122,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID, tt.bridgeKeeper)
+			handler, err := NewABCIHandler(secondaryKey, tt.stakingKeeper, tt.keyregistryKeeper, tt.votePersistenceKeeper, NetworkID, tt.bridgeKeeper, nil, nil)
 			require.Nil(t, handler)
 			require.ErrorIs(t, err, tt.expectedErr)
 		})
@@ -130,7 +130,7 @@ func TestNewABCIHandlerRejectsTypedNilKeeperDependencies(t *testing.T) {
 }
 
 func TestNewABCIHandlerSuccess(t *testing.T) {
-	handler, err := NewABCIHandler(validSecondaryKey(), testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID, testBridgeKeeper{})
+	handler, err := NewABCIHandler(validSecondaryKey(), testStakingKeeper{}, testKeyregistryKeeper{}, testVotePersistenceKeeper{}, NetworkID, testBridgeKeeper{}, nil, nil)
 
 	require.NoError(t, err)
 	require.NotNil(t, handler)

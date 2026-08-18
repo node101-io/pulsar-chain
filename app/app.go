@@ -58,6 +58,7 @@ import (
 	"github.com/node101-io/pulsar-chain/docs"
 	bridge "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
+	verificationmodulekeeper "github.com/node101-io/pulsar-chain/x/verification/keeper"
 	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 	"google.golang.org/grpc/health"
 	grpcHealthV1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -118,6 +119,7 @@ type App struct {
 	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
 	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
 	BridgeKeeper          bridge.Keeper
+	VerificationKeeper    verificationmodulekeeper.Keeper
 
 	ABCIHandler                *abcihandler.ABCIHandler
 	BridgeArchiveWrapperClient *bridge.ArchiveWrapperClient
@@ -210,6 +212,7 @@ func New(
 		&app.KeyregistryKeeper,
 		&app.VotepersistenceKeeper,
 		&app.BridgeKeeper,
+		&app.VerificationKeeper,
 		&app.BridgeArchiveWrapperClient,
 	); err != nil {
 		panic(err)
@@ -229,6 +232,11 @@ func New(
 		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))
 	}
 
+	verificationBuilder, verificationBuilderErr := newVerificationBuilder(appOpts, app.VerificationKeeper)
+	if verificationBuilderErr != nil {
+		logger.Error("verification local runtime disabled", "error", verificationBuilderErr)
+	}
+
 	app.ABCIHandler, err = abcihandler.NewABCIHandler(
 		secondaryKey,
 		app.StakingKeeper,
@@ -236,6 +244,8 @@ func New(
 		app.VotepersistenceKeeper,
 		minaNetworkID,
 		app.BridgeKeeper,
+		app.VerificationKeeper,
+		verificationBuilder,
 	)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize ABCI handler: %v", err))
@@ -274,7 +284,20 @@ func New(
 	app.SetVerifyVoteExtensionHandler(app.ABCIHandler.VerifyVoteExtensionHandler())
 	app.SetPrepareProposal(app.ABCIHandler.PrepareProposalHandler())
 	app.SetProcessProposal(app.ABCIHandler.ProcessProposalHandler())
-	app.SetPreBlocker(app.ABCIHandler.PreBlocker())
+	runtimePreBlocker := app.App.PreBlocker
+	verificationPreBlocker := app.ABCIHandler.PreBlocker()
+	app.SetPreBlocker(func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+		cacheCtx, write := ctx.CacheContext()
+		response, err := runtimePreBlocker(cacheCtx, req)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := verificationPreBlocker(cacheCtx, req); err != nil {
+			return nil, err
+		}
+		write()
+		return response, nil
+	})
 	abcihandler.RegisterQueryServer(app.GRPCQueryRouter(), app.ABCIHandler)
 
 	// register legacy modules

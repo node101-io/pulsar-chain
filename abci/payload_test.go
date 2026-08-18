@@ -29,6 +29,17 @@ func TestExtractPayloadRejectsInvalidPayloadBody(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidPayload)
 }
 
+func TestExtractPayloadRejectsReservedMarkerOutsideFirstSlot(t *testing.T) {
+	valid := markedPayloadTx(t, Payload{VoteExtensionHeight: 9})
+	_, found, err := extractPayload([][]byte{valid, []byte("user-tx"), valid})
+	require.True(t, found)
+	require.ErrorIs(t, err, ErrInvalidPayload)
+
+	_, found, err = extractPayload([][]byte{[]byte("user-tx"), valid})
+	require.True(t, found)
+	require.ErrorIs(t, err, ErrInvalidPayload)
+}
+
 func TestExtractPayloadPreservesConsensusPublicKeyBytes(t *testing.T) {
 	expected := Payload{
 		VoteExtensionHeight: 12,

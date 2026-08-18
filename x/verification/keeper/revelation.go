@@ -1,0 +1,368 @@
+package keeper
+
+import (
+	"bytes"
+	"context"
+	"math"
+	"strconv"
+
+	errorsmod "cosmossdk.io/errors"
+	"github.com/cosmos/cosmos-sdk/telemetry"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/node101-io/pulsar-chain/x/verification/types"
+)
+
+type PlannedLeafVotes struct {
+	ProofHeight uint64
+	Votes       []types.ProofVote
+}
+
+type RevelationPlan struct {
+	Validator        []byte
+	CommitmentHeight uint64
+	EffectiveLeaves  []PlannedLeafVotes
+}
+
+type proofID struct {
+	height uint64
+	index  uint32
+}
+
+type voteID struct {
+	proof     proofID
+	validator string
+}
+
+type plannedEvent struct {
+	equivocation     bool
+	validator        []byte
+	commitmentHeight uint64
+	proof            proofID
+}
+
+type ValidatedRevelationBatch struct {
+	votes      map[voteID]types.VoteState
+	voteOrder  []voteID
+	tallies    map[proofID]types.ProofTally
+	tallyOrder []proofID
+	events     []plannedEvent
+}
+
+func (k Keeper) ValidateCommitmentRevelation(
+	ctx context.Context,
+	validator []byte,
+	currentHeight uint64,
+	revelation types.CommitmentRevelation,
+) (RevelationPlan, error) {
+	plan := RevelationPlan{
+		Validator:        append([]byte(nil), validator...),
+		CommitmentHeight: revelation.CommitmentHeight,
+	}
+	if err := types.ValidateRevelationCommitmentHeight(currentHeight, revelation.CommitmentHeight); err != nil {
+		return plan, err
+	}
+	commitmentKey := types.NewCommitmentStoreKey(validator, revelation.CommitmentHeight)
+	exists, err := k.Commitments.Has(ctx, commitmentKey)
+	if err != nil {
+		return plan, err
+	}
+	if !exists {
+		return plan, types.ErrCommitmentNotFound
+	}
+	stored, err := k.Commitments.Get(ctx, commitmentKey)
+	if err != nil {
+		return plan, err
+	}
+	if len(stored) != types.CommitmentHashSize {
+		return plan, types.ErrProofStateCorrupted
+	}
+
+	leftHeight, rightHeight, err := types.CommitmentProofHeights(revelation.CommitmentHeight)
+	if err != nil {
+		return plan, err
+	}
+	leftHash, leftVotes, leftCounts, err := processLeafRevelation(currentHeight, leftHeight, revelation.Left)
+	if err != nil {
+		return plan, err
+	}
+	rightHash, rightVotes, rightCounts, err := processLeafRevelation(currentHeight, rightHeight, revelation.Right)
+	if err != nil {
+		return plan, err
+	}
+	if revelation.Left.Mode == types.LeafRevealMode_LEAF_REVEAL_MODE_HASH_ONLY &&
+		revelation.Right.Mode == types.LeafRevealMode_LEAF_REVEAL_MODE_HASH_ONLY {
+		return plan, types.ErrUselessRevelation
+	}
+	root := types.ComputeCommitmentRoot(leftHash, rightHash)
+	if !bytes.Equal(root[:], stored) {
+		return plan, types.ErrCommitmentMismatch
+	}
+
+	if leftCounts && len(leftVotes) > 0 {
+		plan.EffectiveLeaves = append(plan.EffectiveLeaves, PlannedLeafVotes{ProofHeight: leftHeight, Votes: leftVotes})
+	}
+	if rightCounts && len(rightVotes) > 0 {
+		plan.EffectiveLeaves = append(plan.EffectiveLeaves, PlannedLeafVotes{ProofHeight: rightHeight, Votes: rightVotes})
+	}
+
+	return plan, nil
+}
+
+func processLeafRevelation(
+	currentHeight uint64,
+	proofHeight uint64,
+	revelation types.LeafRevelation,
+) ([types.LeafHashSize]byte, []types.ProofVote, bool, error) {
+	var empty [types.LeafHashSize]byte
+	switch revelation.Mode {
+	case types.LeafRevealMode_LEAF_REVEAL_MODE_HASH_ONLY:
+		leafHash := revelation.GetLeafHash()
+		if len(leafHash) != types.LeafHashSize {
+			return empty, nil, false, types.ErrInvalidLeafHashLength
+		}
+		var out [types.LeafHashSize]byte
+		copy(out[:], leafHash)
+		return out, nil, false, nil
+
+	case types.LeafRevealMode_LEAF_REVEAL_MODE_VALUE:
+		if types.GetLeafTiming(currentHeight, proofHeight) == types.LeafTooEarly {
+			return empty, nil, false, types.ErrEarlyReveal
+		}
+		value := revelation.GetValue()
+		if value == nil {
+			return empty, nil, false, types.ErrInvalidLeafRevealMode
+		}
+		if len(value.Salt) != types.SaltSize {
+			return empty, nil, false, types.ErrInvalidSaltLength
+		}
+		if err := types.ValidateCanonicalVotes(value.Votes); err != nil {
+			return empty, nil, false, err
+		}
+		leafHash, err := types.ComputeLeafHash(value.Salt, value.Votes)
+		if err != nil {
+			return empty, nil, false, err
+		}
+		votes := append([]types.ProofVote(nil), value.Votes...)
+		return leafHash, votes, types.GetLeafTiming(currentHeight, proofHeight) == types.LeafActive, nil
+
+	default:
+		return empty, nil, false, types.ErrInvalidLeafRevealMode
+	}
+}
+
+func (k Keeper) ValidateRevelationPlans(ctx context.Context, plans []RevelationPlan) (ValidatedRevelationBatch, error) {
+	batch := ValidatedRevelationBatch{
+		votes:   make(map[voteID]types.VoteState),
+		tallies: make(map[proofID]types.ProofTally),
+	}
+	for _, plan := range plans {
+		for _, leaf := range plan.EffectiveLeaves {
+			if err := k.validateVotes(ctx, plan.Validator, leaf.ProofHeight, leaf.Votes); err != nil {
+				return ValidatedRevelationBatch{}, err
+			}
+			for _, vote := range leaf.Votes {
+				if err := k.stageVote(ctx, &batch, plan.Validator, leaf.ProofHeight, vote); err != nil {
+					return ValidatedRevelationBatch{}, err
+				}
+			}
+		}
+		batch.events = append(batch.events, plannedEvent{
+			validator:        append([]byte(nil), plan.Validator...),
+			commitmentHeight: plan.CommitmentHeight,
+		})
+	}
+
+	return batch, nil
+}
+
+func (k Keeper) validateVotes(ctx context.Context, validator []byte, proofHeight uint64, votes []types.ProofVote) error {
+	eligible, err := k.IsValidatorEligible(ctx, proofHeight, validator)
+	if err != nil {
+		return err
+	}
+	if !eligible {
+		return types.ErrInvalidValidator
+	}
+	found, err := k.ProofCountByHeight.Has(ctx, proofHeight)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return types.ErrProofHeightNotFound
+	}
+	proofCount, err := k.ProofCountByHeight.Get(ctx, proofHeight)
+	if err != nil {
+		return err
+	}
+	for _, vote := range votes {
+		if vote.IndexInBlock >= proofCount {
+			return types.ErrProofNotFound
+		}
+		exists, err := k.PendingProofs.Has(ctx, types.NewProofStoreKey(proofHeight, vote.IndexInBlock))
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return types.ErrProofNotFound
+		}
+	}
+
+	return nil
+}
+
+func (k Keeper) stageVote(
+	ctx context.Context,
+	batch *ValidatedRevelationBatch,
+	validator []byte,
+	proofHeight uint64,
+	vote types.ProofVote,
+) error {
+	proof := proofID{height: proofHeight, index: vote.IndexInBlock}
+	key := voteID{proof: proof, validator: string(validator)}
+	existing, ok := batch.votes[key]
+	if !ok {
+		stored, err := k.loadVote(ctx, key)
+		if err != nil {
+			return err
+		}
+		existing = stored
+	}
+	tally, ok := batch.tallies[proof]
+	if !ok {
+		stored, err := k.ProofTallies.Get(ctx, types.NewProofStoreKey(proof.height, proof.index))
+		if err != nil {
+			return errorsmod.Wrap(types.ErrProofStateCorrupted, "missing proof tally")
+		}
+		tally = stored
+	}
+
+	incoming := types.VoteState_VOTE_STATE_FALSE
+	if vote.Result {
+		incoming = types.VoteState_VOTE_STATE_TRUE
+	}
+	newState := existing
+	changed := false
+	switch existing {
+	case types.VoteState_VOTE_STATE_NONE:
+		newState = incoming
+		changed = true
+		if incoming == types.VoteState_VOTE_STATE_TRUE {
+			if tally.TrueVotes == math.MaxUint32 {
+				return types.ErrProofStateCorrupted
+			}
+			tally.TrueVotes++
+		} else {
+			if tally.FalseVotes == math.MaxUint32 {
+				return types.ErrProofStateCorrupted
+			}
+			tally.FalseVotes++
+		}
+	case types.VoteState_VOTE_STATE_TRUE:
+		if incoming != existing {
+			if tally.TrueVotes == 0 {
+				return types.ErrProofStateCorrupted
+			}
+			tally.TrueVotes--
+			newState = types.VoteState_VOTE_STATE_EQUIVOCATED
+			changed = true
+			batch.events = append(batch.events, plannedEvent{equivocation: true, validator: append([]byte(nil), validator...), proof: proof})
+		}
+	case types.VoteState_VOTE_STATE_FALSE:
+		if incoming != existing {
+			if tally.FalseVotes == 0 {
+				return types.ErrProofStateCorrupted
+			}
+			tally.FalseVotes--
+			newState = types.VoteState_VOTE_STATE_EQUIVOCATED
+			changed = true
+			batch.events = append(batch.events, plannedEvent{equivocation: true, validator: append([]byte(nil), validator...), proof: proof})
+		}
+	case types.VoteState_VOTE_STATE_EQUIVOCATED:
+		return nil
+	default:
+		return types.ErrProofStateCorrupted
+	}
+
+	if changed {
+		if _, seen := batch.votes[key]; !seen {
+			batch.voteOrder = append(batch.voteOrder, key)
+		}
+		if _, seen := batch.tallies[proof]; !seen {
+			batch.tallyOrder = append(batch.tallyOrder, proof)
+		}
+		batch.votes[key] = newState
+		batch.tallies[proof] = tally
+	}
+
+	return nil
+}
+
+func (k Keeper) loadVote(ctx context.Context, key voteID) (types.VoteState, error) {
+	storeKey := types.NewVerificationVoteStoreKey(key.proof.height, key.proof.index, []byte(key.validator))
+	exists, err := k.VerificationVotes.Has(ctx, storeKey)
+	if err != nil || !exists {
+		return types.VoteState_VOTE_STATE_NONE, err
+	}
+	value, err := k.VerificationVotes.Get(ctx, storeKey)
+	if err != nil {
+		return types.VoteState_VOTE_STATE_NONE, err
+	}
+	state := types.VoteState(value)
+	if state < types.VoteState_VOTE_STATE_NONE || state > types.VoteState_VOTE_STATE_EQUIVOCATED {
+		return types.VoteState_VOTE_STATE_NONE, types.ErrProofStateCorrupted
+	}
+
+	return state, nil
+}
+
+func (k Keeper) ApplyRevelationPlans(ctx context.Context, batch ValidatedRevelationBatch) error {
+	for _, key := range batch.voteOrder {
+		state := batch.votes[key]
+		if err := k.VerificationVotes.Set(ctx,
+			types.NewVerificationVoteStoreKey(key.proof.height, key.proof.index, []byte(key.validator)),
+			uint32(state),
+		); err != nil {
+			return err
+		}
+	}
+	for _, proof := range batch.tallyOrder {
+		if err := k.ProofTallies.Set(ctx, types.NewProofStoreKey(proof.height, proof.index), batch.tallies[proof]); err != nil {
+			return err
+		}
+	}
+
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	validatorCodec := k.stakingKeeper.ValidatorAddressCodec()
+	var revelationCount, equivocationCount float32
+	for _, event := range batch.events {
+		validator, err := validatorCodec.BytesToString(event.validator)
+		if err != nil {
+			return err
+		}
+		if event.equivocation {
+			equivocationCount++
+			sdkCtx.EventManager().EmitEvent(sdk.NewEvent(
+				types.EventTypeValidatorEquivocated,
+				sdk.NewAttribute(types.AttributeKeyValidator, validator),
+				sdk.NewAttribute(types.AttributeKeyProofHeight, strconv.FormatUint(event.proof.height, 10)),
+				sdk.NewAttribute(types.AttributeKeyProofIndex, strconv.FormatUint(uint64(event.proof.index), 10)),
+			))
+			continue
+		}
+		revelationCount++
+		sdkCtx.EventManager().EmitEvent(sdk.NewEvent(
+			types.EventTypeCommitmentRevealed,
+			sdk.NewAttribute(types.AttributeKeyValidator, validator),
+			sdk.NewAttribute(types.AttributeKeyCommitmentHeight, strconv.FormatUint(event.commitmentHeight, 10)),
+		))
+	}
+	if revelationCount > 0 {
+		telemetry.IncrCounter(revelationCount, types.ModuleName, "revelation", "accepted")
+	}
+	if equivocationCount > 0 {
+		telemetry.IncrCounter(equivocationCount, types.ModuleName, "revelation", "equivocation")
+	}
+
+	return nil
+}

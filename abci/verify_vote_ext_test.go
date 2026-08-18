@@ -94,7 +94,7 @@ func TestVerifyVoteExtensionRejectsSignatureMismatchWithoutError(t *testing.T) {
 	handler, ctx, req := newValidVerifyVoteExtensionTestCase(t)
 	signature, err := req.secondaryKey.SignVoteExtBody(validVoteExtBody())
 	require.NoError(t, err)
-	req.request.VoteExtension = signature
+	req.request.VoteExtension = compositeExtensionForTest(t, signature)
 
 	response, err := handler.VerifyVoteExtensionHandler()(ctx, req.request)
 
@@ -152,7 +152,7 @@ func newValidVerifyVoteExtensionTestCase(t *testing.T) (*ABCIHandler, sdk.Contex
 		request: &cometabci.RequestVerifyVoteExtension{
 			Height:           reqHeight,
 			ValidatorAddress: consensusAddress(t, validator),
-			VoteExtension:    signature,
+			VoteExtension:    compositeExtensionForTest(t, signature),
 		},
 		validator:     validator,
 		secondaryKey:  secondaryKey,
@@ -243,9 +243,19 @@ func TestVerifyVoteExtensionRejectsSignatureSignedAgainstOldHistoricalRoot(t *te
 	response, err := handler.VerifyVoteExtensionHandler()(ctx, &cometabci.RequestVerifyVoteExtension{
 		Height:           reqHeight,
 		ValidatorAddress: consensusAddress(t, validator),
-		VoteExtension:    signature,
+		VoteExtension:    compositeExtensionForTest(t, signature),
 	})
 
 	require.NoError(t, err)
 	require.Equal(t, cometabci.ResponseVerifyVoteExtension_REJECT, response.Status)
+}
+
+func compositeExtensionForTest(t testing.TB, transitionSignature []byte) []byte {
+	t.Helper()
+	extension, err := encodeCompositeVoteExtension(&CompositeVoteExtension{
+		ProtocolVersion:     CompositeVoteExtensionVersion,
+		TransitionSignature: transitionSignature,
+	})
+	require.NoError(t, err)
+	return extension
 }

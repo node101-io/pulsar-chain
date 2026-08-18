@@ -13,6 +13,11 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 			return nil, err
 		}
 		if !shouldPersistVoteExtensions {
+			if h.verificationKeeper != nil {
+				if err := h.verificationKeeper.CreateValidatorSnapshot(ctx, uint64(req.GetHeight())); err != nil {
+					return nil, err
+				}
+			}
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
@@ -50,16 +55,42 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 		if !hasAtLeastTwoThirdsPower(verifiedVotes.signedPower, verifiedVotes.totalPower) {
 			return nil, ErrNotEnoughStakePower
 		}
+		if h.verificationKeeper == nil {
+			if err := h.votePersistenceKeeper.Clear(ctx); err != nil {
+				return nil, err
+			}
+			for _, vote := range verifiedVotes.votes {
+				if err := h.votePersistenceKeeper.SetVote(ctx, signedStateHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
+					return nil, err
+				}
+			}
+			return &sdk.ResponsePreBlock{}, nil
+		}
 
-		if err := h.votePersistenceKeeper.Clear(ctx); err != nil {
+		cacheCtx, write := ctx.CacheContext()
+		actions, err := h.validateVerificationEntries(cacheCtx, proposalHeight, pl, req.DecidedLastCommit)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := h.votePersistenceKeeper.Clear(cacheCtx); err != nil {
 			return nil, err
 		}
 
 		for _, vote := range verifiedVotes.votes {
-			if err := h.votePersistenceKeeper.SetVote(ctx, signedStateHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
+			if err := h.votePersistenceKeeper.SetVote(cacheCtx, signedStateHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
 				return nil, err
 			}
 		}
+		if err := h.applyVerificationActions(cacheCtx, actions); err != nil {
+			return nil, err
+		}
+		if h.verificationKeeper != nil {
+			if err := h.verificationKeeper.CreateValidatorSnapshot(cacheCtx, uint64(proposalHeight)); err != nil {
+				return nil, err
+			}
+		}
+		write()
 
 		return &sdk.ResponsePreBlock{}, nil
 	}

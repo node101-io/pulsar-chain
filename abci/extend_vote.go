@@ -22,7 +22,16 @@ func (h *ABCIHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return nil, err
 		}
 
-		bz, err := h.secondaryKey.SignVoteExtBody(body)
+		transitionSignature, err := h.secondaryKey.SignVoteExtBody(body)
+		if err != nil {
+			return nil, err
+		}
+		extension := &CompositeVoteExtension{
+			ProtocolVersion:     CompositeVoteExtensionVersion,
+			TransitionSignature: transitionSignature,
+			VerificationPayload: h.buildVerificationPayload(ctx, req.GetHeight()),
+		}
+		bz, err := encodeCompositeVoteExtension(extension)
 		if err != nil {
 			return nil, err
 		}

@@ -6,6 +6,7 @@ import (
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	keyregistryTypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
+	verificationTypes "github.com/node101-io/pulsar-chain/x/verification/types"
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
@@ -58,6 +59,12 @@ func (h *ABCIHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 		if !hasAtLeastTwoThirdsPower(verifiedVotes.signedPower, verifiedVotes.totalPower) {
 			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, nil
 		}
+		if _, err := h.validateVerificationEntries(ctx, proposalHeight, pl, req.ProposedLastCommit); err != nil {
+			if isInvalidProcessProposalError(err) {
+				return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, nil
+			}
+			return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_REJECT}, err
+		}
 
 		return &cometabci.ResponseProcessProposal{Status: cometabci.ResponseProcessProposal_ACCEPT}, nil
 	}
@@ -72,5 +79,39 @@ func isInvalidProcessProposalError(err error) bool {
 		errors.Is(err, ErrVoteExtPayloadNotFound) ||
 		errors.Is(err, ErrNotEnoughStakePower) ||
 		errors.Is(err, keyregistryTypes.ErrValidatorNotRegistered) ||
-		errors.Is(err, votepersistenceTypes.ErrInvalidVoteExtension)
+		errors.Is(err, votepersistenceTypes.ErrInvalidVoteExtension) ||
+		errors.Is(err, ErrInvalidCompositeVoteExtension) ||
+		errors.Is(err, ErrInvalidVerificationPayload) ||
+		errors.Is(err, ErrInvalidVerificationSignature) ||
+		isVerificationActionError(err)
+}
+
+func isVerificationActionError(err error) bool {
+	errorsToReject := []error{
+		verificationTypes.ErrInvalidValidator,
+		verificationTypes.ErrProofNotFound,
+		verificationTypes.ErrProofHeightNotFound,
+		verificationTypes.ErrInvalidCommitmentLength,
+		verificationTypes.ErrInvalidCommitmentHeight,
+		verificationTypes.ErrCommitmentAlreadyExists,
+		verificationTypes.ErrCommitmentNotFound,
+		verificationTypes.ErrCommitmentMismatch,
+		verificationTypes.ErrInvalidRevelationCount,
+		verificationTypes.ErrDuplicateCommitmentRevelation,
+		verificationTypes.ErrInvalidLeafRevealMode,
+		verificationTypes.ErrInvalidLeafHashLength,
+		verificationTypes.ErrInvalidSaltLength,
+		verificationTypes.ErrEarlyReveal,
+		verificationTypes.ErrUselessRevelation,
+		verificationTypes.ErrTooManyVotes,
+		verificationTypes.ErrInvalidVoteIndex,
+		verificationTypes.ErrDuplicateVoteIndex,
+		verificationTypes.ErrNonCanonicalVoteOrdering,
+	}
+	for _, target := range errorsToReject {
+		if errors.Is(err, target) {
+			return true
+		}
+	}
+	return false
 }

@@ -1,0 +1,324 @@
+package keeper_test
+
+import (
+	"encoding/hex"
+	"testing"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/require"
+
+	"github.com/node101-io/pulsar-chain/x/verification/types"
+)
+
+func TestGenesisRoundTripPreservesActiveState(t *testing.T) {
+	source := initFixture(t, 3)
+	require.NoError(t, source.keeper.Params.Set(source.ctx, types.NewParams(42)))
+	submitProof(t, source, 500, 1)
+
+	exported, err := source.keeper.ExportGenesis(source.ctx)
+	require.NoError(t, err)
+	require.Equal(t, types.NewParams(42), exported.Params)
+	require.NoError(t, exported.Validate())
+	require.Len(t, exported.PendingProofs, 1)
+	require.Len(t, exported.SeenProofHashes, 1)
+	require.Len(t, exported.ValidatorSnapshots, 3)
+
+	target := initFixture(t, 3)
+	require.NoError(t, target.keeper.InitGenesis(target.ctx, *exported))
+	params, err := target.keeper.Params.Get(target.ctx)
+	require.NoError(t, err)
+	require.Equal(t, types.NewParams(42), params)
+	pending, err := target.keeper.PendingProofs.Has(target.ctx, types.NewProofStoreKey(500, 0))
+	require.NoError(t, err)
+	require.True(t, pending)
+	seen, err := target.keeper.SeenProofHashes.Has(target.ctx, exported.SeenProofHashes[0].ProofHash)
+	require.NoError(t, err)
+	require.True(t, seen)
+}
+
+func TestGenesisRoundTripPreservesFinalizedState(t *testing.T) {
+	source := initFixture(t, 1)
+	submitProof(t, source, 500, 1)
+	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
+	right := valueLeaf(t, 2, nil)
+	require.NoError(t, source.keeper.ApplyVerificationPayload(
+		source.atHeight(503), source.validators[0].operator, 503, commitmentFor(t, left, right), nil,
+	))
+	require.NoError(t, source.keeper.ApplyVerificationPayload(
+		source.atHeight(504), source.validators[0].operator, 504, nil,
+		[]types.CommitmentRevelation{{CommitmentHeight: 503, Left: left, Right: hashLeaf(t, right)}},
+	))
+	require.NoError(t, source.keeper.EndBlock(source.atHeight(505)))
+
+	exported, err := source.keeper.ExportGenesis(source.ctx)
+	require.NoError(t, err)
+	require.NoError(t, exported.Validate())
+	require.Empty(t, exported.PendingProofs)
+	require.Len(t, exported.FinalProofResults, 1)
+	require.Len(t, exported.SeenProofHashes, 1)
+
+	target := initFixture(t, 1)
+	require.NoError(t, target.keeper.InitGenesis(target.ctx, *exported))
+	response, err := target.query.ProofByHash(target.ctx, &types.QueryProofByHashRequest{
+		ProofHash: exported.SeenProofHashes[0].ProofHash,
+	})
+	require.NoError(t, err)
+	require.Equal(t, types.ProofStatus_PROOF_STATUS_VALID, response.GetFinalResult().Status)
+}
+
+func TestLifecycleEventsUseCanonicalAttributes(t *testing.T) {
+	fixture := initFixture(t, 3)
+	proofHash := make([]byte, types.ProofHashSize)
+	proofHash[len(proofHash)-1] = 1
+	proofCtx := fixture.atHeight(500)
+	_, err := fixture.msgServer.SubmitProof(proofCtx, &types.MsgSubmitProof{
+		Signer: fixture.validators[0].signer, ProofHash: proofHash, ProofType: 7,
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{
+		types.AttributeKeyProofHash:        hex.EncodeToString(proofHash),
+		types.AttributeKeySubmissionHeight: "500",
+		types.AttributeKeyIndexInBlock:     "0",
+		types.AttributeKeyProofType:        "7",
+	}, attributesForEvent(t, proofCtx, types.EventTypeProofSubmitted))
+
+	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
+	right := valueLeaf(t, 2, nil)
+	commitment := commitmentFor(t, left, right)
+	commitmentCtx := fixture.atHeight(503)
+	err = fixture.keeper.ApplyVerificationPayload(
+		commitmentCtx, fixture.validators[0].operator, 503, commitment, nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{
+		types.AttributeKeyValidator:        fixture.validators[0].operatorS,
+		types.AttributeKeyCommitmentHeight: "503",
+		types.AttributeKeyCommitment:       hex.EncodeToString(commitment),
+	}, attributesForEvent(t, commitmentCtx, types.EventTypeCommitmentSubmitted))
+
+	revealCtx := fixture.atHeight(504)
+	err = fixture.keeper.ApplyVerificationPayload(
+		revealCtx, fixture.validators[0].operator, 504, nil,
+		[]types.CommitmentRevelation{{
+			CommitmentHeight: 503, Left: left, Right: hashLeaf(t, right),
+		}},
+	)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{
+		types.AttributeKeyValidator:        fixture.validators[0].operatorS,
+		types.AttributeKeyCommitmentHeight: "503",
+	}, attributesForEvent(t, revealCtx, types.EventTypeCommitmentRevealed))
+
+	finalizeCtx := fixture.atHeight(505)
+	require.NoError(t, fixture.keeper.EndBlock(finalizeCtx))
+	require.Equal(t, map[string]string{
+		types.AttributeKeyProofHash:        hex.EncodeToString(proofHash),
+		types.AttributeKeySubmissionHeight: "500",
+		types.AttributeKeyIndexInBlock:     "0",
+		types.AttributeKeyStatus:           types.ProofStatus_PROOF_STATUS_INCONCLUSIVE.String(),
+		types.AttributeKeyTrueVotes:        "1",
+		types.AttributeKeyFalseVotes:       "0",
+		types.AttributeKeyValidatorCount:   "3",
+		types.AttributeKeyThreshold:        "2",
+	}, attributesForEvent(t, finalizeCtx, types.EventTypeProofFinalized))
+}
+
+func attributesForEvent(t testing.TB, ctx sdk.Context, eventType string) map[string]string {
+	t.Helper()
+	for _, event := range ctx.EventManager().Events() {
+		if event.Type != eventType {
+			continue
+		}
+		attributes := make(map[string]string, len(event.Attributes))
+		for _, attribute := range event.Attributes {
+			attributes[attribute.Key] = attribute.Value
+		}
+		return attributes
+	}
+	t.Fatalf("event %q not found", eventType)
+	return nil
+}
+
+func TestSubmitProofSnapshotsOnceAndRejectsDuplicate(t *testing.T) {
+	f := initFixture(t, 3)
+	first := submitProof(t, f, 500, 1)
+	second := submitProof(t, f, 500, 2)
+	require.Equal(t, uint32(0), first.IndexInBlock)
+	require.Equal(t, uint32(1), second.IndexInBlock)
+
+	count, err := f.keeper.ValidatorCountByHeight.Get(f.ctx, 500)
+	require.NoError(t, err)
+	require.Equal(t, uint32(3), count)
+
+	hash := make([]byte, types.ProofHashSize)
+	hash[len(hash)-1] = 1
+	_, err = f.msgServer.SubmitProof(f.atHeight(501), &types.MsgSubmitProof{
+		Signer: f.validators[0].signer, ProofHash: hash, ProofType: 7,
+	})
+	require.ErrorIs(t, err, types.ErrDuplicateProof)
+}
+
+func TestPreBlockSnapshotRemainsStableDuringProofExecution(t *testing.T) {
+	f := initFixture(t, 3)
+	require.NoError(t, f.keeper.CreateValidatorSnapshot(f.atHeight(500), 500))
+	f.staking.lastValidators = f.staking.lastValidators[:2]
+	submitProof(t, f, 500, 1)
+
+	count, err := f.keeper.ValidatorCountByHeight.Get(f.ctx, 500)
+	require.NoError(t, err)
+	require.Equal(t, uint32(3), count)
+}
+
+func TestCreateValidatorSnapshotIsIdempotent(t *testing.T) {
+	f := initFixture(t, 3)
+	require.NoError(t, f.keeper.CreateValidatorSnapshot(f.atHeight(500), 500))
+	f.staking.lastValidators = f.staking.lastValidators[:2]
+	require.NoError(t, f.keeper.CreateValidatorSnapshot(f.atHeight(500), 500))
+
+	count, err := f.keeper.ValidatorCountByHeight.Get(f.ctx, 500)
+	require.NoError(t, err)
+	require.Equal(t, uint32(3), count)
+	for _, validator := range f.validators {
+		exists, err := f.keeper.ValidatorSnapshots.Has(f.ctx, types.NewValidatorSnapshotStoreKey(500, validator.operator))
+		require.NoError(t, err)
+		require.True(t, exists)
+	}
+}
+
+func TestEndBlockPrunesUnusedPreBlockSnapshot(t *testing.T) {
+	f := initFixture(t, 3)
+	require.NoError(t, f.keeper.CreateValidatorSnapshot(f.atHeight(500), 500))
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
+
+	exists, err := f.keeper.ValidatorCountByHeight.Has(f.ctx, 500)
+	require.NoError(t, err)
+	require.False(t, exists)
+	for _, validator := range f.validators {
+		exists, err = f.keeper.ValidatorSnapshots.Has(f.ctx, types.NewValidatorSnapshotStoreKey(500, validator.operator))
+		require.NoError(t, err)
+		require.False(t, exists)
+	}
+}
+
+func TestSubmitProofRejectsEmptyValidatorSetWithoutWrites(t *testing.T) {
+	f := initFixture(t, 0)
+	hash := make([]byte, types.ProofHashSize)
+	_, err := f.msgServer.SubmitProof(f.atHeight(500), &types.MsgSubmitProof{ProofHash: hash})
+	require.ErrorIs(t, err, types.ErrEmptyValidatorSet)
+	exists, err := f.keeper.SeenProofHashes.Has(f.ctx, hash)
+	require.NoError(t, err)
+	require.False(t, exists)
+	exists, err = f.keeper.ProofCountByHeight.Has(f.ctx, 500)
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
+func TestCommitmentWritesPrimaryAndReverseIndex(t *testing.T) {
+	f := initFixture(t, 3)
+	submitProof(t, f, 500, 1)
+	commitment := make([]byte, types.CommitmentHashSize)
+	commitment[0] = 1
+	err := f.keeper.ApplyVerificationPayload(f.atHeight(502), f.validators[0].operator, 502, commitment, nil)
+	require.NoError(t, err)
+
+	primary, err := f.keeper.Commitments.Has(f.ctx, types.NewCommitmentStoreKey(f.validators[0].operator, 502))
+	require.NoError(t, err)
+	require.True(t, primary)
+	reverse, err := f.keeper.CommitmentsByHeight.Has(f.ctx, types.NewCommitmentHeightStoreKey(502, f.validators[0].operator))
+	require.NoError(t, err)
+	require.True(t, reverse)
+
+	err = f.keeper.ApplyVerificationPayload(f.atHeight(502), f.validators[0].operator, 502, commitment, nil)
+	require.ErrorIs(t, err, types.ErrCommitmentAlreadyExists)
+}
+
+func TestRevealBatchStagesEquivocationAtomically(t *testing.T) {
+	f := initFixture(t, 3)
+	submitProof(t, f, 500, 1)
+
+	left502 := valueLeaf(t, 1, nil)
+	right502 := valueLeaf(t, 2, []types.ProofVote{{IndexInBlock: 0, Result: true}})
+	root502 := commitmentFor(t, left502, right502)
+	err := f.keeper.ApplyVerificationPayload(f.atHeight(502), f.validators[0].operator, 502, root502, nil)
+	require.NoError(t, err)
+
+	left503 := valueLeaf(t, 3, []types.ProofVote{{IndexInBlock: 0, Result: false}})
+	right503 := valueLeaf(t, 4, nil)
+	root503 := commitmentFor(t, left503, right503)
+	err = f.keeper.ApplyVerificationPayload(f.atHeight(503), f.validators[0].operator, 503, root503, nil)
+	require.NoError(t, err)
+
+	err = f.keeper.ApplyVerificationPayload(
+		f.atHeight(504), f.validators[0].operator, 504, nil,
+		[]types.CommitmentRevelation{
+			{CommitmentHeight: 502, Left: left502, Right: right502},
+			{CommitmentHeight: 503, Left: left503, Right: hashLeaf(t, right503)},
+		},
+	)
+	require.NoError(t, err)
+
+	vote, err := f.keeper.VerificationVotes.Get(f.ctx, types.NewVerificationVoteStoreKey(500, 0, f.validators[0].operator))
+	require.NoError(t, err)
+	require.Equal(t, uint32(types.VoteState_VOTE_STATE_EQUIVOCATED), vote)
+	tally, err := f.keeper.ProofTallies.Get(f.ctx, types.NewProofStoreKey(500, 0))
+	require.NoError(t, err)
+	require.Equal(t, types.ProofTally{}, tally)
+}
+
+func TestRevealBatchInvalidLaterEntryLeavesNoVotes(t *testing.T) {
+	f := initFixture(t, 3)
+	submitProof(t, f, 500, 1)
+	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
+	right := valueLeaf(t, 2, nil)
+	root := commitmentFor(t, left, right)
+	err := f.keeper.ApplyVerificationPayload(f.atHeight(503), f.validators[0].operator, 503, root, nil)
+	require.NoError(t, err)
+
+	badRight := hashLeaf(t, right)
+	badRight.Payload = &types.LeafRevelation_LeafHash{LeafHash: make([]byte, types.LeafHashSize)}
+	err = f.keeper.ApplyVerificationPayload(
+		f.atHeight(504), f.validators[0].operator, 504, nil,
+		[]types.CommitmentRevelation{
+			{CommitmentHeight: 503, Left: left, Right: hashLeaf(t, right)},
+			{CommitmentHeight: 503, Left: left, Right: badRight},
+		},
+	)
+	require.ErrorIs(t, err, types.ErrDuplicateCommitmentRevelation)
+	exists, err := f.keeper.VerificationVotes.Has(f.ctx, types.NewVerificationVoteStoreKey(500, 0, f.validators[0].operator))
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
+func TestFinalizationAndPruningPreserveHashLookup(t *testing.T) {
+	f := initFixture(t, 3)
+	submitProof(t, f, 500, 1)
+	for validatorIndex := 0; validatorIndex < 2; validatorIndex++ {
+		left := valueLeaf(t, byte(validatorIndex+1), []types.ProofVote{{IndexInBlock: 0, Result: true}})
+		right := valueLeaf(t, byte(validatorIndex+10), nil)
+		root := commitmentFor(t, left, right)
+		err := f.keeper.ApplyVerificationPayload(f.atHeight(503), f.validators[validatorIndex].operator, 503, root, nil)
+		require.NoError(t, err)
+		err = f.keeper.ApplyVerificationPayload(
+			f.atHeight(504), f.validators[validatorIndex].operator, 504, nil,
+			[]types.CommitmentRevelation{{
+				CommitmentHeight: 503, Left: left, Right: hashLeaf(t, right),
+			}},
+		)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(505)))
+	result, err := f.keeper.FinalProofResults.Get(f.ctx, types.NewProofStoreKey(500, 0))
+	require.NoError(t, err)
+	require.Equal(t, types.ProofStatus_PROOF_STATUS_VALID, result.Status)
+	require.Equal(t, uint32(2), result.Threshold)
+
+	pending, err := f.keeper.PendingProofs.Has(f.ctx, types.NewProofStoreKey(500, 0))
+	require.NoError(t, err)
+	require.False(t, pending)
+	hash := make([]byte, types.ProofHashSize)
+	hash[len(hash)-1] = 1
+	response, err := f.query.ProofByHash(f.ctx, &types.QueryProofByHashRequest{ProofHash: hash})
+	require.NoError(t, err)
+	require.NotNil(t, response.GetFinalResult())
+}

@@ -1,0 +1,82 @@
+syntax = "proto3";
+package pulsarchain.verification.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+import "pulsarchain/verification/v1/params.proto";
+import "pulsarchain/verification/v1/types.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/verification/types";
+
+// GenesisState defines verification module genesis state.
+message GenesisState {
+  Params params = 1 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+  repeated GenesisProofCount proof_counts = 2 [(gogoproto.nullable) = false];
+  repeated GenesisPendingProof pending_proofs = 3 [(gogoproto.nullable) = false];
+  repeated GenesisSeenProofHash seen_proof_hashes = 4 [(gogoproto.nullable) = false];
+  repeated GenesisValidatorSnapshot validator_snapshots = 5 [(gogoproto.nullable) = false];
+  repeated GenesisValidatorCount validator_counts = 6 [(gogoproto.nullable) = false];
+  repeated GenesisCommitment commitments = 7 [(gogoproto.nullable) = false];
+  repeated GenesisVerificationVote verification_votes = 8 [(gogoproto.nullable) = false];
+  repeated GenesisProofTally proof_tallies = 9 [(gogoproto.nullable) = false];
+  repeated GenesisFinalProofResult final_proof_results = 10 [(gogoproto.nullable) = false];
+}
+
+// GenesisProofCount stores the successful proof count for one height.
+message GenesisProofCount {
+  uint64 height = 1;
+  uint32 count = 2;
+}
+
+// GenesisPendingProof stores one active proof.
+message GenesisPendingProof {
+  ProofKey proof_key = 1 [(gogoproto.nullable) = false];
+  ProofRecord proof = 2 [(gogoproto.nullable) = false];
+}
+
+// GenesisSeenProofHash stores one permanent hash-to-proof mapping.
+message GenesisSeenProofHash {
+  bytes proof_hash = 1;
+  ProofKey proof_key = 2 [(gogoproto.nullable) = false];
+}
+
+// GenesisValidatorSnapshot stores one validator eligible at a proof height.
+message GenesisValidatorSnapshot {
+  uint64 height = 1;
+  bytes validator = 2;
+}
+
+// GenesisValidatorCount stores the fixed denominator for one proof height.
+message GenesisValidatorCount {
+  uint64 height = 1;
+  uint32 count = 2;
+}
+
+// GenesisCommitment stores one retained validator commitment.
+message GenesisCommitment {
+  bytes validator = 1;
+  uint64 height = 2;
+  bytes commitment = 3;
+}
+
+// GenesisVerificationVote stores one validator's effective proof vote.
+message GenesisVerificationVote {
+  ProofKey proof_key = 1 [(gogoproto.nullable) = false];
+  bytes validator = 2;
+  VoteState state = 3;
+}
+
+// GenesisProofTally stores the active tally for one proof.
+message GenesisProofTally {
+  ProofKey proof_key = 1 [(gogoproto.nullable) = false];
+  ProofTally tally = 2 [(gogoproto.nullable) = false];
+}
+
+// GenesisFinalProofResult stores one immutable finalized result.
+message GenesisFinalProofResult {
+  ProofKey proof_key = 1 [(gogoproto.nullable) = false];
+  FinalProofResult result = 2 [(gogoproto.nullable) = false];
+}

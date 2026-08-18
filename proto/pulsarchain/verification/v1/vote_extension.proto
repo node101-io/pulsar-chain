@@ -1,0 +1,16 @@
+syntax = "proto3";
+package pulsarchain.verification.v1;
+
+import "gogoproto/gogo.proto";
+import "pulsarchain/verification/v1/types.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/verification/types";
+
+// VerificationVoteExtensionPayload carries one validator's bounded internal
+// actions. Validator identity and the target height come from the authenticated
+// CometBFT transport rather than an untrusted signer field.
+message VerificationVoteExtensionPayload {
+  uint64 target_height = 1;
+  bytes commitment = 2;
+  repeated CommitmentRevelation revelations = 3 [(gogoproto.nullable) = false];
+}
