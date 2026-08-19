@@ -6,6 +6,11 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// AutoCLIOptions exposes proof registration and deterministic consensus-state
+// queries to users and operators. It intentionally provides no commands for
+// commitments, revelations, or sidecar status: the first two are authenticated
+// vote-extension actions and the last is validator-local operational data.
+// UpdateParams remains governance-only.
 func (AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 	return &autocliv1.ModuleOptions{
 		Query: &autocliv1.ServiceCommandDescriptor{

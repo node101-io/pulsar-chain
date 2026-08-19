@@ -6,6 +6,9 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// InitGenesis validates the full cross-store model before loading it into the
+// module collections. This prevents a fresh chain or exported restart from
+// beginning with state that normal handlers could never create.
 func (k Keeper) InitGenesis(ctx context.Context, state types.GenesisState) error {
 	if err := state.Validate(); err != nil {
 		return err
@@ -39,6 +42,7 @@ func (k Keeper) InitGenesis(ctx context.Context, state types.GenesisState) error
 			return err
 		}
 	}
+	// Rebuild the reverse commitment index from the canonical primary records.
 	for _, entry := range state.Commitments {
 		if err := k.Commitments.Set(ctx, types.NewCommitmentStoreKey(entry.Validator, entry.Height), append([]byte(nil), entry.Commitment...)); err != nil {
 			return err
@@ -65,6 +69,9 @@ func (k Keeper) InitGenesis(ctx context.Context, state types.GenesisState) error
 	return nil
 }
 
+// ExportGenesis emits every consensus collection. Validator-local salts and
+// sidecar state are intentionally absent because they are not chain state and
+// may differ across validators without changing the application hash.
 func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) {
 	params, err := k.Params.Get(ctx)
 	if err != nil {

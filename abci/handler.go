@@ -8,10 +8,18 @@ import (
 	verificationvalidator "github.com/node101-io/pulsar-chain/x/verification/validator"
 )
 
+// VerificationPayloadBuilder supplies optional validator-local commitments and
+// revelations for the composite vote extension. It intentionally exposes no
+// sidecar phase or error state: consensus only needs terminal proof results and
+// the on-chain actions derived from them.
 type VerificationPayloadBuilder interface {
 	Build(context.Context, verificationvalidator.Identity, uint64) verificationvalidator.BuildOutcome
 }
 
+// ABCIHandler coordinates mandatory Mina transition signatures and optional
+// verification actions across ExtendVote, VerifyVoteExtension, proposal
+// construction, proposal validation, and FinalizeBlock. This is the boundary
+// where validator-local computation becomes authenticated consensus input.
 type ABCIHandler struct {
 	secondaryKey          SecondaryKey
 	stakingKeeper         StakingKeeper
@@ -23,6 +31,10 @@ type ABCIHandler struct {
 	verificationBuilder   VerificationPayloadBuilder
 }
 
+// NewABCIHandler validates mandatory dependencies. Verification dependencies
+// may be nil because proof verification is an additive, best-effort producer of
+// vote-extension data; disabling it must not disable the existing consensus and
+// Mina-signature path.
 func NewABCIHandler(
 	secondaryKey SecondaryKey,
 	stakingKeeper StakingKeeper,

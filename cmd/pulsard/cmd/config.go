@@ -83,6 +83,10 @@ type bridgeConfig struct {
 	WrapperGRPCTransportMode string `mapstructure:"wrapper_grpc_transport_mode"`
 }
 
+// verificationConfig controls only the validator-local sidecar connection and
+// its ExtendVote time budget. None of these values are consensus parameters:
+// validators may disable the sidecar or receive different completed subsets,
+// while on-chain commitment and revelation validation remains deterministic.
 type verificationConfig struct {
 	Enabled           bool   `mapstructure:"enabled"`
 	GRPCAddress       string `mapstructure:"grpc_address"`
@@ -108,9 +112,18 @@ const verificationConfigTemplate = `
 ###############################################################################
 
 [verification]
+# A disabled verifier returns no completed results. The node still participates
+# in consensus and continues producing the mandatory Mina vote extension.
 enabled = {{ .Verification.Enabled }}
+# The endpoint is required only when verification is enabled.
 grpc_address = "{{ .Verification.GRPCAddress }}"
 # trusted-network is plaintext and requires an operator-controlled private network.
+# loopback accepts only literal local addresses; trusted-network additionally
+# permits private IPs and service DNS names. Use network policy to preserve that
+# trust boundary because this phase does not add TLS or application authentication.
 grpc_transport_mode = "{{ .Verification.GRPCTransportMode }}"
+# ExtendVote is a consensus hot path. A timeout omits the optional result instead
+# of delaying the block; unfinished proofs can still be requested in the next
+# overlapping commitment opportunity.
 request_timeout = "{{ .Verification.RequestTimeout }}"
 `

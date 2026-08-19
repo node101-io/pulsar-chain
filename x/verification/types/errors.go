@@ -3,6 +3,8 @@ package types
 import errorsmod "cosmossdk.io/errors"
 
 var (
+	// Error codes are stable module API identifiers. Keep existing numeric
+	// values unchanged when adding new errors.
 	ErrInvalidSigner                 = errorsmod.Register(ModuleName, 1100, "invalid signer")
 	ErrInvalidProofHash              = errorsmod.Register(ModuleName, 1101, "invalid proof hash")
 	ErrDuplicateProof                = errorsmod.Register(ModuleName, 1102, "proof hash already submitted")

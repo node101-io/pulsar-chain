@@ -10,6 +10,10 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// CreateValidatorSnapshot freezes the eligible validator operator addresses
+// and denominator for a proof height. Repeated calls are idempotent because
+// PreBlock may create the snapshot before proof transactions run, while the
+// first successful submission also defensively ensures it exists.
 func (k Keeper) CreateValidatorSnapshot(ctx context.Context, height uint64) error {
 	exists, err := k.ValidatorCountByHeight.Has(ctx, height)
 	if err != nil {
@@ -37,6 +41,8 @@ func (k Keeper) CreateValidatorSnapshot(ctx context.Context, height uint64) erro
 		return errorsmod.Wrap(types.ErrProofStateCorrupted, "validator set exceeds uint32")
 	}
 
+	// Validate and deduplicate the complete set before writing any entries. This
+	// avoids a partially valid membership set if one staking record is malformed.
 	addresses := make([][]byte, 0, len(validators))
 	seen := make(map[string]struct{}, len(validators))
 	validatorCodec := k.stakingKeeper.ValidatorAddressCodec()
@@ -62,10 +68,12 @@ func (k Keeper) CreateValidatorSnapshot(ctx context.Context, height uint64) erro
 	return k.ValidatorCountByHeight.Set(ctx, height, uint32(len(addresses)))
 }
 
+// IsValidatorEligible reports membership in the immutable proof-height snapshot.
 func (k Keeper) IsValidatorEligible(ctx context.Context, proofHeight uint64, validator []byte) (bool, error) {
 	return k.ValidatorSnapshots.Has(ctx, types.NewValidatorSnapshotStoreKey(proofHeight, validator))
 }
 
+// RemoveValidatorSnapshot deletes a height's members and fixed denominator.
 func (k Keeper) RemoveValidatorSnapshot(ctx context.Context, height uint64) error {
 	keys := make([]types.ValidatorSnapshotStoreKey, 0)
 	rangeByHeight := collections.NewPrefixedPairRange[uint64, []byte](height)

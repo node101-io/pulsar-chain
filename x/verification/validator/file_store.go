@@ -15,10 +15,15 @@ const (
 	maxLocalStateFileBytes = 256 << 10
 )
 
+// FileStore persists the bounded validator-local commitment journal. This is a
+// small private file rather than consensus state or a general database because
+// only a few active commitment preimages must survive restart.
 type FileStore struct {
 	path string
 }
 
+// NewFileStore accepts only an absolute path so node startup cannot bind
+// secrets to an unexpected working directory.
 func NewFileStore(path string) (*FileStore, error) {
 	if path == "" || !filepath.IsAbs(path) {
 		return nil, fmt.Errorf("%w: local state path must be absolute", ErrInvalidLocalState)
@@ -26,6 +31,7 @@ func NewFileStore(path string) (*FileStore, error) {
 	return &FileStore{path: filepath.Clean(path)}, nil
 }
 
+// Path returns the normalized journal path.
 func (s *FileStore) Path() string {
 	if s == nil {
 		return ""
@@ -33,6 +39,10 @@ func (s *FileStore) Path() string {
 	return s.path
 }
 
+// Load reads and validates a private regular file. A missing file represents a
+// fresh unbound state; insecure permissions and symlinks are rejected. The file
+// contains salts and unrevealed votes, so accepting a shared or redirected path
+// would leak protocol secrets.
 func (s *FileStore) Load() (State, error) {
 	if s == nil || s.path == "" {
 		return State{}, ErrInvalidLocalState
@@ -60,6 +70,10 @@ func (s *FileStore) Load() (State, error) {
 	return decodeState(data)
 }
 
+// Save validates and atomically replaces the journal, then syncs the parent
+// directory so the rename survives a host crash. A complete old file is safer
+// than a partially written new file because the old commitments can still be
+// revealed after restart.
 func (s *FileStore) Save(state State) error {
 	if s == nil || s.path == "" {
 		return ErrInvalidLocalState
@@ -79,6 +93,7 @@ func (s *FileStore) Save(state State) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
+	// CometBFT's helper writes and fsyncs a temporary file before rename.
 	if err := tempfile.WriteFileAtomic(s.path, data, stateFileMode); err != nil {
 		return err
 	}

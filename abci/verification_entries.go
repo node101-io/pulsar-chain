@@ -12,11 +12,23 @@ import (
 	verificationtypes "github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// validatedVerificationAction contains the operator identity derived from the
+// historical validator set and its authenticated verification payload. Keeping
+// the derived operator beside the payload prevents FinalizeBlock from trusting
+// an address supplied directly by the proposer.
 type validatedVerificationAction struct {
 	operator []byte
 	payload  *verificationtypes.VerificationVoteExtensionPayload
 }
 
+// validateVerificationEntries authenticates every included action through four
+// independent bindings: the validator participated in the last commit, existed
+// in the historical validator set, signed the complete envelope with its
+// CometBFT key, and supplied the same Mina signature recorded in the mandatory
+// payload. These checks prevent a proposer from inventing, copying, or mixing
+// verification actions. The function also simulates actions sequentially in a
+// cache so conflicts between otherwise valid entries are found without mutating
+// caller state.
 func (h *ABCIHandler) validateVerificationEntries(
 	ctx sdk.Context,
 	targetHeight int64,
@@ -38,6 +50,10 @@ func (h *ABCIHandler) validateVerificationEntries(
 		return nil, err
 	}
 
+	// Only validators whose votes actually committed the previous block may
+	// contribute verification actions to this proposal. Being present in the
+	// validator set is not enough: absent and nil votes did not authorize payload
+	// bytes for this round.
 	committed := make(map[string]struct{}, len(lastCommit.Votes))
 	seenValidators := make(map[string]struct{}, len(lastCommit.Votes))
 	for _, vote := range lastCommit.Votes {
@@ -54,6 +70,10 @@ func (h *ABCIHandler) validateVerificationEntries(
 		}
 	}
 
+	// Bind each optional composite entry to the exact Mina signature already
+	// accepted in the mandatory payload list. This prevents a proposer from
+	// combining one validator's optional envelope with another mandatory vote or
+	// injecting an optional-only entry that bypasses the main payload checks.
 	mandatory := make(map[string][]byte, len(payload.VoteExtensions))
 	for _, vote := range payload.VoteExtensions {
 		if vote == nil || len(vote.ConsensusPublicKey) == 0 || len(vote.VoteExtension) == 0 {
@@ -66,6 +86,10 @@ func (h *ABCIHandler) validateVerificationEntries(
 		mandatory[key] = vote.VoteExtension
 	}
 
+	// Apply into a throwaway cache while validating so later entries observe
+	// earlier staged state. This catches cross-validator conflicts such as a
+	// duplicate root or an invalid batched transition, while no writes escape
+	// ProcessProposal's read-only decision.
 	cacheCtx, _ := ctx.CacheContext()
 	actions := make([]validatedVerificationAction, 0, len(payload.VerificationEntries))
 	var previousAddress []byte
@@ -129,6 +153,11 @@ func (h *ABCIHandler) validateVerificationEntries(
 	return actions, nil
 }
 
+// verifyCometVoteExtensionSignature reconstructs CometBFT's canonical sign
+// bytes and verifies the signature over the entire composite envelope. Height,
+// round, and chain ID are part of those bytes, preventing replay on another
+// round, block, or chain; the optional verification payload cannot be edited
+// without invalidating the signature.
 func verifyCometVoteExtensionSignature(
 	chainID string,
 	publicKey interface{ VerifySignature([]byte, []byte) bool },
@@ -157,6 +186,10 @@ func verifyCometVoteExtensionSignature(
 	return nil
 }
 
+// applyVerificationActions applies actions already authenticated and
+// prevalidated during proposal processing. The keeper validates them again on
+// the FinalizeBlock cache because ProcessProposal cannot authorize state writes
+// and state may never be trusted solely from the proposer-facing path.
 func (h *ABCIHandler) applyVerificationActions(
 	ctx sdk.Context,
 	actions []validatedVerificationAction,

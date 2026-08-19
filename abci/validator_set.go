@@ -13,9 +13,11 @@ import (
 	votepersistenceTypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 )
 
-// getValidatorSet returns the validator set for validatorSetHeight. The current
-// block height is read from LastValidators; earlier heights are read from
-// staking historical info.
+// getValidatorSet returns the validator set that was authoritative at the exact
+// requested height. The current block height is read from LastValidators;
+// earlier heights come from staking historical info. Verification signatures
+// and proof snapshots must use historical membership rather than today's set,
+// otherwise later rotation could change the meaning of an already-signed vote.
 func (h *ABCIHandler) getValidatorSet(ctx sdk.Context, validatorSetHeight int64) ([]stakingTypes.ValidatorI, error) {
 
 	var valInfo []stakingTypes.ValidatorI
@@ -87,6 +89,10 @@ func sortValidatorsByPower(validators []stakingTypes.ValidatorI) error {
 	return nil
 }
 
+// validatorSetByConsensusAddress creates the historical lookup used to bind a
+// CometBFT vote address to the same validator's operator and consensus key.
+// Duplicate addresses are rejected because accepting either record would make
+// authentication depend on iteration order.
 func validatorSetByConsensusAddress(validators []stakingTypes.ValidatorI) (map[string]stakingTypes.ValidatorI, error) {
 	indexed := make(map[string]stakingTypes.ValidatorI, len(validators))
 	for _, validator := range validators {
@@ -226,6 +232,8 @@ func (h *ABCIHandler) getConsPubKeyByConsAddr(ctx sdk.Context, validatorAddr []b
 	return cosmosValidatorPubKey.Bytes(), nil
 }
 
+// getValidatorByConsAddrAtHeight resolves a validator from the historical set
+// that was active when a vote extension was produced.
 func (h *ABCIHandler) getValidatorByConsAddrAtHeight(
 	ctx sdk.Context,
 	height int64,

@@ -97,14 +97,23 @@ func TestCommitmentWindowsAcceptDifferentProofSubsets(t *testing.T) {
 	submitProof(t, f, 500, 1)
 	submitProof(t, f, 500, 2)
 
+	// H+2 is block H's first commitment opportunity. Only proof index 0 has
+	// completed, so commitment 502 places that vote in its right leaf.
 	left502 := valueLeaf(t, 1, nil)
 	right502 := valueLeaf(t, 2, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 	submitCommitment(t, f, 0, 502, left502, right502)
 
+	// H+3 is the same proof block's second and final commitment opportunity. It
+	// places only the newly completed proof index 1 in commitment 503's left leaf;
+	// repeating proof 0 is unnecessary and would later be idempotent at best.
 	left503 := valueLeaf(t, 3, []types.ProofVote{{IndexInBlock: 1, Result: false}})
 	right503 := valueLeaf(t, 4, nil)
 	submitCommitment(t, f, 0, 503, left503, right503)
 
+	// A revelation batch may open multiple commitment roots in one vote extension.
+	// Each root still has exactly two leaves, but these two batch entries refer to
+	// two different commitment heights. Together they deliver one effective vote
+	// for each proof without conflating the commitment and batch limits.
 	require.NoError(t, reveal(t, f, 0, 504,
 		types.CommitmentRevelation{CommitmentHeight: 502, Left: hashLeaf(t, left502), Right: right502},
 		types.CommitmentRevelation{CommitmentHeight: 503, Left: left503, Right: hashLeaf(t, right503)},

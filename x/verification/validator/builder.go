@@ -18,28 +18,54 @@ import (
 )
 
 var (
+	// Builder errors are warnings to the optional verification path. They must
+	// not invalidate the mandatory Mina vote extension.
 	ErrInvalidBuildRequest = errors.New("invalid verification build request")
 	ErrProviderBusy        = errors.New("verification result provider is still busy")
 	ErrProviderPanic       = errors.New("verification result provider panicked")
 	ErrCommitmentDiverged  = errors.New("local commitment differs from consensus state")
 )
 
+// The builder is the bridge between asynchronous off-chain verification and
+// deterministic on-chain actions. For target height C it reads proofs from
+// C-3 and C-2, asks the sidecar only for terminal results, canonicalizes those
+// results into two vote leaves, creates private salts, and persists the full
+// preimage before returning the root. In later blocks it reconstructs timed
+// revelations from that local journal without asking the sidecar again.
+//
+// Sidecar failure is intentionally non-fatal. The validator can still reveal
+// previously persisted commitments, and proofs missing at their H+2 attempt
+// can be requested again at H+3. A missing result is never treated as INVALID.
+
+// ConsensusReader exposes the small deterministic chain-state surface needed
+// to build commitments and verify that local secrets match on-chain roots.
 type ConsensusReader interface {
 	GetProofsAtHeight(context.Context, uint64) ([]verificationtypes.ProofEntry, error)
 	GetCommitment(context.Context, []byte, uint64) ([]byte, bool, error)
 }
 
+// Identity binds validator-local commitment secrets to one chain, operator,
+// and consensus key. This prevents accidental reuse after key rotation, copying
+// a validator home, or starting the same journal against another chain.
 type Identity struct {
 	ChainID            string
 	OperatorAddress    []byte
 	ConsensusPublicKey []byte
 }
 
+// BuildOutcome separates an optional verification payload from non-fatal
+// warnings. Callers may still use a partial payload, for example revelations
+// when the sidecar result request failed. This distinction keeps observability
+// without turning an optional verifier outage into a consensus outage.
 type BuildOutcome struct {
 	Payload *verificationtypes.VerificationVoteExtensionPayload
 	Warning error
 }
 
+// Builder creates validator-local commitments and revelations. It owns salts
+// and vote preimages locally; only roots and later revelations enter consensus.
+// This separation keeps secret material out of the replicated application
+// state while still making every counted vote verifiable after reveal.
 type Builder struct {
 	reader   ConsensusReader
 	provider sidecar.Provider
@@ -47,11 +73,19 @@ type Builder struct {
 	random   io.Reader
 	timeout  time.Duration
 
-	mu       sync.Mutex
-	state    State
+	// Build is serialized because two calls must never create different salts
+	// for the same target height. CometBFT may retry ABCI calls, so idempotency must
+	// be enforced locally rather than assumed from call frequency.
+	mu    sync.Mutex
+	state State
+	// callGate bounds a provider that ignores cancellation to one in-flight
+	// goroutine, avoiding an unbounded leak across blocks.
 	callGate chan struct{}
 }
 
+// NewBuilder loads and validates restart-safe local state before the builder
+// can emit any commitment. Refusing a malformed journal is safer than creating
+// a new root whose preimage may conflict with an already signed commitment.
 func NewBuilder(
 	reader ConsensusReader,
 	provider sidecar.Provider,
@@ -87,6 +121,11 @@ func NewBuilder(
 	}, nil
 }
 
+// Build returns all currently revealable commitments plus, when terminal
+// sidecar results exist, a new commitment for targetHeight. New roots are never
+// returned until their exact salts and votes have been persisted. Persist-first
+// ordering guarantees that a process crash after signing cannot make a valid
+// on-chain commitment permanently unrevealable.
 func (b *Builder) Build(ctx context.Context, identity Identity, targetHeight uint64) BuildOutcome {
 	if b == nil {
 		return BuildOutcome{Warning: ErrInvalidBuildRequest}
@@ -99,11 +138,17 @@ func (b *Builder) Build(ctx context.Context, identity Identity, targetHeight uin
 		return BuildOutcome{Warning: ErrInvalidBuildRequest}
 	}
 
+	// Work on a clone so failed validation or persistence cannot mutate the
+	// builder's last durable in-memory state. Only a successful Save advances the
+	// builder to the new commitment history.
 	working, err := b.boundState(identity)
 	if err != nil {
 		return BuildOutcome{Warning: err}
 	}
 	stateChanged := working.Prune(targetHeight)
+	// Revelations do not depend on a live sidecar and remain available during a
+	// sidecar outage. They are built before the new commitment attempt so a slow
+	// provider cannot suppress already due protocol work.
 	revelations, warning := b.buildRevelations(ctx, working, targetHeight)
 
 	var commitment []byte
@@ -139,6 +184,10 @@ func (b *Builder) Build(ctx context.Context, identity Identity, targetHeight uin
 func (b *Builder) boundState(identity Identity) (State, error) {
 	state := b.state.Clone()
 	digest := sha256.Sum256(identity.ConsensusPublicKey)
+	// A fresh empty journal is bound on first use. A non-empty or partially
+	// bound journal is never silently rebound to another validator identity. The
+	// consensus key is stored as a hash because it is an identity binding, not a
+	// signing key needed by this component.
 	unbound := state.ChainID == "" && len(state.ValidatorOperatorAddress) == 0 && len(state.ValidatorConsensusKeyHash) == 0
 	if unbound {
 		state.ChainID = identity.ChainID
@@ -160,6 +209,9 @@ func (b *Builder) buildRevelations(
 ) ([]verificationtypes.CommitmentRevelation, error) {
 	revelations := make([]verificationtypes.CommitmentRevelation, 0, verificationtypes.MaxRevelationsPerBatch)
 	var warning error
+	// At most the three still-retained commitment heights can be revealable in
+	// one block, matching MaxRevelationsPerBatch. Iterating oldest first also
+	// gives the commitment closest to expiry the first slot.
 	for delta := verificationtypes.CommitmentDeadline; delta >= 1; delta-- {
 		if targetHeight < delta {
 			continue
@@ -169,6 +221,9 @@ func (b *Builder) buildRevelations(
 		if !found {
 			continue
 		}
+		// Never reveal a local preimage unless consensus contains the exact root.
+		// This protects against stale journals, copied node homes, and failed
+		// commitment inclusion; revealing such salts would provide no valid vote.
 		stored, exists, err := b.reader.GetCommitment(ctx, state.ValidatorOperatorAddress, commitmentHeight)
 		if err != nil {
 			warning = errors.Join(warning, err)
@@ -204,6 +259,8 @@ func buildRevelation(currentHeight uint64, secret CommitmentSecret) (verificatio
 
 func revealLeaf(currentHeight uint64, secret LeafSecret) (verificationtypes.LeafRevelation, bool) {
 	if verificationtypes.GetLeafTiming(currentHeight, secret.ProofHeight) != verificationtypes.LeafActive {
+		// The sibling hash is still required to reconstruct the commitment when
+		// the other leaf is opened.
 		return verificationtypes.LeafRevelation{
 			Mode: verificationtypes.LeafRevealMode_LEAF_REVEAL_MODE_HASH_ONLY,
 			Payload: &verificationtypes.LeafRevelation_LeafHash{
@@ -238,6 +295,12 @@ func (b *Builder) buildCommitment(
 		return CommitmentSecret{}, false, err
 	}
 
+	// The previous commitment's right leaf and this commitment's left leaf cover
+	// the same proof height. Exclude votes already committed on-chain so H+3 is
+	// a second opportunity for newly completed proofs, not a duplicate vote. The
+	// exclusion is used only after confirming that the previous local root exists
+	// in consensus, so a commitment that never landed does not consume the proof's
+	// second opportunity.
 	excluded := make(map[uint32]struct{})
 	if commitmentHeight > 0 {
 		previous, found := state.Commitment(commitmentHeight - 1)
@@ -263,6 +326,8 @@ func (b *Builder) buildCommitment(
 	if err != nil || len(request) == 0 {
 		return CommitmentSecret{}, false, err
 	}
+	// A subset response is expected: missing hashes are simply not terminal yet.
+	// Only explicit terminal VALID or INVALID values become votes.
 	results, err := b.callProvider(ctx, request)
 	if err != nil {
 		return CommitmentSecret{}, false, err
@@ -281,6 +346,10 @@ func (b *Builder) newCommitmentSecret(
 	commitmentHeight, leftHeight, rightHeight uint64,
 	leftVotes, rightVotes []verificationtypes.ProofVote,
 ) (CommitmentSecret, bool, error) {
+	// Independent random salts make otherwise identical vote sets produce
+	// independent leaf hashes. Another validator cannot reproduce the root from
+	// the public vote pattern; copying the opaque root alone is useless because it
+	// cannot later reveal the unknown salts and preimages.
 	leftSalt := make([]byte, verificationtypes.SaltSize)
 	rightSalt := make([]byte, verificationtypes.SaltSize)
 	if _, err := io.ReadFull(b.random, leftSalt); err != nil {
@@ -320,6 +389,8 @@ func (b *Builder) callProvider(ctx context.Context, hashes [][]byte) ([]sidecar.
 		return nil, ErrProviderBusy
 	}
 
+	// The consensus hot path waits only for the configured bounded timeout. A
+	// missed result can still be picked up in the overlapping commitment window.
 	callCtx, cancel := context.WithTimeout(ctx, b.timeout)
 	defer cancel()
 	type response struct {
@@ -327,6 +398,9 @@ func (b *Builder) callProvider(ctx context.Context, hashes [][]byte) ([]sidecar.
 		err     error
 	}
 	resultCh := make(chan response, 1)
+	// Give the provider an immutable copy because it may run asynchronously
+	// after this call has timed out. The buffered response channel also lets that
+	// goroutine finish without blocking after the caller has moved on.
 	request := cloneHashes(hashes)
 	go func() {
 		defer func() { <-b.callGate }()
@@ -371,6 +445,8 @@ func cloneHashes(hashes [][]byte) [][]byte {
 	return out
 }
 
+// TargetHeight converts an ExtendVote source height H to the proposal/action
+// height H+1 without signed overflow.
 func TargetHeight(sourceHeight int64) (uint64, error) {
 	if sourceHeight < 0 || sourceHeight == math.MaxInt64 {
 		return 0, ErrInvalidBuildRequest

@@ -13,11 +13,18 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// PlannedLeafVotes is a validated value leaf whose votes are still inside the
+// proof's active reveal window. Keeping only effective leaves in the plan makes
+// expired-value handling explicit: expired data can authenticate a root but
+// cannot change a tally.
 type PlannedLeafVotes struct {
 	ProofHeight uint64
 	Votes       []types.ProofVote
 }
 
+// RevelationPlan contains the effective state changes derived from one root.
+// Root reconstruction has already succeeded when this value is returned, so
+// later batch logic can focus on vote identity and equivocation.
 type RevelationPlan struct {
 	Validator        []byte
 	CommitmentHeight uint64
@@ -41,6 +48,10 @@ type plannedEvent struct {
 	proof            proofID
 }
 
+// ValidatedRevelationBatch stages all vote, tally, and event changes for an
+// entire payload. Nothing is written while the batch is being validated. This
+// gives revelation processing transaction-like behavior even when several
+// roots and hundreds of votes are included together.
 type ValidatedRevelationBatch struct {
 	votes      map[voteID]types.VoteState
 	voteOrder  []voteID
@@ -49,6 +60,11 @@ type ValidatedRevelationBatch struct {
 	events     []plannedEvent
 }
 
+// ValidateCommitmentRevelation reconstructs a stored root and extracts only
+// votes whose proof leaves are currently active. Expired leaves can still be
+// supplied as values, but they do not count. This allows a validator to reveal
+// the still-active half of a two-height commitment without late votes from the
+// sibling half changing an already closed proof window.
 func (k Keeper) ValidateCommitmentRevelation(
 	ctx context.Context,
 	validator []byte,
@@ -82,6 +98,9 @@ func (k Keeper) ValidateCommitmentRevelation(
 	if err != nil {
 		return plan, err
 	}
+	// Both leaf hashes are always needed to authenticate the root, even when
+	// only one leaf is open as a value. A hash-only sibling hides its salt and
+	// votes while still proving that the opened value belongs to the stored root.
 	leftHash, leftVotes, leftCounts, err := processLeafRevelation(currentHeight, leftHeight, revelation.Left)
 	if err != nil {
 		return plan, err
@@ -117,6 +136,9 @@ func processLeafRevelation(
 	var empty [types.LeafHashSize]byte
 	switch revelation.Mode {
 	case types.LeafRevealMode_LEAF_REVEAL_MODE_HASH_ONLY:
+		// Hash-only preserves the unopened half of the Merkle-style root without
+		// exposing a salt or creating votes. A batch with two hash-only leaves is
+		// rejected because it proves nothing new and only consumes block space.
 		leafHash := revelation.GetLeafHash()
 		if len(leafHash) != types.LeafHashSize {
 			return empty, nil, false, types.ErrInvalidLeafHashLength
@@ -143,6 +165,8 @@ func processLeafRevelation(
 		if err != nil {
 			return empty, nil, false, err
 		}
+		// A value can authenticate an expired leaf, but its votes count only
+		// during the leaf's active window.
 		votes := append([]types.ProofVote(nil), value.Votes...)
 		return leafHash, votes, types.GetLeafTiming(currentHeight, proofHeight) == types.LeafActive, nil
 
@@ -151,6 +175,11 @@ func processLeafRevelation(
 	}
 }
 
+// ValidateRevelationPlans performs full-batch prevalidation. Staging across
+// plans is important because two revelations in one payload can touch the same
+// proof and expose equivocation before any consensus state is written. Reading
+// staged values first also makes duplicate votes idempotent within the batch,
+// exactly as they are across different blocks.
 func (k Keeper) ValidateRevelationPlans(ctx context.Context, plans []RevelationPlan) (ValidatedRevelationBatch, error) {
 	batch := ValidatedRevelationBatch{
 		votes:   make(map[voteID]types.VoteState),
@@ -176,6 +205,8 @@ func (k Keeper) ValidateRevelationPlans(ctx context.Context, plans []RevelationP
 	return batch, nil
 }
 
+// validateVotes checks snapshot eligibility and referential integrity for a
+// single proof height before votes are staged.
 func (k Keeper) validateVotes(ctx context.Context, validator []byte, proofHeight uint64, votes []types.ProofVote) error {
 	eligible, err := k.IsValidatorEligible(ctx, proofHeight, validator)
 	if err != nil {
@@ -237,6 +268,11 @@ func (k Keeper) stageVote(
 		tally = stored
 	}
 
+	// A validator has at most one effective contribution. Repeating the same
+	// vote is idempotent; a conflicting vote removes the old tally contribution
+	// and permanently marks the validator as equivocated for this proof. The new
+	// conflicting value is not added either, so equivocation can never increase
+	// the chance that either side reaches threshold.
 	incoming := types.VoteState_VOTE_STATE_FALSE
 	if vote.Result {
 		incoming = types.VoteState_VOTE_STATE_TRUE
@@ -316,6 +352,10 @@ func (k Keeper) loadVote(ctx context.Context, key voteID) (types.VoteState, erro
 	return state, nil
 }
 
+// ApplyRevelationPlans persists a previously validated batch in deterministic
+// first-touch order, then emits the corresponding consensus events. The order
+// does not change the mathematical result, but deterministic writes and events
+// make state traces and debugging consistent across validators.
 func (k Keeper) ApplyRevelationPlans(ctx context.Context, batch ValidatedRevelationBatch) error {
 	for _, key := range batch.voteOrder {
 		state := batch.votes[key]

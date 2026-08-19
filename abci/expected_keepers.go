@@ -29,6 +29,11 @@ type BridgeKeeper interface {
 	GetActionsReducedRootAtHeight(context.Context, int64) ([]byte, error)
 }
 
+// VerificationKeeper is the deterministic, replicated state surface used by
+// ABCI. It knows registered proofs, snapshots, commitments, and revelations,
+// but never calls the local sidecar. Sidecar results and private salts enter
+// through the separate validator builder so machine-local failures cannot make
+// keeper execution nondeterministic.
 type VerificationKeeper interface {
 	ValidateVerificationPayload(context.Context, []byte, uint64, []byte, []verificationtypes.CommitmentRevelation) error
 	ApplyVerificationPayload(context.Context, []byte, uint64, []byte, []verificationtypes.CommitmentRevelation) error

@@ -6,6 +6,10 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// submitCommitment writes both the primary record and its pruning index after
+// all authorization and duplicate checks have passed. The root is opaque at
+// this stage; correctness is proven later by reconstructing it from revealed
+// leaves.
 func (k Keeper) submitCommitment(ctx context.Context, validator []byte, height uint64, commitment []byte) error {
 	if err := k.validateSubmitCommitment(ctx, validator, height, commitment); err != nil {
 		return err
@@ -18,6 +22,15 @@ func (k Keeper) submitCommitment(ctx context.Context, validator []byte, height u
 	return k.CommitmentsByHeight.Set(ctx, types.NewCommitmentHeightStoreKey(height, validator))
 }
 
+// validateSubmitCommitment accepts a validator that was eligible for either
+// proof height covered by this commitment. The authenticated validator
+// identity comes from CometBFT, not from payload data. Eligibility for either
+// leaf is sufficient because one of the two covered blocks may contain no
+// proof or may have used a different validator snapshot. Duplicate protection
+// is scoped to the validator-height slot: a validator may publish only one root
+// at C. Random salts make independently matching roots impractical, and copying
+// another validator's opaque root cannot produce a valid later revelation
+// without that validator's private leaf preimages.
 func (k Keeper) validateSubmitCommitment(ctx context.Context, validator []byte, height uint64, commitment []byte) error {
 	if len(commitment) != types.CommitmentHashSize {
 		return types.ErrInvalidCommitmentLength

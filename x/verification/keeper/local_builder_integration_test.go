@@ -75,6 +75,10 @@ func TestLocalBuilderRestartRevealsIntoKeeperAndFinalizes(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	// H+2 is the first commitment opportunity for the proof submitted at H=500.
+	// The live sidecar returns a terminal VALID verdict, so the builder places the
+	// vote in commitment 502's right leaf and persists its private salt and vote
+	// before the root can be signed and applied on-chain.
 	commitment := builder.Build(fixture.atHeight(502), identity, 502)
 	require.NoError(t, commitment.Warning)
 	require.NotNil(t, commitment.Payload)
@@ -82,6 +86,10 @@ func TestLocalBuilderRestartRevealsIntoKeeperAndFinalizes(t *testing.T) {
 		fixture.atHeight(502), identity.OperatorAddress, 502, commitment.Payload.Commitment, nil,
 	))
 
+	// Restart before reveal with no sidecar available. The replacement builder
+	// must recover the exact salt and vote from disk and reveal commitment 502 at
+	// H+4. This proves revelation depends on durable local preimages, not on
+	// re-running a verifier or receiving the same result after restart.
 	restarted, err := verificationvalidator.NewBuilder(
 		fixture.keeper, sidecar.DisabledProvider{}, stateStore, bytes.NewReader(nil), 50*time.Millisecond,
 	)
@@ -99,6 +107,9 @@ func TestLocalBuilderRestartRevealsIntoKeeperAndFinalizes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), tally.TrueVotes)
 
+	// EndBlock(H+5) runs after the last legal reveal block and finalizes from the
+	// validator snapshot frozen at H. With one eligible validator, one true vote
+	// reaches ceil(2*1/3)=1 and produces an immutable VALID result.
 	require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(505)))
 	result, err := fixture.keeper.FinalProofResults.Get(fixture.ctx, types.NewProofStoreKey(500, 0))
 	require.NoError(t, err)
@@ -120,6 +131,9 @@ func TestGRPCClientFeedsOnlyNewTerminalResultsIntoCommitments(t *testing.T) {
 		call++
 		switch call {
 		case 1:
+			// H+2 is the first opportunity for all proofs from block H. The request
+			// contains the full batch, but only proof 0 has a terminal result; proofs
+			// 1 and 2 are omitted rather than mapped to INVALID.
 			require.Equal(t, [][]byte{
 				proofs[0].Record.ProofHash,
 				proofs[1].Record.ProofHash,
@@ -130,6 +144,10 @@ func TestGRPCClientFeedsOnlyNewTerminalResultsIntoCommitments(t *testing.T) {
 				Verdict:   sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID,
 			}}}
 		case 2:
+			// H+3 is the overlapping second opportunity for block H. Proof 0 is
+			// excluded because its vote is already protected by the on-chain H+2
+			// commitment. Proof 1 has now completed; proof 2 remains pending and
+			// never becomes an implicit negative vote.
 			require.Equal(t, [][]byte{
 				proofs[1].Record.ProofHash,
 				proofs[2].Record.ProofHash,
@@ -169,5 +187,8 @@ func TestGRPCClientFeedsOnlyNewTerminalResultsIntoCommitments(t *testing.T) {
 	require.NoError(t, second.Warning)
 	require.NotNil(t, second.Payload)
 	require.Equal(t, 2, call)
+	// The consensus client must never query sidecar-local lifecycle status.
+	// QUEUED, VERIFYING, and FAILED are operational observations; only terminal
+	// VALID or INVALID results can influence a commitment.
 	require.False(t, service.statusCall)
 }

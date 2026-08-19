@@ -17,6 +17,8 @@ var (
 )
 
 // TransportMode controls which plaintext endpoint classes a client may use.
+// The modes are intentionally narrow because verifier RPC traffic is not
+// authenticated or encrypted in this phase.
 type TransportMode string
 
 const (
@@ -63,6 +65,9 @@ func validateGRPCAddress(address string, mode TransportMode) error {
 		return fmt.Errorf("%w: port must be between 1 and 65535", ErrInvalidGRPCAddress)
 	}
 
+	// Literal IPs can be classified without DNS, keeping startup validation
+	// deterministic and preventing obvious public plaintext endpoints before
+	// any connection attempt is made.
 	ip, err := netip.ParseAddr(host)
 	if err == nil {
 		if ip.Zone() != "" || ip.IsUnspecified() {
@@ -77,6 +82,9 @@ func validateGRPCAddress(address string, mode TransportMode) error {
 		return nil
 	}
 
+	// DNS names are accepted only in trusted-network mode for container and
+	// cluster service discovery. A DNS name cannot be proven private locally, so
+	// operators must enforce the trust boundary with network policy.
 	if mode != TransportModeTrustedNetwork {
 		return fmt.Errorf("%w: loopback mode requires a literal IP", ErrInvalidGRPCAddress)
 	}

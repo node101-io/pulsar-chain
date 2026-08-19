@@ -32,6 +32,9 @@ var (
 var _ Provider = (*Client)(nil)
 
 // Client is a persistent result-only gRPC provider for the validator builder.
+// It deliberately does not expose or call the operator-only status RPC. QUEUED,
+// VERIFYING, FAILED, and UNAVAILABLE are useful for operators but are not inputs
+// to consensus decisions.
 type Client struct {
 	mu     sync.RWMutex
 	conn   *grpc.ClientConn
@@ -39,6 +42,9 @@ type Client struct {
 }
 
 // NewClient validates an endpoint and creates a lazy persistent gRPC client.
+// grpc.NewClient does not require the sidecar to be online during node startup.
+// Reusing one connection avoids a dial and handshake in every ExtendVote call,
+// while gRPC handles reconnects after a sidecar restart.
 func NewClient(address string, mode TransportMode) (*Client, error) {
 	if err := validateGRPCAddress(address, mode); err != nil {
 		return nil, err
@@ -58,6 +64,9 @@ func NewClient(address string, mode TransportMode) (*Client, error) {
 }
 
 // GetVerificationResults returns the completed subset of requested proof hashes.
+// The complete response is validated before any item reaches the builder. If
+// one entry is malformed, no vote from that response is used; the next protocol
+// opportunity can retry the still-uncommitted hashes.
 func (c *Client) GetVerificationResults(
 	ctx context.Context,
 	proofHashes [][]byte,
@@ -116,6 +125,9 @@ func buildRequest(
 	if len(proofHashes) > maxProofHashes {
 		return nil, nil, fmt.Errorf("%w: batch exceeds %d hashes", ErrInvalidRequest, maxProofHashes)
 	}
+	// Clone every hash into the protobuf request so caller mutation cannot race
+	// with asynchronous gRPC serialization. The 512-hash bound covers two full
+	// 256-proof blocks, exactly matching one commitment's left and right leaves.
 	requested := make(map[string]struct{}, len(proofHashes))
 	cloned := make([][]byte, len(proofHashes))
 	for i, hash := range proofHashes {
@@ -143,6 +155,9 @@ func validateResponse(
 	if len(response.Results) > len(requested) {
 		return nil, fmt.Errorf("%w: too many results", ErrInvalidResponse)
 	}
+	// Build a hash map because the service is free to return its terminal subset
+	// in any order. Every returned hash must be unique and come from this request,
+	// which prevents a sidecar bug from voting on unrelated chain state.
 	completed := make(map[string]ResultValue, len(response.Results))
 	for _, result := range response.Results {
 		if result == nil || len(result.ProofHash) != verificationtypes.ProofHashSize {
@@ -167,6 +182,9 @@ func validateResponse(
 		completed[key] = value
 	}
 
+	// Normalize to request order for stable downstream behavior even though the
+	// wire contract is unordered. The builder still sorts by ProofKey before
+	// hashing, but stable client output simplifies callers and tests.
 	results := make([]VerificationResult, 0, len(completed))
 	for _, hash := range proofHashes {
 		if result, ok := completed[string(hash)]; ok {

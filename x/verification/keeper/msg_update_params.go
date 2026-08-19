@@ -9,6 +9,8 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// UpdateParams replaces verification parameters after checking the configured
+// governance authority and the canonical proof-index bounds.
 func (m msgServer) UpdateParams(ctx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
 	if msg == nil {
 		return nil, types.ErrInvalidSigner

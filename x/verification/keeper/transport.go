@@ -10,6 +10,10 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// verificationPayloadPlan is the complete, prevalidated state transition for
+// one authenticated validator payload. Keeping a plan separate from applying
+// it lets proposal validation simulate several validator actions in order
+// without exposing partial consensus writes.
 type verificationPayloadPlan struct {
 	validator          []byte
 	targetHeight       uint64
@@ -18,6 +22,10 @@ type verificationPayloadPlan struct {
 	hasRevelationBatch bool
 }
 
+// ValidateVerificationPayload checks a commitment/revelation payload without
+// mutating consensus state. Proposal construction uses this as an early filter
+// so invalid optional verification data can be omitted while the validator's
+// mandatory Mina transition signature is still included.
 func (k Keeper) ValidateVerificationPayload(
 	ctx context.Context,
 	validator []byte,
@@ -29,6 +37,11 @@ func (k Keeper) ValidateVerificationPayload(
 	return err
 }
 
+// ApplyVerificationPayload validates and applies the complete payload
+// atomically. A failure in either the commitment or any revelation leaves all
+// verification state unchanged. This is required because a payload may both
+// reveal old roots and submit the next root; accepting only one half would make
+// validators observe different protocol histories.
 func (k Keeper) ApplyVerificationPayload(
 	ctx context.Context,
 	validator []byte,
@@ -101,6 +114,9 @@ func (k Keeper) planVerificationPayload(
 		return verificationPayloadPlan{}, types.ErrInvalidRevelationCount
 	}
 
+	// One payload cannot reveal the same commitment twice, even if its leaf
+	// encodings differ. The batch must describe one unambiguous opening for each
+	// commitment height.
 	seenHeights := make(map[uint64]struct{}, len(revelations))
 	revelationPlans := make([]RevelationPlan, 0, len(revelations))
 	for _, revelation := range revelations {

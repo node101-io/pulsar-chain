@@ -16,12 +16,16 @@ import (
 
 var _ depinject.OnePerModuleType = AppModule{}
 
+// IsOnePerModuleType prevents duplicate verification module instances.
 func (AppModule) IsOnePerModuleType() {}
 
 func init() {
 	appconfig.Register(&types.Module{}, appconfig.Provide(ProvideModule))
 }
 
+// ModuleInputs declares the replicated dependencies required to construct the
+// verification keeper. The sidecar client and local journal are absent because
+// they belong to app/ABCI wiring, not Cosmos module dependency injection.
 type ModuleInputs struct {
 	depinject.In
 
@@ -32,6 +36,9 @@ type ModuleInputs struct {
 	StakingKeeper *stakingkeeper.Keeper
 }
 
+// ModuleOutputs exposes the keeper to ABCI/app wiring and the AppModule to the
+// SDK runtime. This keeps one authoritative consensus keeper while allowing each
+// validator process to attach its own optional result provider.
 type ModuleOutputs struct {
 	depinject.Out
 
@@ -39,6 +46,10 @@ type ModuleOutputs struct {
 	Module             appmodule.AppModule
 }
 
+// ProvideModule constructs the keeper with governance authority and registers
+// it as a Cosmos SDK application module. Governance may change bounded module
+// parameters, while validator-generated commitment actions remain outside the
+// public Msg service.
 func ProvideModule(in ModuleInputs) ModuleOutputs {
 	authority := authtypes.NewModuleAddress(types.GovModuleName)
 	if in.Config.Authority != "" {

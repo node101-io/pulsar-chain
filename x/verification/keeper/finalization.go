@@ -13,6 +13,10 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// EndBlock finalizes the proof height whose last reveal opportunity has just
+// closed, then prunes lifecycle state that can no longer affect consensus. It
+// runs after all H+5 revelations have been applied, ensuring the second reveal
+// block is a real voting opportunity rather than a premature cutoff.
 func (k Keeper) EndBlock(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	cacheCtx, write := sdkCtx.CacheContext()
@@ -30,6 +34,8 @@ func (k Keeper) endBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Proofs submitted at H finalize at EndBlock(H+5). At this point both
+	// commitment opportunities and both active reveal blocks are finished.
 	finalRevealOffset := types.VerificationLifetime - 1
 	if height >= finalRevealOffset {
 		proofHeight := height - finalRevealOffset
@@ -40,6 +46,8 @@ func (k Keeper) endBlock(ctx context.Context) error {
 			return err
 		}
 	}
+	// Commitments remain available through C+3 and are pruned at EndBlock(C+3).
+	// The root is no longer useful after its final legal revelation has run.
 	if height >= types.CommitmentDeadline {
 		if err := k.PruneCommitmentsAtHeight(ctx, height-types.CommitmentDeadline); err != nil {
 			return err
@@ -49,6 +57,8 @@ func (k Keeper) endBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// PreBlock may create a snapshot before transactions are known. Remove it
+	// when the block ended without any successful proof submission.
 	if !proofsAtCurrentHeight {
 		snapshotExists, err := k.ValidatorCountByHeight.Has(ctx, height)
 		if err != nil {
@@ -64,6 +74,10 @@ func (k Keeper) endBlock(ctx context.Context) error {
 	return nil
 }
 
+// FinalizeHeight derives immutable VALID, INVALID, or INCONCLUSIVE results
+// from the proof-height snapshot and effective tallies. Inconclusive is a real
+// consensus outcome: missing sidecar results, absent validators, and removed
+// equivocations are not silently converted into INVALID votes.
 func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight uint64) error {
 	started := telemetry.Now()
 	defer telemetry.ModuleMeasureSince(types.ModuleName, started, "finalization", "duration")
@@ -109,6 +123,9 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 		if uint64(tally.TrueVotes)+uint64(tally.FalseVotes) > uint64(validatorCount) {
 			return errorsmod.Wrap(types.ErrProofStateCorrupted, "proof tally exceeds validator snapshot")
 		}
+		// Only one side can reach ceil(2N/3) because effective votes are bounded
+		// by the validator snapshot and equivocations count toward neither side.
+		// This gives VALID and INVALID symmetric finalization rules.
 		status := types.ProofStatus_PROOF_STATUS_INCONCLUSIVE
 		if tally.TrueVotes >= threshold {
 			status = types.ProofStatus_PROOF_STATUS_VALID
@@ -146,6 +163,10 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 	return nil
 }
 
+// PruneProofHeight removes active proofs, votes, tallies, counts, and validator
+// snapshots after finalization. Final results remain queryable, while permanent
+// hash-to-key mappings keep replay protection even after bulky lifecycle state
+// is gone.
 func (k Keeper) PruneProofHeight(ctx context.Context, height uint64) error {
 	exists, err := k.ProofCountByHeight.Has(ctx, height)
 	if err != nil || !exists {
@@ -198,6 +219,9 @@ func (k Keeper) PruneProofHeight(ctx context.Context, height uint64) error {
 	return k.ProofCountByHeight.Remove(ctx, height)
 }
 
+// PruneCommitmentsAtHeight removes every commitment at one height by walking
+// the reverse index and checks that the primary index is still consistent. The
+// reverse index avoids scanning commitments for every validator at every block.
 func (k Keeper) PruneCommitmentsAtHeight(ctx context.Context, height uint64) error {
 	keys := make([]types.CommitmentHeightStoreKey, 0)
 	rangeByHeight := collections.NewPrefixedPairRange[uint64, []byte](height)

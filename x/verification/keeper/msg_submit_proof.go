@@ -10,10 +10,19 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// SubmitProof registers proof metadata under the next deterministic index at
+// the current height. The proof bytes remain off-chain; only their hash and
+// type become consensus state. This on-chain registration is the eligibility
+// signal for sidecars: merely receiving a proof over P2P does not authorize a
+// validator to vote on it.
 func (m msgServer) SubmitProof(ctx context.Context, msg *types.MsgSubmitProof) (*types.MsgSubmitProofResponse, error) {
 	if msg == nil || len(msg.ProofHash) != types.ProofHashSize {
 		return nil, types.ErrInvalidProofHash
 	}
+	// Use a cache context so snapshot creation and all proof indexes are
+	// committed together or not at all. A partial write could otherwise leave a
+	// permanent hash reservation without a queryable proof, or a proof without
+	// the snapshot needed to finalize it.
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	cacheCtx, write := sdkCtx.CacheContext()
 	ctx = cacheCtx
@@ -40,6 +49,9 @@ func (m msgServer) SubmitProof(ctx context.Context, msg *types.MsgSubmitProof) (
 	if count >= params.MaxProofsPerBlock {
 		return nil, types.ErrMaxProofsPerBlock
 	}
+	// The first proof at a height freezes the validator set used for every vote
+	// and the final two-thirds threshold for that height. Further submissions in
+	// the same block reuse the snapshot even if staking state changes later.
 	if count == 0 {
 		snapshotExists, err := m.ValidatorCountByHeight.Has(ctx, height)
 		if err != nil {
@@ -57,6 +69,9 @@ func (m msgServer) SubmitProof(ctx context.Context, msg *types.MsgSubmitProof) (
 		}
 	}
 
+	// The successful count is also the next index, so failed submissions never
+	// create gaps in the canonical proof sequence. The one-byte index later
+	// becomes part of the canonical leaf encoding.
 	key := types.NewProofStoreKey(height, count)
 	record := types.ProofRecord{ProofHash: append([]byte(nil), msg.ProofHash...), ProofType: msg.ProofType}
 	if err := m.PendingProofs.Set(ctx, key, record); err != nil {

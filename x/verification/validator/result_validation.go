@@ -25,6 +25,9 @@ func buildResultRequest(
 	}
 	request := make([][]byte, 0, capacity)
 	index := make(map[string]requestedProof, capacity)
+	// Index by hash so the unordered sidecar response can be mapped back to the
+	// canonical proof height and in-block index. The sidecar is not trusted to
+	// know ProofKey or preserve request order; those are chain responsibilities.
 	appendProofs := func(expectedHeight uint64, proofs []verificationtypes.ProofEntry, excluded map[uint32]struct{}) error {
 		for _, proof := range proofs {
 			if proof.Key.SubmissionHeight != expectedHeight || proof.Key.IndexInBlock >= verificationtypes.MaxVoteIndexExclusive ||
@@ -60,6 +63,10 @@ func validateResults(
 	if len(results) > len(requested) {
 		return nil, nil, fmt.Errorf("sidecar returned more results than requested")
 	}
+	// Treat the response as one atomic trust-boundary object. Any malformed,
+	// duplicate, unknown, or unrequested item rejects the entire response. Using
+	// a partial prefix after an error could make validators commit different vote
+	// sets depending on response order.
 	seen := make(map[string]struct{}, len(results))
 	leftVotes := make([]verificationtypes.ProofVote, 0, len(results))
 	rightVotes := make([]verificationtypes.ProofVote, 0, len(results))
@@ -91,6 +98,9 @@ func validateResults(
 			rightVotes = append(rightVotes, vote)
 		}
 	}
+	// Response order is not part of the RPC contract. Restore canonical order
+	// before hashing the vote lists so identical terminal subsets always create
+	// identical encoded vote lists before random salting.
 	sort.Slice(leftVotes, func(i, j int) bool { return leftVotes[i].IndexInBlock < leftVotes[j].IndexInBlock })
 	sort.Slice(rightVotes, func(i, j int) bool { return rightVotes[i].IndexInBlock < rightVotes[j].IndexInBlock })
 	if err := verificationtypes.ValidateCanonicalVotes(leftVotes); err != nil {

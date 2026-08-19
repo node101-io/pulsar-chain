@@ -426,6 +426,9 @@ for index in 1 2 3; do
   curl -fsS "http://127.0.0.1:${HOST_RPC_PORTS[index]}/status" >"$status_file"
   latest_heights[index]="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" \
     json-value --input "$status_file" --path result.sync_info.latest_block_height)"
+  # Verification is disabled in this chain-only deployment, so the NoOp provider
+  # returns no terminal proof results. Consensus and mandatory Mina extensions
+  # must continue normally, and no private commitment journal should be created.
   compose exec -T "validator${index}" test ! -e \
     "/testnet/.pulsar-node${index}/data/verification_commitment_state.json"
 done

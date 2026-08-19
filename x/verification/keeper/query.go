@@ -11,6 +11,7 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// Params returns the current governance-controlled module parameters.
 func (q queryServer) Params(ctx context.Context, _ *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
 	params, err := q.k.Params.Get(ctx)
 	if err != nil {
@@ -20,6 +21,9 @@ func (q queryServer) Params(ctx context.Context, _ *types.QueryParamsRequest) (*
 	return &types.QueryParamsResponse{Params: params}, nil
 }
 
+// Proof resolves one canonical proof key to either its pending record or its
+// immutable final result. Returning a tagged union makes lifecycle movement
+// explicit to clients instead of exposing two records for the same proof.
 func (q queryServer) Proof(ctx context.Context, req *types.QueryProofRequest) (*types.QueryProofResponse, error) {
 	if req == nil || req.IndexInBlock >= types.MaxVoteIndexExclusive {
 		return nil, types.ErrInvalidVoteIndex
@@ -28,6 +32,10 @@ func (q queryServer) Proof(ctx context.Context, req *types.QueryProofRequest) (*
 	return q.proof(ctx, req.SubmissionHeight, req.IndexInBlock)
 }
 
+// ProofByHash uses the permanent hash registry, so it continues to work after
+// pending proof state has been pruned. The resolved record is checked against
+// the requested hash because a stale or mismatched reverse index is consensus
+// corruption, not a normal not-found response.
 func (q queryServer) ProofByHash(ctx context.Context, req *types.QueryProofByHashRequest) (*types.QueryProofResponse, error) {
 	if req == nil || len(req.ProofHash) != types.ProofHashSize {
 		return nil, types.ErrInvalidProofHash
@@ -65,6 +73,9 @@ func (q queryServer) proof(ctx context.Context, height uint64, index uint32) (*t
 	if err != nil {
 		return nil, err
 	}
+	// A proof moves from PendingProofs to FinalProofResults at finalization; it
+	// must never exist in both lifecycle stores. Detecting this in queries avoids
+	// presenting an arbitrary state when the underlying invariant is broken.
 	if pending && final {
 		return nil, types.ErrProofStateCorrupted
 	}
@@ -101,6 +112,9 @@ func (q queryServer) proof(ctx context.Context, height uint64, index uint32) (*t
 	return nil, types.ErrProofNotFound
 }
 
+// ProofsByHeight returns the pending set before finalization and the final set
+// afterwards. A height cannot legitimately contain a mixture of both states
+// because finalization and pruning are atomic for the whole proof height.
 func (q queryServer) ProofsByHeight(ctx context.Context, req *types.QueryProofsByHeightRequest) (*types.QueryProofsByHeightResponse, error) {
 	if req == nil {
 		return nil, types.ErrProofHeightNotFound
@@ -163,6 +177,8 @@ func (q queryServer) ProofsByHeight(ctx context.Context, req *types.QueryProofsB
 	return &types.QueryProofsByHeightResponse{Proofs: proofs, Pagination: page}, nil
 }
 
+// Commitment returns one retained validator commitment by operator address and
+// commitment height.
 func (q queryServer) Commitment(ctx context.Context, req *types.QueryCommitmentRequest) (*types.QueryCommitmentResponse, error) {
 	if req == nil {
 		return nil, types.ErrCommitmentNotFound
@@ -194,6 +210,8 @@ func (q queryServer) Commitment(ctx context.Context, req *types.QueryCommitmentR
 	}}, nil
 }
 
+// CommitmentsByValidator lists the currently retained commitments for one
+// validator. Old commitments disappear after their final reveal window.
 func (q queryServer) CommitmentsByValidator(ctx context.Context, req *types.QueryCommitmentsByValidatorRequest) (*types.QueryCommitmentsByValidatorResponse, error) {
 	if req == nil {
 		return nil, types.ErrInvalidValidator
@@ -225,6 +243,9 @@ func (q queryServer) CommitmentsByValidator(ctx context.Context, req *types.Quer
 	return &types.QueryCommitmentsByValidatorResponse{Commitments: commitments, Pagination: page}, nil
 }
 
+// Vote returns a validator's effective state for one proof. Equivocated votes
+// remain observable but contribute to neither tally. Keeping the marker makes
+// the removal auditable and prevents a later reveal from restoring a vote.
 func (q queryServer) Vote(ctx context.Context, req *types.QueryVoteRequest) (*types.QueryVoteResponse, error) {
 	if req == nil || req.IndexInBlock >= types.MaxVoteIndexExclusive {
 		return nil, types.ErrInvalidVoteIndex
@@ -257,6 +278,7 @@ func (q queryServer) Vote(ctx context.Context, req *types.QueryVoteRequest) (*ty
 	}}, nil
 }
 
+// VerificationVotes lists all recorded effective validator states for a proof.
 func (q queryServer) VerificationVotes(ctx context.Context, req *types.QueryVerificationVotesRequest) (*types.QueryVerificationVotesResponse, error) {
 	if req == nil || req.IndexInBlock >= types.MaxVoteIndexExclusive {
 		return nil, types.ErrInvalidVoteIndex
@@ -292,6 +314,7 @@ func (q queryServer) VerificationVotes(ctx context.Context, req *types.QueryVeri
 	return &types.QueryVerificationVotesResponse{Votes: votes, Pagination: page}, nil
 }
 
+// ProofTally returns the live effective tally for a pending proof.
 func (q queryServer) ProofTally(ctx context.Context, req *types.QueryProofTallyRequest) (*types.QueryProofTallyResponse, error) {
 	if req == nil || req.IndexInBlock >= types.MaxVoteIndexExclusive {
 		return nil, types.ErrInvalidVoteIndex
@@ -315,6 +338,9 @@ func (q queryServer) ProofTally(ctx context.Context, req *types.QueryProofTallyR
 	}, nil
 }
 
+// FinalProofResult returns an immutable result and revalidates that its stored
+// threshold, tally, status, and permanent hash mapping are mutually consistent.
+// Queries therefore never normalize or hide corrupted consensus state.
 func (q queryServer) FinalProofResult(ctx context.Context, req *types.QueryFinalProofResultRequest) (*types.QueryFinalProofResultResponse, error) {
 	if req == nil || req.IndexInBlock >= types.MaxVoteIndexExclusive {
 		return nil, types.ErrInvalidVoteIndex

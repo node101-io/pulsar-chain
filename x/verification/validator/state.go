@@ -13,16 +13,23 @@ import (
 )
 
 const (
+	// StateVersion protects the on-disk journal format from silent reinterpretation.
 	StateVersion            uint32 = 1
 	maxChainIDBytes         int    = 128
 	maxOperatorAddressBytes int    = 255
 )
 
 var (
+	// ErrInvalidLocalState reports malformed or internally inconsistent journal data.
 	ErrInvalidLocalState = errors.New("invalid verification local state")
-	ErrStateBinding      = errors.New("verification local state binding mismatch")
+	// ErrStateBinding reports reuse under a different chain or validator identity.
+	ErrStateBinding = errors.New("verification local state binding mismatch")
 )
 
+// State is bounded validator-local state. It is not exported in genesis and
+// is never replicated through consensus. Validators may therefore have
+// different pending secrets without changing app hash; consensus sees only the
+// roots and revelations they choose to submit.
 type State struct {
 	Version                   uint32
 	ChainID                   string
@@ -31,6 +38,9 @@ type State struct {
 	Commitments               []CommitmentSecret
 }
 
+// CommitmentSecret stores the exact root preimage needed for later revelation.
+// Losing it after the root is signed means the validator cannot contribute
+// those votes, which is why the builder persists it before returning a payload.
 type CommitmentSecret struct {
 	CommitmentHeight uint64
 	CommitmentRoot   []byte
@@ -38,6 +48,8 @@ type CommitmentSecret struct {
 	Right            LeafSecret
 }
 
+// LeafSecret stores one proof-height vote set and its random salt. LeafHash is
+// redundant by design and is recomputed during validation to detect corruption.
 type LeafSecret struct {
 	ProofHeight uint64
 	Salt        []byte
@@ -67,10 +79,13 @@ type diskLeafSecret struct {
 	Votes       []verificationtypes.ProofVote `json:"votes"`
 }
 
+// EmptyState returns a versioned journal that has not yet been bound to a
+// validator identity.
 func EmptyState() State {
 	return State{Version: StateVersion}
 }
 
+// Clone returns a deep copy so callers cannot mutate persisted byte slices.
 func (s State) Clone() State {
 	out := State{
 		Version:                   s.Version,
@@ -103,6 +118,8 @@ func (s LeafSecret) clone() LeafSecret {
 	}
 }
 
+// Commitment performs a binary search over strictly increasing heights and
+// returns a defensive copy.
 func (s State) Commitment(height uint64) (CommitmentSecret, bool) {
 	index := sort.Search(len(s.Commitments), func(i int) bool {
 		return s.Commitments[i].CommitmentHeight >= height
@@ -113,6 +130,7 @@ func (s State) Commitment(height uint64) (CommitmentSecret, bool) {
 	return s.Commitments[index].clone(), true
 }
 
+// PutCommitment inserts one secret while preserving strict height order.
 func (s *State) PutCommitment(secret CommitmentSecret) error {
 	if s == nil {
 		return ErrInvalidLocalState
@@ -129,6 +147,9 @@ func (s *State) PutCommitment(secret CommitmentSecret) error {
 	return nil
 }
 
+// Prune removes secrets after their final revelation opportunity. The journal
+// therefore remains bounded to the current commitment window. Retaining older
+// salts adds secret-management risk without enabling any legal chain action.
 func (s *State) Prune(targetHeight uint64) bool {
 	if s == nil || len(s.Commitments) == 0 {
 		return false
@@ -152,6 +173,10 @@ func (s *State) Prune(targetHeight uint64) bool {
 	return true
 }
 
+// ValidateState verifies identity binding, boundedness, ordering, every leaf
+// hash, and every commitment root before local secrets are trusted. The file is
+// treated as untrusted restart input because manual edits, partial copies, or
+// disk corruption must not lead to a different revealed preimage.
 func ValidateState(s State, allowUnbound bool) error {
 	if s.Version != StateVersion {
 		return fmt.Errorf("%w: unsupported version %d", ErrInvalidLocalState, s.Version)
@@ -192,6 +217,8 @@ func validateCommitmentSecret(secret CommitmentSecret) error {
 	if secret.Left.ProofHeight != leftHeight || secret.Right.ProofHeight != rightHeight {
 		return fmt.Errorf("%w: commitment proof heights", ErrInvalidLocalState)
 	}
+	// Recompute the complete commitment from stored preimages rather than
+	// trusting redundant hashes in the file.
 	leftHash, err := validateLeafSecret(secret.Left)
 	if err != nil {
 		return err
@@ -229,6 +256,7 @@ func validateLeafSecret(secret LeafSecret) ([verificationtypes.LeafHashSize]byte
 }
 
 func encodeState(s State) ([]byte, error) {
+	// Never serialize a state that the builder would refuse to load.
 	if err := ValidateState(s, false); err != nil {
 		return nil, err
 	}
@@ -260,6 +288,9 @@ func encodeLeaf(secret LeafSecret) diskLeafSecret {
 }
 
 func decodeState(data []byte) (State, error) {
+	// Reject unknown fields and trailing JSON so schema mistakes cannot be
+	// silently ignored during restart. Versioned strict decoding makes future
+	// migrations explicit instead of accidentally accepting mixed formats.
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	var disk diskState

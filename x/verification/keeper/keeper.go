@@ -11,6 +11,12 @@ import (
 	"github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+// Keeper owns the replicated half of the verification protocol. It registers
+// proof identities, freezes validator eligibility, accepts authenticated
+// commitment and revelation actions, tracks one effective vote per validator,
+// and produces immutable final results. Proof bytes, verification jobs, salts,
+// and unrevealed vote lists remain validator-local and never enter these
+// collections.
 type Keeper struct {
 	storeService  corestore.KVStoreService
 	c             codec.Codec
@@ -18,20 +24,39 @@ type Keeper struct {
 	authority     []byte
 	stakingKeeper types.StakingKeeper
 
-	Schema                 collections.Schema
-	Params                 collections.Item[types.Params]
-	ProofCountByHeight     collections.Map[uint64, uint32]
-	PendingProofs          collections.Map[types.ProofStoreKey, types.ProofRecord]
-	SeenProofHashes        collections.Map[[]byte, types.ProofKey]
+	// Proof lifecycle state uses an absolute submission height and a contiguous
+	// in-block index. Absolute keys avoid ring-buffer aliases when old state is
+	// pruned and heights continue to grow.
+	Schema             collections.Schema
+	Params             collections.Item[types.Params]
+	ProofCountByHeight collections.Map[uint64, uint32]
+	PendingProofs      collections.Map[types.ProofStoreKey, types.ProofRecord]
+	// SeenProofHashes is permanent so a finalized and pruned hash cannot be
+	// registered again.
+	SeenProofHashes collections.Map[[]byte, types.ProofKey]
+	// ValidatorSnapshots and ValidatorCountByHeight freeze both membership and
+	// the finalization denominator at the proof submission height. Later staking
+	// changes therefore cannot retroactively change who was eligible to vote.
 	ValidatorSnapshots     collections.KeySet[types.ValidatorSnapshotStoreKey]
 	ValidatorCountByHeight collections.Map[uint64, uint32]
-	Commitments            collections.Map[types.CommitmentStoreKey, []byte]
-	CommitmentsByHeight    collections.KeySet[types.CommitmentHeightStoreKey]
-	VerificationVotes      collections.Map[types.VerificationVoteStoreKey, uint32]
-	ProofTallies           collections.Map[types.ProofStoreKey, types.ProofTally]
-	FinalProofResults      collections.Map[types.ProofStoreKey, types.FinalProofResult]
+	// Commitments store only opaque roots. Their salts and vote preimages stay in
+	// the validator's local journal until an allowed revelation block.
+	Commitments collections.Map[types.CommitmentStoreKey, []byte]
+	// CommitmentsByHeight mirrors Commitments only to make height pruning
+	// bounded and deterministic.
+	CommitmentsByHeight collections.KeySet[types.CommitmentHeightStoreKey]
+	// VerificationVotes stores the validator's effective state, including the
+	// terminal EQUIVOCATED marker. ProofTallies is a derived counter kept for
+	// bounded finalization work.
+	VerificationVotes collections.Map[types.VerificationVoteStoreKey, uint32]
+	ProofTallies      collections.Map[types.ProofStoreKey, types.ProofTally]
+	// FinalProofResults replaces pruned pending state and is never mutated after
+	// EndBlock(H+5).
+	FinalProofResults collections.Map[types.ProofStoreKey, types.FinalProofResult]
 }
 
+// NewKeeper builds the verification collections schema and validates its
+// mandatory authority and staking dependencies.
 func NewKeeper(
 	storeService corestore.KVStoreService,
 	c codec.Codec,
@@ -82,6 +107,7 @@ func NewKeeper(
 	return k
 }
 
+// GetAuthority returns a copy of the governance authority address.
 func (k Keeper) GetAuthority() []byte {
 	return append([]byte(nil), k.authority...)
 }

@@ -2,14 +2,22 @@ package types
 
 import "fmt"
 
+// DefaultGenesis returns an empty module state with production defaults.
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{Params: DefaultParams()}
 }
 
+// Validate checks both individual records and the cross-store invariants that
+// InitGenesis must preserve. In particular, pending proofs, permanent hash
+// mappings, snapshots, votes, tallies, and final results must agree. Genesis is
+// the only place these collections can be loaded without passing through their
+// normal transitions, so it must reconstruct and verify the same invariants.
 func (gs GenesisState) Validate() error {
 	if err := gs.Params.Validate(); err != nil {
 		return err
 	}
+	// Proof counts define the exact contiguous index range at each active height.
+	// This matters because votes encode only the one-byte in-block index.
 	proofCounts := make(map[uint64]uint32, len(gs.ProofCounts))
 	for _, entry := range gs.ProofCounts {
 		if entry.Count == 0 || entry.Count > gs.Params.MaxProofsPerBlock {
@@ -41,6 +49,8 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
+	// Snapshot counts are the immutable denominator used during finalization.
+	// Every active proof height must have exactly that many distinct members.
 	validatorCounts := make(map[uint64]uint32, len(gs.ValidatorCounts))
 	for _, entry := range gs.ValidatorCounts {
 		if entry.Count == 0 {
@@ -70,6 +80,9 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
+	// The hash registry survives pruning and must remain one-to-one. Otherwise a
+	// hash could ambiguously resolve to two proofs or replay protection could be
+	// lost during import.
 	seenHashes := make(map[string]ProofKey, len(gs.SeenProofHashes))
 	seenKeys := make(map[string]struct{}, len(gs.SeenProofHashes))
 	for _, entry := range gs.SeenProofHashes {
@@ -126,6 +139,8 @@ func (gs GenesisState) Validate() error {
 		return fmt.Errorf("every pending proof must have one tally")
 	}
 
+	// Recompute tallies from effective votes instead of trusting both copies.
+	// Equivocated states deliberately add to neither counter.
 	votes := make(map[string]struct{}, len(gs.VerificationVotes))
 	derivedTallies := make(map[string]ProofTally, len(gs.ProofTallies))
 	for _, entry := range gs.VerificationVotes {
@@ -157,6 +172,9 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
+	// Final results must be derivable from their stored snapshot and tally. A
+	// result is rejected if its status could not have been produced by the live
+	// EndBlock finalization rule.
 	finals := make(map[string]struct{}, len(gs.FinalProofResults))
 	for _, entry := range gs.FinalProofResults {
 		key := genesisProofKey(entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock)

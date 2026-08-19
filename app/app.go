@@ -124,7 +124,9 @@ type App struct {
 
 	ABCIHandler                *abcihandler.ABCIHandler
 	BridgeArchiveWrapperClient *bridge.ArchiveWrapperClient
-	VerificationSidecarClient  *verificationsidecar.Client
+	// VerificationSidecarClient is non-nil only when the app created the gRPC
+	// client itself; retaining it here gives App.Close lifecycle ownership.
+	VerificationSidecarClient *verificationsidecar.Client
 }
 
 // RegisterGRPCServerWithSkipCheckHeader registers application and standard health services.
@@ -234,6 +236,11 @@ func New(
 		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))
 	}
 
+	// Select and validate the optional verification runtime before wiring ABCI.
+	// Invalid enabled config is an operator error and fails startup because all
+	// later calls would be predictably unsafe or invalid. Runtime sidecar outages
+	// remain non-fatal: the gRPC connection is lazy and an unavailable result is
+	// represented by omitting optional verification data, never by an invalid vote.
 	selectedVerificationProvider, verificationClient, verificationActive, verificationConfigErr := verificationProvider(appOpts)
 	if verificationConfigErr != nil {
 		panic(fmt.Sprintf("invalid verification sidecar configuration: %v", verificationConfigErr))
@@ -250,6 +257,10 @@ func New(
 		verificationTimeout,
 	)
 	if verificationBuilderErr != nil {
+		// Local journal failure disables optional verification for this process.
+		// Without durable preimages the validator could commit a root and lose the
+		// salts needed to reveal it after restart, so creating new commitments is
+		// unsafe. The mandatory Mina consensus path remains available.
 		_ = verificationClient.Close()
 		logger.Error("verification local runtime disabled", "error", verificationBuilderErr)
 	} else {
@@ -303,6 +314,10 @@ func New(
 	app.SetVerifyVoteExtensionHandler(app.ABCIHandler.VerifyVoteExtensionHandler())
 	app.SetPrepareProposal(app.ABCIHandler.PrepareProposalHandler())
 	app.SetProcessProposal(app.ABCIHandler.ProcessProposalHandler())
+	// Compose the SDK runtime and custom vote-extension work in one cache. This
+	// makes Mina persistence, verification actions, module pre-block changes, and
+	// the validator snapshot one atomic state transition: any failure rolls back
+	// all of them instead of committing a partially interpreted proposal.
 	runtimePreBlocker := app.App.PreBlocker
 	verificationPreBlocker := app.ABCIHandler.PreBlocker()
 	app.SetPreBlocker(func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {

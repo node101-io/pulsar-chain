@@ -1,6 +1,8 @@
 package types
 
 const (
+	// Event types describe accepted consensus state transitions. Sidecar-local
+	// queue, retry, and failure states are deliberately not emitted here.
 	EventTypeProofSubmitted       = "verification.proof_submitted"
 	EventTypeCommitmentSubmitted  = "verification.commitment_submitted"
 	EventTypeCommitmentRevealed   = "verification.commitment_revealed"

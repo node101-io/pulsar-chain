@@ -98,11 +98,19 @@ func TestValidateVerificationEntriesAuthenticatesCometSigner(t *testing.T) {
 		BlockIdFlag: cmtproto.BlockIDFlagCommit,
 	}}}
 
+	// Acceptance requires the same historical validator identity to appear in
+	// the last commit, the mandatory Mina payload, and the CometBFT-signed
+	// composite entry. The test exercises the complete binding instead of proving
+	// only that the embedded verification payload is structurally valid.
 	actions, err := handler.validateVerificationEntries(ctx, 10, payload, lastCommit)
 	require.NoError(t, err)
 	require.Len(t, actions, 1)
 	require.Equal(t, 1, keeper.applied)
 
+	// Changing only the outer CometBFT signature invalidates the optional action
+	// because that signature binds the commitment or revelation to height, round,
+	// chain ID, and consensus key. The unchanged inner Mina signature is not
+	// sufficient authorization for verification state changes.
 	payload.VerificationEntries[0].ExtensionSignature[0] ^= 0xff
 	_, err = handler.validateVerificationEntries(ctx, 10, payload, lastCommit)
 	require.ErrorIs(t, err, ErrInvalidVerificationSignature)

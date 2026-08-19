@@ -12,11 +12,30 @@ import (
 )
 
 const (
-	CompositeVoteExtensionVersion     uint32 = 1
-	MaxCompositeVoteExtensionBytes           = 16 << 10
-	DefaultVerificationSidecarTimeout        = 100 * time.Millisecond
+	// CompositeVoteExtensionVersion identifies the outer wire envelope that
+	// CometBFT signs. Versioning lets future nodes reject incompatible layouts
+	// instead of interpreting the same signed bytes under different rules.
+	CompositeVoteExtensionVersion uint32 = 1
+	// MaxCompositeVoteExtensionBytes bounds gossip, signature verification, and
+	// proposal work caused by one validator. Verification is optional, so it must
+	// not be able to make the mandatory consensus path unbounded.
+	MaxCompositeVoteExtensionBytes = 16 << 10
+	// DefaultVerificationSidecarTimeout limits how long ExtendVote waits for the
+	// local sidecar. Missing this optional result is safer than delaying consensus;
+	// the overlapping H+2/H+3 commitment windows provide another opportunity.
+	DefaultVerificationSidecarTimeout = 100 * time.Millisecond
 )
 
+// A composite vote extension carries two related but independently checked
+// pieces of data. TransitionSignature is the existing mandatory Mina signature.
+// VerificationPayload is an optional commitment or revelation assembled from
+// local sidecar results. CometBFT then signs the complete encoded envelope, so
+// another validator cannot copy or alter the optional payload while keeping the
+// original validator's consensus identity.
+
+// encodeCompositeVoteExtension serializes the versioned envelope and enforces
+// the consensus-wide byte limit before CometBFT signs it. Checking the limit at
+// creation and decoding keeps honest and remote paths on the same resource bound.
 func encodeCompositeVoteExtension(extension *CompositeVoteExtension) ([]byte, error) {
 	if extension == nil {
 		return nil, ErrInvalidCompositeVoteExtension
@@ -32,6 +51,10 @@ func encodeCompositeVoteExtension(extension *CompositeVoteExtension) ([]byte, er
 	return encoded, nil
 }
 
+// decodeCompositeVoteExtension rejects oversized, non-canonical, unsupported,
+// or Mina-signature-free envelopes. The Mina component remains mandatory even
+// when no verifier is configured, preserving the chain's pre-verification vote
+// extension contract.
 func decodeCompositeVoteExtension(encoded []byte) (*CompositeVoteExtension, error) {
 	if len(encoded) == 0 || len(encoded) > MaxCompositeVoteExtensionBytes {
 		return nil, ErrInvalidCompositeVoteExtension
@@ -40,6 +63,8 @@ func decodeCompositeVoteExtension(encoded []byte) (*CompositeVoteExtension, erro
 	if err := extension.Unmarshal(encoded); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidCompositeVoteExtension, err)
 	}
+	// Re-marshalling prevents different protobuf byte encodings of the same
+	// logical payload from being accepted as equivalent signed messages.
 	canonical, err := extension.Marshal()
 	if err != nil || !bytes.Equal(canonical, encoded) {
 		return nil, ErrInvalidCompositeVoteExtension
@@ -51,6 +76,11 @@ func decodeCompositeVoteExtension(encoded []byte) (*CompositeVoteExtension, erro
 	return &extension, nil
 }
 
+// validateVerificationPayloadStructure performs cheap context-free checks in
+// every ABCI phase before keeper state validation. Repeating these checks at
+// construction, vote verification, and proposal validation keeps malformed
+// optional data from crossing a trust boundary, while the keeper remains the
+// authority for state-dependent timing, eligibility, and duplicate rules.
 func validateVerificationPayloadStructure(payload *verificationtypes.VerificationVoteExtensionPayload, targetHeight uint64) error {
 	if payload == nil {
 		return nil
@@ -124,6 +154,11 @@ func validateVerificationLeaf(currentHeight, proofHeight uint64, leaf verificati
 	}
 }
 
+// buildVerificationPayload asks the optional local builder for actions that a
+// proposal at sourceHeight+1 can apply. The builder may reveal older commitments
+// and may create a new commitment for proofs whose terminal sidecar results are
+// currently available. Any local failure omits those actions without changing
+// the mandatory transition signature or treating unanswered proofs as invalid.
 func (h *ABCIHandler) buildVerificationPayload(ctx sdk.Context, sourceHeight int64) *verificationtypes.VerificationVoteExtensionPayload {
 	if h.verificationKeeper == nil || h.verificationBuilder == nil {
 		return nil
@@ -147,6 +182,11 @@ func (h *ABCIHandler) buildVerificationPayload(ctx sdk.Context, sourceHeight int
 	return outcome.Payload
 }
 
+// localVerificationIdentity resolves the local Mina signer back to the
+// historical validator operator and consensus key used at sourceHeight. The
+// local journal binds commitment preimages to this full identity so copied node
+// data, a chain-ID change, or validator key rotation cannot reveal a commitment
+// under the wrong validator identity.
 func (h *ABCIHandler) localVerificationIdentity(
 	ctx sdk.Context,
 	sourceHeight int64,
