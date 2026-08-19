@@ -28,28 +28,53 @@ func TestVerificationProviderOption(t *testing.T) {
 		return nil, nil
 	})
 
-	configured := verificationProvider(verificationAppOptions{verificationProviderOption: provider})
-	_, err := configured.GetVerificationResults(context.Background(), nil)
+	configured, client, active, err := verificationProvider(verificationAppOptions{verificationProviderOption: provider})
+	require.NoError(t, err)
+	require.Nil(t, client)
+	require.True(t, active)
+	_, err = configured.GetVerificationResults(context.Background(), nil)
 	require.NoError(t, err)
 	require.True(t, called)
 
-	disabled := verificationProvider(verificationAppOptions{})
+	disabled, client, active, err := verificationProvider(verificationAppOptions{})
+	require.NoError(t, err)
+	require.Nil(t, client)
+	require.False(t, active)
 	_, ok := disabled.(sidecar.DisabledProvider)
 	require.True(t, ok)
 }
 
 func TestVerificationTimeoutOption(t *testing.T) {
-	require.Equal(t, 250*time.Millisecond, verificationTimeout(verificationAppOptions{
-		verificationTimeoutOption: 250 * time.Millisecond,
-	}))
-	require.Equal(t, 300*time.Millisecond, verificationTimeout(verificationAppOptions{
-		verificationTimeoutOption: "300ms",
-	}))
-	for _, value := range []any{nil, time.Duration(0), "invalid", "0s"} {
-		require.Equal(t, abci.DefaultVerificationSidecarTimeout, verificationTimeout(verificationAppOptions{
-			verificationTimeoutOption: value,
-		}))
+	for _, value := range []any{250 * time.Millisecond, "300ms"} {
+		timeout, err := verificationTimeout(verificationAppOptions{sidecar.RequestTimeoutConfigKey: value}, true)
+		require.NoError(t, err)
+		require.Positive(t, timeout)
 	}
+	for _, value := range []any{time.Duration(0), "invalid", "0s", "2s"} {
+		_, err := verificationTimeout(verificationAppOptions{sidecar.RequestTimeoutConfigKey: value}, true)
+		require.Error(t, err)
+		timeout, err := verificationTimeout(verificationAppOptions{sidecar.RequestTimeoutConfigKey: value}, false)
+		require.NoError(t, err)
+		require.Equal(t, abci.DefaultVerificationSidecarTimeout, timeout)
+	}
+}
+
+func TestVerificationProviderEnabledConfiguration(t *testing.T) {
+	provider, client, active, err := verificationProvider(verificationAppOptions{
+		sidecar.EnabledConfigKey:       true,
+		sidecar.GRPCAddressConfigKey:   "127.0.0.1:1",
+		sidecar.TransportModeConfigKey: "loopback",
+	})
+	require.NoError(t, err)
+	require.True(t, active)
+	require.Same(t, client, provider)
+	require.NoError(t, client.Close())
+
+	_, _, _, err = verificationProvider(verificationAppOptions{
+		sidecar.EnabledConfigKey:       true,
+		sidecar.TransportModeConfigKey: "loopback",
+	})
+	require.ErrorIs(t, err, sidecar.ErrInvalidGRPCAddress)
 }
 
 func TestVerificationStateStoreUsesNodeHomeAndSupportsInjection(t *testing.T) {
@@ -75,4 +100,25 @@ func TestVerificationModuleIsWiredIntoApplication(t *testing.T) {
 	require.True(t, registered)
 	_, hasGenesis := pulsarApp.DefaultGenesis()[verificationtypes.ModuleName]
 	require.True(t, hasGenesis)
+}
+
+func TestEnabledVerificationClientIsWiredLazily(t *testing.T) {
+	wrapperAddress := startArchiveWrapperHealthServer(t, 0)
+	pulsarApp := newZeroHeightExportTestAppWithOptions(t, wrapperAddress, map[string]any{
+		sidecar.EnabledConfigKey:        true,
+		sidecar.GRPCAddressConfigKey:    "127.0.0.1:1",
+		sidecar.TransportModeConfigKey:  "loopback",
+		sidecar.RequestTimeoutConfigKey: "100ms",
+	})
+	require.NotNil(t, pulsarApp.VerificationSidecarClient)
+}
+
+func TestEnabledVerificationRejectsInvalidConfig(t *testing.T) {
+	wrapperAddress := startArchiveWrapperHealthServer(t, 0)
+	require.Panics(t, func() {
+		newZeroHeightExportTestAppWithOptions(t, wrapperAddress, map[string]any{
+			sidecar.EnabledConfigKey:       true,
+			sidecar.TransportModeConfigKey: "loopback",
+		})
+	})
 }

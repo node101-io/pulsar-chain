@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -26,4 +27,18 @@ func TestInitAppConfigServesAPIWithCORS(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, srvCfg.API.Enable)
 	require.True(t, srvCfg.API.EnableUnsafeCORS)
+}
+
+func TestInitAppConfigIncludesSafeVerificationDefaults(t *testing.T) {
+	template, appConfig := initAppConfig()
+	require.Contains(t, template, "[verification]")
+	require.Contains(t, template, "trusted-network is plaintext")
+
+	verification := reflect.ValueOf(appConfig).FieldByName("Verification")
+	require.True(t, verification.IsValid())
+	require.False(t, verification.FieldByName("Enabled").Bool())
+	require.Empty(t, verification.FieldByName("GRPCAddress").String())
+	require.Equal(t, "loopback", verification.FieldByName("GRPCTransportMode").String())
+	require.Equal(t, "100ms", verification.FieldByName("RequestTimeout").String())
+	require.False(t, strings.Contains(template, "GetProofStatuses"))
 }

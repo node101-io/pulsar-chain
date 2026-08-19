@@ -59,6 +59,7 @@ import (
 	bridge "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	verificationmodulekeeper "github.com/node101-io/pulsar-chain/x/verification/keeper"
+	verificationsidecar "github.com/node101-io/pulsar-chain/x/verification/sidecar"
 	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 	"google.golang.org/grpc/health"
 	grpcHealthV1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -123,6 +124,7 @@ type App struct {
 
 	ABCIHandler                *abcihandler.ABCIHandler
 	BridgeArchiveWrapperClient *bridge.ArchiveWrapperClient
+	VerificationSidecarClient  *verificationsidecar.Client
 }
 
 // RegisterGRPCServerWithSkipCheckHeader registers application and standard health services.
@@ -232,9 +234,26 @@ func New(
 		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))
 	}
 
-	verificationBuilder, verificationBuilderErr := newVerificationBuilder(appOpts, app.VerificationKeeper)
+	selectedVerificationProvider, verificationClient, verificationActive, verificationConfigErr := verificationProvider(appOpts)
+	if verificationConfigErr != nil {
+		panic(fmt.Sprintf("invalid verification sidecar configuration: %v", verificationConfigErr))
+	}
+	verificationTimeout, verificationConfigErr := verificationTimeout(appOpts, verificationActive)
+	if verificationConfigErr != nil {
+		_ = verificationClient.Close()
+		panic(fmt.Sprintf("invalid verification sidecar configuration: %v", verificationConfigErr))
+	}
+	verificationBuilder, verificationBuilderErr := newVerificationBuilder(
+		appOpts,
+		app.VerificationKeeper,
+		selectedVerificationProvider,
+		verificationTimeout,
+	)
 	if verificationBuilderErr != nil {
+		_ = verificationClient.Close()
 		logger.Error("verification local runtime disabled", "error", verificationBuilderErr)
+	} else {
+		app.VerificationSidecarClient = verificationClient
 	}
 
 	app.ABCIHandler, err = abcihandler.NewABCIHandler(
@@ -338,6 +357,11 @@ func (app *App) Close() error {
 
 	if app.BridgeArchiveWrapperClient != nil {
 		if err := app.BridgeArchiveWrapperClient.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if app.VerificationSidecarClient != nil {
+		if err := app.VerificationSidecarClient.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}

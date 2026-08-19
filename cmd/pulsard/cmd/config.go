@@ -3,6 +3,8 @@ package cmd
 import (
 	cmtcfg "github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+
+	"github.com/node101-io/pulsar-chain/x/verification/sidecar"
 )
 
 // initCometBFTConfig helps to override default CometBFT Config values.
@@ -27,7 +29,8 @@ func initAppConfig() (string, interface{}) {
 	// The following code snippet is just for reference.
 	type CustomAppConfig struct {
 		serverconfig.Config `mapstructure:",squash"`
-		Bridge              bridgeConfig `mapstructure:"bridge"`
+		Bridge              bridgeConfig       `mapstructure:"bridge"`
+		Verification        verificationConfig `mapstructure:"verification"`
 	}
 
 	// Optionally allow the chain developer to overwrite the SDK's default
@@ -55,9 +58,13 @@ func initAppConfig() (string, interface{}) {
 	customAppConfig := CustomAppConfig{
 		Config: *srvCfg,
 		Bridge: bridgeConfig{},
+		Verification: verificationConfig{
+			GRPCTransportMode: string(sidecar.TransportModeLoopback),
+			RequestTimeout:    "100ms",
+		},
 	}
 
-	customAppTemplate := serverconfig.DefaultConfigTemplate + bridgeConfigTemplate
+	customAppTemplate := serverconfig.DefaultConfigTemplate + bridgeConfigTemplate + verificationConfigTemplate
 	// Edit the default template file
 	//
 	// customAppTemplate := serverconfig.DefaultConfigTemplate + `
@@ -76,6 +83,13 @@ type bridgeConfig struct {
 	WrapperGRPCTransportMode string `mapstructure:"wrapper_grpc_transport_mode"`
 }
 
+type verificationConfig struct {
+	Enabled           bool   `mapstructure:"enabled"`
+	GRPCAddress       string `mapstructure:"grpc_address"`
+	GRPCTransportMode string `mapstructure:"grpc_transport_mode"`
+	RequestTimeout    string `mapstructure:"request_timeout"`
+}
+
 const bridgeConfigTemplate = `
 
 ###############################################################################
@@ -85,4 +99,18 @@ const bridgeConfigTemplate = `
 [bridge]
 wrapper_grpc_address = "{{ .Bridge.WrapperGRPCAddress }}"
 wrapper_grpc_transport_mode = "{{ .Bridge.WrapperGRPCTransportMode }}"
+`
+
+const verificationConfigTemplate = `
+
+###############################################################################
+###                         Verification Configuration                      ###
+###############################################################################
+
+[verification]
+enabled = {{ .Verification.Enabled }}
+grpc_address = "{{ .Verification.GRPCAddress }}"
+# trusted-network is plaintext and requires an operator-controlled private network.
+grpc_transport_mode = "{{ .Verification.GRPCTransportMode }}"
+request_timeout = "{{ .Verification.RequestTimeout }}"
 `

@@ -65,6 +65,14 @@ func TestAppConstructionDoesNotRequireReadyArchiveWrapper(t *testing.T) {
 }
 
 func newZeroHeightExportTestApp(t *testing.T, wrapperAddress string) *App {
+	return newZeroHeightExportTestAppWithOptions(t, wrapperAddress, nil)
+}
+
+func newZeroHeightExportTestAppWithOptions(
+	t *testing.T,
+	wrapperAddress string,
+	extraOptions map[string]any,
+) *App {
 	t.Helper()
 
 	privateKey := make([]byte, 32)
@@ -75,6 +83,9 @@ func newZeroHeightExportTestApp(t *testing.T, wrapperAddress string) *App {
 		"bridge.wrapper_grpc_transport_mode": "loopback",
 		"mina.network_id":                    string(mina.TestNet),
 		"vote_extension.priv_key":            base64.StdEncoding.EncodeToString(privateKey),
+	}
+	for key, value := range extraOptions {
+		appOptions[key] = value
 	}
 
 	app := New(

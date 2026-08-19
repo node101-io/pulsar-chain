@@ -2,6 +2,7 @@ package app
 
 import (
 	"crypto/rand"
+	"fmt"
 	"path/filepath"
 	"time"
 
@@ -16,30 +17,56 @@ import (
 
 const (
 	verificationProviderOption = "verification.sidecar-provider"
-	verificationTimeoutOption  = "verification.sidecar-timeout"
 	verificationStoreOption    = "verification.local-state-store"
 	verificationStateFileName  = "verification_commitment_state.json"
+	maxVerificationTimeout     = time.Second
 )
 
-func verificationProvider(appOpts servertypes.AppOptions) sidecar.Provider {
+func verificationProvider(
+	appOpts servertypes.AppOptions,
+) (sidecar.Provider, *sidecar.Client, bool, error) {
 	if provider, ok := appOpts.Get(verificationProviderOption).(sidecar.Provider); ok && provider != nil {
-		return provider
+		return provider, nil, true, nil
 	}
-	return sidecar.DisabledProvider{}
+	enabled, _ := appOpts.Get(sidecar.EnabledConfigKey).(bool)
+	if !enabled {
+		return sidecar.DisabledProvider{}, nil, false, nil
+	}
+	address, _ := appOpts.Get(sidecar.GRPCAddressConfigKey).(string)
+	modeValue, _ := appOpts.Get(sidecar.TransportModeConfigKey).(string)
+	mode, err := sidecar.ParseTransportMode(modeValue)
+	if err != nil {
+		return nil, nil, true, err
+	}
+	client, err := sidecar.NewClient(address, mode)
+	if err != nil {
+		return nil, nil, true, err
+	}
+	return client, client, true, nil
 }
 
-func verificationTimeout(appOpts servertypes.AppOptions) time.Duration {
-	switch value := appOpts.Get(verificationTimeoutOption).(type) {
+func verificationTimeout(appOpts servertypes.AppOptions, active bool) (time.Duration, error) {
+	value := appOpts.Get(sidecar.RequestTimeoutConfigKey)
+	if value == nil {
+		return abci.DefaultVerificationSidecarTimeout, nil
+	}
+	var timeout time.Duration
+	switch typed := value.(type) {
 	case time.Duration:
-		if value > 0 {
-			return value
-		}
+		timeout = typed
 	case string:
-		if parsed, err := time.ParseDuration(value); err == nil && parsed > 0 {
-			return parsed
+		parsed, err := time.ParseDuration(typed)
+		if err == nil {
+			timeout = parsed
 		}
 	}
-	return abci.DefaultVerificationSidecarTimeout
+	if timeout > 0 && timeout <= maxVerificationTimeout {
+		return timeout, nil
+	}
+	if !active {
+		return abci.DefaultVerificationSidecarTimeout, nil
+	}
+	return 0, fmt.Errorf("%s must be greater than zero and at most %s", sidecar.RequestTimeoutConfigKey, maxVerificationTimeout)
 }
 
 func verificationStateStore(appOpts servertypes.AppOptions) (verificationvalidator.StateStore, error) {
@@ -60,6 +87,8 @@ func verificationStateStore(appOpts servertypes.AppOptions) (verificationvalidat
 func newVerificationBuilder(
 	appOpts servertypes.AppOptions,
 	keeper verificationkeeper.Keeper,
+	provider sidecar.Provider,
+	timeout time.Duration,
 ) (*verificationvalidator.Builder, error) {
 	store, err := verificationStateStore(appOpts)
 	if err != nil {
@@ -67,9 +96,9 @@ func newVerificationBuilder(
 	}
 	return verificationvalidator.NewBuilder(
 		keeper,
-		verificationProvider(appOpts),
+		provider,
 		store,
 		rand.Reader,
-		verificationTimeout(appOpts),
+		timeout,
 	)
 }
