@@ -56,6 +56,7 @@ func startResultService(t *testing.T, service sidecarv1.VerificationServiceServe
 func TestLocalBuilderRestartRevealsIntoKeeperAndFinalizes(t *testing.T) {
 	fixture := initFixture(t, 1)
 	submitProof(t, fixture, 500, 1)
+	require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(500)))
 	proofHash := make([]byte, types.ProofHashSize)
 	proofHash[len(proofHash)-1] = 1
 	stateDirectory := filepath.Join(t.TempDir(), "private")
@@ -105,16 +106,16 @@ func TestLocalBuilderRestartRevealsIntoKeeperAndFinalizes(t *testing.T) {
 	))
 	tally, err := fixture.keeper.ProofTallies.Get(fixture.ctx, types.NewProofStoreKey(500, 0))
 	require.NoError(t, err)
-	require.Equal(t, uint32(1), tally.TrueVotes)
+	require.Equal(t, int64(100), tally.ValidVotingPower)
 
 	// EndBlock(H+5) runs after the last legal reveal block and finalizes from the
-	// validator snapshot frozen at H. With one eligible validator, one true vote
-	// reaches ceil(2*1/3)=1 and produces an immutable VALID result.
+	// historical power snapshot frozen at H. With one validator holding all 100
+	// power, the vote strictly exceeds two thirds and produces a VALID result.
 	require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(505)))
 	result, err := fixture.keeper.FinalProofResults.Get(fixture.ctx, types.NewProofStoreKey(500, 0))
 	require.NoError(t, err)
 	require.Equal(t, types.ProofStatus_PROOF_STATUS_VALID, result.Status)
-	require.Equal(t, uint32(1), result.Threshold)
+	require.Equal(t, int64(67), result.VotingPowerThreshold)
 }
 
 func TestGRPCClientFeedsOnlyNewTerminalResultsIntoCommitments(t *testing.T) {
@@ -122,6 +123,7 @@ func TestGRPCClientFeedsOnlyNewTerminalResultsIntoCommitments(t *testing.T) {
 	for hashByte := byte(1); hashByte <= 3; hashByte++ {
 		submitProof(t, fixture, 500, hashByte)
 	}
+	require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(500)))
 	proofs, err := fixture.keeper.GetProofsAtHeight(fixture.ctx, 500)
 	require.NoError(t, err)
 	call := 0

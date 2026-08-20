@@ -64,13 +64,18 @@ def read_json(path: str):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def json_value(path: str, field_path: str) -> int:
+def json_value(path: str, field_path: str, default: Optional[str] = None) -> int:
     value = read_json(path)
-    for field in field_path.split("."):
-        if isinstance(value, list):
-            value = value[int(field)]
-        else:
-            value = value[field]
+    try:
+        for field in field_path.split("."):
+            if isinstance(value, list):
+                value = value[int(field)]
+            else:
+                value = value[field]
+    except (IndexError, KeyError):
+        if default is None:
+            raise
+        value = default
     if isinstance(value, (dict, list)):
         print(json.dumps(value, sort_keys=True))
     elif isinstance(value, bool):
@@ -133,6 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
     value = subparsers.add_parser("json-value")
     value.add_argument("--input", required=True)
     value.add_argument("--path", required=True)
+    value.add_argument("--default")
 
     balance = subparsers.add_parser("bank-balance")
     balance.add_argument("--input", required=True)
@@ -152,7 +158,7 @@ def main() -> int:
     if args.command == "render-wrapper-config":
         return render_wrapper_config(args.output, args.network_id)
     if args.command == "json-value":
-        return json_value(args.input, args.path)
+        return json_value(args.input, args.path, args.default)
     if args.command == "bank-balance":
         return bank_balance(args.input, args.denom)
     if args.command == "assert-wrapper-query":

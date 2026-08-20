@@ -2,10 +2,12 @@ package keeper_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"cosmossdk.io/core/address"
 	storetypes "cosmossdk.io/store/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil"
@@ -22,11 +24,19 @@ import (
 
 type stakingKeeper struct {
 	validatorCodec address.Codec
-	lastValidators []stakingtypes.Validator
+	historicalInfo map[int64]stakingtypes.HistoricalInfo
+	historicalErr  map[int64]error
 }
 
-func (s *stakingKeeper) GetLastValidators(context.Context) ([]stakingtypes.Validator, error) {
-	return append([]stakingtypes.Validator(nil), s.lastValidators...), nil
+func (s *stakingKeeper) GetHistoricalInfo(_ context.Context, height int64) (stakingtypes.HistoricalInfo, error) {
+	if err := s.historicalErr[height]; err != nil {
+		return stakingtypes.HistoricalInfo{}, err
+	}
+	info, ok := s.historicalInfo[height]
+	if !ok {
+		return stakingtypes.HistoricalInfo{}, fmt.Errorf("historical info %d not found", height)
+	}
+	return info, nil
 }
 
 func (s *stakingKeeper) ValidatorAddressCodec() address.Codec {
@@ -38,6 +48,7 @@ type validatorIdentity struct {
 	signer    string
 	operator  []byte
 	operatorS string
+	power     int64
 }
 
 type fixture struct {
@@ -52,6 +63,21 @@ type fixture struct {
 
 func initFixture(t testing.TB, validatorCount int) *fixture {
 	t.Helper()
+	powers := make([]int64, validatorCount)
+	for i := range powers {
+		powers[i] = 1
+	}
+	if validatorCount == 1 {
+		powers[0] = 100
+	}
+	if validatorCount == 3 {
+		powers = []int64{60, 25, 15}
+	}
+	return initFixtureWithPowers(t, powers)
+}
+
+func initFixtureWithPowers(t testing.TB, powers []int64) *fixture {
+	t.Helper()
 	encCfg := moduletestutil.MakeTestEncodingConfig(verificationmodule.AppModule{})
 	accountCodec := addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 	validatorCodec := addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix())
@@ -59,20 +85,35 @@ func initFixture(t testing.TB, validatorCount int) *fixture {
 	storeService := runtime.NewKVStoreService(storeKey)
 	ctx := testutil.DefaultContextWithDB(t, storeKey, storetypes.NewTransientStoreKey("transient_verification")).Ctx
 
-	staking := &stakingKeeper{validatorCodec: validatorCodec}
-	identities := make([]validatorIdentity, 0, validatorCount)
-	for i := 0; i < validatorCount; i++ {
+	staking := &stakingKeeper{
+		validatorCodec: validatorCodec,
+		historicalInfo: make(map[int64]stakingtypes.HistoricalInfo),
+		historicalErr:  make(map[int64]error),
+	}
+	identities := make([]validatorIdentity, 0, len(powers))
+	validators := make([]stakingtypes.Validator, 0, len(powers))
+	for i, power := range powers {
 		account := make([]byte, 20)
 		account[len(account)-1] = byte(i + 1)
 		signer, err := accountCodec.BytesToString(account)
 		require.NoError(t, err)
 		operator, err := validatorCodec.BytesToString(account)
 		require.NoError(t, err)
-		validator := stakingtypes.Validator{OperatorAddress: operator}
-		staking.lastValidators = append(staking.lastValidators, validator)
+		validator := stakingtypes.Validator{
+			OperatorAddress: operator,
+			Tokens:          sdk.TokensFromConsensusPower(power, sdk.DefaultPowerReduction),
+			Status:          stakingtypes.Bonded,
+		}
+		validators = append(validators, validator)
 		identities = append(identities, validatorIdentity{
-			account: account, signer: signer, operator: append([]byte(nil), account...), operatorS: operator,
+			account: account, signer: signer, operator: append([]byte(nil), account...), operatorS: operator, power: power,
 		})
+	}
+	for _, height := range []int64{499, 500, 501} {
+		staking.historicalInfo[height] = stakingtypes.HistoricalInfo{
+			Header: tmproto.Header{Height: height},
+			Valset: append([]stakingtypes.Validator(nil), validators...),
+		}
 	}
 
 	k := keeper.NewKeeper(storeService, encCfg.Codec, accountCodec, authtypes.NewModuleAddress(types.GovModuleName), staking)

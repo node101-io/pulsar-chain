@@ -57,17 +57,12 @@ func (k Keeper) endBlock(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// PreBlock may create a snapshot before transactions are known. Remove it
-	// when the block ended without any successful proof submission.
-	if !proofsAtCurrentHeight {
-		snapshotExists, err := k.ValidatorCountByHeight.Has(ctx, height)
-		if err != nil {
+	// Only proof-bearing heights need a verification snapshot. HistoricalInfo
+	// was fixed by staking at BeginBlock, so this EndBlock materialization avoids
+	// both eager O(N) writes and dependence on the mutable current validator set.
+	if proofsAtCurrentHeight {
+		if err := k.MaterializeValidatorPowers(ctx, height); err != nil {
 			return err
-		}
-		if snapshotExists {
-			if err := k.RemoveValidatorSnapshot(ctx, height); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -90,18 +85,18 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 	if err != nil {
 		return err
 	}
-	validatorCountExists, err := k.ValidatorCountByHeight.Has(ctx, proofHeight)
+	totalPowerExists, err := k.TotalVotingPowerByHeight.Has(ctx, proofHeight)
 	if err != nil {
 		return err
 	}
-	if !validatorCountExists {
-		return types.ErrEmptyValidatorSet
+	if !totalPowerExists {
+		return types.ErrProofStateCorrupted
 	}
-	validatorCount, err := k.ValidatorCountByHeight.Get(ctx, proofHeight)
+	totalPower, err := k.TotalVotingPowerByHeight.Get(ctx, proofHeight)
 	if err != nil {
 		return err
 	}
-	threshold, err := types.ComputeThreshold(validatorCount)
+	threshold, err := types.ComputeVotingPowerThreshold(totalPower)
 	if err != nil {
 		return err
 	}
@@ -120,28 +115,28 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 		if err != nil {
 			return errorsmod.Wrap(types.ErrProofStateCorrupted, "missing proof tally")
 		}
-		if uint64(tally.TrueVotes)+uint64(tally.FalseVotes) > uint64(validatorCount) {
-			return errorsmod.Wrap(types.ErrProofStateCorrupted, "proof tally exceeds validator snapshot")
+		if err := validatePowerTally(tally, totalPower); err != nil {
+			return errorsmod.Wrap(types.ErrProofStateCorrupted, "proof tally exceeds total voting power")
 		}
-		// Only one side can reach ceil(2N/3) because effective votes are bounded
-		// by the validator snapshot and equivocations count toward neither side.
+		// Only one side can exceed two thirds because effective power is bounded by
+		// the historical total and equivocations count toward neither side.
 		// This gives VALID and INVALID symmetric finalization rules.
 		status := types.ProofStatus_PROOF_STATUS_INCONCLUSIVE
-		if tally.TrueVotes >= threshold {
+		if types.HasTwoThirdsMajority(tally.ValidVotingPower, totalPower) {
 			status = types.ProofStatus_PROOF_STATUS_VALID
-		} else if tally.FalseVotes >= threshold {
+		} else if types.HasTwoThirdsMajority(tally.InvalidVotingPower, totalPower) {
 			status = types.ProofStatus_PROOF_STATUS_INVALID
 		}
 		result := types.FinalProofResult{
-			ProofHash:              append([]byte(nil), proof.ProofHash...),
-			ProofType:              proof.ProofType,
-			Status:                 status,
-			TrueVotes:              tally.TrueVotes,
-			FalseVotes:             tally.FalseVotes,
-			EligibleValidatorCount: validatorCount,
-			Threshold:              threshold,
-			SubmissionHeight:       proofHeight,
-			FinalizedHeight:        finalizedHeight,
+			ProofHash:            append([]byte(nil), proof.ProofHash...),
+			ProofType:            proof.ProofType,
+			Status:               status,
+			ValidVotingPower:     tally.ValidVotingPower,
+			InvalidVotingPower:   tally.InvalidVotingPower,
+			TotalVotingPower:     totalPower,
+			VotingPowerThreshold: threshold,
+			SubmissionHeight:     proofHeight,
+			FinalizedHeight:      finalizedHeight,
 		}
 		if err := k.FinalProofResults.Set(ctx, key, result); err != nil {
 			return err
@@ -153,10 +148,10 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 			sdk.NewAttribute(types.AttributeKeySubmissionHeight, strconv.FormatUint(proofHeight, 10)),
 			sdk.NewAttribute(types.AttributeKeyIndexInBlock, strconv.FormatUint(uint64(index), 10)),
 			sdk.NewAttribute(types.AttributeKeyStatus, status.String()),
-			sdk.NewAttribute(types.AttributeKeyTrueVotes, strconv.FormatUint(uint64(tally.TrueVotes), 10)),
-			sdk.NewAttribute(types.AttributeKeyFalseVotes, strconv.FormatUint(uint64(tally.FalseVotes), 10)),
-			sdk.NewAttribute(types.AttributeKeyValidatorCount, strconv.FormatUint(uint64(validatorCount), 10)),
-			sdk.NewAttribute(types.AttributeKeyThreshold, strconv.FormatUint(uint64(threshold), 10)),
+			sdk.NewAttribute(types.AttributeKeyValidVotingPower, strconv.FormatInt(tally.ValidVotingPower, 10)),
+			sdk.NewAttribute(types.AttributeKeyInvalidVotingPower, strconv.FormatInt(tally.InvalidVotingPower, 10)),
+			sdk.NewAttribute(types.AttributeKeyTotalVotingPower, strconv.FormatInt(totalPower, 10)),
+			sdk.NewAttribute(types.AttributeKeyVotingPowerThreshold, strconv.FormatInt(threshold, 10)),
 		))
 	}
 
@@ -164,7 +159,7 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 }
 
 // PruneProofHeight removes active proofs, votes, tallies, counts, and validator
-// snapshots after finalization. Final results remain queryable, while permanent
+// powers after finalization. Final results remain queryable, while permanent
 // hash-to-key mappings keep replay protection even after bulky lifecycle state
 // is gone.
 func (k Keeper) PruneProofHeight(ctx context.Context, height uint64) error {
@@ -199,20 +194,7 @@ func (k Keeper) PruneProofHeight(ctx context.Context, height uint64) error {
 		}
 	}
 
-	snapshotKeys := make([]types.ValidatorSnapshotStoreKey, 0)
-	snapshotRange := collections.NewPrefixedPairRange[uint64, []byte](height)
-	if err := k.ValidatorSnapshots.Walk(ctx, snapshotRange, func(key types.ValidatorSnapshotStoreKey) (bool, error) {
-		snapshotKeys = append(snapshotKeys, key)
-		return false, nil
-	}); err != nil {
-		return err
-	}
-	for _, key := range snapshotKeys {
-		if err := k.ValidatorSnapshots.Remove(ctx, key); err != nil {
-			return err
-		}
-	}
-	if err := k.ValidatorCountByHeight.Remove(ctx, height); err != nil {
+	if err := k.RemoveValidatorPowers(ctx, height); err != nil {
 		return err
 	}
 

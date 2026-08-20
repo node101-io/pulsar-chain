@@ -19,10 +19,10 @@ func (m msgServer) SubmitProof(ctx context.Context, msg *types.MsgSubmitProof) (
 	if msg == nil || len(msg.ProofHash) != types.ProofHashSize {
 		return nil, types.ErrInvalidProofHash
 	}
-	// Use a cache context so snapshot creation and all proof indexes are
-	// committed together or not at all. A partial write could otherwise leave a
-	// permanent hash reservation without a queryable proof, or a proof without
-	// the snapshot needed to finalize it.
+	// Use a cache context so every proof index is committed together or not at
+	// all. A partial write could otherwise leave a permanent hash reservation
+	// without a queryable proof. Historical power is materialized once later in
+	// EndBlock, after all proof transactions for this height have completed.
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	cacheCtx, write := sdkCtx.CacheContext()
 	ctx = cacheCtx
@@ -49,26 +49,6 @@ func (m msgServer) SubmitProof(ctx context.Context, msg *types.MsgSubmitProof) (
 	if count >= params.MaxProofsPerBlock {
 		return nil, types.ErrMaxProofsPerBlock
 	}
-	// The first proof at a height freezes the validator set used for every vote
-	// and the final two-thirds threshold for that height. Further submissions in
-	// the same block reuse the snapshot even if staking state changes later.
-	if count == 0 {
-		snapshotExists, err := m.ValidatorCountByHeight.Has(ctx, height)
-		if err != nil {
-			return nil, err
-		}
-		if !snapshotExists {
-			if err := m.CreateValidatorSnapshot(ctx, height); err != nil {
-				return nil, err
-			}
-		} else {
-			validatorCount, err := m.ValidatorCountByHeight.Get(ctx, height)
-			if err != nil || validatorCount == 0 {
-				return nil, types.ErrEmptyValidatorSet
-			}
-		}
-	}
-
 	// The successful count is also the next index, so failed submissions never
 	// create gaps in the canonical proof sequence. The one-byte index later
 	// becomes part of the canonical leaf encoding.

@@ -25,7 +25,6 @@ type verificationKeeperStub struct {
 	validateErr error
 	applyErr    error
 	applied     int
-	snapshots   []uint64
 }
 
 func (k *verificationKeeperStub) GetProofsAtHeight(context.Context, uint64) ([]verificationtypes.ProofEntry, error) {
@@ -61,11 +60,6 @@ func (k *verificationKeeperStub) ApplyVerificationPayload(
 		return k.applyErr
 	}
 	k.applied++
-	return nil
-}
-
-func (k *verificationKeeperStub) CreateValidatorSnapshot(_ context.Context, height uint64) error {
-	k.snapshots = append(k.snapshots, height)
 	return nil
 }
 

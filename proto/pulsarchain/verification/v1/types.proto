@@ -41,19 +41,19 @@ enum VoteState {
   VOTE_STATE_EQUIVOCATED = 3;
 }
 
-// ProofTally stores effective true and false vote counts.
+// ProofTally stores the historical consensus power behind effective votes.
 message ProofTally {
-  uint32 true_votes = 1;
-  uint32 false_votes = 2;
+  int64 valid_voting_power = 1;
+  int64 invalid_voting_power = 2;
 }
 
 // ProofStatus is the finalized verification outcome.
 enum ProofStatus {
   // PROOF_STATUS_PENDING is the non-finalized status.
   PROOF_STATUS_PENDING = 0;
-  // PROOF_STATUS_VALID means true votes reached threshold.
+  // PROOF_STATUS_VALID means valid voting power exceeded two thirds.
   PROOF_STATUS_VALID = 1;
-  // PROOF_STATUS_INVALID means false votes reached threshold.
+  // PROOF_STATUS_INVALID means invalid voting power exceeded two thirds.
   PROOF_STATUS_INVALID = 2;
   // PROOF_STATUS_INCONCLUSIVE means neither side reached threshold.
   PROOF_STATUS_INCONCLUSIVE = 3;
@@ -64,10 +64,10 @@ message FinalProofResult {
   bytes proof_hash = 1;
   uint32 proof_type = 2;
   ProofStatus status = 3;
-  uint32 true_votes = 4;
-  uint32 false_votes = 5;
-  uint32 eligible_validator_count = 6;
-  uint32 threshold = 7;
+  int64 valid_voting_power = 4;
+  int64 invalid_voting_power = 5;
+  int64 total_voting_power = 6;
+  int64 voting_power_threshold = 7;
   uint64 submission_height = 8;
   uint64 finalized_height = 9;
 }

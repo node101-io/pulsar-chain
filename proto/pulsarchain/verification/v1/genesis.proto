@@ -17,8 +17,8 @@ message GenesisState {
   repeated GenesisProofCount proof_counts = 2 [(gogoproto.nullable) = false];
   repeated GenesisPendingProof pending_proofs = 3 [(gogoproto.nullable) = false];
   repeated GenesisSeenProofHash seen_proof_hashes = 4 [(gogoproto.nullable) = false];
-  repeated GenesisValidatorSnapshot validator_snapshots = 5 [(gogoproto.nullable) = false];
-  repeated GenesisValidatorCount validator_counts = 6 [(gogoproto.nullable) = false];
+  repeated GenesisValidatorPower validator_powers = 5 [(gogoproto.nullable) = false];
+  repeated GenesisTotalVotingPower total_voting_powers = 6 [(gogoproto.nullable) = false];
   repeated GenesisCommitment commitments = 7 [(gogoproto.nullable) = false];
   repeated GenesisVerificationVote verification_votes = 8 [(gogoproto.nullable) = false];
   repeated GenesisProofTally proof_tallies = 9 [(gogoproto.nullable) = false];
@@ -43,16 +43,17 @@ message GenesisSeenProofHash {
   ProofKey proof_key = 2 [(gogoproto.nullable) = false];
 }
 
-// GenesisValidatorSnapshot stores one validator eligible at a proof height.
-message GenesisValidatorSnapshot {
+// GenesisValidatorPower stores one validator's historical consensus power.
+message GenesisValidatorPower {
   uint64 height = 1;
   bytes validator = 2;
+  int64 voting_power = 3;
 }
 
-// GenesisValidatorCount stores the fixed denominator for one proof height.
-message GenesisValidatorCount {
+// GenesisTotalVotingPower stores the fixed power denominator for one proof height.
+message GenesisTotalVotingPower {
   uint64 height = 1;
-  uint32 count = 2;
+  int64 total_voting_power = 2;
 }
 
 // GenesisCommitment stores one retained validator commitment.

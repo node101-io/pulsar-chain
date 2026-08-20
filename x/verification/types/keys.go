@@ -17,8 +17,8 @@ var (
 	ProofCountPrefix         = collections.NewPrefix(0x01)
 	PendingProofPrefix       = collections.NewPrefix(0x02)
 	SeenProofHashPrefix      = collections.NewPrefix(0x03)
-	ValidatorSnapshotPrefix  = collections.NewPrefix(0x04)
-	ValidatorCountPrefix     = collections.NewPrefix(0x05)
+	ValidatorPowerPrefix     = collections.NewPrefix(0x04)
+	TotalVotingPowerPrefix   = collections.NewPrefix(0x05)
 	CommitmentPrefix         = collections.NewPrefix(0x06)
 	VerificationVotePrefix   = collections.NewPrefix(0x07)
 	ProofTallyPrefix         = collections.NewPrefix(0x08)
@@ -29,8 +29,8 @@ var (
 type (
 	// ProofStoreKey is the canonical absolute-height and in-block-index proof ID.
 	ProofStoreKey = collections.Pair[uint64, uint32]
-	// ValidatorSnapshotStoreKey records eligibility at a proof submission height.
-	ValidatorSnapshotStoreKey = collections.Pair[uint64, []byte]
+	// ValidatorPowerStoreKey records historical power at a proof submission height.
+	ValidatorPowerStoreKey = collections.Pair[uint64, []byte]
 	// CommitmentStoreKey supports validator-first commitment queries.
 	CommitmentStoreKey = collections.Pair[[]byte, uint64]
 	// CommitmentHeightStoreKey is the reverse index used for bounded pruning.
@@ -44,8 +44,8 @@ func NewProofStoreKey(height uint64, index uint32) ProofStoreKey {
 	return collections.Join(height, index)
 }
 
-// NewValidatorSnapshotStoreKey constructs a proof-height eligibility key.
-func NewValidatorSnapshotStoreKey(height uint64, validator []byte) ValidatorSnapshotStoreKey {
+// NewValidatorPowerStoreKey constructs a proof-height validator-power key.
+func NewValidatorPowerStoreKey(height uint64, validator []byte) ValidatorPowerStoreKey {
 	return collections.Join(height, validator)
 }
 

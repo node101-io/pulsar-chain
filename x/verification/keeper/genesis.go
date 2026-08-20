@@ -32,13 +32,13 @@ func (k Keeper) InitGenesis(ctx context.Context, state types.GenesisState) error
 			return err
 		}
 	}
-	for _, entry := range state.ValidatorSnapshots {
-		if err := k.ValidatorSnapshots.Set(ctx, types.NewValidatorSnapshotStoreKey(entry.Height, entry.Validator)); err != nil {
+	for _, entry := range state.ValidatorPowers {
+		if err := k.ValidatorPowers.Set(ctx, types.NewValidatorPowerStoreKey(entry.Height, entry.Validator), entry.VotingPower); err != nil {
 			return err
 		}
 	}
-	for _, entry := range state.ValidatorCounts {
-		if err := k.ValidatorCountByHeight.Set(ctx, entry.Height, entry.Count); err != nil {
+	for _, entry := range state.TotalVotingPowers {
+		if err := k.TotalVotingPowerByHeight.Set(ctx, entry.Height, entry.TotalVotingPower); err != nil {
 			return err
 		}
 	}
@@ -97,14 +97,14 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	}); err != nil {
 		return nil, err
 	}
-	if err := k.ValidatorSnapshots.Walk(ctx, nil, func(key types.ValidatorSnapshotStoreKey) (bool, error) {
-		state.ValidatorSnapshots = append(state.ValidatorSnapshots, types.GenesisValidatorSnapshot{Height: key.K1(), Validator: append([]byte(nil), key.K2()...)})
+	if err := k.ValidatorPowers.Walk(ctx, nil, func(key types.ValidatorPowerStoreKey, power int64) (bool, error) {
+		state.ValidatorPowers = append(state.ValidatorPowers, types.GenesisValidatorPower{Height: key.K1(), Validator: append([]byte(nil), key.K2()...), VotingPower: power})
 		return false, nil
 	}); err != nil {
 		return nil, err
 	}
-	if err := k.ValidatorCountByHeight.Walk(ctx, nil, func(height uint64, count uint32) (bool, error) {
-		state.ValidatorCounts = append(state.ValidatorCounts, types.GenesisValidatorCount{Height: height, Count: count})
+	if err := k.TotalVotingPowerByHeight.Walk(ctx, nil, func(height uint64, totalPower int64) (bool, error) {
+		state.TotalVotingPowers = append(state.TotalVotingPowers, types.GenesisTotalVotingPower{Height: height, TotalVotingPower: totalPower})
 		return false, nil
 	}); err != nil {
 		return nil, err

@@ -76,26 +76,31 @@ func TestUpdateParamsRequiresAuthorityAndValidBounds(t *testing.T) {
 	require.Equal(t, uint32(2), params.MaxProofsPerBlock)
 }
 
-func TestValidatorSnapshotIsStableWithinProofHeight(t *testing.T) {
+func TestHistoricalPowerSnapshotIsStableWithinProofHeight(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
-	f.staking.lastValidators = f.staking.lastValidators[:2]
 	submitProof(t, f, 500, 2)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 
-	count, err := f.keeper.ValidatorCountByHeight.Get(f.ctx, 500)
+	totalPower, err := f.keeper.TotalVotingPowerByHeight.Get(f.ctx, 500)
 	require.NoError(t, err)
-	require.Equal(t, uint32(3), count)
+	require.Equal(t, int64(100), totalPower)
 
+	info := f.staking.historicalInfo[501]
+	info.Valset = info.Valset[:2]
+	f.staking.historicalInfo[501] = info
 	submitProof(t, f, 501, 3)
-	count, err = f.keeper.ValidatorCountByHeight.Get(f.ctx, 501)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(501)))
+	totalPower, err = f.keeper.TotalVotingPowerByHeight.Get(f.ctx, 501)
 	require.NoError(t, err)
-	require.Equal(t, uint32(2), count)
+	require.Equal(t, int64(85), totalPower)
 }
 
 func TestCommitmentWindowsAcceptDifferentProofSubsets(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
 	submitProof(t, f, 500, 2)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 
 	// H+2 is block H's first commitment opportunity. Only proof index 0 has
 	// completed, so commitment 502 places that vote in its right leaf.
@@ -130,6 +135,7 @@ func TestCommitmentWindowsAcceptDifferentProofSubsets(t *testing.T) {
 func TestDuplicateVoteIsIdempotent(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 
 	left502 := valueLeaf(t, 1, nil)
 	right502 := valueLeaf(t, 2, []types.ProofVote{{IndexInBlock: 0, Result: true}})
@@ -144,14 +150,16 @@ func TestDuplicateVoteIsIdempotent(t *testing.T) {
 	))
 	tally, err := f.keeper.ProofTallies.Get(f.ctx, types.NewProofStoreKey(500, 0))
 	require.NoError(t, err)
-	require.Equal(t, uint32(1), tally.TrueVotes)
-	require.Zero(t, tally.FalseVotes)
+	require.Equal(t, int64(60), tally.ValidVotingPower)
+	require.Zero(t, tally.InvalidVotingPower)
 }
 
 func TestExpiredValueReconstructsButDoesNotVote(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 499, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(499)))
 	submitProof(t, f, 500, 2)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 	right := valueLeaf(t, 2, []types.ProofVote{{IndexInBlock: 0, Result: false}})
 	submitCommitment(t, f, 0, 502, left, right)
@@ -164,12 +172,13 @@ func TestExpiredValueReconstructsButDoesNotVote(t *testing.T) {
 	tally500, err := f.keeper.ProofTallies.Get(f.ctx, types.NewProofStoreKey(500, 0))
 	require.NoError(t, err)
 	require.Equal(t, types.ProofTally{}, tally499)
-	require.Equal(t, uint32(1), tally500.FalseVotes)
+	require.Equal(t, int64(60), tally500.InvalidVotingPower)
 }
 
 func TestEarlyRevealAndUselessRevealAreRejected(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 	right := valueLeaf(t, 2, nil)
 	submitCommitment(t, f, 0, 503, left, right)
@@ -206,6 +215,7 @@ func TestRevealRejectsMalformedLeavesAndVotesWithoutWrites(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
 	submitProof(t, f, 500, 2)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 
 	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 	right := valueLeaf(t, 2, nil)
@@ -271,6 +281,7 @@ func TestRevealRejectsMalformedLeavesAndVotesWithoutWrites(t *testing.T) {
 func TestDistinctInvalidLaterRevelationIsAtomic(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 
 	left502 := valueLeaf(t, 1, nil)
 	right502 := valueLeaf(t, 2, []types.ProofVote{{IndexInBlock: 0, Result: true}})
@@ -305,6 +316,7 @@ func TestFinalizationProducesInvalidAndInconclusiveResults(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			f := initFixture(t, 3)
 			submitProof(t, f, 500, 1)
+			require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 			for validatorIndex := 0; validatorIndex < testCase.validatorVotes; validatorIndex++ {
 				left := valueLeaf(t, byte(validatorIndex+1), []types.ProofVote{{IndexInBlock: 0, Result: testCase.result}})
 				right := valueLeaf(t, byte(validatorIndex+10), nil)
@@ -322,11 +334,101 @@ func TestFinalizationProducesInvalidAndInconclusiveResults(t *testing.T) {
 	}
 }
 
+func TestFinalizationUsesStrictHistoricalStakeThreshold(t *testing.T) {
+	testCases := []struct {
+		name          string
+		powers        []int64
+		voters        []int
+		expectedPower int64
+		expected      types.ProofStatus
+	}{
+		{
+			name:          "validator majority with stake minority",
+			powers:        []int64{20, 20, 60},
+			voters:        []int{0, 1},
+			expectedPower: 40,
+			expected:      types.ProofStatus_PROOF_STATUS_INCONCLUSIVE,
+		},
+		{
+			name:          "single high power validator exceeds threshold",
+			powers:        []int64{70, 15, 15},
+			voters:        []int{0},
+			expectedPower: 70,
+			expected:      types.ProofStatus_PROOF_STATUS_VALID,
+		},
+		{
+			name:          "exactly two thirds is inconclusive",
+			powers:        []int64{2, 1},
+			voters:        []int{0},
+			expectedPower: 2,
+			expected:      types.ProofStatus_PROOF_STATUS_INCONCLUSIVE,
+		},
+		{
+			name:          "power above two thirds is valid",
+			powers:        []int64{2, 1},
+			voters:        []int{0, 1},
+			expectedPower: 3,
+			expected:      types.ProofStatus_PROOF_STATUS_VALID,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			f := initFixtureWithPowers(t, testCase.powers)
+			submitProof(t, f, 500, 1)
+			require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
+			for _, validatorIndex := range testCase.voters {
+				left := valueLeaf(t, byte(validatorIndex+1), []types.ProofVote{{IndexInBlock: 0, Result: true}})
+				right := valueLeaf(t, byte(validatorIndex+10), nil)
+				submitCommitment(t, f, validatorIndex, 503, left, right)
+				require.NoError(t, reveal(t, f, validatorIndex, 504, types.CommitmentRevelation{
+					CommitmentHeight: 503, Left: left, Right: hashLeaf(t, right),
+				}))
+			}
+
+			require.NoError(t, f.keeper.EndBlock(f.atHeight(505)))
+			result, err := f.keeper.FinalProofResults.Get(f.ctx, types.NewProofStoreKey(500, 0))
+			require.NoError(t, err)
+			require.Equal(t, testCase.expected, result.Status)
+			require.Equal(t, testCase.expectedPower, result.ValidVotingPower)
+			require.Equal(t, sumPowers(testCase.powers), result.TotalVotingPower)
+			threshold, err := types.ComputeVotingPowerThreshold(result.TotalVotingPower)
+			require.NoError(t, err)
+			require.Equal(t, threshold, result.VotingPowerThreshold)
+		})
+	}
+}
+
+func TestEquivocationRejectsCorruptedPriorPowerContribution(t *testing.T) {
+	f := initFixture(t, 3)
+	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
+	voteKey := types.NewVerificationVoteStoreKey(500, 0, f.validators[0].operator)
+	require.NoError(t, f.keeper.VerificationVotes.Set(f.ctx, voteKey, uint32(types.VoteState_VOTE_STATE_TRUE)))
+	require.NoError(t, f.keeper.ProofTallies.Set(
+		f.ctx,
+		types.NewProofStoreKey(500, 0),
+		types.ProofTally{ValidVotingPower: f.validators[0].power - 1},
+	))
+
+	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: false}})
+	right := valueLeaf(t, 2, nil)
+	submitCommitment(t, f, 0, 503, left, right)
+	err := reveal(t, f, 0, 504, types.CommitmentRevelation{
+		CommitmentHeight: 503, Left: left, Right: hashLeaf(t, right),
+	})
+	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
+	stored, err := f.keeper.VerificationVotes.Get(f.ctx, voteKey)
+	require.NoError(t, err)
+	require.Equal(t, uint32(types.VoteState_VOTE_STATE_TRUE), stored)
+}
+
 func TestCorruptedFinalizationLeavesLifecycleStateUnchanged(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
 	submitProof(t, f, 500, 2)
-	require.NoError(t, f.keeper.ProofTallies.Set(f.ctx, types.NewProofStoreKey(500, 1), types.ProofTally{TrueVotes: 4}))
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
+	require.NoError(t, f.keeper.ProofTallies.Set(f.ctx, types.NewProofStoreKey(500, 1), types.ProofTally{ValidVotingPower: 101}))
 
 	err := f.keeper.EndBlock(f.atHeight(505))
 	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
@@ -343,6 +445,7 @@ func TestQueriesPaginateAndCommitmentPruningUsesReverseIndex(t *testing.T) {
 	for i := byte(1); i <= 3; i++ {
 		submitProof(t, f, 500, i)
 	}
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 	pageOne, err := f.query.ProofsByHeight(f.ctx, &types.QueryProofsByHeightRequest{
 		SubmissionHeight: 500, Pagination: &query.PageRequest{Limit: 2},
 	})
@@ -370,6 +473,7 @@ func TestQueriesPaginateAndCommitmentPruningUsesReverseIndex(t *testing.T) {
 func TestQuerySurfaceReturnsCommitmentsVotesTalliesAndResults(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 	right := valueLeaf(t, 2, nil)
 	submitCommitment(t, f, 0, 503, left, right)
@@ -400,7 +504,7 @@ func TestQuerySurfaceReturnsCommitmentsVotesTalliesAndResults(t *testing.T) {
 	require.Len(t, votes.Votes, 1)
 	tally, err := f.query.ProofTally(f.ctx, &types.QueryProofTallyRequest{SubmissionHeight: 500, IndexInBlock: 0})
 	require.NoError(t, err)
-	require.Equal(t, uint32(1), tally.Tally.TrueVotes)
+	require.Equal(t, int64(60), tally.Tally.ValidVotingPower)
 
 	require.NoError(t, f.keeper.EndBlock(f.atHeight(505)))
 	final, err := f.query.FinalProofResult(f.ctx, &types.QueryFinalProofResultRequest{SubmissionHeight: 500, IndexInBlock: 0})
@@ -413,13 +517,14 @@ func TestQuerySurfaceReturnsCommitmentsVotesTalliesAndResults(t *testing.T) {
 func TestQueriesRejectCorruptedProofRelationships(t *testing.T) {
 	fixture := initFixture(t, 3)
 	submitProof(t, fixture, 500, 1)
+	require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(500)))
 	key := types.NewProofStoreKey(500, 0)
 	record, err := fixture.keeper.PendingProofs.Get(fixture.ctx, key)
 	require.NoError(t, err)
 
 	require.NoError(t, fixture.keeper.FinalProofResults.Set(fixture.ctx, key, types.FinalProofResult{
 		ProofHash: record.ProofHash, Status: types.ProofStatus_PROOF_STATUS_INCONCLUSIVE,
-		EligibleValidatorCount: 3, Threshold: 2, SubmissionHeight: 500, FinalizedHeight: 505,
+		TotalVotingPower: 100, VotingPowerThreshold: 67, SubmissionHeight: 500, FinalizedHeight: 505,
 	}))
 	_, err = fixture.query.Proof(fixture.ctx, &types.QueryProofRequest{SubmissionHeight: 500})
 	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
@@ -457,8 +562,9 @@ func FuzzVoteTransitionTallyConsistency(f *testing.F) {
 
 		fixture := initFixture(t, 3)
 		submitProof(t, fixture, 500, 1)
+		require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(500)))
 
-		var expectedTrue, expectedFalse uint32
+		var expectedValidPower, expectedInvalidPower int64
 		for validatorIndex := range 3 {
 			bit := uint8(1 << validatorIndex)
 			firstVotes := fuzzVotes(firstMask&bit != 0, firstResults&bit != 0)
@@ -490,17 +596,17 @@ func FuzzVoteTransitionTallyConsistency(f *testing.F) {
 			require.Equal(t, uint32(expected), stored)
 			switch expected {
 			case types.VoteState_VOTE_STATE_TRUE:
-				expectedTrue++
+				expectedValidPower += fixture.validators[validatorIndex].power
 			case types.VoteState_VOTE_STATE_FALSE:
-				expectedFalse++
+				expectedInvalidPower += fixture.validators[validatorIndex].power
 			}
 		}
 
 		tally, err := fixture.keeper.ProofTallies.Get(fixture.ctx, types.NewProofStoreKey(500, 0))
 		require.NoError(t, err)
-		require.Equal(t, expectedTrue, tally.TrueVotes)
-		require.Equal(t, expectedFalse, tally.FalseVotes)
-		require.LessOrEqual(t, tally.TrueVotes+tally.FalseVotes, uint32(3))
+		require.Equal(t, expectedValidPower, tally.ValidVotingPower)
+		require.Equal(t, expectedInvalidPower, tally.InvalidVotingPower)
+		require.LessOrEqual(t, tally.ValidVotingPower+tally.InvalidVotingPower, int64(100))
 	})
 }
 
@@ -526,4 +632,12 @@ func expectedVoteState(firstEnabled, firstResult, secondEnabled, secondResult bo
 		return types.VoteState_VOTE_STATE_TRUE
 	}
 	return types.VoteState_VOTE_STATE_FALSE
+}
+
+func sumPowers(powers []int64) int64 {
+	var total int64
+	for _, power := range powers {
+		total += power
+	}
+	return total
 }

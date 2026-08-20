@@ -331,6 +331,10 @@ func (q queryServer) ProofTally(ctx context.Context, req *types.QueryProofTallyR
 	if err != nil {
 		return nil, err
 	}
+	totalPower, err := q.k.TotalVotingPowerByHeight.Get(ctx, req.SubmissionHeight)
+	if err != nil || validatePowerTally(tally, totalPower) != nil {
+		return nil, types.ErrProofStateCorrupted
+	}
 
 	return &types.QueryProofTallyResponse{
 		ProofKey: types.ProofKey{SubmissionHeight: req.SubmissionHeight, IndexInBlock: req.IndexInBlock},
@@ -393,17 +397,20 @@ func validateFinalProofResult(key types.ProofStoreKey, result types.FinalProofRe
 		result.FinalizedHeight != result.SubmissionHeight+types.VerificationLifetime-1 {
 		return types.ErrProofStateCorrupted
 	}
-	threshold, err := types.ComputeThreshold(result.EligibleValidatorCount)
-	if err != nil || result.Threshold != threshold {
+	threshold, err := types.ComputeVotingPowerThreshold(result.TotalVotingPower)
+	if err != nil || result.VotingPowerThreshold != threshold {
 		return types.ErrProofStateCorrupted
 	}
-	if uint64(result.TrueVotes)+uint64(result.FalseVotes) > uint64(result.EligibleValidatorCount) {
+	if validatePowerTally(types.ProofTally{
+		ValidVotingPower:   result.ValidVotingPower,
+		InvalidVotingPower: result.InvalidVotingPower,
+	}, result.TotalVotingPower) != nil {
 		return types.ErrProofStateCorrupted
 	}
 	expected := types.ProofStatus_PROOF_STATUS_INCONCLUSIVE
-	if result.TrueVotes >= threshold {
+	if types.HasTwoThirdsMajority(result.ValidVotingPower, result.TotalVotingPower) {
 		expected = types.ProofStatus_PROOF_STATUS_VALID
-	} else if result.FalseVotes >= threshold {
+	} else if types.HasTwoThirdsMajority(result.InvalidVotingPower, result.TotalVotingPower) {
 		expected = types.ProofStatus_PROOF_STATUS_INVALID
 	}
 	if result.Status != expected {

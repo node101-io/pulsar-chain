@@ -1,23 +1,23 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // DefaultGenesis returns an empty module state with production defaults.
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{Params: DefaultParams()}
 }
 
-// Validate checks both individual records and the cross-store invariants that
-// InitGenesis must preserve. In particular, pending proofs, permanent hash
-// mappings, snapshots, votes, tallies, and final results must agree. Genesis is
-// the only place these collections can be loaded without passing through their
-// normal transitions, so it must reconstruct and verify the same invariants.
+// Validate reconstructs the relationships between every consensus collection.
+// Genesis bypasses normal handlers, so imported power snapshots, votes, tallies,
+// final results, and the permanent hash registry must be mutually derivable.
 func (gs GenesisState) Validate() error {
 	if err := gs.Params.Validate(); err != nil {
 		return err
 	}
-	// Proof counts define the exact contiguous index range at each active height.
-	// This matters because votes encode only the one-byte in-block index.
+
 	proofCounts := make(map[uint64]uint32, len(gs.ProofCounts))
 	for _, entry := range gs.ProofCounts {
 		if entry.Count == 0 || entry.Count > gs.Params.MaxProofsPerBlock {
@@ -49,40 +49,55 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
-	// Snapshot counts are the immutable denominator used during finalization.
-	// Every active proof height must have exactly that many distinct members.
-	validatorCounts := make(map[uint64]uint32, len(gs.ValidatorCounts))
-	for _, entry := range gs.ValidatorCounts {
-		if entry.Count == 0 {
-			return ErrEmptyValidatorSet
+	// Every active height owns one complete positive-power snapshot. Finalized
+	// heights have already pruned it, and heights without proofs must not retain
+	// orphan power records.
+	totalPowers := make(map[uint64]int64, len(gs.TotalVotingPowers))
+	for _, entry := range gs.TotalVotingPowers {
+		if _, active := proofCounts[entry.Height]; !active {
+			return fmt.Errorf("orphan total voting power at height %d", entry.Height)
 		}
-		if _, duplicate := validatorCounts[entry.Height]; duplicate {
-			return fmt.Errorf("duplicate validator count at height %d", entry.Height)
+		if !IsValidTotalVotingPower(entry.TotalVotingPower) {
+			return fmt.Errorf("invalid total voting power at height %d", entry.Height)
 		}
-		validatorCounts[entry.Height] = entry.Count
+		if _, duplicate := totalPowers[entry.Height]; duplicate {
+			return fmt.Errorf("duplicate total voting power at height %d", entry.Height)
+		}
+		totalPowers[entry.Height] = entry.TotalVotingPower
 	}
-	snapshotCounts := make(map[uint64]uint32, len(gs.ValidatorCounts))
-	snapshots := make(map[string]struct{}, len(gs.ValidatorSnapshots))
-	for _, entry := range gs.ValidatorSnapshots {
+	validatorPowers := make(map[string]int64, len(gs.ValidatorPowers))
+	powerSums := make(map[uint64]int64, len(proofCounts))
+	for _, entry := range gs.ValidatorPowers {
+		totalPower, active := totalPowers[entry.Height]
+		if !active {
+			return fmt.Errorf("orphan validator power at height %d", entry.Height)
+		}
 		if len(entry.Validator) == 0 {
 			return ErrInvalidValidator
 		}
-		key := fmt.Sprintf("%d/%x", entry.Height, entry.Validator)
-		if _, duplicate := snapshots[key]; duplicate {
-			return fmt.Errorf("duplicate validator snapshot %s", key)
+		if entry.VotingPower <= 0 {
+			return fmt.Errorf("non-positive validator power at height %d", entry.Height)
 		}
-		snapshots[key] = struct{}{}
-		snapshotCounts[entry.Height]++
+		key := genesisValidatorKey(entry.Height, entry.Validator)
+		if _, duplicate := validatorPowers[key]; duplicate {
+			return fmt.Errorf("duplicate validator power %s", key)
+		}
+		sum := powerSums[entry.Height]
+		if entry.VotingPower > totalPower-sum {
+			return fmt.Errorf("validator powers exceed total at height %d", entry.Height)
+		}
+		validatorPowers[key] = entry.VotingPower
+		powerSums[entry.Height] = sum + entry.VotingPower
 	}
 	for height := range proofCounts {
-		if validatorCounts[height] == 0 || snapshotCounts[height] != validatorCounts[height] {
-			return fmt.Errorf("invalid validator snapshot at height %d", height)
+		totalPower, ok := totalPowers[height]
+		if !ok || powerSums[height] != totalPower {
+			return fmt.Errorf("incomplete validator power snapshot at height %d", height)
 		}
 	}
 
-	// The hash registry survives pruning and must remain one-to-one. Otherwise a
-	// hash could ambiguously resolve to two proofs or replay protection could be
-	// lost during import.
+	// The permanent registry must remain one-to-one after pending state is
+	// pruned, otherwise replay protection and hash lookup become ambiguous.
 	seenHashes := make(map[string]ProofKey, len(gs.SeenProofHashes))
 	seenKeys := make(map[string]struct{}, len(gs.SeenProofHashes))
 	for _, entry := range gs.SeenProofHashes {
@@ -100,7 +115,6 @@ func (gs GenesisState) Validate() error {
 		seenHashes[hashKey] = entry.ProofKey
 		seenKeys[proofKey] = struct{}{}
 	}
-
 	for key, proof := range pending {
 		if seen, ok := seenHashes[string(proof.ProofHash)]; !ok ||
 			genesisProofKey(seen.SubmissionHeight, seen.IndexInBlock) != key {
@@ -129,9 +143,9 @@ func (gs GenesisState) Validate() error {
 		if _, duplicate := tallies[key]; duplicate {
 			return fmt.Errorf("duplicate proof tally")
 		}
-		count := validatorCounts[entry.ProofKey.SubmissionHeight]
-		if uint64(entry.Tally.TrueVotes)+uint64(entry.Tally.FalseVotes) > uint64(count) {
-			return fmt.Errorf("proof tally exceeds validator count")
+		totalPower := totalPowers[entry.ProofKey.SubmissionHeight]
+		if !validGenesisPowerTally(entry.Tally, totalPower) {
+			return fmt.Errorf("proof tally exceeds total voting power")
 		}
 		tallies[key] = entry.Tally
 	}
@@ -139,8 +153,8 @@ func (gs GenesisState) Validate() error {
 		return fmt.Errorf("every pending proof must have one tally")
 	}
 
-	// Recompute tallies from effective votes instead of trusting both copies.
-	// Equivocated states deliberately add to neither counter.
+	// Recompute tallies from effective votes using each validator's historical
+	// power. Equivocated validators deliberately contribute to neither side.
 	votes := make(map[string]struct{}, len(gs.VerificationVotes))
 	derivedTallies := make(map[string]ProofTally, len(gs.ProofTallies))
 	for _, entry := range gs.VerificationVotes {
@@ -149,7 +163,8 @@ func (gs GenesisState) Validate() error {
 			entry.State <= VoteState_VOTE_STATE_NONE || entry.State > VoteState_VOTE_STATE_EQUIVOCATED {
 			return fmt.Errorf("invalid verification vote")
 		}
-		if _, ok := snapshots[fmt.Sprintf("%d/%x", entry.ProofKey.SubmissionHeight, entry.Validator)]; !ok {
+		power, ok := validatorPowers[genesisValidatorKey(entry.ProofKey.SubmissionHeight, entry.Validator)]
+		if !ok {
 			return fmt.Errorf("verification vote is not from an eligible validator")
 		}
 		voteKey := fmt.Sprintf("%d/%d/%x", entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock, entry.Validator)
@@ -160,9 +175,12 @@ func (gs GenesisState) Validate() error {
 		derived := derivedTallies[key]
 		switch entry.State {
 		case VoteState_VOTE_STATE_TRUE:
-			derived.TrueVotes++
+			derived.ValidVotingPower += power
 		case VoteState_VOTE_STATE_FALSE:
-			derived.FalseVotes++
+			derived.InvalidVotingPower += power
+		}
+		if !validGenesisPowerTally(derived, totalPowers[entry.ProofKey.SubmissionHeight]) {
+			return fmt.Errorf("derived proof tally exceeds total voting power")
 		}
 		derivedTallies[key] = derived
 	}
@@ -172,42 +190,43 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
-	// Final results must be derivable from their stored snapshot and tally. A
-	// result is rejected if its status could not have been produced by the live
-	// EndBlock finalization rule.
+	// Final results are self-contained because their active snapshots were
+	// pruned at H+5. Reapply the same strict threshold rule used by EndBlock.
 	finals := make(map[string]struct{}, len(gs.FinalProofResults))
 	for _, entry := range gs.FinalProofResults {
 		key := genesisProofKey(entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock)
 		if _, duplicate := finals[key]; duplicate {
 			return fmt.Errorf("duplicate final proof result")
 		}
-		if _, active := pending[key]; active || len(entry.Result.ProofHash) != ProofHashSize ||
+		_, activeHeight := proofCounts[entry.ProofKey.SubmissionHeight]
+		if _, active := pending[key]; active || activeHeight || entry.ProofKey.IndexInBlock >= MaxVoteIndexExclusive ||
+			len(entry.Result.ProofHash) != ProofHashSize ||
 			entry.Result.SubmissionHeight != entry.ProofKey.SubmissionHeight ||
+			entry.Result.SubmissionHeight > math.MaxUint64-(VerificationLifetime-1) ||
 			entry.Result.FinalizedHeight != entry.ProofKey.SubmissionHeight+VerificationLifetime-1 ||
 			entry.Result.Status < ProofStatus_PROOF_STATUS_VALID ||
 			entry.Result.Status > ProofStatus_PROOF_STATUS_INCONCLUSIVE {
 			return fmt.Errorf("invalid final proof result")
 		}
-		threshold, err := ComputeThreshold(entry.Result.EligibleValidatorCount)
-		if err != nil || threshold != entry.Result.Threshold {
+		threshold, err := ComputeVotingPowerThreshold(entry.Result.TotalVotingPower)
+		if err != nil || threshold != entry.Result.VotingPowerThreshold {
 			return fmt.Errorf("invalid final proof threshold")
 		}
-		if uint64(entry.Result.TrueVotes)+uint64(entry.Result.FalseVotes) > uint64(entry.Result.EligibleValidatorCount) {
-			return fmt.Errorf("final proof tally exceeds validator count")
+		finalTally := ProofTally{
+			ValidVotingPower:   entry.Result.ValidVotingPower,
+			InvalidVotingPower: entry.Result.InvalidVotingPower,
 		}
-		switch entry.Result.Status {
-		case ProofStatus_PROOF_STATUS_VALID:
-			if entry.Result.TrueVotes < threshold {
-				return fmt.Errorf("valid final proof did not reach threshold")
-			}
-		case ProofStatus_PROOF_STATUS_INVALID:
-			if entry.Result.FalseVotes < threshold {
-				return fmt.Errorf("invalid final proof did not reach threshold")
-			}
-		case ProofStatus_PROOF_STATUS_INCONCLUSIVE:
-			if entry.Result.TrueVotes >= threshold || entry.Result.FalseVotes >= threshold {
-				return fmt.Errorf("inconclusive final proof reached threshold")
-			}
+		if !validGenesisPowerTally(finalTally, entry.Result.TotalVotingPower) {
+			return fmt.Errorf("final proof tally exceeds total voting power")
+		}
+		expected := ProofStatus_PROOF_STATUS_INCONCLUSIVE
+		if HasTwoThirdsMajority(entry.Result.ValidVotingPower, entry.Result.TotalVotingPower) {
+			expected = ProofStatus_PROOF_STATUS_VALID
+		} else if HasTwoThirdsMajority(entry.Result.InvalidVotingPower, entry.Result.TotalVotingPower) {
+			expected = ProofStatus_PROOF_STATUS_INVALID
+		}
+		if entry.Result.Status != expected {
+			return fmt.Errorf("final proof status does not match voting power")
 		}
 		seen, ok := seenHashes[string(entry.Result.ProofHash)]
 		if !ok || seen.SubmissionHeight != entry.ProofKey.SubmissionHeight || seen.IndexInBlock != entry.ProofKey.IndexInBlock {
@@ -222,6 +241,16 @@ func (gs GenesisState) Validate() error {
 	return nil
 }
 
+func validGenesisPowerTally(tally ProofTally, totalPower int64) bool {
+	return IsValidTotalVotingPower(totalPower) &&
+		tally.ValidVotingPower >= 0 && tally.InvalidVotingPower >= 0 &&
+		tally.ValidVotingPower <= totalPower-tally.InvalidVotingPower
+}
+
 func genesisProofKey(height uint64, index uint32) string {
 	return fmt.Sprintf("%d/%d", height, index)
+}
+
+func genesisValidatorKey(height uint64, validator []byte) string {
+	return fmt.Sprintf("%d/%x", height, validator)
 }

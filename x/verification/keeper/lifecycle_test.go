@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	comettypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 
@@ -14,6 +15,7 @@ func TestGenesisRoundTripPreservesActiveState(t *testing.T) {
 	source := initFixture(t, 3)
 	require.NoError(t, source.keeper.Params.Set(source.ctx, types.NewParams(42)))
 	submitProof(t, source, 500, 1)
+	require.NoError(t, source.keeper.EndBlock(source.atHeight(500)))
 
 	exported, err := source.keeper.ExportGenesis(source.ctx)
 	require.NoError(t, err)
@@ -21,7 +23,8 @@ func TestGenesisRoundTripPreservesActiveState(t *testing.T) {
 	require.NoError(t, exported.Validate())
 	require.Len(t, exported.PendingProofs, 1)
 	require.Len(t, exported.SeenProofHashes, 1)
-	require.Len(t, exported.ValidatorSnapshots, 3)
+	require.Len(t, exported.ValidatorPowers, 3)
+	require.Equal(t, int64(100), exported.TotalVotingPowers[0].TotalVotingPower)
 
 	target := initFixture(t, 3)
 	require.NoError(t, target.keeper.InitGenesis(target.ctx, *exported))
@@ -39,6 +42,7 @@ func TestGenesisRoundTripPreservesActiveState(t *testing.T) {
 func TestGenesisRoundTripPreservesFinalizedState(t *testing.T) {
 	source := initFixture(t, 1)
 	submitProof(t, source, 500, 1)
+	require.NoError(t, source.keeper.EndBlock(source.atHeight(500)))
 	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 	right := valueLeaf(t, 2, nil)
 	require.NoError(t, source.keeper.ApplyVerificationPayload(
@@ -75,6 +79,7 @@ func TestLifecycleEventsUseCanonicalAttributes(t *testing.T) {
 		Signer: fixture.validators[0].signer, ProofHash: proofHash, ProofType: 7,
 	})
 	require.NoError(t, err)
+	require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(500)))
 	require.Equal(t, map[string]string{
 		types.AttributeKeyProofHash:        hex.EncodeToString(proofHash),
 		types.AttributeKeySubmissionHeight: "500",
@@ -112,14 +117,14 @@ func TestLifecycleEventsUseCanonicalAttributes(t *testing.T) {
 	finalizeCtx := fixture.atHeight(505)
 	require.NoError(t, fixture.keeper.EndBlock(finalizeCtx))
 	require.Equal(t, map[string]string{
-		types.AttributeKeyProofHash:        hex.EncodeToString(proofHash),
-		types.AttributeKeySubmissionHeight: "500",
-		types.AttributeKeyIndexInBlock:     "0",
-		types.AttributeKeyStatus:           types.ProofStatus_PROOF_STATUS_INCONCLUSIVE.String(),
-		types.AttributeKeyTrueVotes:        "1",
-		types.AttributeKeyFalseVotes:       "0",
-		types.AttributeKeyValidatorCount:   "3",
-		types.AttributeKeyThreshold:        "2",
+		types.AttributeKeyProofHash:            hex.EncodeToString(proofHash),
+		types.AttributeKeySubmissionHeight:     "500",
+		types.AttributeKeyIndexInBlock:         "0",
+		types.AttributeKeyStatus:               types.ProofStatus_PROOF_STATUS_INCONCLUSIVE.String(),
+		types.AttributeKeyValidVotingPower:     "60",
+		types.AttributeKeyInvalidVotingPower:   "0",
+		types.AttributeKeyTotalVotingPower:     "100",
+		types.AttributeKeyVotingPowerThreshold: "67",
 	}, attributesForEvent(t, finalizeCtx, types.EventTypeProofFinalized))
 }
 
@@ -139,16 +144,20 @@ func attributesForEvent(t testing.TB, ctx sdk.Context, eventType string) map[str
 	return nil
 }
 
-func TestSubmitProofSnapshotsOnceAndRejectsDuplicate(t *testing.T) {
+func TestSubmitProofDefersPowerMaterializationAndRejectsDuplicate(t *testing.T) {
 	f := initFixture(t, 3)
 	first := submitProof(t, f, 500, 1)
 	second := submitProof(t, f, 500, 2)
 	require.Equal(t, uint32(0), first.IndexInBlock)
 	require.Equal(t, uint32(1), second.IndexInBlock)
 
-	count, err := f.keeper.ValidatorCountByHeight.Get(f.ctx, 500)
+	exists, err := f.keeper.TotalVotingPowerByHeight.Has(f.ctx, 500)
 	require.NoError(t, err)
-	require.Equal(t, uint32(3), count)
+	require.False(t, exists)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
+	totalPower, err := f.keeper.TotalVotingPowerByHeight.Get(f.ctx, 500)
+	require.NoError(t, err)
+	require.Equal(t, int64(100), totalPower)
 
 	hash := make([]byte, types.ProofHashSize)
 	hash[len(hash)-1] = 1
@@ -158,57 +167,188 @@ func TestSubmitProofSnapshotsOnceAndRejectsDuplicate(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrDuplicateProof)
 }
 
-func TestPreBlockSnapshotRemainsStableDuringProofExecution(t *testing.T) {
+func TestEndBlockMaterializesHistoricalPowerForProofHeight(t *testing.T) {
 	f := initFixture(t, 3)
-	require.NoError(t, f.keeper.CreateValidatorSnapshot(f.atHeight(500), 500))
-	f.staking.lastValidators = f.staking.lastValidators[:2]
 	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 
-	count, err := f.keeper.ValidatorCountByHeight.Get(f.ctx, 500)
+	totalPower, err := f.keeper.TotalVotingPowerByHeight.Get(f.ctx, 500)
 	require.NoError(t, err)
-	require.Equal(t, uint32(3), count)
+	require.Equal(t, int64(100), totalPower)
+	for _, validator := range f.validators {
+		power, err := f.keeper.ValidatorPowers.Get(f.ctx, types.NewValidatorPowerStoreKey(500, validator.operator))
+		require.NoError(t, err)
+		require.Equal(t, validator.power, power)
+	}
 }
 
-func TestCreateValidatorSnapshotIsIdempotent(t *testing.T) {
+func TestMaterializeValidatorPowersIsIdempotent(t *testing.T) {
 	f := initFixture(t, 3)
-	require.NoError(t, f.keeper.CreateValidatorSnapshot(f.atHeight(500), 500))
-	f.staking.lastValidators = f.staking.lastValidators[:2]
-	require.NoError(t, f.keeper.CreateValidatorSnapshot(f.atHeight(500), 500))
+	require.NoError(t, f.keeper.MaterializeValidatorPowers(f.atHeight(500), 500))
+	info := f.staking.historicalInfo[500]
+	info.Valset = info.Valset[:2]
+	f.staking.historicalInfo[500] = info
+	require.NoError(t, f.keeper.MaterializeValidatorPowers(f.atHeight(500), 500))
 
-	count, err := f.keeper.ValidatorCountByHeight.Get(f.ctx, 500)
+	totalPower, err := f.keeper.TotalVotingPowerByHeight.Get(f.ctx, 500)
 	require.NoError(t, err)
-	require.Equal(t, uint32(3), count)
+	require.Equal(t, int64(100), totalPower)
 	for _, validator := range f.validators {
-		exists, err := f.keeper.ValidatorSnapshots.Has(f.ctx, types.NewValidatorSnapshotStoreKey(500, validator.operator))
+		exists, err := f.keeper.ValidatorPowers.Has(f.ctx, types.NewValidatorPowerStoreKey(500, validator.operator))
 		require.NoError(t, err)
 		require.True(t, exists)
 	}
 }
 
-func TestEndBlockPrunesUnusedPreBlockSnapshot(t *testing.T) {
+func TestMaterializeValidatorPowersRejectsMalformedHistoryAtomically(t *testing.T) {
+	testCases := []struct {
+		name  string
+		setup func(*fixture)
+	}{
+		{
+			name: "missing history",
+			setup: func(f *fixture) {
+				delete(f.staking.historicalInfo, 500)
+			},
+		},
+		{
+			name: "wrong header height",
+			setup: func(f *fixture) {
+				info := f.staking.historicalInfo[500]
+				info.Header.Height = 499
+				f.staking.historicalInfo[500] = info
+			},
+		},
+		{
+			name: "empty validator set",
+			setup: func(f *fixture) {
+				info := f.staking.historicalInfo[500]
+				info.Valset = nil
+				f.staking.historicalInfo[500] = info
+			},
+		},
+		{
+			name: "duplicate validator",
+			setup: func(f *fixture) {
+				info := f.staking.historicalInfo[500]
+				info.Valset[1] = info.Valset[0]
+				f.staking.historicalInfo[500] = info
+			},
+		},
+		{
+			name: "invalid operator address",
+			setup: func(f *fixture) {
+				info := f.staking.historicalInfo[500]
+				info.Valset[0].OperatorAddress = "not-a-validator-address"
+				f.staking.historicalInfo[500] = info
+			},
+		},
+		{
+			name: "zero consensus power",
+			setup: func(f *fixture) {
+				info := f.staking.historicalInfo[500]
+				info.Valset[0].Status = 0
+				f.staking.historicalInfo[500] = info
+			},
+		},
+		{
+			name: "negative consensus power",
+			setup: func(f *fixture) {
+				info := f.staking.historicalInfo[500]
+				info.Valset[0].Tokens = sdk.TokensFromConsensusPower(-1, sdk.DefaultPowerReduction)
+				f.staking.historicalInfo[500] = info
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			f := initFixture(t, 3)
+			submitProof(t, f, 500, 1)
+			testCase.setup(f)
+			require.Error(t, f.keeper.EndBlock(f.atHeight(500)))
+
+			exists, err := f.keeper.TotalVotingPowerByHeight.Has(f.ctx, 500)
+			require.NoError(t, err)
+			require.False(t, exists)
+			for _, validator := range f.validators {
+				exists, err = f.keeper.ValidatorPowers.Has(f.ctx, types.NewValidatorPowerStoreKey(500, validator.operator))
+				require.NoError(t, err)
+				require.False(t, exists)
+			}
+		})
+	}
+}
+
+func TestMaterializeValidatorPowersRejectsTotalPowerOverflow(t *testing.T) {
+	f := initFixtureWithPowers(t, []int64{comettypes.MaxTotalVotingPower, 1})
+	submitProof(t, f, 500, 1)
+	err := f.keeper.EndBlock(f.atHeight(500))
+	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
+	exists, err := f.keeper.TotalVotingPowerByHeight.Has(f.ctx, 500)
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
+func TestMaterializeValidatorPowersRejectsCorruptedStoredSnapshot(t *testing.T) {
 	f := initFixture(t, 3)
-	require.NoError(t, f.keeper.CreateValidatorSnapshot(f.atHeight(500), 500))
+	require.NoError(t, f.keeper.ValidatorPowers.Set(
+		f.ctx,
+		types.NewValidatorPowerStoreKey(500, f.validators[0].operator),
+		f.validators[0].power,
+	))
+	require.NoError(t, f.keeper.TotalVotingPowerByHeight.Set(f.ctx, 500, 100))
+	require.ErrorIs(t, f.keeper.MaterializeValidatorPowers(f.ctx, 500), types.ErrProofStateCorrupted)
+}
+
+func TestValidatorPowerAtHeightDistinguishesMembershipFromCorruption(t *testing.T) {
+	f := initFixture(t, 3)
+	require.NoError(t, f.keeper.MaterializeValidatorPowers(f.ctx, 500))
+
+	power, totalPower, err := f.keeper.ValidatorPowerAtHeight(f.ctx, 500, f.validators[0].operator)
+	require.NoError(t, err)
+	require.Equal(t, int64(60), power)
+	require.Equal(t, int64(100), totalPower)
+
+	unknownValidator := make([]byte, len(f.validators[0].operator))
+	unknownValidator[len(unknownValidator)-1] = 99
+	_, _, err = f.keeper.ValidatorPowerAtHeight(f.ctx, 500, unknownValidator)
+	require.ErrorIs(t, err, types.ErrInvalidValidator)
+
+	require.NoError(t, f.keeper.ValidatorPowers.Set(
+		f.ctx,
+		types.NewValidatorPowerStoreKey(500, f.validators[0].operator),
+		0,
+	))
+	_, _, err = f.keeper.ValidatorPowerAtHeight(f.ctx, 500, f.validators[0].operator)
+	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
+
+	_, _, err = f.keeper.ValidatorPowerAtHeight(f.ctx, 501, f.validators[0].operator)
+	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
+}
+
+func TestEndBlockWithoutProofDoesNotMaterializePower(t *testing.T) {
+	f := initFixture(t, 3)
 	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 
-	exists, err := f.keeper.ValidatorCountByHeight.Has(f.ctx, 500)
+	exists, err := f.keeper.TotalVotingPowerByHeight.Has(f.ctx, 500)
 	require.NoError(t, err)
 	require.False(t, exists)
 	for _, validator := range f.validators {
-		exists, err = f.keeper.ValidatorSnapshots.Has(f.ctx, types.NewValidatorSnapshotStoreKey(500, validator.operator))
+		exists, err = f.keeper.ValidatorPowers.Has(f.ctx, types.NewValidatorPowerStoreKey(500, validator.operator))
 		require.NoError(t, err)
 		require.False(t, exists)
 	}
 }
 
-func TestSubmitProofRejectsEmptyValidatorSetWithoutWrites(t *testing.T) {
+func TestEndBlockRejectsEmptyHistoricalValidatorSetWithoutPowerWrites(t *testing.T) {
 	f := initFixture(t, 0)
 	hash := make([]byte, types.ProofHashSize)
 	_, err := f.msgServer.SubmitProof(f.atHeight(500), &types.MsgSubmitProof{ProofHash: hash})
-	require.ErrorIs(t, err, types.ErrEmptyValidatorSet)
-	exists, err := f.keeper.SeenProofHashes.Has(f.ctx, hash)
 	require.NoError(t, err)
-	require.False(t, exists)
-	exists, err = f.keeper.ProofCountByHeight.Has(f.ctx, 500)
+	err = f.keeper.EndBlock(f.atHeight(500))
+	require.ErrorIs(t, err, types.ErrEmptyValidatorSet)
+	exists, err := f.keeper.TotalVotingPowerByHeight.Has(f.ctx, 500)
 	require.NoError(t, err)
 	require.False(t, exists)
 }
@@ -216,6 +356,7 @@ func TestSubmitProofRejectsEmptyValidatorSetWithoutWrites(t *testing.T) {
 func TestCommitmentWritesPrimaryAndReverseIndex(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 	commitment := make([]byte, types.CommitmentHashSize)
 	commitment[0] = 1
 	err := f.keeper.ApplyVerificationPayload(f.atHeight(502), f.validators[0].operator, 502, commitment, nil)
@@ -235,6 +376,7 @@ func TestCommitmentWritesPrimaryAndReverseIndex(t *testing.T) {
 func TestRevealBatchStagesEquivocationAtomically(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 
 	left502 := valueLeaf(t, 1, nil)
 	right502 := valueLeaf(t, 2, []types.ProofVote{{IndexInBlock: 0, Result: true}})
@@ -268,6 +410,7 @@ func TestRevealBatchStagesEquivocationAtomically(t *testing.T) {
 func TestRevealBatchInvalidLaterEntryLeavesNoVotes(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 	right := valueLeaf(t, 2, nil)
 	root := commitmentFor(t, left, right)
@@ -292,6 +435,7 @@ func TestRevealBatchInvalidLaterEntryLeavesNoVotes(t *testing.T) {
 func TestFinalizationAndPruningPreserveHashLookup(t *testing.T) {
 	f := initFixture(t, 3)
 	submitProof(t, f, 500, 1)
+	require.NoError(t, f.keeper.EndBlock(f.atHeight(500)))
 	for validatorIndex := 0; validatorIndex < 2; validatorIndex++ {
 		left := valueLeaf(t, byte(validatorIndex+1), []types.ProofVote{{IndexInBlock: 0, Result: true}})
 		right := valueLeaf(t, byte(validatorIndex+10), nil)
@@ -311,11 +455,19 @@ func TestFinalizationAndPruningPreserveHashLookup(t *testing.T) {
 	result, err := f.keeper.FinalProofResults.Get(f.ctx, types.NewProofStoreKey(500, 0))
 	require.NoError(t, err)
 	require.Equal(t, types.ProofStatus_PROOF_STATUS_VALID, result.Status)
-	require.Equal(t, uint32(2), result.Threshold)
+	require.Equal(t, int64(67), result.VotingPowerThreshold)
 
 	pending, err := f.keeper.PendingProofs.Has(f.ctx, types.NewProofStoreKey(500, 0))
 	require.NoError(t, err)
 	require.False(t, pending)
+	totalExists, err := f.keeper.TotalVotingPowerByHeight.Has(f.ctx, 500)
+	require.NoError(t, err)
+	require.False(t, totalExists)
+	for _, validator := range f.validators {
+		powerExists, err := f.keeper.ValidatorPowers.Has(f.ctx, types.NewValidatorPowerStoreKey(500, validator.operator))
+		require.NoError(t, err)
+		require.False(t, powerExists)
+	}
 	hash := make([]byte, types.ProofHashSize)
 	hash[len(hash)-1] = 1
 	response, err := f.query.ProofByHash(f.ctx, &types.QueryProofByHashRequest{ProofHash: hash})

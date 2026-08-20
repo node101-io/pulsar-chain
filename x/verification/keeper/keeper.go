@@ -12,7 +12,7 @@ import (
 )
 
 // Keeper owns the replicated half of the verification protocol. It registers
-// proof identities, freezes validator eligibility, accepts authenticated
+// proof identities, freezes historical validator power, accepts authenticated
 // commitment and revelation actions, tracks one effective vote per validator,
 // and produces immutable final results. Proof bytes, verification jobs, salts,
 // and unrevealed vote lists remain validator-local and never enter these
@@ -34,11 +34,11 @@ type Keeper struct {
 	// SeenProofHashes is permanent so a finalized and pruned hash cannot be
 	// registered again.
 	SeenProofHashes collections.Map[[]byte, types.ProofKey]
-	// ValidatorSnapshots and ValidatorCountByHeight freeze both membership and
-	// the finalization denominator at the proof submission height. Later staking
-	// changes therefore cannot retroactively change who was eligible to vote.
-	ValidatorSnapshots     collections.KeySet[types.ValidatorSnapshotStoreKey]
-	ValidatorCountByHeight collections.Map[uint64, uint32]
+	// ValidatorPowers and TotalVotingPowerByHeight materialize the immutable
+	// HistoricalInfo for proof heights. Later staking changes therefore cannot
+	// change either voter eligibility or the finalization denominator.
+	ValidatorPowers          collections.Map[types.ValidatorPowerStoreKey, int64]
+	TotalVotingPowerByHeight collections.Map[uint64, int64]
 	// Commitments store only opaque roots. Their salts and vote preimages stay in
 	// the validator's local journal until an allowed revelation block.
 	Commitments collections.Map[types.CommitmentStoreKey, []byte]
@@ -73,7 +73,7 @@ func NewKeeper(
 
 	sb := collections.NewSchemaBuilder(storeService)
 	proofKeyCodec := collections.PairKeyCodec(collections.Uint64Key, collections.Uint32Key)
-	validatorSnapshotKeyCodec := collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey)
+	validatorPowerKeyCodec := collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey)
 	commitmentKeyCodec := collections.PairKeyCodec(collections.BytesKey, collections.Uint64Key)
 	commitmentHeightKeyCodec := collections.PairKeyCodec(collections.Uint64Key, collections.BytesKey)
 	voteKeyCodec := collections.TripleKeyCodec(collections.Uint64Key, collections.Uint32Key, collections.BytesKey)
@@ -85,17 +85,17 @@ func NewKeeper(
 		authority:     append([]byte(nil), authority...),
 		stakingKeeper: stakingKeeper,
 
-		Params:                 collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](c)),
-		ProofCountByHeight:     collections.NewMap(sb, types.ProofCountPrefix, "proof_count_by_height", collections.Uint64Key, collections.Uint32Value),
-		PendingProofs:          collections.NewMap(sb, types.PendingProofPrefix, "pending_proofs", proofKeyCodec, codec.CollValue[types.ProofRecord](c)),
-		SeenProofHashes:        collections.NewMap(sb, types.SeenProofHashPrefix, "seen_proof_hashes", collections.BytesKey, codec.CollValue[types.ProofKey](c)),
-		ValidatorSnapshots:     collections.NewKeySet(sb, types.ValidatorSnapshotPrefix, "validator_snapshots", validatorSnapshotKeyCodec),
-		ValidatorCountByHeight: collections.NewMap(sb, types.ValidatorCountPrefix, "validator_count_by_height", collections.Uint64Key, collections.Uint32Value),
-		Commitments:            collections.NewMap(sb, types.CommitmentPrefix, "commitments", commitmentKeyCodec, collections.BytesValue),
-		CommitmentsByHeight:    collections.NewKeySet(sb, types.CommitmentByHeightPrefix, "commitments_by_height", commitmentHeightKeyCodec),
-		VerificationVotes:      collections.NewMap(sb, types.VerificationVotePrefix, "verification_votes", voteKeyCodec, collections.Uint32Value),
-		ProofTallies:           collections.NewMap(sb, types.ProofTallyPrefix, "proof_tallies", proofKeyCodec, codec.CollValue[types.ProofTally](c)),
-		FinalProofResults:      collections.NewMap(sb, types.FinalProofResultPrefix, "final_proof_results", proofKeyCodec, codec.CollValue[types.FinalProofResult](c)),
+		Params:                   collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](c)),
+		ProofCountByHeight:       collections.NewMap(sb, types.ProofCountPrefix, "proof_count_by_height", collections.Uint64Key, collections.Uint32Value),
+		PendingProofs:            collections.NewMap(sb, types.PendingProofPrefix, "pending_proofs", proofKeyCodec, codec.CollValue[types.ProofRecord](c)),
+		SeenProofHashes:          collections.NewMap(sb, types.SeenProofHashPrefix, "seen_proof_hashes", collections.BytesKey, codec.CollValue[types.ProofKey](c)),
+		ValidatorPowers:          collections.NewMap(sb, types.ValidatorPowerPrefix, "validator_powers", validatorPowerKeyCodec, collections.Int64Value),
+		TotalVotingPowerByHeight: collections.NewMap(sb, types.TotalVotingPowerPrefix, "total_voting_power_by_height", collections.Uint64Key, collections.Int64Value),
+		Commitments:              collections.NewMap(sb, types.CommitmentPrefix, "commitments", commitmentKeyCodec, collections.BytesValue),
+		CommitmentsByHeight:      collections.NewKeySet(sb, types.CommitmentByHeightPrefix, "commitments_by_height", commitmentHeightKeyCodec),
+		VerificationVotes:        collections.NewMap(sb, types.VerificationVotePrefix, "verification_votes", voteKeyCodec, collections.Uint32Value),
+		ProofTallies:             collections.NewMap(sb, types.ProofTallyPrefix, "proof_tallies", proofKeyCodec, codec.CollValue[types.ProofTally](c)),
+		FinalProofResults:        collections.NewMap(sb, types.FinalProofResultPrefix, "final_proof_results", proofKeyCodec, codec.CollValue[types.FinalProofResult](c)),
 	}
 
 	schema, err := sb.Build()

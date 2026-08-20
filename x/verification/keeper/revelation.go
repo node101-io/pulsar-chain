@@ -3,7 +3,6 @@ package keeper
 import (
 	"bytes"
 	"context"
-	"math"
 	"strconv"
 
 	errorsmod "cosmossdk.io/errors"
@@ -187,11 +186,12 @@ func (k Keeper) ValidateRevelationPlans(ctx context.Context, plans []RevelationP
 	}
 	for _, plan := range plans {
 		for _, leaf := range plan.EffectiveLeaves {
-			if err := k.validateVotes(ctx, plan.Validator, leaf.ProofHeight, leaf.Votes); err != nil {
+			validatorPower, totalPower, err := k.validateVotes(ctx, plan.Validator, leaf.ProofHeight, leaf.Votes)
+			if err != nil {
 				return ValidatedRevelationBatch{}, err
 			}
 			for _, vote := range leaf.Votes {
-				if err := k.stageVote(ctx, &batch, plan.Validator, leaf.ProofHeight, vote); err != nil {
+				if err := k.stageVote(ctx, &batch, plan.Validator, leaf.ProofHeight, vote, validatorPower, totalPower); err != nil {
 					return ValidatedRevelationBatch{}, err
 				}
 			}
@@ -205,41 +205,38 @@ func (k Keeper) ValidateRevelationPlans(ctx context.Context, plans []RevelationP
 	return batch, nil
 }
 
-// validateVotes checks snapshot eligibility and referential integrity for a
-// single proof height before votes are staged.
-func (k Keeper) validateVotes(ctx context.Context, validator []byte, proofHeight uint64, votes []types.ProofVote) error {
-	eligible, err := k.IsValidatorEligible(ctx, proofHeight, validator)
+// validateVotes loads historical power once for an effective leaf and checks
+// every referenced proof before any of its votes are staged.
+func (k Keeper) validateVotes(ctx context.Context, validator []byte, proofHeight uint64, votes []types.ProofVote) (int64, int64, error) {
+	validatorPower, totalPower, err := k.ValidatorPowerAtHeight(ctx, proofHeight, validator)
 	if err != nil {
-		return err
-	}
-	if !eligible {
-		return types.ErrInvalidValidator
+		return 0, 0, err
 	}
 	found, err := k.ProofCountByHeight.Has(ctx, proofHeight)
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
 	if !found {
-		return types.ErrProofHeightNotFound
+		return 0, 0, types.ErrProofHeightNotFound
 	}
 	proofCount, err := k.ProofCountByHeight.Get(ctx, proofHeight)
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
 	for _, vote := range votes {
 		if vote.IndexInBlock >= proofCount {
-			return types.ErrProofNotFound
+			return 0, 0, types.ErrProofNotFound
 		}
 		exists, err := k.PendingProofs.Has(ctx, types.NewProofStoreKey(proofHeight, vote.IndexInBlock))
 		if err != nil {
-			return err
+			return 0, 0, err
 		}
 		if !exists {
-			return types.ErrProofNotFound
+			return 0, 0, types.ErrProofNotFound
 		}
 	}
 
-	return nil
+	return validatorPower, totalPower, nil
 }
 
 func (k Keeper) stageVote(
@@ -248,6 +245,8 @@ func (k Keeper) stageVote(
 	validator []byte,
 	proofHeight uint64,
 	vote types.ProofVote,
+	validatorPower int64,
+	totalPower int64,
 ) error {
 	proof := proofID{height: proofHeight, index: vote.IndexInBlock}
 	key := voteID{proof: proof, validator: string(validator)}
@@ -267,6 +266,9 @@ func (k Keeper) stageVote(
 		}
 		tally = stored
 	}
+	if err := validatePowerTally(tally, totalPower); err != nil {
+		return err
+	}
 
 	// A validator has at most one effective contribution. Repeating the same
 	// vote is idempotent; a conflicting vote removes the old tally contribution
@@ -284,32 +286,32 @@ func (k Keeper) stageVote(
 		newState = incoming
 		changed = true
 		if incoming == types.VoteState_VOTE_STATE_TRUE {
-			if tally.TrueVotes == math.MaxUint32 {
+			if validatorPower > totalPower-tally.ValidVotingPower {
 				return types.ErrProofStateCorrupted
 			}
-			tally.TrueVotes++
+			tally.ValidVotingPower += validatorPower
 		} else {
-			if tally.FalseVotes == math.MaxUint32 {
+			if validatorPower > totalPower-tally.InvalidVotingPower {
 				return types.ErrProofStateCorrupted
 			}
-			tally.FalseVotes++
+			tally.InvalidVotingPower += validatorPower
 		}
 	case types.VoteState_VOTE_STATE_TRUE:
 		if incoming != existing {
-			if tally.TrueVotes == 0 {
+			if tally.ValidVotingPower < validatorPower {
 				return types.ErrProofStateCorrupted
 			}
-			tally.TrueVotes--
+			tally.ValidVotingPower -= validatorPower
 			newState = types.VoteState_VOTE_STATE_EQUIVOCATED
 			changed = true
 			batch.events = append(batch.events, plannedEvent{equivocation: true, validator: append([]byte(nil), validator...), proof: proof})
 		}
 	case types.VoteState_VOTE_STATE_FALSE:
 		if incoming != existing {
-			if tally.FalseVotes == 0 {
+			if tally.InvalidVotingPower < validatorPower {
 				return types.ErrProofStateCorrupted
 			}
-			tally.FalseVotes--
+			tally.InvalidVotingPower -= validatorPower
 			newState = types.VoteState_VOTE_STATE_EQUIVOCATED
 			changed = true
 			batch.events = append(batch.events, plannedEvent{equivocation: true, validator: append([]byte(nil), validator...), proof: proof})
@@ -318,6 +320,9 @@ func (k Keeper) stageVote(
 		return nil
 	default:
 		return types.ErrProofStateCorrupted
+	}
+	if err := validatePowerTally(tally, totalPower); err != nil {
+		return err
 	}
 
 	if changed {
@@ -331,6 +336,15 @@ func (k Keeper) stageVote(
 		batch.tallies[proof] = tally
 	}
 
+	return nil
+}
+
+func validatePowerTally(tally types.ProofTally, totalPower int64) error {
+	if !types.IsValidTotalVotingPower(totalPower) ||
+		tally.ValidVotingPower < 0 || tally.InvalidVotingPower < 0 ||
+		tally.ValidVotingPower > totalPower-tally.InvalidVotingPower {
+		return types.ErrProofStateCorrupted
+	}
 	return nil
 }
 

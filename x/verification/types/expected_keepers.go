@@ -7,9 +7,9 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-// StakingKeeper provides the validator set and address codec required to take
-// immutable eligibility snapshots at proof submission heights.
+// StakingKeeper provides the immutable validator history and address codec used
+// to materialize proof-height consensus power.
 type StakingKeeper interface {
-	GetLastValidators(context.Context) ([]stakingtypes.Validator, error)
+	GetHistoricalInfo(context.Context, int64) (stakingtypes.HistoricalInfo, error)
 	ValidatorAddressCodec() address.Codec
 }

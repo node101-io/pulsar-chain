@@ -74,7 +74,7 @@ capture_failure_artifacts() {
   fi
 
   for artifact in "$TMP_DIR"/wrapper-query-*.json "$TMP_DIR"/tx-result.json \
-    "$TMP_DIR"/root-*.json "$TMP_DIR"/block-*.json; do
+    "$TMP_DIR"/verification-*.json "$TMP_DIR"/root-*.json "$TMP_DIR"/block-*.json; do
     [[ -f "$artifact" ]] && cp "$artifact" "$ARTIFACT_DIR/${MODE}-$(basename "$artifact")"
   done
 }
@@ -121,6 +121,21 @@ wait_for_tx() {
   done
   echo "transaction was not included: $tx_hash" >&2
   return 1
+}
+
+wait_for_height() {
+	local target_height="$1"
+	local latest_height
+	for _ in $(seq 1 60); do
+		latest_height="$(curl -fsS "http://127.0.0.1:${HOST_RPC_PORTS[1]}/status" 2>/dev/null \
+			| python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value --input - --path result.sync_info.latest_block_height || true)"
+		if [[ "$latest_height" =~ ^[0-9]+$ ]] && (( latest_height >= target_height )); then
+			return 0
+		fi
+		sleep 1
+	done
+	echo "chain did not reach height $target_height" >&2
+	return 1
 }
 
 validator_health() {
@@ -420,6 +435,77 @@ for validator in validator1 validator2 validator3; do
   validator_health "$validator" >/dev/null
 done
 
+# Verification is deliberately disabled in this chain-only test. Registering a
+# proof still exercises deterministic on-chain lifecycle state, while the NoOp
+# provider produces no commitment or vote. The proof must therefore finalize as
+# INCONCLUSIVE at H+5 without affecting block production or app-hash agreement.
+for index in 1 2 3; do
+  compose exec -T "validator${index}" grep -A4 '^\[verification\]$' \
+    "/testnet/.pulsar-node${index}/config/app.toml" | grep -q '^enabled = false$'
+done
+VERIFICATION_PROOF_HASH="abababababababababababababababababababababababababababababababab"
+compose exec -T validator1 pulsard tx verification submit-proof "$VERIFICATION_PROOF_HASH" 7 \
+	--from validator1 \
+	--home /testnet/.pulsar-node1 \
+	--keyring-backend test \
+	--chain-id mytestnet \
+	--node tcp://127.0.0.1:26657 \
+	--gas auto \
+	--gas-adjustment 1.5 \
+	--fees 0pmina \
+	--yes \
+	--output json >"$TMP_DIR/verification-tx-broadcast.json"
+VERIFICATION_TX_HASH="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-tx-broadcast.json" --path txhash)"
+wait_for_tx "$VERIFICATION_TX_HASH" "$TMP_DIR/verification-tx-result.json"
+VERIFICATION_TX_CODE="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-tx-result.json" --path code)"
+if [[ "$VERIFICATION_TX_CODE" != "0" ]]; then
+	echo "verification proof transaction failed with code $VERIFICATION_TX_CODE" >&2
+	exit 1
+fi
+VERIFICATION_PROOF_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-tx-result.json" --path height)"
+compose exec -T validator1 pulsard query verification proof "$VERIFICATION_PROOF_HEIGHT" 0 \
+	--height "$VERIFICATION_PROOF_HEIGHT" \
+	--node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-pending.json"
+PENDING_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path proof_key.submission_height)"
+PENDING_TYPE="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.proof_type)"
+[[ "$PENDING_HEIGHT" == "$VERIFICATION_PROOF_HEIGHT" && "$PENDING_TYPE" == "7" ]]
+
+VERIFICATION_FINAL_HEIGHT="$((VERIFICATION_PROOF_HEIGHT + 5))"
+wait_for_height "$VERIFICATION_FINAL_HEIGHT"
+compose exec -T validator1 pulsard query verification final-proof-result "$VERIFICATION_PROOF_HEIGHT" 0 \
+	--node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-final.json"
+VERIFICATION_STATUS="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.status)"
+VALID_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.valid_voting_power --default 0)"
+INVALID_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.invalid_voting_power --default 0)"
+TOTAL_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.total_voting_power)"
+POWER_THRESHOLD="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.voting_power_threshold)"
+STORED_FINAL_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.finalized_height)"
+[[ "$VERIFICATION_STATUS" == "PROOF_STATUS_INCONCLUSIVE" ]]
+[[ "$VALID_POWER" == "0" && "$INVALID_POWER" == "0" ]]
+[[ "$STORED_FINAL_HEIGHT" == "$VERIFICATION_FINAL_HEIGHT" ]]
+(( TOTAL_POWER > 0 ))
+(( POWER_THRESHOLD == TOTAL_POWER * 2 / 3 + 1 ))
+
+for index in 1 2 3; do
+	curl -fsS "http://127.0.0.1:${HOST_RPC_PORTS[index]}/block?height=$VERIFICATION_FINAL_HEIGHT" \
+		>"$TMP_DIR/block-verification-${index}.json"
+done
+VERIFICATION_APP_HASH_1="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value --input "$TMP_DIR/block-verification-1.json" --path result.block.header.app_hash)"
+VERIFICATION_APP_HASH_2="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value --input "$TMP_DIR/block-verification-2.json" --path result.block.header.app_hash)"
+VERIFICATION_APP_HASH_3="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value --input "$TMP_DIR/block-verification-3.json" --path result.block.header.app_hash)"
+[[ "$VERIFICATION_APP_HASH_1" == "$VERIFICATION_APP_HASH_2" && "$VERIFICATION_APP_HASH_1" == "$VERIFICATION_APP_HASH_3" ]]
+
 declare -a latest_heights
 for index in 1 2 3; do
   status_file="$TMP_DIR/status-${index}.json"
@@ -433,6 +519,6 @@ for index in 1 2 3; do
     "/testnet/.pulsar-node${index}/data/verification_commitment_state.json"
 done
 
-echo "${MODE} E2E evidence: tx_height=${TX_HEIGHT} app_hash=${APP_HASH_1} latest_heights=${latest_heights[1]},${latest_heights[2]},${latest_heights[3]} validators=healthy verification_sidecar=noop verification_local_state=absent"
+echo "${MODE} E2E evidence: tx_height=${TX_HEIGHT} app_hash=${APP_HASH_1} latest_heights=${latest_heights[1]},${latest_heights[2]},${latest_heights[3]} validators=healthy verification_sidecar=noop verification_proof_height=${VERIFICATION_PROOF_HEIGHT} verification_status=${VERIFICATION_STATUS} verification_total_power=${TOTAL_POWER} verification_threshold=${POWER_THRESHOLD} verification_app_hash=${VERIFICATION_APP_HASH_1} verification_local_state=absent"
 
 echo "$MODE archive-wrapper deployment E2E passed"

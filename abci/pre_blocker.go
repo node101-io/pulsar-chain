@@ -17,15 +17,6 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 			return nil, err
 		}
 		if !shouldPersistVoteExtensions {
-			// A snapshot is taken before proof transactions execute so every proof
-			// accepted in this block uses the validator set visible at the block
-			// boundary. EndBlock removes it when no proof was accepted, avoiding
-			// permanent state for heights that never enter verification.
-			if h.verificationKeeper != nil {
-				if err := h.verificationKeeper.CreateValidatorSnapshot(ctx, uint64(req.GetHeight())); err != nil {
-					return nil, err
-				}
-			}
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
@@ -75,9 +66,9 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 			return &sdk.ResponsePreBlock{}, nil
 		}
 
-		// Mina vote persistence, verification actions, and the next proof-height
-		// snapshot are committed atomically. The actions are validated once more in
-		// this cache, then written only if every component succeeds.
+		// Mina vote persistence and verification actions are committed atomically.
+		// Proof-height power is materialized separately by verification EndBlock
+		// from staking's immutable HistoricalInfo for the same height.
 		cacheCtx, write := ctx.CacheContext()
 		actions, err := h.validateVerificationEntries(cacheCtx, proposalHeight, pl, req.DecidedLastCommit)
 		if err != nil {
@@ -95,11 +86,6 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 		}
 		if err := h.applyVerificationActions(cacheCtx, actions); err != nil {
 			return nil, err
-		}
-		if h.verificationKeeper != nil {
-			if err := h.verificationKeeper.CreateValidatorSnapshot(cacheCtx, uint64(proposalHeight)); err != nil {
-				return nil, err
-			}
 		}
 		write()
 

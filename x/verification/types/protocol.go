@@ -4,11 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"math"
+
+	comettypes "github.com/cometbft/cometbft/types"
 )
 
 // The verification lifecycle for proofs submitted in block H is:
 //
-//   - H: the chain registers proof hashes and freezes validator eligibility.
+//   - H: the chain registers proof hashes and freezes historical voting power.
 //   - H+2: the proof can appear in the right leaf of a new commitment.
 //   - H+3: the same proof height can appear in the next commitment's left leaf.
 //   - H+4 and H+5: committed values can be revealed and counted.
@@ -155,14 +157,30 @@ func ComputeCommitmentRoot(left, right [LeafHashSize]byte) [CommitmentHashSize]b
 	return out
 }
 
-// ComputeThreshold returns ceil(2N/3) for the validator snapshot attached to
-// the proof height. Using the frozen count prevents staking changes during the
-// five-block lifecycle from changing the finalization denominator. The
-// snapshot must never be empty.
-func ComputeThreshold(validatorCount uint32) (uint32, error) {
-	if validatorCount == 0 {
+// IsValidTotalVotingPower reports whether a snapshot denominator is usable by
+// both verification and CometBFT consensus arithmetic.
+func IsValidTotalVotingPower(totalPower int64) bool {
+	return totalPower > 0 && totalPower <= comettypes.MaxTotalVotingPower
+}
+
+// HasTwoThirdsMajority applies CometBFT's strict greater-than-two-thirds rule.
+// Verification uses this independently from the ABCI Mina quorum, whose
+// existing greater-than-or-equal behavior is intentionally unchanged.
+func HasTwoThirdsMajority(power, totalPower int64) bool {
+	if !IsValidTotalVotingPower(totalPower) || power < 0 || power > totalPower {
+		return false
+	}
+	return power > totalPower*2/3
+}
+
+// ComputeVotingPowerThreshold returns the smallest power that satisfies the
+// strict majority rule and is stored as human-readable final-result metadata.
+func ComputeVotingPowerThreshold(totalPower int64) (int64, error) {
+	if totalPower <= 0 {
 		return 0, ErrEmptyValidatorSet
 	}
-
-	return uint32((2*uint64(validatorCount) + 2) / 3), nil
+	if totalPower > comettypes.MaxTotalVotingPower {
+		return 0, ErrProofStateCorrupted
+	}
+	return totalPower*2/3 + 1, nil
 }

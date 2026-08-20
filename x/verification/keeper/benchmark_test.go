@@ -11,21 +11,27 @@ import (
 )
 
 func BenchmarkEndBlock(b *testing.B) {
-	for _, proofCount := range []int{0, 1, 256} {
-		b.Run(fmt.Sprintf("%d_proofs", proofCount), func(b *testing.B) {
-			b.ReportAllocs()
-			for iteration := 0; iteration < b.N; iteration++ {
-				b.StopTimer()
-				fixture := initFixture(b, 3)
-				for i := 0; i < proofCount; i++ {
-					submitProof(b, fixture, 500, byte(i))
+	for _, validatorCount := range []int{1, 3, 100} {
+		powers := make([]int64, validatorCount)
+		for i := range powers {
+			powers[i] = 1
+		}
+		for _, proofCount := range []int{0, 1} {
+			b.Run(fmt.Sprintf("%d_validators/%d_proofs", validatorCount, proofCount), func(b *testing.B) {
+				b.ReportAllocs()
+				for iteration := 0; iteration < b.N; iteration++ {
+					b.StopTimer()
+					fixture := initFixtureWithPowers(b, powers)
+					for i := 0; i < proofCount; i++ {
+						submitProof(b, fixture, 500, byte(i))
+					}
+					b.StartTimer()
+					if err := fixture.keeper.EndBlock(fixture.atHeight(500)); err != nil {
+						b.Fatal(err)
+					}
 				}
-				b.StartTimer()
-				if err := fixture.keeper.EndBlock(fixture.atHeight(505)); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
+			})
+		}
 	}
 }
 
@@ -37,6 +43,9 @@ func BenchmarkRevealValidation(b *testing.B) {
 			for i := range votes {
 				submitProof(b, fixture, 500, byte(i))
 				votes[i] = types.ProofVote{IndexInBlock: uint32(i), Result: i%2 == 0}
+			}
+			if err := fixture.keeper.EndBlock(fixture.atHeight(500)); err != nil {
+				b.Fatal(err)
 			}
 			left := valueLeaf(b, 1, votes)
 			right := valueLeaf(b, 2, nil)
@@ -65,6 +74,9 @@ func BenchmarkApplyVotes(b *testing.B) {
 			b.StopTimer()
 			fixture := initFixture(b, 3)
 			submitProof(b, fixture, 500, 1)
+			if err := fixture.keeper.EndBlock(fixture.atHeight(500)); err != nil {
+				b.Fatal(err)
+			}
 			left := valueLeaf(b, 1, nil)
 			right := valueLeaf(b, 2, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 			submitCommitment(b, fixture, 0, 502, left, right)
@@ -84,6 +96,9 @@ func BenchmarkApplyVotes(b *testing.B) {
 	b.Run("idempotent", func(b *testing.B) {
 		fixture := initFixture(b, 3)
 		submitProof(b, fixture, 500, 1)
+		if err := fixture.keeper.EndBlock(fixture.atHeight(500)); err != nil {
+			b.Fatal(err)
+		}
 		left := valueLeaf(b, 1, nil)
 		right := valueLeaf(b, 2, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 		submitCommitment(b, fixture, 0, 502, left, right)
@@ -103,6 +118,9 @@ func BenchmarkApplyVotes(b *testing.B) {
 			b.StopTimer()
 			fixture := initFixture(b, 3)
 			submitProof(b, fixture, 500, 1)
+			if err := fixture.keeper.EndBlock(fixture.atHeight(500)); err != nil {
+				b.Fatal(err)
+			}
 			empty := valueLeaf(b, 1, nil)
 			trueLeaf := valueLeaf(b, 2, []types.ProofVote{{IndexInBlock: 0, Result: true}})
 			falseLeaf := valueLeaf(b, 3, []types.ProofVote{{IndexInBlock: 0, Result: false}})
@@ -127,6 +145,9 @@ func BenchmarkApplyVotes(b *testing.B) {
 			for i := range votes {
 				submitProof(b, fixture, 500, byte(i))
 				votes[i] = types.ProofVote{IndexInBlock: uint32(i), Result: i%2 == 0}
+			}
+			if err := fixture.keeper.EndBlock(fixture.atHeight(500)); err != nil {
+				b.Fatal(err)
 			}
 			left := valueLeaf(b, 1, votes)
 			right := valueLeaf(b, 2, nil)

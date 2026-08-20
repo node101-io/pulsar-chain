@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	comettypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/stretchr/testify/require"
@@ -53,21 +54,87 @@ func TestEncodeVotes(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrInvalidVoteIndex)
 }
 
-func TestComputeThreshold(t *testing.T) {
-	expected := map[uint32]uint32{3: 2, 4: 3, 5: 4, 6: 4, 10: 7}
-	for validatorCount, threshold := range expected {
-		actual, err := types.ComputeThreshold(validatorCount)
+func TestVotingPowerThresholdUsesStrictTwoThirdsMajority(t *testing.T) {
+	expected := map[int64]int64{1: 1, 3: 3, 4: 3, 5: 4, 100: 67}
+	for totalPower, threshold := range expected {
+		actual, err := types.ComputeVotingPowerThreshold(totalPower)
 		require.NoError(t, err)
 		require.Equal(t, threshold, actual)
+		require.False(t, types.HasTwoThirdsMajority(threshold-1, totalPower))
+		require.True(t, types.HasTwoThirdsMajority(threshold, totalPower))
 	}
-	_, err := types.ComputeThreshold(0)
+	_, err := types.ComputeVotingPowerThreshold(0)
 	require.ErrorIs(t, err, types.ErrEmptyValidatorSet)
+	threshold, err := types.ComputeVotingPowerThreshold(comettypes.MaxTotalVotingPower)
+	require.NoError(t, err)
+	require.False(t, types.HasTwoThirdsMajority(threshold-1, comettypes.MaxTotalVotingPower))
+	require.True(t, types.HasTwoThirdsMajority(threshold, comettypes.MaxTotalVotingPower))
+	_, err = types.ComputeVotingPowerThreshold(comettypes.MaxTotalVotingPower + 1)
+	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
 }
 
 func TestGenesisValidateDerivesTalliesFromEffectiveVotes(t *testing.T) {
+	state := validWeightedGenesisState()
+	require.NoError(t, state.Validate())
+
+	state.ProofTallies[0].Tally = types.ProofTally{}
+	require.ErrorContains(t, state.Validate(), "proof tally does not match effective votes")
+}
+
+func TestGenesisValidateRejectsBrokenPowerRelationships(t *testing.T) {
+	t.Run("power sum mismatch", func(t *testing.T) {
+		state := validWeightedGenesisState()
+		state.ValidatorPowers[0].VotingPower--
+		require.ErrorContains(t, state.Validate(), "incomplete validator power snapshot")
+	})
+	t.Run("orphan total power", func(t *testing.T) {
+		state := validWeightedGenesisState()
+		state.TotalVotingPowers = append(state.TotalVotingPowers, types.GenesisTotalVotingPower{
+			Height: 501, TotalVotingPower: 1,
+		})
+		require.ErrorContains(t, state.Validate(), "orphan total voting power")
+	})
+	t.Run("vote without historical power", func(t *testing.T) {
+		state := validWeightedGenesisState()
+		state.VerificationVotes[0].Validator = []byte{9}
+		require.ErrorContains(t, state.Validate(), "not from an eligible validator")
+	})
+	t.Run("equivocation retains no contribution", func(t *testing.T) {
+		state := validWeightedGenesisState()
+		state.VerificationVotes[0].State = types.VoteState_VOTE_STATE_EQUIVOCATED
+		require.ErrorContains(t, state.Validate(), "proof tally does not match effective votes")
+	})
+}
+
+func TestGenesisValidateRecomputesFinalPowerResult(t *testing.T) {
+	hash := bytes.Repeat([]byte{3}, types.ProofHashSize)
+	state := types.GenesisState{
+		Params: types.DefaultParams(),
+		SeenProofHashes: []types.GenesisSeenProofHash{{
+			ProofHash: hash, ProofKey: types.ProofKey{SubmissionHeight: 500},
+		}},
+		FinalProofResults: []types.GenesisFinalProofResult{{
+			ProofKey: types.ProofKey{SubmissionHeight: 500},
+			Result: types.FinalProofResult{
+				ProofHash: hash, Status: types.ProofStatus_PROOF_STATUS_VALID,
+				ValidVotingPower: 67, TotalVotingPower: 100, VotingPowerThreshold: 67,
+				SubmissionHeight: 500, FinalizedHeight: 505,
+			},
+		}},
+	}
+	require.NoError(t, state.Validate())
+
+	state.FinalProofResults[0].Result.VotingPowerThreshold = 66
+	require.ErrorContains(t, state.Validate(), "invalid final proof threshold")
+	state.FinalProofResults[0].Result.VotingPowerThreshold = 67
+	state.FinalProofResults[0].Result.Status = types.ProofStatus_PROOF_STATUS_INCONCLUSIVE
+	require.ErrorContains(t, state.Validate(), "status does not match voting power")
+}
+
+func validWeightedGenesisState() types.GenesisState {
 	hash := bytes.Repeat([]byte{1}, types.ProofHashSize)
 	validator := []byte{2}
-	state := types.GenesisState{
+	return types.GenesisState{
 		Params:      types.DefaultParams(),
 		ProofCounts: []types.GenesisProofCount{{Height: 500, Count: 1}},
 		PendingProofs: []types.GenesisPendingProof{{
@@ -77,21 +144,19 @@ func TestGenesisValidateDerivesTalliesFromEffectiveVotes(t *testing.T) {
 		SeenProofHashes: []types.GenesisSeenProofHash{{
 			ProofHash: hash, ProofKey: types.ProofKey{SubmissionHeight: 500},
 		}},
-		ValidatorSnapshots: []types.GenesisValidatorSnapshot{{Height: 500, Validator: validator}},
-		ValidatorCounts:    []types.GenesisValidatorCount{{Height: 500, Count: 1}},
+		ValidatorPowers: []types.GenesisValidatorPower{{Height: 500, Validator: validator, VotingPower: 60}},
+		TotalVotingPowers: []types.GenesisTotalVotingPower{{
+			Height: 500, TotalVotingPower: 60,
+		}},
 		VerificationVotes: []types.GenesisVerificationVote{{
 			ProofKey: types.ProofKey{SubmissionHeight: 500}, Validator: validator,
 			State: types.VoteState_VOTE_STATE_TRUE,
 		}},
 		ProofTallies: []types.GenesisProofTally{{
 			ProofKey: types.ProofKey{SubmissionHeight: 500},
-			Tally:    types.ProofTally{TrueVotes: 1},
+			Tally:    types.ProofTally{ValidVotingPower: 60},
 		}},
 	}
-	require.NoError(t, state.Validate())
-
-	state.ProofTallies[0].Tally = types.ProofTally{}
-	require.ErrorContains(t, state.Validate(), "proof tally does not match effective votes")
 }
 
 func TestLeafTiming(t *testing.T) {
