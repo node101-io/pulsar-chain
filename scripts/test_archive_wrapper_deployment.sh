@@ -440,8 +440,8 @@ done
 # provider produces no commitment or vote. The proof must therefore finalize as
 # INCONCLUSIVE at H+5 without affecting block production or app-hash agreement.
 for index in 1 2 3; do
-  compose exec -T "validator${index}" grep -A4 '^\[verification\]$' \
-    "/testnet/.pulsar-node${index}/config/app.toml" | grep -q '^enabled = false$'
+	compose exec -T "validator${index}" grep -A8 '^\[verification\]$' \
+		"/testnet/.pulsar-node${index}/config/app.toml" | grep -q '^enabled = false$'
 done
 VERIFICATION_PROOF_HASH="abababababababababababababababababababababababababababababababab"
 VERIFICATION_PUBLIC_INPUTS_HASH="cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"

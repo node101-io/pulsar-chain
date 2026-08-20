@@ -40,9 +40,9 @@ func (f ProviderFunc) GetVerificationResults(ctx context.Context, verificationID
 	return f(ctx, verificationIDs)
 }
 
-// DisabledProvider represents an intentionally disabled optional verifier. It
-// behaves like a sidecar with no terminal results, allowing the rest of the
-// consensus path to run unchanged.
+// DisabledProvider represents an explicit local opt-out. It behaves like a
+// sidecar with no terminal results, allowing the node to execute replicated
+// verification state while producing no validator-local commitments.
 type DisabledProvider struct{}
 
 // GetVerificationResults returns no terminal results without contacting a sidecar.

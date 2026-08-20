@@ -236,11 +236,11 @@ func New(
 		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))
 	}
 
-	// Select and validate the optional verification runtime before wiring ABCI.
-	// Invalid enabled config is an operator error and fails startup because all
-	// later calls would be predictably unsafe or invalid. Runtime sidecar outages
-	// remain non-fatal: the gRPC connection is lazy and an unavailable result is
-	// represented by omitting optional verification data, never by an invalid vote.
+	// Verification is structurally present in every ABCI handler. Validators use
+	// the production builder by default, while explicit opt-outs and full nodes
+	// receive a concrete no-op builder. Runtime sidecar outages remain non-fatal:
+	// the gRPC connection is lazy and a missing result is omitted, never converted
+	// into an invalid proof vote or allowed to suppress the mandatory Mina payload.
 	selectedVerificationProvider, verificationClient, verificationActive, verificationConfigErr := verificationProvider(appOpts)
 	if verificationConfigErr != nil {
 		panic(fmt.Sprintf("invalid verification sidecar configuration: %v", verificationConfigErr))
@@ -254,17 +254,16 @@ func New(
 		appOpts,
 		app.VerificationKeeper,
 		selectedVerificationProvider,
+		verificationActive,
 		verificationTimeout,
 	)
 	if verificationBuilderErr != nil {
-		// Local journal failure disables optional verification for this process.
-		// Without durable preimages the validator could commit a root and lose the
-		// salts needed to reveal it after restart, so creating new commitments is
-		// unsafe. The mandatory Mina consensus path remains available.
+		// Enabled validators cannot safely continue with an unusable journal: they
+		// could sign a commitment and later lose the salts required to reveal it.
+		// This local initialization error is fail-fast; a sidecar that becomes
+		// unavailable after startup remains a non-blocking runtime condition.
 		_ = verificationClient.Close()
-		logger.Error("verification local runtime disabled", "error", verificationBuilderErr)
-	} else {
-		app.VerificationSidecarClient = verificationClient
+		panic(fmt.Sprintf("failed to initialize verification runtime: %v", verificationBuilderErr))
 	}
 
 	app.ABCIHandler, err = abcihandler.NewABCIHandler(
@@ -278,8 +277,10 @@ func New(
 		verificationBuilder,
 	)
 	if err != nil {
+		_ = verificationClient.Close()
 		panic(fmt.Sprintf("failed to initialize ABCI handler: %v", err))
 	}
+	app.VerificationSidecarClient = verificationClient
 
 	appante.RegisterInterfaces(app.interfaceRegistry)
 

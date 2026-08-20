@@ -36,9 +36,10 @@ func TestInitAppConfigIncludesSafeVerificationDefaults(t *testing.T) {
 
 	verification := reflect.ValueOf(appConfig).FieldByName("Verification")
 	require.True(t, verification.IsValid())
-	require.False(t, verification.FieldByName("Enabled").Bool())
-	require.Empty(t, verification.FieldByName("GRPCAddress").String())
+	require.True(t, verification.FieldByName("Enabled").Bool())
+	require.Equal(t, "127.0.0.1:50051", verification.FieldByName("GRPCAddress").String())
 	require.Equal(t, "loopback", verification.FieldByName("GRPCTransportMode").String())
 	require.Equal(t, "100ms", verification.FieldByName("RequestTimeout").String())
+	require.Contains(t, template, "not an exemption from future participation slashing")
 	require.False(t, strings.Contains(template, "GetProofStatuses"))
 }

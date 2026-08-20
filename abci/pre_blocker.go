@@ -54,18 +54,6 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 		if !hasAtLeastTwoThirdsPower(verifiedVotes.signedPower, verifiedVotes.totalPower) {
 			return nil, ErrNotEnoughStakePower
 		}
-		if h.verificationKeeper == nil {
-			if err := h.votePersistenceKeeper.Clear(ctx); err != nil {
-				return nil, err
-			}
-			for _, vote := range verifiedVotes.votes {
-				if err := h.votePersistenceKeeper.SetVote(ctx, signedStateHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
-					return nil, err
-				}
-			}
-			return &sdk.ResponsePreBlock{}, nil
-		}
-
 		// Mina vote persistence and verification actions are committed atomically.
 		// Proof-height power is materialized separately by verification EndBlock
 		// from staking's immutable HistoricalInfo for the same height.

@@ -119,7 +119,7 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, ro
 		})
 
 		verificationPayload := composite.VerificationPayload
-		if verificationPayload == nil || h.verificationKeeper == nil {
+		if verificationPayload == nil {
 			continue
 		}
 		if err := validateVerificationPayloadStructure(verificationPayload, uint64(proposalHeight)); err != nil {

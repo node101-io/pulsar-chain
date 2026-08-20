@@ -59,6 +59,8 @@ func initAppConfig() (string, interface{}) {
 		Config: *srvCfg,
 		Bridge: bridgeConfig{},
 		Verification: verificationConfig{
+			Enabled:           true,
+			GRPCAddress:       sidecar.DefaultGRPCAddress,
 			GRPCTransportMode: string(sidecar.TransportModeLoopback),
 			RequestTimeout:    "100ms",
 		},
@@ -83,10 +85,11 @@ type bridgeConfig struct {
 	WrapperGRPCTransportMode string `mapstructure:"wrapper_grpc_transport_mode"`
 }
 
-// verificationConfig controls only the validator-local sidecar connection and
-// its ExtendVote time budget. None of these values are consensus parameters:
-// validators may disable the sidecar or receive different completed subsets,
-// while on-chain commitment and revelation validation remains deterministic.
+// verificationConfig controls validator-local payload production and its
+// ExtendVote time budget. It is not consensus state: every node still executes
+// the verification module, while an explicit opt-out merely replaces its local
+// producer with a no-op builder. Future participation enforcement must use
+// consensus evidence rather than trusting this local switch.
 type verificationConfig struct {
 	Enabled           bool   `mapstructure:"enabled"`
 	GRPCAddress       string `mapstructure:"grpc_address"`
@@ -112,18 +115,21 @@ const verificationConfigTemplate = `
 ###############################################################################
 
 [verification]
-# A disabled verifier returns no completed results. The node still participates
-# in consensus and continues producing the mandatory Mina vote extension.
+# Validators are expected to run the verification sidecar. Disabling it only
+# stops this node from producing local verification actions; the replicated
+# module still validates other validators' actions and consensus remains live.
+# This local opt-out is not an exemption from future participation slashing.
 enabled = {{ .Verification.Enabled }}
-# The endpoint is required only when verification is enabled.
+# The endpoint is required only when local verification production is enabled.
 grpc_address = "{{ .Verification.GRPCAddress }}"
 # trusted-network is plaintext and requires an operator-controlled private network.
 # loopback accepts only literal local addresses; trusted-network additionally
 # permits private IPs and service DNS names. Use network policy to preserve that
 # trust boundary because this phase does not add TLS or application authentication.
 grpc_transport_mode = "{{ .Verification.GRPCTransportMode }}"
-# ExtendVote is a consensus hot path. A timeout omits the optional result instead
-# of delaying the block; unfinished proofs can still be requested in the next
+# ExtendVote is a consensus hot path. A timeout records a missed verification
+# opportunity by omitting local work instead of delaying the block or suppressing
+# the mandatory Mina signature. Unfinished proofs may still complete for the next
 # overlapping commitment opportunity.
 request_timeout = "{{ .Verification.RequestTimeout }}"
 `

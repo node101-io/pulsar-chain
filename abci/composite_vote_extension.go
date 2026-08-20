@@ -154,15 +154,11 @@ func validateVerificationLeaf(currentHeight, proofHeight uint64, leaf verificati
 	}
 }
 
-// buildVerificationPayload asks the optional local builder for actions that a
-// proposal at sourceHeight+1 can apply. The builder may reveal older commitments
-// and may create a new commitment for proofs whose terminal sidecar results are
-// currently available. Any local failure omits those actions without changing
-// the mandatory transition signature or treating unanswered proofs as invalid.
+// buildVerificationPayload asks the always-present local builder for actions
+// that a proposal at sourceHeight+1 can apply. A disabled builder or unavailable
+// sidecar returns no new work; this records a missed validator opportunity
+// without changing the mandatory transition signature or treating proofs as invalid.
 func (h *ABCIHandler) buildVerificationPayload(ctx sdk.Context, sourceHeight int64) *verificationtypes.VerificationVoteExtensionPayload {
-	if h.verificationKeeper == nil || h.verificationBuilder == nil {
-		return nil
-	}
 	targetHeight, err := verificationvalidator.TargetHeight(sourceHeight)
 	if err != nil {
 		return nil

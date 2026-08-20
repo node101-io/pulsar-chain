@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/node101-io/pulsar-chain/abci"
+	verificationkeeper "github.com/node101-io/pulsar-chain/x/verification/keeper"
 	"github.com/node101-io/pulsar-chain/x/verification/sidecar"
 	verificationtypes "github.com/node101-io/pulsar-chain/x/verification/types"
 	verificationvalidator "github.com/node101-io/pulsar-chain/x/verification/validator"
@@ -89,6 +92,36 @@ func TestVerificationStateStoreUsesNodeHomeAndSupportsInjection(t *testing.T) {
 	store, err = verificationStateStore(verificationAppOptions{verificationStoreOption: injected})
 	require.NoError(t, err)
 	require.Same(t, injected, store)
+}
+
+func TestDisabledVerificationUsesConcreteBuilderWithoutJournal(t *testing.T) {
+	home := t.TempDir()
+	builder, err := newVerificationBuilder(
+		verificationAppOptions{flags.FlagHome: home},
+		verificationkeeper.Keeper{},
+		sidecar.DisabledProvider{},
+		false,
+		abci.DefaultVerificationSidecarTimeout,
+	)
+	require.NoError(t, err)
+	require.IsType(t, verificationvalidator.DisabledBuilder{}, builder)
+	_, err = os.Stat(filepath.Join(home, "data", verificationStateFileName))
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestEnabledVerificationRejectsUnreadableJournal(t *testing.T) {
+	store := verificationvalidator.NewMemoryStore()
+	expectedErr := errors.New("journal unavailable")
+	store.SetLoadError(expectedErr)
+
+	_, err := newVerificationBuilder(
+		verificationAppOptions{verificationStoreOption: store},
+		verificationkeeper.Keeper{},
+		sidecar.DisabledProvider{},
+		true,
+		abci.DefaultVerificationSidecarTimeout,
+	)
+	require.ErrorIs(t, err, expectedErr)
 }
 
 func TestVerificationModuleIsWiredIntoApplication(t *testing.T) {

@@ -72,6 +72,14 @@ func (h *ABCIHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 // contains signatures and revelations, this bound protects proposal capacity.
 // Rotation by proposal height avoids always favoring low-address validators
 // when the block cannot carry every optional entry.
+//
+// TODO(slashing): Do not treat absence from the selected proposal entries as
+// proof that a validator failed its verification duty. A proposer may omit an
+// otherwise valid entry here because the bounded block cannot carry every vote.
+// Participation penalties therefore need authenticated, deterministic, and
+// censorship-resistant evidence that separates validator non-participation from
+// proposer omission. That evidence must remain bounded and must not turn sidecar
+// availability into a consensus-liveness requirement.
 func fitVerificationEntries(payload Payload, proposalHeight, maxTxBytes int64) (Payload, error) {
 	candidates := payload.VerificationEntries
 	payload.VerificationEntries = nil

@@ -51,6 +51,8 @@ var (
 	ErrMissingKeyregistryKeeper     error = errors.New("missing keyregistry keeper")
 	ErrMissingVotePersistenceKeeper error = errors.New("missing vote persistence keeper")
 	ErrMissingBridgeKeeper          error = errors.New("missing bridge keeper")
+	ErrMissingVerificationKeeper    error = errors.New("missing verification keeper")
+	ErrMissingVerificationBuilder   error = errors.New("missing verification payload builder")
 
 	// Vote-extension signing and verification errors.
 	ErrVoteExtBodyHashFailed           error = errors.New("failed to hash vote extension body")

@@ -26,6 +26,10 @@ const (
 	TransportModeLoopback TransportMode = "loopback"
 	// TransportModeTrustedNetwork permits private IP and DNS service endpoints.
 	TransportModeTrustedNetwork TransportMode = "trusted-network"
+	// DefaultGRPCAddress is the validator-first local sidecar endpoint written to
+	// newly generated app.toml files. The client still connects lazily, so an
+	// unavailable sidecar never prevents the node from starting or reaching consensus.
+	DefaultGRPCAddress = "127.0.0.1:50051"
 
 	// EnabledConfigKey identifies the sidecar enable switch in app.toml.
 	EnabledConfigKey = "verification.enabled"

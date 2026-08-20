@@ -381,7 +381,14 @@ node_app_config_matches_expected() {
   [[ "$actual_wrapper_grpc_address" == "${NODE_WRAPPER_GRPC_ADDRESSES[index]}" ]] || return 1
 
   actual_wrapper_grpc_transport_mode="$(read_app_wrapper_config "$app_config" "wrapper_grpc_transport_mode" 2>/dev/null)" || return 1
-  [[ "$actual_wrapper_grpc_transport_mode" == "${NODE_WRAPPER_GRPC_TRANSPORT_MODES[index]}" ]]
+  [[ "$actual_wrapper_grpc_transport_mode" == "${NODE_WRAPPER_GRPC_TRANSPORT_MODES[index]}" ]] || return 1
+
+  # Local testnets run without verifier sidecars. Check the explicit opt-out so
+  # homes generated before the validator-first default changed are rebuilt.
+  grep -A8 '^\[verification\]$' "$app_config" | grep -q '^enabled = false$' || return 1
+  grep -A8 '^\[verification\]$' "$app_config" | grep -q '^grpc_address = ""$' || return 1
+
+  return 0
 }
 
 primary_genesis_matches_expected() {

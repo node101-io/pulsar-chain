@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	// Builder errors are warnings to the optional verification path. They must
-	// not invalidate the mandatory Mina vote extension.
+	// Builder errors report a validator's missed verification opportunity. They
+	// must not invalidate the mandatory Mina vote extension or halt consensus.
 	ErrInvalidBuildRequest = errors.New("invalid verification build request")
 	ErrProviderBusy        = errors.New("verification result provider is still busy")
 	ErrProviderPanic       = errors.New("verification result provider panicked")
@@ -53,13 +53,24 @@ type Identity struct {
 	ConsensusPublicKey []byte
 }
 
-// BuildOutcome separates an optional verification payload from non-fatal
+// BuildOutcome separates a non-blocking verification payload from local
 // warnings. Callers may still use a partial payload, for example revelations
-// when the sidecar result request failed. This distinction keeps observability
-// without turning an optional verifier outage into a consensus outage.
+// when the sidecar result request failed. Verification is a validator duty, but
+// unavailable local infrastructure must not turn that duty into a chain outage.
 type BuildOutcome struct {
 	Payload *verificationtypes.VerificationVoteExtensionPayload
 	Warning error
+}
+
+// DisabledBuilder is the concrete local producer used by full nodes, chain-only
+// testnets, and explicit operator opt-outs. ABCI always receives a builder;
+// disabled nodes simply produce no local actions while still validating and
+// applying verification actions from the rest of the validator set.
+type DisabledBuilder struct{}
+
+// Build returns no local verification work without touching a sidecar or journal.
+func (DisabledBuilder) Build(context.Context, Identity, uint64) BuildOutcome {
+	return BuildOutcome{}
 }
 
 // Builder creates validator-local commitments and revelations. It owns salts

@@ -42,6 +42,15 @@ func (k Keeper) endBlock(ctx context.Context) error {
 		if err := k.FinalizeHeight(ctx, proofHeight, height); err != nil {
 			return err
 		}
+		// TODO(slashing): Before introducing verification-participation penalties,
+		// derive bounded duty evidence from the proof height's historical validator
+		// set before this lifecycle state is pruned. The future design must distinguish
+		// answered, missed, and equivocated duties; a missing response must never count
+		// as an INVALID proof vote. Heights without proofs create no duty, and a single
+		// missed opportunity should not trigger a penalty without governance-defined
+		// observation windows and participation thresholds. Persist only the validator
+		// identity, historical power, and aggregates needed by x/slashing, and never
+		// make verifier availability a condition for block validity or chain liveness.
 		if err := k.PruneProofHeight(ctx, proofHeight); err != nil {
 			return err
 		}

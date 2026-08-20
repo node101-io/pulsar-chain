@@ -38,7 +38,7 @@ func (h *ABCIHandler) validateVerificationEntries(
 	if len(payload.VerificationEntries) == 0 {
 		return nil, nil
 	}
-	if h.verificationKeeper == nil || targetHeight < 1 || lastCommit.Round < 0 {
+	if targetHeight < 1 || lastCommit.Round < 0 {
 		return nil, ErrInvalidVerificationPayload
 	}
 	validatorSet, err := h.getValidatorSet(ctx, targetHeight-1)

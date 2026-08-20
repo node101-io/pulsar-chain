@@ -11,6 +11,7 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/node101-io/mina-signer-go/privatekey"
 	keyregistrytypes "github.com/node101-io/pulsar-chain/x/keyregistry/types"
+	verificationvalidator "github.com/node101-io/pulsar-chain/x/verification/validator"
 	votepersistencetypes "github.com/node101-io/pulsar-chain/x/votepersistence/types"
 	"github.com/stretchr/testify/require"
 )
@@ -125,7 +126,7 @@ func TestPreBlockerPersistsOnlyCanonicalVerifiedVotes(t *testing.T) {
 	handler := newQuorumTestHandler(t, []stakingtypes.Validator{validator}, map[string]SecondaryKey{
 		string(consensusPubKeyBytes(t, validator)): secondaryKey,
 	}, votePersistenceKeeper)
-	ctx := quorumTestContext(reqHeight)
+	ctx := verificationABCIContext(t, reqHeight)
 	body, err := handler.constructVoteExtBody(ctx, reqHeight-1)
 	require.NoError(t, err)
 	firstVote := signedPayloadVoteExtension(t, validator, secondaryKey, body)
@@ -159,7 +160,7 @@ func TestPreBlockerDoesNotMutateStoreWhenValidationFails(t *testing.T) {
 	handler := newQuorumTestHandler(t, []stakingtypes.Validator{validator}, map[string]SecondaryKey{
 		string(consensusPubKeyBytes(t, validator)): secondaryKey,
 	}, votePersistenceKeeper)
-	ctx := quorumTestContext(reqHeight)
+	ctx := verificationABCIContext(t, reqHeight)
 	payload := Payload{
 		VoteExtensionHeight: reqHeight - 1,
 		VoteExtensions: []*PayloadVoteExtension{{
@@ -200,6 +201,8 @@ func newQuorumTestHandler(t *testing.T, validators []stakingtypes.Validator, key
 		votePersistenceKeeper: votePersistenceKeeper,
 		networkID:             NetworkID,
 		bridgeKeeper:          testBridgeKeeper{},
+		verificationKeeper:    &verificationKeeperStub{},
+		verificationBuilder:   verificationvalidator.DisabledBuilder{},
 	}
 }
 
@@ -242,14 +245,6 @@ func markedPayloadTx(t *testing.T, payload Payload) []byte {
 	require.NoError(t, err)
 
 	return append(voteExtMarkerBytes[:len(voteExtMarkerBytes):len(voteExtMarkerBytes)], payloadBytes...)
-}
-
-func quorumTestContext(blockHeight int64) sdk.Context {
-	return sdk.Context{}.
-		WithBlockHeight(blockHeight).
-		WithConsensusParams(tmproto.ConsensusParams{
-			Abci: &tmproto.ABCIParams{VoteExtensionsEnableHeight: 1},
-		})
 }
 
 type quorumTestStakingKeeper struct {

@@ -22,6 +22,13 @@ type readerStub struct {
 	commitments map[string][]byte
 }
 
+func TestDisabledBuilderReturnsNoLocalWork(t *testing.T) {
+	outcome := (DisabledBuilder{}).Build(context.Background(), testIdentity(), 10)
+
+	require.Nil(t, outcome.Payload)
+	require.NoError(t, outcome.Warning)
+}
+
 func newReaderStub() *readerStub {
 	return &readerStub{
 		proofs: make(map[uint64][]verificationtypes.ProofEntry), commitments: make(map[string][]byte),

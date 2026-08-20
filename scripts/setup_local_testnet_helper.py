@@ -756,6 +756,20 @@ def update_app_config(
         wrapper_grpc_transport_mode,
     )
 
+    # The repository's local testnet is intentionally chain-only. Production
+    # validator configs default to an enabled sidecar, so the testnet must opt
+    # out explicitly rather than relying on a changing global default.
+    app_toml = upsert_toml_key(
+        app_toml, "verification", "enabled", "false", quote_value=False
+    )
+    app_toml = upsert_toml_key(app_toml, "verification", "grpc_address", "")
+    app_toml = upsert_toml_key(
+        app_toml, "verification", "grpc_transport_mode", "loopback"
+    )
+    app_toml = upsert_toml_key(
+        app_toml, "verification", "request_timeout", "100ms"
+    )
+
     write_text(app_path, app_toml)
     return 0
 

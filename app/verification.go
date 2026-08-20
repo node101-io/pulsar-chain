@@ -32,9 +32,10 @@ func verificationProvider(
 	if provider, ok := appOpts.Get(verificationProviderOption).(sidecar.Provider); ok && provider != nil {
 		return provider, nil, true, nil
 	}
-	// Disabled is the safe default and does not require an endpoint. The returned
-	// provider behaves like a sidecar with no completed results, which preserves
-	// block production while producing no new verification commitments.
+	// An explicit opt-out does not require an endpoint. The app later pairs this
+	// provider with a concrete DisabledBuilder: replicated verification remains
+	// active, but this node produces no local commitments. A validator-local
+	// config value must never become an exemption from future participation slashing.
 	enabled, _ := appOpts.Get(sidecar.EnabledConfigKey).(bool)
 	if !enabled {
 		return sidecar.DisabledProvider{}, nil, false, nil
@@ -106,8 +107,12 @@ func newVerificationBuilder(
 	appOpts servertypes.AppOptions,
 	keeper verificationkeeper.Keeper,
 	provider sidecar.Provider,
+	active bool,
 	timeout time.Duration,
-) (*verificationvalidator.Builder, error) {
+) (abci.VerificationPayloadBuilder, error) {
+	if !active {
+		return verificationvalidator.DisabledBuilder{}, nil
+	}
 	store, err := verificationStateStore(appOpts)
 	if err != nil {
 		return nil, err

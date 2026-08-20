@@ -237,6 +237,14 @@ network_id = "old"
         self.assertIn('wrapper_grpc_address = "archive-wrapper:9095"', content)
         self.assertIn('wrapper_grpc_transport_mode = "trusted-network"', content)
 
+        # Local testnets deliberately run the chain-only no-op verification mode,
+        # even though newly generated production configs enable the sidecar.
+        self.assertIn("[verification]", content)
+        self.assertIn("enabled = false", content)
+        self.assertIn('grpc_address = ""', content)
+        self.assertIn('grpc_transport_mode = "loopback"', content)
+        self.assertIn('request_timeout = "100ms"', content)
+
     def test_update_app_config_enables_api_with_unsafe_cors(self):
         app_config = self.write_temp(
             """minimum-gas-prices = ""
