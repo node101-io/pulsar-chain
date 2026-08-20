@@ -444,7 +444,11 @@ for index in 1 2 3; do
     "/testnet/.pulsar-node${index}/config/app.toml" | grep -q '^enabled = false$'
 done
 VERIFICATION_PROOF_HASH="abababababababababababababababababababababababababababababababab"
-compose exec -T validator1 pulsard tx verification submit-proof "$VERIFICATION_PROOF_HASH" 7 \
+VERIFICATION_PUBLIC_INPUTS_HASH="cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+VERIFICATION_KEY_HASH="efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef"
+VERIFICATION_ID="ba0732b384544a5cfbec6e18a4ac4623bcb46647f24440bb627dd9f8c529fb24"
+compose exec -T validator1 pulsard tx verification submit-proof \
+	"$VERIFICATION_PROOF_HASH" mina-pickles "$VERIFICATION_PUBLIC_INPUTS_HASH" "$VERIFICATION_KEY_HASH" \
 	--from validator1 \
 	--home /testnet/.pulsar-node1 \
 	--keyring-backend test \
@@ -473,7 +477,26 @@ PENDING_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
 	--input "$TMP_DIR/verification-pending.json" --path proof_key.submission_height)"
 PENDING_TYPE="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
 	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.proof_type)"
-[[ "$PENDING_HEIGHT" == "$VERIFICATION_PROOF_HEIGHT" && "$PENDING_TYPE" == "7" ]]
+PENDING_ID="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.verification_id)"
+PENDING_PROOF_HASH="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.proof_hash)"
+PENDING_PUBLIC_INPUTS_HASH="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.public_inputs_hash)"
+PENDING_KEY_HASH="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.verification_key_hash)"
+[[ "$PENDING_HEIGHT" == "$VERIFICATION_PROOF_HEIGHT" ]]
+[[ "$PENDING_TYPE" == "PROOF_TYPE_MINA_PICKLES" ]]
+[[ "$PENDING_ID" == "ugcys4RUSlz77G4YpKxGI7y0ZkfyREC7Yn3Z+MUp+yQ=" ]]
+[[ "$PENDING_PROOF_HASH" == "q6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6s=" ]]
+[[ "$PENDING_PUBLIC_INPUTS_HASH" == "zc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc0=" ]]
+[[ "$PENDING_KEY_HASH" == "7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+8=" ]]
+compose exec -T validator1 pulsard query verification proof-by-verification-id "$VERIFICATION_ID" \
+	--height "$VERIFICATION_PROOF_HEIGHT" \
+	--node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-pending-by-id.json"
+PENDING_BY_ID_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending-by-id.json" --path proof_key.submission_height)"
+[[ "$PENDING_BY_ID_HEIGHT" == "$VERIFICATION_PROOF_HEIGHT" ]]
 
 VERIFICATION_FINAL_HEIGHT="$((VERIFICATION_PROOF_HEIGHT + 5))"
 wait_for_height "$VERIFICATION_FINAL_HEIGHT"
@@ -496,6 +519,11 @@ STORED_FINAL_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-val
 [[ "$STORED_FINAL_HEIGHT" == "$VERIFICATION_FINAL_HEIGHT" ]]
 (( TOTAL_POWER > 0 ))
 (( POWER_THRESHOLD == TOTAL_POWER * 2 / 3 + 1 ))
+compose exec -T validator1 pulsard query verification proof-by-verification-id "$VERIFICATION_ID" \
+	--node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-final-by-id.json"
+FINAL_BY_ID_STATUS="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final-by-id.json" --path State.value.final_result.status)"
+[[ "$FINAL_BY_ID_STATUS" == "PROOF_STATUS_INCONCLUSIVE" ]]
 
 for index in 1 2 3; do
 	curl -fsS "http://127.0.0.1:${HOST_RPC_PORTS[index]}/block?height=$VERIFICATION_FINAL_HEIGHT" \

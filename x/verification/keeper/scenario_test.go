@@ -46,11 +46,13 @@ func TestProofCapacityAndDeterministicIndices(t *testing.T) {
 
 	require.Equal(t, uint32(0), submitProof(t, f, 500, 1).IndexInBlock)
 	require.Equal(t, uint32(1), submitProof(t, f, 500, 2).IndexInBlock)
-	hash := bytes.Repeat([]byte{3}, types.ProofHashSize)
-	_, err := f.msgServer.SubmitProof(f.atHeight(500), &types.MsgSubmitProof{ProofHash: hash})
+	msg := proofSubmission(f, 3)
+	verificationID, err := types.ComputeVerificationID(msg.ProofType, msg.ProofHash, msg.PublicInputsHash, msg.VerificationKeyHash)
+	require.NoError(t, err)
+	_, err = f.msgServer.SubmitProof(f.atHeight(500), msg)
 	require.ErrorIs(t, err, types.ErrMaxProofsPerBlock)
 
-	seen, err := f.keeper.SeenProofHashes.Has(f.ctx, hash)
+	seen, err := f.keeper.SeenVerificationIDs.Has(f.ctx, verificationID[:])
 	require.NoError(t, err)
 	require.False(t, seen)
 }
@@ -193,9 +195,9 @@ func TestEarlyRevealAndUselessRevealAreRejected(t *testing.T) {
 
 func TestPublicMessagesRejectMalformedLengthsWithoutWrites(t *testing.T) {
 	f := initFixture(t, 3)
-	_, err := f.msgServer.SubmitProof(f.atHeight(500), &types.MsgSubmitProof{
-		ProofHash: make([]byte, types.ProofHashSize-1),
-	})
+	msg := proofSubmission(f, 1)
+	msg.ProofHash = make([]byte, types.ProofHashSize-1)
+	_, err := f.msgServer.SubmitProof(f.atHeight(500), msg)
 	require.ErrorIs(t, err, types.ErrInvalidProofHash)
 	exists, err := f.keeper.ProofCountByHeight.Has(f.ctx, 500)
 	require.NoError(t, err)
@@ -209,6 +211,33 @@ func TestPublicMessagesRejectMalformedLengthsWithoutWrites(t *testing.T) {
 	exists, err = f.keeper.Commitments.Has(f.ctx, types.NewCommitmentStoreKey(f.validators[0].operator, 503))
 	require.NoError(t, err)
 	require.False(t, exists)
+}
+
+func TestSubmitProofRejectsMalformedVerificationDescriptorWithoutWrites(t *testing.T) {
+	testCases := []struct {
+		name     string
+		mutate   func(*types.MsgSubmitProof)
+		expected error
+	}{
+		{name: "unspecified proof type", mutate: func(msg *types.MsgSubmitProof) { msg.ProofType = types.ProofType_PROOF_TYPE_UNSPECIFIED }, expected: types.ErrInvalidProofType},
+		{name: "unknown proof type", mutate: func(msg *types.MsgSubmitProof) { msg.ProofType = types.ProofType(99) }, expected: types.ErrInvalidProofType},
+		{name: "short public inputs hash", mutate: func(msg *types.MsgSubmitProof) { msg.PublicInputsHash = msg.PublicInputsHash[:31] }, expected: types.ErrInvalidPublicInputsHash},
+		{name: "long public inputs hash", mutate: func(msg *types.MsgSubmitProof) { msg.PublicInputsHash = append(msg.PublicInputsHash, 1) }, expected: types.ErrInvalidPublicInputsHash},
+		{name: "short verification key hash", mutate: func(msg *types.MsgSubmitProof) { msg.VerificationKeyHash = msg.VerificationKeyHash[:31] }, expected: types.ErrInvalidVerificationKeyHash},
+		{name: "long verification key hash", mutate: func(msg *types.MsgSubmitProof) { msg.VerificationKeyHash = append(msg.VerificationKeyHash, 1) }, expected: types.ErrInvalidVerificationKeyHash},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			f := initFixture(t, 3)
+			msg := proofSubmission(f, 1)
+			testCase.mutate(msg)
+			_, err := f.msgServer.SubmitProof(f.atHeight(500), msg)
+			require.ErrorIs(t, err, testCase.expected)
+			exists, err := f.keeper.ProofCountByHeight.Has(f.ctx, 500)
+			require.NoError(t, err)
+			require.False(t, exists)
+		})
+	}
 }
 
 func TestRevealRejectsMalformedLeavesAndVotesWithoutWrites(t *testing.T) {
@@ -523,25 +552,33 @@ func TestQueriesRejectCorruptedProofRelationships(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, fixture.keeper.FinalProofResults.Set(fixture.ctx, key, types.FinalProofResult{
-		ProofHash: record.ProofHash, Status: types.ProofStatus_PROOF_STATUS_INCONCLUSIVE,
+		ProofHash: record.ProofHash, ProofType: record.ProofType,
+		PublicInputsHash: record.PublicInputsHash, VerificationKeyHash: record.VerificationKeyHash,
+		VerificationId: record.VerificationId, Status: types.ProofStatus_PROOF_STATUS_INCONCLUSIVE,
 		TotalVotingPower: 100, VotingPowerThreshold: 67, SubmissionHeight: 500, FinalizedHeight: 505,
 	}))
 	_, err = fixture.query.Proof(fixture.ctx, &types.QueryProofRequest{SubmissionHeight: 500})
 	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
 	require.NoError(t, fixture.keeper.FinalProofResults.Remove(fixture.ctx, key))
 
-	require.NoError(t, fixture.keeper.SeenProofHashes.Set(fixture.ctx, record.ProofHash, types.ProofKey{
+	require.NoError(t, fixture.keeper.SeenVerificationIDs.Set(fixture.ctx, record.VerificationId, types.ProofKey{
 		SubmissionHeight: 500, IndexInBlock: 1,
 	}))
 	_, err = fixture.query.Proof(fixture.ctx, &types.QueryProofRequest{SubmissionHeight: 500})
 	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
-	_, err = fixture.query.ProofByHash(fixture.ctx, &types.QueryProofByHashRequest{ProofHash: record.ProofHash})
+	_, err = fixture.query.ProofByVerificationId(fixture.ctx, &types.QueryProofByVerificationIdRequest{VerificationId: record.VerificationId})
 	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
 
-	require.NoError(t, fixture.keeper.SeenProofHashes.Set(fixture.ctx, record.ProofHash, types.ProofKey{SubmissionHeight: 500}))
+	require.NoError(t, fixture.keeper.SeenVerificationIDs.Set(fixture.ctx, record.VerificationId, types.ProofKey{SubmissionHeight: 500}))
 	require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(505)))
 	result, err := fixture.keeper.FinalProofResults.Get(fixture.ctx, key)
 	require.NoError(t, err)
+	originalID := bytes.Clone(result.VerificationId)
+	result.VerificationId[0] ^= 0xff
+	require.NoError(t, fixture.keeper.FinalProofResults.Set(fixture.ctx, key, result))
+	_, err = fixture.query.FinalProofResult(fixture.ctx, &types.QueryFinalProofResultRequest{SubmissionHeight: 500})
+	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
+	result.VerificationId = originalID
 	result.Status = types.ProofStatus_PROOF_STATUS_VALID
 	require.NoError(t, fixture.keeper.FinalProofResults.Set(fixture.ctx, key, result))
 	_, err = fixture.query.FinalProofResult(fixture.ctx, &types.QueryFinalProofResultRequest{SubmissionHeight: 500})

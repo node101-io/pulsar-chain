@@ -14,9 +14,9 @@ func BenchmarkValidateResults512(b *testing.B) {
 	results := make([]sidecar.VerificationResult, 0, verificationtypes.MaxVoteIndexExclusive*2)
 	for side := uint64(0); side < 2; side++ {
 		for index := uint32(0); index < verificationtypes.MaxVoteIndexExclusive; index++ {
-			hash := benchmarkHash(side, index)
-			requested[string(hash)] = requestedProof{height: 7 + side, index: index}
-			results = append(results, sidecar.VerificationResult{ProofHash: hash, Result: sidecar.ResultValid})
+			id := benchmarkID(side, index)
+			requested[string(id)] = requestedProof{height: 7 + side, index: index}
+			results = append(results, sidecar.VerificationResult{VerificationID: id, Result: sidecar.ResultValid})
 		}
 	}
 	b.ResetTimer()
@@ -101,10 +101,10 @@ func benchmarkState(tb testing.TB, count int) State {
 	return state
 }
 
-func benchmarkHash(side uint64, index uint32) []byte {
-	hash := make([]byte, verificationtypes.ProofHashSize)
-	hash[0] = byte(side)
-	hash[1] = byte(index >> 8)
-	hash[2] = byte(index)
-	return hash
+func benchmarkID(side uint64, index uint32) []byte {
+	id := make([]byte, verificationtypes.VerificationIDSize)
+	id[0] = byte(side)
+	id[1] = byte(index >> 8)
+	id[2] = byte(index)
+	return id
 }

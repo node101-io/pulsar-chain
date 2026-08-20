@@ -22,10 +22,14 @@ const (
 	// commitments from C-1, C-2, and C-3 can still be revealable in block C.
 	MaxRevelationsPerBatch = 3
 
-	ProofHashSize      = 32
-	CommitmentHashSize = 16
-	LeafHashSize       = 16
-	SaltSize           = 16
+	DigestSize              = 32
+	ProofHashSize           = DigestSize
+	PublicInputsHashSize    = DigestSize
+	VerificationKeyHashSize = DigestSize
+	VerificationIDSize      = DigestSize
+	CommitmentHashSize      = 16
+	LeafHashSize            = 16
+	SaltSize                = 16
 )
 
 type LeafTiming uint8

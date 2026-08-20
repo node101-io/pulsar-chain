@@ -8,9 +8,9 @@ import (
 )
 
 // GetProofsAtHeight returns the complete, index-ordered proof batch used by the
-// validator-local builder. The sidecar sees only proof hashes, while this method
-// preserves the canonical ProofKey mapping needed to encode one-byte vote
-// indices. Gaps or stale permanent hash mappings are rejected as corruption so
+// validator-local builder. The sidecar sees only verification IDs, while this
+// method preserves the canonical ProofKey mapping needed to encode one-byte vote
+// indices. Gaps or stale permanent ID mappings are rejected as corruption so
 // the builder never commits a result to the wrong proof.
 func (k Keeper) GetProofsAtHeight(ctx context.Context, height uint64) ([]types.ProofEntry, error) {
 	found, err := k.ProofCountByHeight.Has(ctx, height)
@@ -32,18 +32,21 @@ func (k Keeper) GetProofsAtHeight(ctx context.Context, height uint64) ([]types.P
 		if err != nil {
 			return nil, types.ErrProofStateCorrupted
 		}
-		if len(record.ProofHash) != types.ProofHashSize {
+		if err := types.ValidateProofRecord(record); err != nil {
 			return nil, types.ErrProofStateCorrupted
 		}
-		registered, err := k.SeenProofHashes.Get(ctx, record.ProofHash)
+		registered, err := k.SeenVerificationIDs.Get(ctx, record.VerificationId)
 		if err != nil || registered.SubmissionHeight != height || registered.IndexInBlock != index {
 			return nil, types.ErrProofStateCorrupted
 		}
 		proofs = append(proofs, types.ProofEntry{
 			Key: types.ProofKey{SubmissionHeight: height, IndexInBlock: index},
 			Record: types.ProofRecord{
-				ProofHash: append([]byte(nil), record.ProofHash...),
-				ProofType: record.ProofType,
+				ProofHash:           append([]byte(nil), record.ProofHash...),
+				ProofType:           record.ProofType,
+				PublicInputsHash:    append([]byte(nil), record.PublicInputsHash...),
+				VerificationKeyHash: append([]byte(nil), record.VerificationKeyHash...),
+				VerificationId:      append([]byte(nil), record.VerificationId...),
 			},
 		})
 	}

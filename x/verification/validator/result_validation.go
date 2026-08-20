@@ -25,24 +25,25 @@ func buildResultRequest(
 	}
 	request := make([][]byte, 0, capacity)
 	index := make(map[string]requestedProof, capacity)
-	// Index by hash so the unordered sidecar response can be mapped back to the
-	// canonical proof height and in-block index. The sidecar is not trusted to
-	// know ProofKey or preserve request order; those are chain responsibilities.
+	// Index by verification ID so the unordered sidecar response can be mapped
+	// back to the canonical proof height and in-block index. The sidecar is not
+	// trusted to know ProofKey or preserve request order; those are chain
+	// responsibilities.
 	appendProofs := func(expectedHeight uint64, proofs []verificationtypes.ProofEntry, excluded map[uint32]struct{}) error {
 		for _, proof := range proofs {
 			if proof.Key.SubmissionHeight != expectedHeight || proof.Key.IndexInBlock >= verificationtypes.MaxVoteIndexExclusive ||
-				len(proof.Record.ProofHash) != verificationtypes.ProofHashSize {
+				verificationtypes.ValidateProofRecord(proof.Record) != nil {
 				return verificationtypes.ErrProofStateCorrupted
 			}
 			if _, skip := excluded[proof.Key.IndexInBlock]; skip {
 				continue
 			}
-			key := string(proof.Record.ProofHash)
+			key := string(proof.Record.VerificationId)
 			if _, duplicate := index[key]; duplicate {
 				return verificationtypes.ErrProofStateCorrupted
 			}
 			index[key] = requestedProof{height: expectedHeight, index: proof.Key.IndexInBlock}
-			request = append(request, bytes.Clone(proof.Record.ProofHash))
+			request = append(request, bytes.Clone(proof.Record.VerificationId))
 		}
 		return nil
 	}
@@ -71,16 +72,16 @@ func validateResults(
 	leftVotes := make([]verificationtypes.ProofVote, 0, len(results))
 	rightVotes := make([]verificationtypes.ProofVote, 0, len(results))
 	for _, result := range results {
-		if len(result.ProofHash) != verificationtypes.ProofHashSize {
-			return nil, nil, verificationtypes.ErrInvalidProofHash
+		if len(result.VerificationID) != verificationtypes.VerificationIDSize {
+			return nil, nil, verificationtypes.ErrInvalidVerificationID
 		}
-		key := string(result.ProofHash)
+		key := string(result.VerificationID)
 		proof, ok := requested[key]
 		if !ok {
-			return nil, nil, fmt.Errorf("sidecar returned an unrequested proof hash")
+			return nil, nil, fmt.Errorf("sidecar returned an unrequested verification ID")
 		}
 		if _, duplicate := seen[key]; duplicate {
-			return nil, nil, fmt.Errorf("sidecar returned a duplicate proof hash")
+			return nil, nil, fmt.Errorf("sidecar returned a duplicate verification ID")
 		}
 		seen[key] = struct{}{}
 		vote := verificationtypes.ProofVote{IndexInBlock: proof.index}

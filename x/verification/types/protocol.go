@@ -10,7 +10,7 @@ import (
 
 // The verification lifecycle for proofs submitted in block H is:
 //
-//   - H: the chain registers proof hashes and freezes historical voting power.
+//   - H: the chain registers verification descriptors and freezes historical voting power.
 //   - H+2: the proof can appear in the right leaf of a new commitment.
 //   - H+3: the same proof height can appear in the next commitment's left leaf.
 //   - H+4 and H+5: committed values can be revealed and counted.

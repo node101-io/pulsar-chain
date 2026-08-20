@@ -21,9 +21,9 @@ service Query {
   rpc Proof(QueryProofRequest) returns (QueryProofResponse) {
     option (google.api.http).get = "/node101-io/pulsar-chain/verification/v1/proofs/{submission_height}/{index_in_block}";
   }
-  // ProofByHash resolves the permanent proof hash registry.
-  rpc ProofByHash(QueryProofByHashRequest) returns (QueryProofResponse) {
-    option (google.api.http).get = "/node101-io/pulsar-chain/verification/v1/proofs/hash/{proof_hash}";
+  // ProofByVerificationId resolves the permanent verification request registry.
+  rpc ProofByVerificationId(QueryProofByVerificationIdRequest) returns (QueryProofResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/verification/v1/proofs/verification-id/{verification_id}";
   }
   // ProofsByHeight lists proofs submitted at a height.
   rpc ProofsByHeight(QueryProofsByHeightRequest) returns (QueryProofsByHeightResponse) {
@@ -69,9 +69,9 @@ message QueryProofRequest {
   uint32 index_in_block = 2;
 }
 
-// QueryProofByHashRequest identifies a proof by its permanent hash.
-message QueryProofByHashRequest {
-  bytes proof_hash = 1;
+// QueryProofByVerificationIdRequest identifies a proof by its permanent request ID.
+message QueryProofByVerificationIdRequest {
+  bytes verification_id = 1;
 }
 
 // QueryProofResponse contains either pending or finalized proof state.

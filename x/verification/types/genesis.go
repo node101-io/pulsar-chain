@@ -12,7 +12,7 @@ func DefaultGenesis() *GenesisState {
 
 // Validate reconstructs the relationships between every consensus collection.
 // Genesis bypasses normal handlers, so imported power snapshots, votes, tallies,
-// final results, and the permanent hash registry must be mutually derivable.
+// final results, and the permanent verification-ID registry must be mutually derivable.
 func (gs GenesisState) Validate() error {
 	if err := gs.Params.Validate(); err != nil {
 		return err
@@ -33,7 +33,7 @@ func (gs GenesisState) Validate() error {
 	for _, entry := range gs.PendingProofs {
 		key := genesisProofKey(entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock)
 		count, ok := proofCounts[entry.ProofKey.SubmissionHeight]
-		if !ok || entry.ProofKey.IndexInBlock >= count || len(entry.Proof.ProofHash) != ProofHashSize {
+		if !ok || entry.ProofKey.IndexInBlock >= count || ValidateProofRecord(entry.Proof) != nil {
 			return fmt.Errorf("invalid pending proof %d/%d", entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock)
 		}
 		if _, duplicate := pending[key]; duplicate {
@@ -97,28 +97,29 @@ func (gs GenesisState) Validate() error {
 	}
 
 	// The permanent registry must remain one-to-one after pending state is
-	// pruned, otherwise replay protection and hash lookup become ambiguous.
-	seenHashes := make(map[string]ProofKey, len(gs.SeenProofHashes))
-	seenKeys := make(map[string]struct{}, len(gs.SeenProofHashes))
-	for _, entry := range gs.SeenProofHashes {
-		if len(entry.ProofHash) != ProofHashSize {
-			return ErrInvalidProofHash
+	// pruned, otherwise replay protection and verification-ID lookup become
+	// ambiguous.
+	seenIDs := make(map[string]ProofKey, len(gs.SeenVerificationIds))
+	seenKeys := make(map[string]struct{}, len(gs.SeenVerificationIds))
+	for _, entry := range gs.SeenVerificationIds {
+		if len(entry.VerificationId) != VerificationIDSize {
+			return ErrInvalidVerificationID
 		}
-		hashKey := string(entry.ProofHash)
+		idKey := string(entry.VerificationId)
 		proofKey := genesisProofKey(entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock)
-		if _, duplicate := seenHashes[hashKey]; duplicate {
-			return ErrDuplicateProof
+		if _, duplicate := seenIDs[idKey]; duplicate {
+			return ErrDuplicateVerificationRequest
 		}
 		if _, duplicate := seenKeys[proofKey]; duplicate {
-			return fmt.Errorf("duplicate proof key in hash registry")
+			return fmt.Errorf("duplicate proof key in verification ID registry")
 		}
-		seenHashes[hashKey] = entry.ProofKey
+		seenIDs[idKey] = entry.ProofKey
 		seenKeys[proofKey] = struct{}{}
 	}
 	for key, proof := range pending {
-		if seen, ok := seenHashes[string(proof.ProofHash)]; !ok ||
+		if seen, ok := seenIDs[string(proof.VerificationId)]; !ok ||
 			genesisProofKey(seen.SubmissionHeight, seen.IndexInBlock) != key {
-			return fmt.Errorf("pending proof missing permanent hash mapping")
+			return fmt.Errorf("pending proof missing permanent verification ID mapping")
 		}
 	}
 
@@ -199,8 +200,15 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("duplicate final proof result")
 		}
 		_, activeHeight := proofCounts[entry.ProofKey.SubmissionHeight]
+		finalRecord := ProofRecord{
+			ProofHash:           entry.Result.ProofHash,
+			ProofType:           entry.Result.ProofType,
+			PublicInputsHash:    entry.Result.PublicInputsHash,
+			VerificationKeyHash: entry.Result.VerificationKeyHash,
+			VerificationId:      entry.Result.VerificationId,
+		}
 		if _, active := pending[key]; active || activeHeight || entry.ProofKey.IndexInBlock >= MaxVoteIndexExclusive ||
-			len(entry.Result.ProofHash) != ProofHashSize ||
+			ValidateProofRecord(finalRecord) != nil ||
 			entry.Result.SubmissionHeight != entry.ProofKey.SubmissionHeight ||
 			entry.Result.SubmissionHeight > math.MaxUint64-(VerificationLifetime-1) ||
 			entry.Result.FinalizedHeight != entry.ProofKey.SubmissionHeight+VerificationLifetime-1 ||
@@ -228,14 +236,14 @@ func (gs GenesisState) Validate() error {
 		if entry.Result.Status != expected {
 			return fmt.Errorf("final proof status does not match voting power")
 		}
-		seen, ok := seenHashes[string(entry.Result.ProofHash)]
+		seen, ok := seenIDs[string(entry.Result.VerificationId)]
 		if !ok || seen.SubmissionHeight != entry.ProofKey.SubmissionHeight || seen.IndexInBlock != entry.ProofKey.IndexInBlock {
-			return fmt.Errorf("final proof missing permanent hash mapping")
+			return fmt.Errorf("final proof missing permanent verification ID mapping")
 		}
 		finals[key] = struct{}{}
 	}
-	if len(seenHashes) != len(pending)+len(finals) {
-		return fmt.Errorf("hash registry contains an unreferenced proof")
+	if len(seenIDs) != len(pending)+len(finals) {
+		return fmt.Errorf("verification ID registry contains an unreferenced proof")
 	}
 
 	return nil

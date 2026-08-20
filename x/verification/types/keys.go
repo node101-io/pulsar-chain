@@ -9,14 +9,14 @@ const (
 )
 
 var (
-	// Prefixes are consensus-store namespaces. SeenProofHashPrefix is
-	// intentionally permanent so a proof hash can never be registered twice,
-	// even after finalization. The other lifecycle state is pruned when it can no
-	// longer affect a future commitment, revelation, query, or final result.
+	// Prefixes are consensus-store namespaces. SeenVerificationIDPrefix is
+	// intentionally permanent so a verification request cannot be registered
+	// twice, even after finalization. The other lifecycle state is pruned when it
+	// can no longer affect a future commitment, revelation, query, or final result.
 	ParamsKey                = collections.NewPrefix(0x00)
 	ProofCountPrefix         = collections.NewPrefix(0x01)
 	PendingProofPrefix       = collections.NewPrefix(0x02)
-	SeenProofHashPrefix      = collections.NewPrefix(0x03)
+	SeenVerificationIDPrefix = collections.NewPrefix(0x03)
 	ValidatorPowerPrefix     = collections.NewPrefix(0x04)
 	TotalVotingPowerPrefix   = collections.NewPrefix(0x05)
 	CommitmentPrefix         = collections.NewPrefix(0x06)

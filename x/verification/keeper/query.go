@@ -32,22 +32,22 @@ func (q queryServer) Proof(ctx context.Context, req *types.QueryProofRequest) (*
 	return q.proof(ctx, req.SubmissionHeight, req.IndexInBlock)
 }
 
-// ProofByHash uses the permanent hash registry, so it continues to work after
-// pending proof state has been pruned. The resolved record is checked against
-// the requested hash because a stale or mismatched reverse index is consensus
-// corruption, not a normal not-found response.
-func (q queryServer) ProofByHash(ctx context.Context, req *types.QueryProofByHashRequest) (*types.QueryProofResponse, error) {
-	if req == nil || len(req.ProofHash) != types.ProofHashSize {
-		return nil, types.ErrInvalidProofHash
+// ProofByVerificationId uses the permanent request registry, so it continues
+// to work after pending proof state has been pruned. The resolved record is
+// checked against the requested ID because a stale or mismatched reverse index
+// is consensus corruption, not a normal not-found response.
+func (q queryServer) ProofByVerificationId(ctx context.Context, req *types.QueryProofByVerificationIdRequest) (*types.QueryProofResponse, error) {
+	if req == nil || len(req.VerificationId) != types.VerificationIDSize {
+		return nil, types.ErrInvalidVerificationID
 	}
-	exists, err := q.k.SeenProofHashes.Has(ctx, req.ProofHash)
+	exists, err := q.k.SeenVerificationIDs.Has(ctx, req.VerificationId)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
 		return nil, types.ErrProofNotFound
 	}
-	key, err := q.k.SeenProofHashes.Get(ctx, req.ProofHash)
+	key, err := q.k.SeenVerificationIDs.Get(ctx, req.VerificationId)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (q queryServer) ProofByHash(ctx context.Context, req *types.QueryProofByHas
 	if err != nil {
 		return nil, types.ErrProofStateCorrupted
 	}
-	if !bytes.Equal(proofResponseHash(response), req.ProofHash) {
+	if !bytes.Equal(proofResponseVerificationID(response), req.VerificationId) {
 		return nil, types.ErrProofStateCorrupted
 	}
 
@@ -84,7 +84,7 @@ func (q queryServer) proof(ctx context.Context, height uint64, index uint32) (*t
 		if err != nil {
 			return nil, err
 		}
-		if err := q.validateRegisteredProof(ctx, key, record.ProofHash); err != nil {
+		if err := q.validateRegisteredProof(ctx, key, record); err != nil {
 			return nil, err
 		}
 		return &types.QueryProofResponse{
@@ -100,7 +100,7 @@ func (q queryServer) proof(ctx context.Context, height uint64, index uint32) (*t
 		if err := validateFinalProofResult(key, result); err != nil {
 			return nil, err
 		}
-		if err := q.validateRegisteredProof(ctx, key, result.ProofHash); err != nil {
+		if err := q.validateRegisteredFinalProof(ctx, key, result); err != nil {
 			return nil, err
 		}
 		return &types.QueryProofResponse{
@@ -136,7 +136,7 @@ func (q queryServer) ProofsByHeight(ctx context.Context, req *types.QueryProofsB
 			q.k.PendingProofs,
 			req.Pagination,
 			func(key types.ProofStoreKey, value types.ProofRecord) (types.QueryProofResponse, error) {
-				if err := q.validateRegisteredProof(ctx, key, value.ProofHash); err != nil {
+				if err := q.validateRegisteredProof(ctx, key, value); err != nil {
 					return types.QueryProofResponse{}, err
 				}
 				return types.QueryProofResponse{
@@ -160,7 +160,7 @@ func (q queryServer) ProofsByHeight(ctx context.Context, req *types.QueryProofsB
 			if err := validateFinalProofResult(key, value); err != nil {
 				return types.QueryProofResponse{}, err
 			}
-			if err := q.validateRegisteredProof(ctx, key, value.ProofHash); err != nil {
+			if err := q.validateRegisteredFinalProof(ctx, key, value); err != nil {
 				return types.QueryProofResponse{}, err
 			}
 			return types.QueryProofResponse{
@@ -343,7 +343,7 @@ func (q queryServer) ProofTally(ctx context.Context, req *types.QueryProofTallyR
 }
 
 // FinalProofResult returns an immutable result and revalidates that its stored
-// threshold, tally, status, and permanent hash mapping are mutually consistent.
+// threshold, tally, status, and permanent ID mapping are mutually consistent.
 // Queries therefore never normalize or hide corrupted consensus state.
 func (q queryServer) FinalProofResult(ctx context.Context, req *types.QueryFinalProofResultRequest) (*types.QueryFinalProofResultResponse, error) {
 	if req == nil || req.IndexInBlock >= types.MaxVoteIndexExclusive {
@@ -364,7 +364,7 @@ func (q queryServer) FinalProofResult(ctx context.Context, req *types.QueryFinal
 	if err := validateFinalProofResult(key, result); err != nil {
 		return nil, err
 	}
-	if err := q.validateRegisteredProof(ctx, key, result.ProofHash); err != nil {
+	if err := q.validateRegisteredFinalProof(ctx, key, result); err != nil {
 		return nil, err
 	}
 
@@ -374,11 +374,11 @@ func (q queryServer) FinalProofResult(ctx context.Context, req *types.QueryFinal
 	}, nil
 }
 
-func (q queryServer) validateRegisteredProof(ctx context.Context, key types.ProofStoreKey, proofHash []byte) error {
-	if len(proofHash) != types.ProofHashSize {
+func (q queryServer) validateRegisteredProof(ctx context.Context, key types.ProofStoreKey, record types.ProofRecord) error {
+	if err := types.ValidateProofRecord(record); err != nil {
 		return types.ErrProofStateCorrupted
 	}
-	registered, err := q.k.SeenProofHashes.Get(ctx, proofHash)
+	registered, err := q.k.SeenVerificationIDs.Get(ctx, record.VerificationId)
 	if err != nil {
 		return types.ErrProofStateCorrupted
 	}
@@ -389,8 +389,25 @@ func (q queryServer) validateRegisteredProof(ctx context.Context, key types.Proo
 	return nil
 }
 
+func (q queryServer) validateRegisteredFinalProof(ctx context.Context, key types.ProofStoreKey, result types.FinalProofResult) error {
+	record := types.ProofRecord{
+		ProofHash:           result.ProofHash,
+		ProofType:           result.ProofType,
+		PublicInputsHash:    result.PublicInputsHash,
+		VerificationKeyHash: result.VerificationKeyHash,
+		VerificationId:      result.VerificationId,
+	}
+	return q.validateRegisteredProof(ctx, key, record)
+}
+
 func validateFinalProofResult(key types.ProofStoreKey, result types.FinalProofResult) error {
-	if len(result.ProofHash) != types.ProofHashSize || result.SubmissionHeight != key.K1() {
+	if err := types.ValidateProofRecord(types.ProofRecord{
+		ProofHash:           result.ProofHash,
+		ProofType:           result.ProofType,
+		PublicInputsHash:    result.PublicInputsHash,
+		VerificationKeyHash: result.VerificationKeyHash,
+		VerificationId:      result.VerificationId,
+	}); err != nil || result.SubmissionHeight != key.K1() {
 		return types.ErrProofStateCorrupted
 	}
 	if result.SubmissionHeight > math.MaxUint64-(types.VerificationLifetime-1) ||
@@ -420,15 +437,15 @@ func validateFinalProofResult(key types.ProofStoreKey, result types.FinalProofRe
 	return nil
 }
 
-func proofResponseHash(response *types.QueryProofResponse) []byte {
+func proofResponseVerificationID(response *types.QueryProofResponse) []byte {
 	if response == nil {
 		return nil
 	}
 	if pending := response.GetPending(); pending != nil {
-		return pending.ProofHash
+		return pending.VerificationId
 	}
 	if final := response.GetFinalResult(); final != nil {
-		return final.ProofHash
+		return final.VerificationId
 	}
 	return nil
 }

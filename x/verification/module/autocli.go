@@ -18,7 +18,7 @@ func (AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
 				{RpcMethod: "Params", Use: "params", Short: "Show verification parameters"},
 				{RpcMethod: "Proof", Use: "proof [submission-height] [index-in-block]", Short: "Show a proof by key", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "submission_height"}, {ProtoField: "index_in_block"}}},
-				{RpcMethod: "ProofByHash", Use: "proof-by-hash [proof-hash]", Short: "Show a proof by hash", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "proof_hash"}}},
+				{RpcMethod: "ProofByVerificationId", Use: "proof-by-verification-id [verification-id]", Short: "Show a proof by verification ID", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "verification_id"}}},
 				{RpcMethod: "ProofsByHeight", Use: "proofs-by-height [submission-height]", Short: "List proofs submitted at a height", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "submission_height"}}},
 				{RpcMethod: "Commitment", Use: "commitment [validator] [commitment-height]", Short: "Show a validator commitment", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator"}, {ProtoField: "commitment_height"}}},
 				{RpcMethod: "CommitmentsByValidator", Use: "commitments-by-validator [validator]", Short: "List retained validator commitments", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "validator"}}},
@@ -32,7 +32,7 @@ func (AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 			Service:              types.Msg_serviceDesc.ServiceName,
 			EnhanceCustomCommand: true,
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
-				{RpcMethod: "SubmitProof", Use: "submit-proof [proof-hash] [proof-type]", Short: "Submit a proof hash", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "proof_hash"}, {ProtoField: "proof_type"}}},
+				{RpcMethod: "SubmitProof", Use: "submit-proof [proof-hash] [proof-type] [public-inputs-hash] [verification-key-hash]", Short: "Submit verification request metadata", PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "proof_hash"}, {ProtoField: "proof_type"}, {ProtoField: "public_inputs_hash"}, {ProtoField: "verification_key_hash"}}},
 				{RpcMethod: "UpdateParams", Skip: true},
 			},
 		},

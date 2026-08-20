@@ -57,15 +57,16 @@ func TestLocalBuilderRestartRevealsIntoKeeperAndFinalizes(t *testing.T) {
 	fixture := initFixture(t, 1)
 	submitProof(t, fixture, 500, 1)
 	require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(500)))
-	proofHash := make([]byte, types.ProofHashSize)
-	proofHash[len(proofHash)-1] = 1
+	proofs, err := fixture.keeper.GetProofsAtHeight(fixture.ctx, 500)
+	require.NoError(t, err)
+	verificationID := proofs[0].Record.VerificationId
 	stateDirectory := filepath.Join(t.TempDir(), "private")
 	require.NoError(t, os.Mkdir(stateDirectory, 0o700))
 	stateStore, err := verificationvalidator.NewFileStore(filepath.Join(stateDirectory, "verification_state.json"))
 	require.NoError(t, err)
-	provider := sidecar.ProviderFunc(func(_ context.Context, hashes [][]byte) ([]sidecar.VerificationResult, error) {
-		require.Equal(t, [][]byte{proofHash}, hashes)
-		return []sidecar.VerificationResult{{ProofHash: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
+	provider := sidecar.ProviderFunc(func(_ context.Context, ids [][]byte) ([]sidecar.VerificationResult, error) {
+		require.Equal(t, [][]byte{verificationID}, ids)
+		return []sidecar.VerificationResult{{VerificationID: bytes.Clone(ids[0]), Result: sidecar.ResultValid}}, nil
 	})
 	identity := verificationvalidator.Identity{
 		ChainID: "restart-integration", OperatorAddress: fixture.validators[0].operator,
@@ -137,13 +138,13 @@ func TestGRPCClientFeedsOnlyNewTerminalResultsIntoCommitments(t *testing.T) {
 			// contains the full batch, but only proof 0 has a terminal result; proofs
 			// 1 and 2 are omitted rather than mapped to INVALID.
 			require.Equal(t, [][]byte{
-				proofs[0].Record.ProofHash,
-				proofs[1].Record.ProofHash,
-				proofs[2].Record.ProofHash,
-			}, request.ProofHashes)
+				proofs[0].Record.VerificationId,
+				proofs[1].Record.VerificationId,
+				proofs[2].Record.VerificationId,
+			}, request.VerificationIds)
 			return &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{
-				ProofHash: proofs[0].Record.ProofHash,
-				Verdict:   sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID,
+				VerificationId: proofs[0].Record.VerificationId,
+				Verdict:        sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID,
 			}}}
 		case 2:
 			// H+3 is the overlapping second opportunity for block H. Proof 0 is
@@ -151,12 +152,12 @@ func TestGRPCClientFeedsOnlyNewTerminalResultsIntoCommitments(t *testing.T) {
 			// commitment. Proof 1 has now completed; proof 2 remains pending and
 			// never becomes an implicit negative vote.
 			require.Equal(t, [][]byte{
-				proofs[1].Record.ProofHash,
-				proofs[2].Record.ProofHash,
-			}, request.ProofHashes)
+				proofs[1].Record.VerificationId,
+				proofs[2].Record.VerificationId,
+			}, request.VerificationIds)
 			return &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{
-				ProofHash: proofs[1].Record.ProofHash,
-				Verdict:   sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_INVALID,
+				VerificationId: proofs[1].Record.VerificationId,
+				Verdict:        sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_INVALID,
 			}}}
 		default:
 			t.Fatalf("unexpected result RPC call %d", call)

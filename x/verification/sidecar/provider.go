@@ -18,14 +18,14 @@ const (
 	ResultValid
 )
 
-// VerificationResult associates one requested proof hash with a terminal result.
+// VerificationResult associates one requested verification ID with a terminal result.
 type VerificationResult struct {
-	ProofHash []byte
-	Result    ResultValue
+	VerificationID []byte
+	Result         ResultValue
 }
 
-// Provider returns only the completed subset of a requested proof-hash batch.
-// Missing hashes remain pending and must not be converted to invalid votes.
+// Provider returns only the completed subset of a requested verification-ID batch.
+// Missing IDs remain pending and must not be converted to invalid votes.
 // The provider does not receive block heights or build commitments; mapping
 // results to ProofKey and protocol windows remains validator-node logic.
 type Provider interface {
@@ -36,8 +36,8 @@ type Provider interface {
 type ProviderFunc func(context.Context, [][]byte) ([]VerificationResult, error)
 
 // GetVerificationResults calls the adapted provider function.
-func (f ProviderFunc) GetVerificationResults(ctx context.Context, proofHashes [][]byte) ([]VerificationResult, error) {
-	return f(ctx, proofHashes)
+func (f ProviderFunc) GetVerificationResults(ctx context.Context, verificationIDs [][]byte) ([]VerificationResult, error) {
+	return f(ctx, verificationIDs)
 }
 
 // DisabledProvider represents an intentionally disabled optional verifier. It

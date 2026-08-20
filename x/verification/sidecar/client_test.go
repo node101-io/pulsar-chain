@@ -65,28 +65,28 @@ func startVerificationServer(t *testing.T, service sidecarv1.VerificationService
 	return listener.Addr().String()
 }
 
-func proofHash(value byte) []byte {
-	return bytes.Repeat([]byte{value}, verificationtypes.ProofHashSize)
+func verificationID(value byte) []byte {
+	return bytes.Repeat([]byte{value}, verificationtypes.VerificationIDSize)
 }
 
 func TestClientReturnsTerminalSubsetInRequestOrder(t *testing.T) {
-	hashes := [][]byte{proofHash(1), proofHash(2), proofHash(3)}
+	ids := [][]byte{verificationID(1), verificationID(2), verificationID(3)}
 	service := &testVerificationServer{response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{
-		{ProofHash: bytes.Clone(hashes[2]), Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_INVALID},
-		{ProofHash: bytes.Clone(hashes[0]), Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID},
+		{VerificationId: bytes.Clone(ids[2]), Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_INVALID},
+		{VerificationId: bytes.Clone(ids[0]), Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID},
 	}}}
 	client, err := NewClient(startVerificationServer(t, service), TransportModeLoopback)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 
-	results, err := client.GetVerificationResults(context.Background(), hashes)
+	results, err := client.GetVerificationResults(context.Background(), ids)
 	require.NoError(t, err)
 	require.Equal(t, []VerificationResult{
-		{ProofHash: hashes[0], Result: ResultValid},
-		{ProofHash: hashes[2], Result: ResultInvalid},
+		{VerificationID: ids[0], Result: ResultValid},
+		{VerificationID: ids[2], Result: ResultInvalid},
 	}, results)
 	service.mu.Lock()
-	require.Equal(t, hashes, service.requests[0].ProofHashes)
+	require.Equal(t, ids, service.requests[0].VerificationIds)
 	require.Zero(t, service.statusCalls)
 	service.mu.Unlock()
 }
@@ -106,16 +106,19 @@ func TestClientEmptyRequestDoesNotCallRPC(t *testing.T) {
 }
 
 func TestClientRejectsMalformedRequest(t *testing.T) {
-	tooMany := make([][]byte, maxProofHashes+1)
+	tooMany := make([][]byte, maxVerificationIDs+1)
 	for i := range tooMany {
-		tooMany[i] = proofHash(byte(i))
+		id := make([]byte, verificationtypes.VerificationIDSize)
+		id[0] = byte(i >> 8)
+		id[1] = byte(i)
+		tooMany[i] = id
 	}
 	testCases := []struct {
 		name   string
 		hashes [][]byte
 	}{
-		{name: "short hash", hashes: [][]byte{{1}}},
-		{name: "duplicate", hashes: [][]byte{proofHash(1), proofHash(1)}},
+		{name: "short ID", hashes: [][]byte{{1}}},
+		{name: "duplicate", hashes: [][]byte{verificationID(1), verificationID(1)}},
 		{name: "too many", hashes: tooMany},
 	}
 	for _, testCase := range testCases {
@@ -128,12 +131,12 @@ func TestClientRejectsMalformedRequest(t *testing.T) {
 }
 
 func TestValidateResponseRejectsMalformedResults(t *testing.T) {
-	hash := proofHash(1)
-	other := proofHash(2)
-	_, requested, err := buildRequest([][]byte{hash})
+	id := verificationID(1)
+	other := verificationID(2)
+	_, requested, err := buildRequest([][]byte{id})
 	require.NoError(t, err)
 	valid := &sidecarv1.VerificationResult{
-		ProofHash: bytes.Clone(hash), Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID,
+		VerificationId: bytes.Clone(id), Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID,
 	}
 	testCases := []struct {
 		name     string
@@ -141,15 +144,15 @@ func TestValidateResponseRejectsMalformedResults(t *testing.T) {
 	}{
 		{name: "nil response"},
 		{name: "nil result", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{nil}}},
-		{name: "short hash", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{ProofHash: []byte{1}, Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID}}}},
-		{name: "unrequested", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{ProofHash: other, Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID}}}},
+		{name: "short ID", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{VerificationId: []byte{1}, Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID}}}},
+		{name: "unrequested", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{VerificationId: other, Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID}}}},
 		{name: "duplicate", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{valid, valid}}},
-		{name: "unspecified", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{ProofHash: hash}}}},
-		{name: "unknown verdict", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{ProofHash: hash, Verdict: sidecarv1.VerificationVerdict(99)}}}},
+		{name: "unspecified", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{VerificationId: id}}}},
+		{name: "unknown verdict", response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{VerificationId: id, Verdict: sidecarv1.VerificationVerdict(99)}}}},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			_, err := validateResponse([][]byte{hash}, requested, testCase.response)
+			_, err := validateResponse([][]byte{id}, requested, testCase.response)
 			require.ErrorIs(t, err, ErrInvalidResponse)
 		})
 	}
@@ -167,11 +170,11 @@ func TestClientDeadlineAndClose(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
-	_, err = client.GetVerificationResults(ctx, [][]byte{proofHash(1)})
+	_, err = client.GetVerificationResults(ctx, [][]byte{verificationID(1)})
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.NoError(t, client.Close())
 	require.NoError(t, client.Close())
-	_, err = client.GetVerificationResults(context.Background(), [][]byte{proofHash(1)})
+	_, err = client.GetVerificationResults(context.Background(), [][]byte{verificationID(1)})
 	require.ErrorIs(t, err, ErrClientClosed)
 }
 
@@ -188,39 +191,39 @@ func TestClientCancellation(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err = client.GetVerificationResults(ctx, [][]byte{proofHash(1)})
+	_, err = client.GetVerificationResults(ctx, [][]byte{verificationID(1)})
 	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestClientAcceptsMaximumBatch(t *testing.T) {
-	hashes := make([][]byte, maxProofHashes)
-	for i := range hashes {
-		hash := make([]byte, verificationtypes.ProofHashSize)
-		hash[0] = byte(i >> 8)
-		hash[1] = byte(i)
-		hashes[i] = hash
+	ids := make([][]byte, maxVerificationIDs)
+	for i := range ids {
+		id := make([]byte, verificationtypes.VerificationIDSize)
+		id[0] = byte(i >> 8)
+		id[1] = byte(i)
+		ids[i] = id
 	}
 	service := &testVerificationServer{response: &sidecarv1.GetVerificationResultsResponse{}}
 	client, err := NewClient(startVerificationServer(t, service), TransportModeLoopback)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
-	results, err := client.GetVerificationResults(context.Background(), hashes)
+	results, err := client.GetVerificationResults(context.Background(), ids)
 	require.NoError(t, err)
 	require.Empty(t, results)
 	service.mu.Lock()
-	require.Len(t, service.requests[0].ProofHashes, maxProofHashes)
+	require.Len(t, service.requests[0].VerificationIds, maxVerificationIDs)
 	service.mu.Unlock()
 }
 
 func TestClientRejectsOversizedResponse(t *testing.T) {
 	service := &testVerificationServer{response: &sidecarv1.GetVerificationResultsResponse{Results: []*sidecarv1.VerificationResult{{
-		ProofHash: bytes.Repeat([]byte{1}, maxRPCMessageSize+1),
-		Verdict:   sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID,
+		VerificationId: bytes.Repeat([]byte{1}, maxRPCMessageSize+1),
+		Verdict:        sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID,
 	}}}}
 	client, err := NewClient(startVerificationServer(t, service), TransportModeLoopback)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
-	_, err = client.GetVerificationResults(context.Background(), [][]byte{proofHash(1)})
+	_, err = client.GetVerificationResults(context.Background(), [][]byte{verificationID(1)})
 	require.Equal(t, codes.ResourceExhausted, status.Code(err))
 }
 
@@ -230,7 +233,7 @@ func TestClientReportsUnavailableEndpoint(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	_, err = client.GetVerificationResults(ctx, [][]byte{proofHash(1)})
+	_, err = client.GetVerificationResults(ctx, [][]byte{verificationID(1)})
 	require.Error(t, err)
 	require.NotErrorIs(t, err, ErrInvalidResponse)
 }
@@ -242,24 +245,24 @@ func TestClientConstructionIsLazy(t *testing.T) {
 }
 
 func BenchmarkValidateResponse512(b *testing.B) {
-	hashes := make([][]byte, maxProofHashes)
-	results := make([]*sidecarv1.VerificationResult, maxProofHashes)
-	for i := range hashes {
-		hash := make([]byte, verificationtypes.ProofHashSize)
-		hash[0] = byte(i >> 8)
-		hash[1] = byte(i)
-		hashes[i] = hash
+	ids := make([][]byte, maxVerificationIDs)
+	results := make([]*sidecarv1.VerificationResult, maxVerificationIDs)
+	for i := range ids {
+		id := make([]byte, verificationtypes.VerificationIDSize)
+		id[0] = byte(i >> 8)
+		id[1] = byte(i)
+		ids[i] = id
 		results[i] = &sidecarv1.VerificationResult{
-			ProofHash: hash, Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID,
+			VerificationId: id, Verdict: sidecarv1.VerificationVerdict_VERIFICATION_VERDICT_VALID,
 		}
 	}
-	_, requested, err := buildRequest(hashes)
+	_, requested, err := buildRequest(ids)
 	require.NoError(b, err)
 	response := &sidecarv1.GetVerificationResultsResponse{Results: results}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		if _, err := validateResponse(hashes, requested, response); err != nil {
+		if _, err := validateResponse(ids, requested, response); err != nil {
 			b.Fatal(err)
 		}
 	}

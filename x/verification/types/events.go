@@ -10,6 +10,9 @@ const (
 	EventTypeProofFinalized       = "verification.proof_finalized"
 
 	AttributeKeyProofHash            = "proof_hash"
+	AttributeKeyPublicInputsHash     = "public_inputs_hash"
+	AttributeKeyVerificationKeyHash  = "verification_key_hash"
+	AttributeKeyVerificationID       = "verification_id"
 	AttributeKeySubmissionHeight     = "submission_height"
 	AttributeKeyIndexInBlock         = "index_in_block"
 	AttributeKeyProofType            = "proof_type"

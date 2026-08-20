@@ -11,10 +11,9 @@ import (
 
 func TestBuilderReadsProofsAndCommitmentDefensively(t *testing.T) {
 	f := initFixture(t, 1)
-	proofHash := bytes.Repeat([]byte{0x31}, types.ProofHashSize)
-	_, err := f.msgServer.SubmitProof(f.atHeight(5), &types.MsgSubmitProof{
-		Signer: f.validators[0].signer, ProofHash: proofHash, ProofType: 7,
-	})
+	msg := proofSubmission(f, 0x31)
+	proofHash := msg.ProofHash
+	_, err := f.msgServer.SubmitProof(f.atHeight(5), msg)
 	require.NoError(t, err)
 
 	proofs, err := f.keeper.GetProofsAtHeight(f.ctx, 5)
@@ -22,10 +21,15 @@ func TestBuilderReadsProofsAndCommitmentDefensively(t *testing.T) {
 	require.Len(t, proofs, 1)
 	require.Equal(t, proofHash, proofs[0].Record.ProofHash)
 	proofs[0].Record.ProofHash[0] ^= 0xff
+	proofs[0].Record.PublicInputsHash[0] ^= 0xff
+	proofs[0].Record.VerificationKeyHash[0] ^= 0xff
+	proofs[0].Record.VerificationId[0] ^= 0xff
 
 	stored, err := f.keeper.PendingProofs.Get(f.ctx, types.NewProofStoreKey(5, 0))
 	require.NoError(t, err)
 	require.Equal(t, proofHash, stored.ProofHash)
+	require.Equal(t, msg.PublicInputsHash, stored.PublicInputsHash)
+	require.Equal(t, msg.VerificationKeyHash, stored.VerificationKeyHash)
 
 	validator := f.validators[0].operator
 	root := bytes.Repeat([]byte{0x42}, types.CommitmentHashSize)
@@ -51,4 +55,17 @@ func TestBuilderReadsMissingHeightAndCommitment(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, found)
 	require.Nil(t, root)
+}
+
+func TestBuilderReadsRejectMismatchedVerificationID(t *testing.T) {
+	f := initFixture(t, 1)
+	submitProof(t, f, 5, 1)
+	key := types.NewProofStoreKey(5, 0)
+	record, err := f.keeper.PendingProofs.Get(f.ctx, key)
+	require.NoError(t, err)
+	record.VerificationId[0] ^= 0xff
+	require.NoError(t, f.keeper.PendingProofs.Set(f.ctx, key, record))
+
+	_, err = f.keeper.GetProofsAtHeight(f.ctx, 5)
+	require.ErrorIs(t, err, types.ErrProofStateCorrupted)
 }

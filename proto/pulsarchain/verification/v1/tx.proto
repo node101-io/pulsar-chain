@@ -6,6 +6,7 @@ import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 import "pulsarchain/verification/v1/params.proto";
+import "pulsarchain/verification/v1/types.proto";
 
 option go_package = "github.com/node101-io/pulsar-chain/x/verification/types";
 
@@ -15,20 +16,23 @@ option go_package = "github.com/node101-io/pulsar-chain/x/verification/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // SubmitProof registers a globally unique proof hash.
+  // SubmitProof registers one content-addressed verification request.
   rpc SubmitProof(MsgSubmitProof) returns (MsgSubmitProofResponse);
   // UpdateParams updates governance-controlled parameters.
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
 
-// MsgSubmitProof registers proof metadata for later verification.
+// MsgSubmitProof registers the component hashes and verifier family from which
+// the chain derives the canonical verification ID.
 message MsgSubmitProof {
   option (cosmos.msg.v1.signer) = "signer";
   option (amino.name) = "pulsarchain/x/verification/MsgSubmitProof";
 
   string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   bytes proof_hash = 2;
-  uint32 proof_type = 3;
+  ProofType proof_type = 3;
+  bytes public_inputs_hash = 4;
+  bytes verification_key_hash = 5;
 }
 
 // MsgSubmitProofResponse returns the deterministic proof key.

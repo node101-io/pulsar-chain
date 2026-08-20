@@ -27,8 +27,8 @@ func (k Keeper) InitGenesis(ctx context.Context, state types.GenesisState) error
 			return err
 		}
 	}
-	for _, entry := range state.SeenProofHashes {
-		if err := k.SeenProofHashes.Set(ctx, append([]byte(nil), entry.ProofHash...), entry.ProofKey); err != nil {
+	for _, entry := range state.SeenVerificationIds {
+		if err := k.SeenVerificationIDs.Set(ctx, append([]byte(nil), entry.VerificationId...), entry.ProofKey); err != nil {
 			return err
 		}
 	}
@@ -91,8 +91,8 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	}); err != nil {
 		return nil, err
 	}
-	if err := k.SeenProofHashes.Walk(ctx, nil, func(hash []byte, key types.ProofKey) (bool, error) {
-		state.SeenProofHashes = append(state.SeenProofHashes, types.GenesisSeenProofHash{ProofHash: append([]byte(nil), hash...), ProofKey: key})
+	if err := k.SeenVerificationIDs.Walk(ctx, nil, func(id []byte, key types.ProofKey) (bool, error) {
+		state.SeenVerificationIds = append(state.SeenVerificationIds, types.GenesisSeenVerificationId{VerificationId: append([]byte(nil), id...), ProofKey: key})
 		return false, nil
 	}); err != nil {
 		return nil, err

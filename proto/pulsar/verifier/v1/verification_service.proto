@@ -7,10 +7,10 @@ option go_package = "github.com/node101-io/pulsar-chain/x/verification/sidecar/a
 // VerificationService exposes terminal verification results to the validator
 // and local lifecycle diagnostics to operators.
 service VerificationService {
-  // GetVerificationResults returns the completed subset of requested proofs.
+  // GetVerificationResults returns the completed subset of requested jobs.
   rpc GetVerificationResults(GetVerificationResultsRequest) returns (GetVerificationResultsResponse);
 
-  // GetProofStatuses returns local sidecar state for every requested proof.
+  // GetProofStatuses returns local sidecar state for every requested job.
   rpc GetProofStatuses(GetProofStatusesRequest) returns (GetProofStatusesResponse);
 }
 
@@ -40,22 +40,22 @@ enum VerificationPhase {
   VERIFICATION_PHASE_FAILED = 5;
 }
 
-// GetVerificationResultsRequest selects proof hashes for the consensus hot path.
+// GetVerificationResultsRequest selects verification requests for the consensus hot path.
 message GetVerificationResultsRequest {
-  // proof_hashes contains at most 512 unique 32-byte hashes.
-  repeated bytes proof_hashes = 1;
+  // verification_ids contains at most 512 unique 32-byte request IDs.
+  repeated bytes verification_ids = 1;
 }
 
-// VerificationResult is one completed proof verdict.
+// VerificationResult is one completed verification-request verdict.
 message VerificationResult {
-  // proof_hash is one hash from the corresponding request.
-  bytes proof_hash = 1;
+  // verification_id is one ID from the corresponding request.
+  bytes verification_id = 1;
   // verdict is VALID or INVALID; UNSPECIFIED is not a result.
   VerificationVerdict verdict = 2;
 }
 
 // GetVerificationResultsResponse contains the unordered completed subset of
-// requested proofs. Missing hashes do not yet have a terminal verdict.
+// requested IDs. Missing IDs do not yet have a terminal verdict.
 message GetVerificationResultsResponse {
   repeated VerificationResult results = 1;
 }
@@ -71,9 +71,9 @@ message VerificationFailure {
   bool retryable = 3;
 }
 
-// ProofVerificationStatus describes local sidecar state for one proof.
+// ProofVerificationStatus describes local sidecar state for one request.
 message ProofVerificationStatus {
-  bytes proof_hash = 1;
+  bytes verification_id = 1;
   // phase is sidecar-local and must not be treated as consensus state.
   VerificationPhase phase = 2;
   // verdict is set only when phase is COMPLETED.
@@ -82,14 +82,14 @@ message ProofVerificationStatus {
   VerificationFailure failure = 4;
 }
 
-// GetProofStatusesRequest selects proof hashes for local diagnostics.
+// GetProofStatusesRequest selects verification requests for local diagnostics.
 message GetProofStatusesRequest {
-  // proof_hashes contains at most 512 unique 32-byte hashes.
-  repeated bytes proof_hashes = 1;
+  // verification_ids contains at most 512 unique 32-byte request IDs.
+  repeated bytes verification_ids = 1;
 }
 
 // GetProofStatusesResponse contains one unordered local status per requested
-// proof. Unknown hashes are represented with the UNAVAILABLE phase.
+// ID. Unknown IDs are represented with the UNAVAILABLE phase.
 message GetProofStatusesResponse {
   repeated ProofVerificationStatus statuses = 1;
 }

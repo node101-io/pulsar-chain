@@ -31,9 +31,9 @@ type Keeper struct {
 	Params             collections.Item[types.Params]
 	ProofCountByHeight collections.Map[uint64, uint32]
 	PendingProofs      collections.Map[types.ProofStoreKey, types.ProofRecord]
-	// SeenProofHashes is permanent so a finalized and pruned hash cannot be
-	// registered again.
-	SeenProofHashes collections.Map[[]byte, types.ProofKey]
+	// SeenVerificationIDs is permanent so the same complete verification request
+	// cannot be registered again after its lifecycle state has been pruned.
+	SeenVerificationIDs collections.Map[[]byte, types.ProofKey]
 	// ValidatorPowers and TotalVotingPowerByHeight materialize the immutable
 	// HistoricalInfo for proof heights. Later staking changes therefore cannot
 	// change either voter eligibility or the finalization denominator.
@@ -88,7 +88,7 @@ func NewKeeper(
 		Params:                   collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](c)),
 		ProofCountByHeight:       collections.NewMap(sb, types.ProofCountPrefix, "proof_count_by_height", collections.Uint64Key, collections.Uint32Value),
 		PendingProofs:            collections.NewMap(sb, types.PendingProofPrefix, "pending_proofs", proofKeyCodec, codec.CollValue[types.ProofRecord](c)),
-		SeenProofHashes:          collections.NewMap(sb, types.SeenProofHashPrefix, "seen_proof_hashes", collections.BytesKey, codec.CollValue[types.ProofKey](c)),
+		SeenVerificationIDs:      collections.NewMap(sb, types.SeenVerificationIDPrefix, "seen_verification_ids", collections.BytesKey, codec.CollValue[types.ProofKey](c)),
 		ValidatorPowers:          collections.NewMap(sb, types.ValidatorPowerPrefix, "validator_powers", validatorPowerKeyCodec, collections.Int64Value),
 		TotalVotingPowerByHeight: collections.NewMap(sb, types.TotalVotingPowerPrefix, "total_voting_power_by_height", collections.Uint64Key, collections.Int64Value),
 		Commitments:              collections.NewMap(sb, types.CommitmentPrefix, "commitments", commitmentKeyCodec, collections.BytesValue),

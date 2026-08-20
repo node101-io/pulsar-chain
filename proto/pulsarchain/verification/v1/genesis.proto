@@ -16,7 +16,7 @@ message GenesisState {
   ];
   repeated GenesisProofCount proof_counts = 2 [(gogoproto.nullable) = false];
   repeated GenesisPendingProof pending_proofs = 3 [(gogoproto.nullable) = false];
-  repeated GenesisSeenProofHash seen_proof_hashes = 4 [(gogoproto.nullable) = false];
+  repeated GenesisSeenVerificationId seen_verification_ids = 4 [(gogoproto.nullable) = false];
   repeated GenesisValidatorPower validator_powers = 5 [(gogoproto.nullable) = false];
   repeated GenesisTotalVotingPower total_voting_powers = 6 [(gogoproto.nullable) = false];
   repeated GenesisCommitment commitments = 7 [(gogoproto.nullable) = false];
@@ -37,9 +37,9 @@ message GenesisPendingProof {
   ProofRecord proof = 2 [(gogoproto.nullable) = false];
 }
 
-// GenesisSeenProofHash stores one permanent hash-to-proof mapping.
-message GenesisSeenProofHash {
-  bytes proof_hash = 1;
+// GenesisSeenVerificationId stores one permanent request-ID-to-proof mapping.
+message GenesisSeenVerificationId {
+  bytes verification_id = 1;
   ProofKey proof_key = 2 [(gogoproto.nullable) = false];
 }
 

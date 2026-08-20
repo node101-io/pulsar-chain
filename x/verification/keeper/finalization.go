@@ -108,7 +108,7 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 		if err != nil {
 			return errorsmod.Wrap(types.ErrProofStateCorrupted, "missing pending proof")
 		}
-		if len(proof.ProofHash) != types.ProofHashSize {
+		if err := types.ValidateProofRecord(proof); err != nil {
 			return types.ErrProofStateCorrupted
 		}
 		tally, err := k.ProofTallies.Get(ctx, key)
@@ -137,6 +137,9 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 			VotingPowerThreshold: threshold,
 			SubmissionHeight:     proofHeight,
 			FinalizedHeight:      finalizedHeight,
+			PublicInputsHash:     append([]byte(nil), proof.PublicInputsHash...),
+			VerificationKeyHash:  append([]byte(nil), proof.VerificationKeyHash...),
+			VerificationId:       append([]byte(nil), proof.VerificationId...),
 		}
 		if err := k.FinalProofResults.Set(ctx, key, result); err != nil {
 			return err
@@ -144,7 +147,11 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 		telemetry.IncrCounter(1, types.ModuleName, "finalization", status.String())
 		sdkCtx.EventManager().EmitEvent(sdk.NewEvent(
 			types.EventTypeProofFinalized,
+			sdk.NewAttribute(types.AttributeKeyVerificationID, hex.EncodeToString(proof.VerificationId)),
 			sdk.NewAttribute(types.AttributeKeyProofHash, hex.EncodeToString(proof.ProofHash)),
+			sdk.NewAttribute(types.AttributeKeyPublicInputsHash, hex.EncodeToString(proof.PublicInputsHash)),
+			sdk.NewAttribute(types.AttributeKeyVerificationKeyHash, hex.EncodeToString(proof.VerificationKeyHash)),
+			sdk.NewAttribute(types.AttributeKeyProofType, strconv.FormatUint(uint64(proof.ProofType), 10)),
 			sdk.NewAttribute(types.AttributeKeySubmissionHeight, strconv.FormatUint(proofHeight, 10)),
 			sdk.NewAttribute(types.AttributeKeyIndexInBlock, strconv.FormatUint(uint64(index), 10)),
 			sdk.NewAttribute(types.AttributeKeyStatus, status.String()),
@@ -160,8 +167,8 @@ func (k Keeper) FinalizeHeight(ctx context.Context, proofHeight, finalizedHeight
 
 // PruneProofHeight removes active proofs, votes, tallies, counts, and validator
 // powers after finalization. Final results remain queryable, while permanent
-// hash-to-key mappings keep replay protection even after bulky lifecycle state
-// is gone.
+// verification-ID-to-key mappings keep replay protection even after bulky
+// lifecycle state is gone.
 func (k Keeper) PruneProofHeight(ctx context.Context, height uint64) error {
 	exists, err := k.ProofCountByHeight.Has(ctx, height)
 	if err != nil || !exists {

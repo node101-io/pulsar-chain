@@ -131,13 +131,34 @@ func (f *fixture) atHeight(height int64) sdk.Context {
 
 func submitProof(t testing.TB, f *fixture, height int64, hashByte byte) *types.MsgSubmitProofResponse {
 	t.Helper()
-	hash := make([]byte, types.ProofHashSize)
-	hash[len(hash)-1] = hashByte
-	response, err := f.msgServer.SubmitProof(f.atHeight(height), &types.MsgSubmitProof{
-		Signer: f.validators[0].signer, ProofHash: hash, ProofType: 7,
-	})
+	msg := proofSubmission(f, hashByte)
+	response, err := f.msgServer.SubmitProof(f.atHeight(height), msg)
 	require.NoError(t, err)
 	return response
+}
+
+func proofSubmission(f *fixture, hashByte byte) *types.MsgSubmitProof {
+	hash := make([]byte, types.ProofHashSize)
+	hash[len(hash)-1] = hashByte
+	publicInputsHash := bytesOf(types.PublicInputsHashSize, hashByte+1)
+	verificationKeyHash := bytesOf(types.VerificationKeyHashSize, hashByte+2)
+	signer := ""
+	if len(f.validators) > 0 {
+		signer = f.validators[0].signer
+	}
+	return &types.MsgSubmitProof{
+		Signer:              signer,
+		ProofHash:           hash,
+		ProofType:           types.ProofType_PROOF_TYPE_MINA_PICKLES,
+		PublicInputsHash:    publicInputsHash,
+		VerificationKeyHash: verificationKeyHash,
+	}
+}
+
+func bytesOf(size int, value byte) []byte {
+	out := make([]byte, size)
+	out[len(out)-1] = value
+	return out
 }
 
 func valueLeaf(t testing.TB, saltByte byte, votes []types.ProofVote) types.LeafRevelation {

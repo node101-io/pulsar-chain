@@ -123,7 +123,7 @@ func (AppModule) ConsensusVersion() uint64 { return 1 }
 
 // EndBlock finalizes proof heights whose H+5 reveal window has closed and prunes
 // transient snapshots, commitments, and votes. Final results and the permanent
-// hash registry remain queryable after the active lifecycle state is removed.
+// verification-ID registry remain queryable after active lifecycle state is removed.
 func (am AppModule) EndBlock(ctx context.Context) error {
 	return am.keeper.EndBlock(ctx)
 }

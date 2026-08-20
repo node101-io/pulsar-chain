@@ -7,7 +7,7 @@ var (
 	// values unchanged when adding new errors.
 	ErrInvalidSigner                 = errorsmod.Register(ModuleName, 1100, "invalid signer")
 	ErrInvalidProofHash              = errorsmod.Register(ModuleName, 1101, "invalid proof hash")
-	ErrDuplicateProof                = errorsmod.Register(ModuleName, 1102, "proof hash already submitted")
+	ErrDuplicateVerificationRequest  = errorsmod.Register(ModuleName, 1102, "verification request already submitted")
 	ErrMaxProofsPerBlock             = errorsmod.Register(ModuleName, 1103, "maximum proofs per block reached")
 	ErrProofNotFound                 = errorsmod.Register(ModuleName, 1104, "proof not found")
 	ErrProofHeightNotFound           = errorsmod.Register(ModuleName, 1105, "proof height not found")
@@ -30,4 +30,8 @@ var (
 	ErrDuplicateVoteIndex            = errorsmod.Register(ModuleName, 1122, "duplicate vote index")
 	ErrNonCanonicalVoteOrdering      = errorsmod.Register(ModuleName, 1123, "non-canonical vote ordering")
 	ErrProofStateCorrupted           = errorsmod.Register(ModuleName, 1124, "proof state is corrupted")
+	ErrInvalidProofType              = errorsmod.Register(ModuleName, 1125, "invalid proof type")
+	ErrInvalidPublicInputsHash       = errorsmod.Register(ModuleName, 1126, "invalid public inputs hash")
+	ErrInvalidVerificationKeyHash    = errorsmod.Register(ModuleName, 1127, "invalid verification key hash")
+	ErrInvalidVerificationID         = errorsmod.Register(ModuleName, 1128, "invalid verification ID")
 )

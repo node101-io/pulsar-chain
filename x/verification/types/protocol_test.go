@@ -81,6 +81,12 @@ func TestGenesisValidateDerivesTalliesFromEffectiveVotes(t *testing.T) {
 	require.ErrorContains(t, state.Validate(), "proof tally does not match effective votes")
 }
 
+func TestGenesisValidateRejectsMismatchedVerificationID(t *testing.T) {
+	state := validWeightedGenesisState()
+	state.PendingProofs[0].Proof.VerificationId[0] ^= 0xff
+	require.ErrorContains(t, state.Validate(), "invalid pending proof")
+}
+
 func TestGenesisValidateRejectsBrokenPowerRelationships(t *testing.T) {
 	t.Run("power sum mismatch", func(t *testing.T) {
 		state := validWeightedGenesisState()
@@ -107,16 +113,18 @@ func TestGenesisValidateRejectsBrokenPowerRelationships(t *testing.T) {
 }
 
 func TestGenesisValidateRecomputesFinalPowerResult(t *testing.T) {
-	hash := bytes.Repeat([]byte{3}, types.ProofHashSize)
+	record := validProofRecord(t, 3)
 	state := types.GenesisState{
 		Params: types.DefaultParams(),
-		SeenProofHashes: []types.GenesisSeenProofHash{{
-			ProofHash: hash, ProofKey: types.ProofKey{SubmissionHeight: 500},
+		SeenVerificationIds: []types.GenesisSeenVerificationId{{
+			VerificationId: record.VerificationId, ProofKey: types.ProofKey{SubmissionHeight: 500},
 		}},
 		FinalProofResults: []types.GenesisFinalProofResult{{
 			ProofKey: types.ProofKey{SubmissionHeight: 500},
 			Result: types.FinalProofResult{
-				ProofHash: hash, Status: types.ProofStatus_PROOF_STATUS_VALID,
+				ProofHash: record.ProofHash, ProofType: record.ProofType,
+				PublicInputsHash: record.PublicInputsHash, VerificationKeyHash: record.VerificationKeyHash,
+				VerificationId: record.VerificationId, Status: types.ProofStatus_PROOF_STATUS_VALID,
 				ValidVotingPower: 67, TotalVotingPower: 100, VotingPowerThreshold: 67,
 				SubmissionHeight: 500, FinalizedHeight: 505,
 			},
@@ -132,17 +140,17 @@ func TestGenesisValidateRecomputesFinalPowerResult(t *testing.T) {
 }
 
 func validWeightedGenesisState() types.GenesisState {
-	hash := bytes.Repeat([]byte{1}, types.ProofHashSize)
+	record := validProofRecord(nil, 1)
 	validator := []byte{2}
 	return types.GenesisState{
 		Params:      types.DefaultParams(),
 		ProofCounts: []types.GenesisProofCount{{Height: 500, Count: 1}},
 		PendingProofs: []types.GenesisPendingProof{{
 			ProofKey: types.ProofKey{SubmissionHeight: 500},
-			Proof:    types.ProofRecord{ProofHash: hash},
+			Proof:    record,
 		}},
-		SeenProofHashes: []types.GenesisSeenProofHash{{
-			ProofHash: hash, ProofKey: types.ProofKey{SubmissionHeight: 500},
+		SeenVerificationIds: []types.GenesisSeenVerificationId{{
+			VerificationId: record.VerificationId, ProofKey: types.ProofKey{SubmissionHeight: 500},
 		}},
 		ValidatorPowers: []types.GenesisValidatorPower{{Height: 500, Validator: validator, VotingPower: 60}},
 		TotalVotingPowers: []types.GenesisTotalVotingPower{{
@@ -156,6 +164,30 @@ func validWeightedGenesisState() types.GenesisState {
 			ProofKey: types.ProofKey{SubmissionHeight: 500},
 			Tally:    types.ProofTally{ValidVotingPower: 60},
 		}},
+	}
+}
+
+func validProofRecord(t testing.TB, seed byte) types.ProofRecord {
+	proofHash := bytes.Repeat([]byte{seed}, types.ProofHashSize)
+	publicInputsHash := bytes.Repeat([]byte{seed + 1}, types.PublicInputsHashSize)
+	verificationKeyHash := bytes.Repeat([]byte{seed + 2}, types.VerificationKeyHashSize)
+	id, err := types.ComputeVerificationID(
+		types.ProofType_PROOF_TYPE_MINA_PICKLES,
+		proofHash,
+		publicInputsHash,
+		verificationKeyHash,
+	)
+	if t != nil {
+		require.NoError(t, err)
+	} else if err != nil {
+		panic(err)
+	}
+	return types.ProofRecord{
+		ProofHash:           proofHash,
+		ProofType:           types.ProofType_PROOF_TYPE_MINA_PICKLES,
+		PublicInputsHash:    publicInputsHash,
+		VerificationKeyHash: verificationKeyHash,
+		VerificationId:      id[:],
 	}
 }
 
@@ -174,16 +206,11 @@ func TestOneofJSONRoundTrip(t *testing.T) {
 	responses := []*types.QueryProofResponse{
 		{
 			ProofKey: types.ProofKey{SubmissionHeight: 40},
-			State: &types.QueryProofResponse_Pending{Pending: &types.ProofRecord{
-				ProofHash: bytes.Repeat([]byte{1}, types.ProofHashSize),
-			}},
+			State:    &types.QueryProofResponse_Pending{Pending: ptrProofRecord(validProofRecord(t, 1))},
 		},
 		{
 			ProofKey: types.ProofKey{SubmissionHeight: 40},
-			State: &types.QueryProofResponse_FinalResult{FinalResult: &types.FinalProofResult{
-				ProofHash: bytes.Repeat([]byte{1}, types.ProofHashSize),
-				Status:    types.ProofStatus_PROOF_STATUS_INCONCLUSIVE,
-			}},
+			State:    &types.QueryProofResponse_FinalResult{FinalResult: finalFromRecord(validProofRecord(t, 1))},
 		},
 	}
 	for _, response := range responses {
@@ -206,6 +233,16 @@ func TestOneofJSONRoundTrip(t *testing.T) {
 	var decoded types.LeafRevelation
 	require.NoError(t, c.UnmarshalJSON(encoded, &decoded))
 	require.Equal(t, leaf, &decoded)
+}
+
+func ptrProofRecord(record types.ProofRecord) *types.ProofRecord { return &record }
+
+func finalFromRecord(record types.ProofRecord) *types.FinalProofResult {
+	return &types.FinalProofResult{
+		ProofHash: record.ProofHash, ProofType: record.ProofType,
+		PublicInputsHash: record.PublicInputsHash, VerificationKeyHash: record.VerificationKeyHash,
+		VerificationId: record.VerificationId, Status: types.ProofStatus_PROOF_STATUS_INCONCLUSIVE,
+	}
 }
 
 func FuzzCanonicalVoteEncoding(f *testing.F) {

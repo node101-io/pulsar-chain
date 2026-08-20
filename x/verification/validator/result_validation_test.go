@@ -15,7 +15,7 @@ func TestBuildResultRequestValidatesConsensusProofs(t *testing.T) {
 	right := proofEntry(8, 1, 2)
 	request, index, err := buildResultRequest(7, 8, []verificationtypes.ProofEntry{left}, []verificationtypes.ProofEntry{right}, nil)
 	require.NoError(t, err)
-	require.Equal(t, [][]byte{left.Record.ProofHash, right.Record.ProofHash}, request)
+	require.Equal(t, [][]byte{left.Record.VerificationId, right.Record.VerificationId}, request)
 	require.Len(t, index, 2)
 
 	for _, testCase := range []struct {
@@ -25,8 +25,8 @@ func TestBuildResultRequestValidatesConsensusProofs(t *testing.T) {
 	}{
 		{name: "wrong height", left: []verificationtypes.ProofEntry{proofEntry(6, 0, 1)}},
 		{name: "invalid index", left: []verificationtypes.ProofEntry{proofEntry(7, 256, 1)}},
-		{name: "invalid hash", left: []verificationtypes.ProofEntry{{Key: left.Key, Record: verificationtypes.ProofRecord{ProofHash: []byte{1}}}}},
-		{name: "duplicate hash", left: []verificationtypes.ProofEntry{left}, right: []verificationtypes.ProofEntry{{Key: right.Key, Record: left.Record}}},
+		{name: "invalid descriptor", left: []verificationtypes.ProofEntry{{Key: left.Key, Record: verificationtypes.ProofRecord{ProofHash: []byte{1}}}}},
+		{name: "duplicate ID", left: []verificationtypes.ProofEntry{left}, right: []verificationtypes.ProofEntry{{Key: right.Key, Record: left.Record}}},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			_, _, err := buildResultRequest(7, 8, testCase.left, testCase.right, nil)
@@ -41,8 +41,8 @@ func TestBuildResultRequestValidatesConsensusProofs(t *testing.T) {
 
 func TestValidateResultsRejectsMalformedWholeResponse(t *testing.T) {
 	proof := proofEntry(7, 0, 1)
-	requested := map[string]requestedProof{string(proof.Record.ProofHash): {height: 7, index: 0}}
-	valid := sidecar.VerificationResult{ProofHash: proof.Record.ProofHash, Result: sidecar.ResultValid}
+	requested := map[string]requestedProof{string(proof.Record.VerificationId): {height: 7, index: 0}}
+	valid := sidecar.VerificationResult{VerificationID: proof.Record.VerificationId, Result: sidecar.ResultValid}
 
 	left, right, err := validateResults(requested, []sidecar.VerificationResult{valid}, 7)
 	require.NoError(t, err)
@@ -54,11 +54,11 @@ func TestValidateResultsRejectsMalformedWholeResponse(t *testing.T) {
 		results []sidecar.VerificationResult
 	}{
 		{name: "too many", results: []sidecar.VerificationResult{valid, valid}},
-		{name: "short hash", results: []sidecar.VerificationResult{{ProofHash: []byte{1}, Result: sidecar.ResultValid}}},
-		{name: "unknown hash", results: []sidecar.VerificationResult{{ProofHash: bytes.Repeat([]byte{9}, verificationtypes.ProofHashSize), Result: sidecar.ResultValid}}},
+		{name: "short ID", results: []sidecar.VerificationResult{{VerificationID: []byte{1}, Result: sidecar.ResultValid}}},
+		{name: "unknown ID", results: []sidecar.VerificationResult{{VerificationID: bytes.Repeat([]byte{9}, verificationtypes.VerificationIDSize), Result: sidecar.ResultValid}}},
 		{name: "duplicate", results: []sidecar.VerificationResult{valid, valid}},
-		{name: "unspecified", results: []sidecar.VerificationResult{{ProofHash: proof.Record.ProofHash, Result: sidecar.ResultUnspecified}}},
-		{name: "unknown enum", results: []sidecar.VerificationResult{{ProofHash: proof.Record.ProofHash, Result: sidecar.ResultValue(99)}}},
+		{name: "unspecified", results: []sidecar.VerificationResult{{VerificationID: proof.Record.VerificationId, Result: sidecar.ResultUnspecified}}},
+		{name: "unknown enum", results: []sidecar.VerificationResult{{VerificationID: proof.Record.VerificationId, Result: sidecar.ResultValue(99)}}},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			_, _, err := validateResults(requested, testCase.results, 7)
@@ -68,20 +68,18 @@ func TestValidateResultsRejectsMalformedWholeResponse(t *testing.T) {
 }
 
 func FuzzValidateResultsNeverPanics(f *testing.F) {
-	f.Add(bytes.Repeat([]byte{1}, verificationtypes.ProofHashSize), uint8(sidecar.ResultValid))
+	f.Add(bytes.Repeat([]byte{1}, verificationtypes.VerificationIDSize), uint8(sidecar.ResultValid))
 	f.Add([]byte{1}, uint8(255))
-	requestedHash := bytes.Repeat([]byte{1}, verificationtypes.ProofHashSize)
-	requested := map[string]requestedProof{string(requestedHash): {height: 7, index: 0}}
+	requestedID := bytes.Repeat([]byte{1}, verificationtypes.VerificationIDSize)
+	requested := map[string]requestedProof{string(requestedID): {height: 7, index: 0}}
 	f.Fuzz(func(t *testing.T, hash []byte, value uint8) {
-		_, _, _ = validateResults(requested, []sidecar.VerificationResult{{ProofHash: hash, Result: sidecar.ResultValue(value)}}, 7)
+		_, _, _ = validateResults(requested, []sidecar.VerificationResult{{VerificationID: hash, Result: sidecar.ResultValue(value)}}, 7)
 	})
 }
 
 func proofEntry(height uint64, index uint32, seed byte) verificationtypes.ProofEntry {
 	return verificationtypes.ProofEntry{
-		Key: verificationtypes.ProofKey{SubmissionHeight: height, IndexInBlock: index},
-		Record: verificationtypes.ProofRecord{
-			ProofHash: bytes.Repeat([]byte{seed}, verificationtypes.ProofHashSize), ProofType: 1,
-		},
+		Key:    verificationtypes.ProofKey{SubmissionHeight: height, IndexInBlock: index},
+		Record: testProofRecord(seed),
 	}
 }

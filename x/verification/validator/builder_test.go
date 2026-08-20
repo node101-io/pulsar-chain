@@ -37,7 +37,11 @@ func (r *readerStub) GetProofsAtHeight(_ context.Context, height uint64) ([]veri
 		out[i] = verificationtypes.ProofEntry{
 			Key: proof.Key,
 			Record: verificationtypes.ProofRecord{
-				ProofHash: bytes.Clone(proof.Record.ProofHash), ProofType: proof.Record.ProofType,
+				ProofHash:           bytes.Clone(proof.Record.ProofHash),
+				ProofType:           proof.Record.ProofType,
+				PublicInputsHash:    bytes.Clone(proof.Record.PublicInputsHash),
+				VerificationKeyHash: bytes.Clone(proof.Record.VerificationKeyHash),
+				VerificationId:      bytes.Clone(proof.Record.VerificationId),
 			},
 		}
 	}
@@ -56,13 +60,35 @@ func (r *readerStub) setProofs(height uint64, count int, seed byte) {
 	defer r.mu.Unlock()
 	proofs := make([]verificationtypes.ProofEntry, count)
 	for i := range proofs {
-		hash := bytes.Repeat([]byte{seed + byte(i)}, verificationtypes.ProofHashSize)
+		record := testProofRecord(seed + byte(i))
 		proofs[i] = verificationtypes.ProofEntry{
 			Key:    verificationtypes.ProofKey{SubmissionHeight: height, IndexInBlock: uint32(i)},
-			Record: verificationtypes.ProofRecord{ProofHash: hash, ProofType: 1},
+			Record: record,
 		}
 	}
 	r.proofs[height] = proofs
+}
+
+func testProofRecord(seed byte) verificationtypes.ProofRecord {
+	proofHash := bytes.Repeat([]byte{seed}, verificationtypes.ProofHashSize)
+	publicInputsHash := bytes.Repeat([]byte{seed + 1}, verificationtypes.PublicInputsHashSize)
+	verificationKeyHash := bytes.Repeat([]byte{seed + 2}, verificationtypes.VerificationKeyHashSize)
+	id, err := verificationtypes.ComputeVerificationID(
+		verificationtypes.ProofType_PROOF_TYPE_MINA_PICKLES,
+		proofHash,
+		publicInputsHash,
+		verificationKeyHash,
+	)
+	if err != nil {
+		panic(err)
+	}
+	return verificationtypes.ProofRecord{
+		ProofHash:           proofHash,
+		ProofType:           verificationtypes.ProofType_PROOF_TYPE_MINA_PICKLES,
+		PublicInputsHash:    publicInputsHash,
+		VerificationKeyHash: verificationKeyHash,
+		VerificationId:      id[:],
+	}
 }
 
 func (r *readerStub) setCommitment(operator []byte, height uint64, root []byte) {
@@ -106,8 +132,8 @@ func TestBuilderPersistsBeforeReturningAndReusesSameHeight(t *testing.T) {
 		providerCalls++
 		require.Len(t, hashes, 3)
 		return []sidecar.VerificationResult{
-			{ProofHash: bytes.Clone(hashes[2]), Result: sidecar.ResultInvalid},
-			{ProofHash: bytes.Clone(hashes[0]), Result: sidecar.ResultValid},
+			{VerificationID: bytes.Clone(hashes[2]), Result: sidecar.ResultInvalid},
+			{VerificationID: bytes.Clone(hashes[0]), Result: sidecar.ResultValid},
 		}, nil
 	})
 	store := NewMemoryStore()
@@ -137,7 +163,7 @@ func TestBuilderNeverReturnsUnsavedCommitment(t *testing.T) {
 	reader := newReaderStub()
 	reader.setProofs(8, 1, 0x40)
 	provider := sidecar.ProviderFunc(func(_ context.Context, hashes [][]byte) ([]sidecar.VerificationResult, error) {
-		return []sidecar.VerificationResult{{ProofHash: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
+		return []sidecar.VerificationResult{{VerificationID: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
 	})
 	store := NewMemoryStore()
 	store.SetSaveError(errors.New("disk unavailable"))
@@ -155,7 +181,7 @@ func TestBuilderRestartRevealsWithoutSidecar(t *testing.T) {
 	reader := newReaderStub()
 	reader.setProofs(7, 1, 0x30)
 	provider := sidecar.ProviderFunc(func(_ context.Context, hashes [][]byte) ([]sidecar.VerificationResult, error) {
-		return []sidecar.VerificationResult{{ProofHash: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
+		return []sidecar.VerificationResult{{VerificationID: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
 	})
 	statePath := filepath.Join(t.TempDir(), "private", "verification_commitment_state.json")
 	store, err := NewFileStore(statePath)
@@ -187,14 +213,14 @@ func TestBuilderHPlusTwoAndHPlusThreeUseDifferentSubsets(t *testing.T) {
 		call++
 		if call == 1 {
 			return []sidecar.VerificationResult{
-				{ProofHash: bytes.Clone(hashes[0]), Result: sidecar.ResultValid},
-				{ProofHash: bytes.Clone(hashes[2]), Result: sidecar.ResultInvalid},
+				{VerificationID: bytes.Clone(hashes[0]), Result: sidecar.ResultValid},
+				{VerificationID: bytes.Clone(hashes[2]), Result: sidecar.ResultInvalid},
 			}, nil
 		}
 		var results []sidecar.VerificationResult
 		for _, hash := range hashes {
-			if bytes.Equal(hash, reader.proofs[10][1].Record.ProofHash) {
-				results = append(results, sidecar.VerificationResult{ProofHash: bytes.Clone(hash), Result: sidecar.ResultValid})
+			if bytes.Equal(hash, reader.proofs[10][1].Record.VerificationId) {
+				results = append(results, sidecar.VerificationResult{VerificationID: bytes.Clone(hash), Result: sidecar.ResultValid})
 			}
 		}
 		return results, nil
@@ -221,7 +247,7 @@ func TestBuilderProviderFailureKeepsPersistedRevelation(t *testing.T) {
 	reader := newReaderStub()
 	reader.setProofs(7, 1, 0x30)
 	provider := sidecar.ProviderFunc(func(_ context.Context, hashes [][]byte) ([]sidecar.VerificationResult, error) {
-		return []sidecar.VerificationResult{{ProofHash: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
+		return []sidecar.VerificationResult{{VerificationID: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
 	})
 	store := NewMemoryStore()
 	builder := newTestBuilder(t, reader, provider, store)
@@ -245,7 +271,7 @@ func TestBuilderRejectsMalformedSidecarResponse(t *testing.T) {
 	reader := newReaderStub()
 	reader.setProofs(8, 1, 0x40)
 	provider := sidecar.ProviderFunc(func(context.Context, [][]byte) ([]sidecar.VerificationResult, error) {
-		return []sidecar.VerificationResult{{ProofHash: bytes.Repeat([]byte{9}, verificationtypes.ProofHashSize), Result: sidecar.ResultValid}}, nil
+		return []sidecar.VerificationResult{{VerificationID: bytes.Repeat([]byte{9}, verificationtypes.VerificationIDSize), Result: sidecar.ResultValid}}, nil
 	})
 	builder := newTestBuilder(t, reader, provider, NewMemoryStore())
 	outcome := builder.Build(context.Background(), testIdentity(), 10)
@@ -257,7 +283,7 @@ func TestBuilderPrunesExpiredLocalRecords(t *testing.T) {
 	reader := newReaderStub()
 	reader.setProofs(7, 1, 0x30)
 	provider := sidecar.ProviderFunc(func(_ context.Context, hashes [][]byte) ([]sidecar.VerificationResult, error) {
-		return []sidecar.VerificationResult{{ProofHash: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
+		return []sidecar.VerificationResult{{VerificationID: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
 	})
 	store := NewMemoryStore()
 	builder := newTestBuilder(t, reader, provider, store)
@@ -276,7 +302,7 @@ func TestBuilderPreviousUncommittedRecordDoesNotExcludeVotes(t *testing.T) {
 	reader := newReaderStub()
 	reader.setProofs(10, 1, 0x50)
 	provider := sidecar.ProviderFunc(func(_ context.Context, hashes [][]byte) ([]sidecar.VerificationResult, error) {
-		return []sidecar.VerificationResult{{ProofHash: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
+		return []sidecar.VerificationResult{{VerificationID: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
 	})
 	store := NewMemoryStore()
 	builder := newTestBuilder(t, reader, provider, store)
@@ -299,7 +325,7 @@ func TestBuilderDetectsStateBindingAndCommitmentDivergence(t *testing.T) {
 	reader := newReaderStub()
 	reader.setProofs(7, 1, 0x30)
 	provider := sidecar.ProviderFunc(func(_ context.Context, hashes [][]byte) ([]sidecar.VerificationResult, error) {
-		return []sidecar.VerificationResult{{ProofHash: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
+		return []sidecar.VerificationResult{{VerificationID: bytes.Clone(hashes[0]), Result: sidecar.ResultValid}}, nil
 	})
 	store := NewMemoryStore()
 	builder := newTestBuilder(t, reader, provider, store)

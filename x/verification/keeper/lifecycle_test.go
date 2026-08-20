@@ -22,7 +22,9 @@ func TestGenesisRoundTripPreservesActiveState(t *testing.T) {
 	require.Equal(t, types.NewParams(42), exported.Params)
 	require.NoError(t, exported.Validate())
 	require.Len(t, exported.PendingProofs, 1)
-	require.Len(t, exported.SeenProofHashes, 1)
+	require.Len(t, exported.SeenVerificationIds, 1)
+	require.NoError(t, types.ValidateProofRecord(exported.PendingProofs[0].Proof))
+	require.Equal(t, exported.PendingProofs[0].Proof.VerificationId, exported.SeenVerificationIds[0].VerificationId)
 	require.Len(t, exported.ValidatorPowers, 3)
 	require.Equal(t, int64(100), exported.TotalVotingPowers[0].TotalVotingPower)
 
@@ -34,7 +36,7 @@ func TestGenesisRoundTripPreservesActiveState(t *testing.T) {
 	pending, err := target.keeper.PendingProofs.Has(target.ctx, types.NewProofStoreKey(500, 0))
 	require.NoError(t, err)
 	require.True(t, pending)
-	seen, err := target.keeper.SeenProofHashes.Has(target.ctx, exported.SeenProofHashes[0].ProofHash)
+	seen, err := target.keeper.SeenVerificationIDs.Has(target.ctx, exported.SeenVerificationIds[0].VerificationId)
 	require.NoError(t, err)
 	require.True(t, seen)
 }
@@ -59,12 +61,17 @@ func TestGenesisRoundTripPreservesFinalizedState(t *testing.T) {
 	require.NoError(t, exported.Validate())
 	require.Empty(t, exported.PendingProofs)
 	require.Len(t, exported.FinalProofResults, 1)
-	require.Len(t, exported.SeenProofHashes, 1)
+	require.Len(t, exported.SeenVerificationIds, 1)
+	final := exported.FinalProofResults[0].Result
+	require.NotEmpty(t, final.ProofHash)
+	require.NotEmpty(t, final.PublicInputsHash)
+	require.NotEmpty(t, final.VerificationKeyHash)
+	require.Equal(t, exported.SeenVerificationIds[0].VerificationId, final.VerificationId)
 
 	target := initFixture(t, 1)
 	require.NoError(t, target.keeper.InitGenesis(target.ctx, *exported))
-	response, err := target.query.ProofByHash(target.ctx, &types.QueryProofByHashRequest{
-		ProofHash: exported.SeenProofHashes[0].ProofHash,
+	response, err := target.query.ProofByVerificationId(target.ctx, &types.QueryProofByVerificationIdRequest{
+		VerificationId: exported.SeenVerificationIds[0].VerificationId,
 	})
 	require.NoError(t, err)
 	require.Equal(t, types.ProofStatus_PROOF_STATUS_VALID, response.GetFinalResult().Status)
@@ -72,19 +79,21 @@ func TestGenesisRoundTripPreservesFinalizedState(t *testing.T) {
 
 func TestLifecycleEventsUseCanonicalAttributes(t *testing.T) {
 	fixture := initFixture(t, 3)
-	proofHash := make([]byte, types.ProofHashSize)
-	proofHash[len(proofHash)-1] = 1
+	msg := proofSubmission(fixture, 1)
+	verificationID, err := types.ComputeVerificationID(msg.ProofType, msg.ProofHash, msg.PublicInputsHash, msg.VerificationKeyHash)
+	require.NoError(t, err)
 	proofCtx := fixture.atHeight(500)
-	_, err := fixture.msgServer.SubmitProof(proofCtx, &types.MsgSubmitProof{
-		Signer: fixture.validators[0].signer, ProofHash: proofHash, ProofType: 7,
-	})
+	_, err = fixture.msgServer.SubmitProof(proofCtx, msg)
 	require.NoError(t, err)
 	require.NoError(t, fixture.keeper.EndBlock(fixture.atHeight(500)))
 	require.Equal(t, map[string]string{
-		types.AttributeKeyProofHash:        hex.EncodeToString(proofHash),
-		types.AttributeKeySubmissionHeight: "500",
-		types.AttributeKeyIndexInBlock:     "0",
-		types.AttributeKeyProofType:        "7",
+		types.AttributeKeyVerificationID:      hex.EncodeToString(verificationID[:]),
+		types.AttributeKeyProofHash:           hex.EncodeToString(msg.ProofHash),
+		types.AttributeKeyPublicInputsHash:    hex.EncodeToString(msg.PublicInputsHash),
+		types.AttributeKeyVerificationKeyHash: hex.EncodeToString(msg.VerificationKeyHash),
+		types.AttributeKeySubmissionHeight:    "500",
+		types.AttributeKeyIndexInBlock:        "0",
+		types.AttributeKeyProofType:           "1",
 	}, attributesForEvent(t, proofCtx, types.EventTypeProofSubmitted))
 
 	left := valueLeaf(t, 1, []types.ProofVote{{IndexInBlock: 0, Result: true}})
@@ -117,7 +126,11 @@ func TestLifecycleEventsUseCanonicalAttributes(t *testing.T) {
 	finalizeCtx := fixture.atHeight(505)
 	require.NoError(t, fixture.keeper.EndBlock(finalizeCtx))
 	require.Equal(t, map[string]string{
-		types.AttributeKeyProofHash:            hex.EncodeToString(proofHash),
+		types.AttributeKeyVerificationID:       hex.EncodeToString(verificationID[:]),
+		types.AttributeKeyProofHash:            hex.EncodeToString(msg.ProofHash),
+		types.AttributeKeyPublicInputsHash:     hex.EncodeToString(msg.PublicInputsHash),
+		types.AttributeKeyVerificationKeyHash:  hex.EncodeToString(msg.VerificationKeyHash),
+		types.AttributeKeyProofType:            "1",
 		types.AttributeKeySubmissionHeight:     "500",
 		types.AttributeKeyIndexInBlock:         "0",
 		types.AttributeKeyStatus:               types.ProofStatus_PROOF_STATUS_INCONCLUSIVE.String(),
@@ -159,12 +172,47 @@ func TestSubmitProofDefersPowerMaterializationAndRejectsDuplicate(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, int64(100), totalPower)
 
-	hash := make([]byte, types.ProofHashSize)
-	hash[len(hash)-1] = 1
-	_, err = f.msgServer.SubmitProof(f.atHeight(501), &types.MsgSubmitProof{
-		Signer: f.validators[0].signer, ProofHash: hash, ProofType: 7,
+	_, err = f.msgServer.SubmitProof(f.atHeight(501), proofSubmission(f, 1))
+	require.ErrorIs(t, err, types.ErrDuplicateVerificationRequest)
+}
+
+func TestSubmitProofIdentityAllowsSameProofWithDifferentDescriptor(t *testing.T) {
+	f := initFixture(t, 3)
+	first := proofSubmission(f, 1)
+	firstResponse, err := f.msgServer.SubmitProof(f.atHeight(500), first)
+	require.NoError(t, err)
+
+	differentInputs := proofSubmission(f, 1)
+	differentInputs.PublicInputsHash[0] = 0x99
+	secondResponse, err := f.msgServer.SubmitProof(f.atHeight(500), differentInputs)
+	require.NoError(t, err)
+	differentKey := proofSubmission(f, 1)
+	differentKey.VerificationKeyHash[0] = 0x88
+	thirdResponse, err := f.msgServer.SubmitProof(f.atHeight(500), differentKey)
+	require.NoError(t, err)
+	require.Equal(t, uint32(0), firstResponse.IndexInBlock)
+	require.Equal(t, uint32(1), secondResponse.IndexInBlock)
+	require.Equal(t, uint32(2), thirdResponse.IndexInBlock)
+
+	firstRecord, err := f.keeper.PendingProofs.Get(f.ctx, types.NewProofStoreKey(500, 0))
+	require.NoError(t, err)
+	secondRecord, err := f.keeper.PendingProofs.Get(f.ctx, types.NewProofStoreKey(500, 1))
+	require.NoError(t, err)
+	thirdRecord, err := f.keeper.PendingProofs.Get(f.ctx, types.NewProofStoreKey(500, 2))
+	require.NoError(t, err)
+	require.Equal(t, firstRecord.ProofHash, secondRecord.ProofHash)
+	require.Equal(t, firstRecord.ProofHash, thirdRecord.ProofHash)
+	require.NotEqual(t, firstRecord.VerificationId, secondRecord.VerificationId)
+	require.NotEqual(t, firstRecord.VerificationId, thirdRecord.VerificationId)
+
+	pending, err := f.query.ProofByVerificationId(f.ctx, &types.QueryProofByVerificationIdRequest{
+		VerificationId: secondRecord.VerificationId,
 	})
-	require.ErrorIs(t, err, types.ErrDuplicateProof)
+	require.NoError(t, err)
+	require.Equal(t, secondRecord, *pending.GetPending())
+
+	_, err = f.msgServer.SubmitProof(f.atHeight(501), differentInputs)
+	require.ErrorIs(t, err, types.ErrDuplicateVerificationRequest)
 }
 
 func TestEndBlockMaterializesHistoricalPowerForProofHeight(t *testing.T) {
@@ -343,8 +391,7 @@ func TestEndBlockWithoutProofDoesNotMaterializePower(t *testing.T) {
 
 func TestEndBlockRejectsEmptyHistoricalValidatorSetWithoutPowerWrites(t *testing.T) {
 	f := initFixture(t, 0)
-	hash := make([]byte, types.ProofHashSize)
-	_, err := f.msgServer.SubmitProof(f.atHeight(500), &types.MsgSubmitProof{ProofHash: hash})
+	_, err := f.msgServer.SubmitProof(f.atHeight(500), proofSubmission(f, 1))
 	require.NoError(t, err)
 	err = f.keeper.EndBlock(f.atHeight(500))
 	require.ErrorIs(t, err, types.ErrEmptyValidatorSet)
@@ -468,9 +515,9 @@ func TestFinalizationAndPruningPreserveHashLookup(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, powerExists)
 	}
-	hash := make([]byte, types.ProofHashSize)
-	hash[len(hash)-1] = 1
-	response, err := f.query.ProofByHash(f.ctx, &types.QueryProofByHashRequest{ProofHash: hash})
+	stored, err := f.keeper.FinalProofResults.Get(f.ctx, types.NewProofStoreKey(500, 0))
+	require.NoError(t, err)
+	response, err := f.query.ProofByVerificationId(f.ctx, &types.QueryProofByVerificationIdRequest{VerificationId: stored.VerificationId})
 	require.NoError(t, err)
 	require.NotNil(t, response.GetFinalResult())
 }
