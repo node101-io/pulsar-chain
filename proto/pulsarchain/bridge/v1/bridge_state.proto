@@ -6,7 +6,6 @@ option go_package = "github.com/node101-io/pulsar-chain/x/bridge/types";
 
 // BridgeState stores the bridge's processed Mina cursor.
 message BridgeState {
-
   // latest_fetched_mina_height is the latest Mina height processed by the bridge.
   int64 latest_fetched_mina_height = 1;
 

@@ -58,6 +58,7 @@ import (
 	"github.com/node101-io/pulsar-chain/docs"
 	bridge "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
+	smartaccountsmodulekeeper "github.com/node101-io/pulsar-chain/x/smartaccounts/keeper"
 	verificationmodulekeeper "github.com/node101-io/pulsar-chain/x/verification/keeper"
 	verificationsidecar "github.com/node101-io/pulsar-chain/x/verification/sidecar"
 	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
@@ -127,6 +128,7 @@ type App struct {
 	// VerificationSidecarClient is non-nil only when the app created the gRPC
 	// client itself; retaining it here gives App.Close lifecycle ownership.
 	VerificationSidecarClient *verificationsidecar.Client
+	SmartaccountsKeeper       smartaccountsmodulekeeper.Keeper
 }
 
 // RegisterGRPCServerWithSkipCheckHeader registers application and standard health services.
@@ -218,6 +220,7 @@ func New(
 		&app.BridgeKeeper,
 		&app.VerificationKeeper,
 		&app.BridgeArchiveWrapperClient,
+		&app.SmartaccountsKeeper,
 	); err != nil {
 		panic(err)
 	}
