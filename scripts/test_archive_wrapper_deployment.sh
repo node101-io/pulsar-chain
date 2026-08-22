@@ -5,7 +5,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 WRAPPER_SOURCE="${ARCHIVE_WRAPPER_SOURCE:-$(cd -- "$REPO_ROOT/../archive-wrapper" && pwd)}"
+VERIFIER_SOURCE="${PULSAR_VERIFIER_SOURCE:-$(cd -- "$REPO_ROOT/../../rust-workspace/pulsar-verifier" && pwd)}"
 EXPECTED_WRAPPER_SHA="cd42a203ac6b43d24d9fbd57c323ecd52ea52bd5"
+ENABLE_VERIFIER_SIDECARS="${ENABLE_VERIFIER_SIDECARS:-0}"
 MODE="${1:-shared}"
 PROJECT="pulsar-wrapper-e2e-${MODE//[^a-zA-Z0-9]/-}-$$"
 TMP_DIR="$(mktemp -d)"
@@ -17,6 +19,7 @@ GENERATED_DIR="$GENERATED_ROOT/wrapper-configs"
 SEED_FILE="$TMP_DIR/seed.sql"
 PULSAR_IMAGE="pulsar-chain:e2e-$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)"
 WRAPPER_IMAGE="archive-wrapper:e2e-${EXPECTED_WRAPPER_SHA:0:12}"
+VERIFIER_IMAGE="pulsar-verifier:e2e-$(git -C "$VERIFIER_SOURCE" rev-parse --short=12 HEAD)"
 E2E_USER_MINA_PRIV_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
 POSTGRES_URI="postgres://archive:e2e-secret@postgres:5432/archive?sslmode=disable"
 VALIDATOR_COUNT=3
@@ -154,6 +157,103 @@ wait_for_container_health() {
   return 1
 }
 
+run_verifier_e2e() {
+  local fixture="$VERIFIER_SOURCE/tests/fixtures/noir/bb-5.2.0"
+  local proof_hash public_inputs_hash verification_key_hash tx_raw_b64 verifier_container
+
+  for index in 1 2 3; do
+    compose exec -T "validator${index}" grep -A8 '^\[verification\]$' \
+      "/testnet/.pulsar-node${index}/config/app.toml" | grep -q '^enabled = true$'
+  done
+
+  proof_hash="$(sha256sum "$fixture/proof" | cut -d' ' -f1)"
+  public_inputs_hash="$(sha256sum "$fixture/public_inputs" | cut -d' ' -f1)"
+  verification_key_hash="$(sha256sum "$fixture/vk" | cut -d' ' -f1)"
+  tx_raw_b64="$(compose exec -T validator1 bash -ceu '
+    work="$(mktemp -d)"
+    trap '\''rm -rf "$work"'\'' EXIT
+    pulsard tx verification submit-proof "$1" noir-barretenberg "$2" "$3" \
+      --from validator1 \
+      --home /testnet/.pulsar-node1 \
+      --keyring-backend test \
+      --chain-id mytestnet \
+      --fees 0pmina \
+      --generate-only \
+      --output json >"$work/unsigned.json"
+    pulsard tx sign "$work/unsigned.json" \
+      --from validator1 \
+      --home /testnet/.pulsar-node1 \
+      --keyring-backend test \
+      --chain-id mytestnet \
+      --output-document "$work/signed.json"
+    pulsard tx encode "$work/signed.json"
+  ' -- "$proof_hash" "$public_inputs_hash" "$verification_key_hash")"
+
+  python3 - "$fixture" "$tx_raw_b64" >"$TMP_DIR/submission-request.json" <<'PY'
+import base64
+import json
+import pathlib
+import sys
+
+fixture = pathlib.Path(sys.argv[1])
+payload = {
+    "proof": {
+        "proofType": "PROOF_TYPE_NOIR_BARRETENBERG",
+        "proof": base64.b64encode((fixture / "proof").read_bytes()).decode(),
+        "publicInputs": base64.b64encode((fixture / "public_inputs").read_bytes()).decode(),
+        "verificationKey": base64.b64encode((fixture / "vk").read_bytes()).decode(),
+    },
+    "txRaw": sys.argv[2].strip(),
+}
+json.dump(payload, sys.stdout)
+PY
+
+  verifier_container="$(compose ps -q verifier1)"
+  docker run --rm -i \
+    --network "container:${verifier_container}" \
+    --entrypoint /usr/local/bin/grpcurl \
+    --mount "type=bind,src=$(command -v grpcurl),dst=/usr/local/bin/grpcurl,readonly" \
+    --mount "type=bind,src=$VERIFIER_SOURCE/crates/pulsar-verifier-proto/proto,dst=/proto,readonly" \
+    "$VERIFIER_IMAGE" -plaintext \
+    -import-path /proto \
+    -proto pulsar/verifier/v1/submission_service.proto \
+    -d @ 127.0.0.1:50052 \
+    pulsar.verifier.v1.SubmissionService/SubmitProof \
+    <"$TMP_DIR/submission-request.json" >"$TMP_DIR/submission-response.json"
+
+  VERIFICATION_TX_HASH="$(python3 - "$TMP_DIR/submission-response.json" <<'PY'
+import base64
+import json
+import sys
+
+print(base64.b64decode(json.load(open(sys.argv[1]))["transactionHash"]).hex().upper())
+PY
+)"
+  wait_for_tx "$VERIFICATION_TX_HASH" "$TMP_DIR/verification-tx-result.json"
+  VERIFICATION_PROOF_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-tx-result.json" --path height)"
+  VERIFICATION_FINAL_HEIGHT="$((VERIFICATION_PROOF_HEIGHT + 5))"
+  wait_for_height "$VERIFICATION_FINAL_HEIGHT"
+
+  compose exec -T validator1 pulsard query verification final-proof-result \
+    "$VERIFICATION_PROOF_HEIGHT" 0 \
+    --node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-final.json"
+  VERIFICATION_STATUS="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-final.json" --path final_result.status)"
+  VALID_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-final.json" --path final_result.valid_voting_power --default 0)"
+  TOTAL_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-final.json" --path final_result.total_voting_power)"
+  POWER_THRESHOLD="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-final.json" --path final_result.voting_power_threshold)"
+
+  [[ "$VERIFICATION_STATUS" == "PROOF_STATUS_VALID" ]]
+  [[ "$VALID_POWER" == "$TOTAL_POWER" ]]
+  (( POWER_THRESHOLD == TOTAL_POWER * 2 / 3 + 1 ))
+
+  echo "${MODE} verifier E2E evidence: proof_height=${VERIFICATION_PROOF_HEIGHT} final_height=${VERIFICATION_FINAL_HEIGHT} status=${VERIFICATION_STATUS} valid_power=${VALID_POWER} total_power=${TOTAL_POWER} threshold=${POWER_THRESHOLD} ingress=verifier1 retrieval=verifier2,verifier3"
+}
+
 verify_grpc_bind_failure() {
   local output="$TMP_DIR/grpc-bind-failure.log"
   local status
@@ -215,6 +315,10 @@ require_cmd node
 require_cmd npm
 require_cmd python3
 require_cmd timeout
+if [[ "$ENABLE_VERIFIER_SIDECARS" != "0" && "$ENABLE_VERIFIER_SIDECARS" != "1" ]]; then
+  echo "ENABLE_VERIFIER_SIDECARS must be 0 or 1" >&2
+  exit 1
+fi
 docker compose version >/dev/null
 
 if [[ "$(git -C "$WRAPPER_SOURCE" rev-parse HEAD)" != "$EXPECTED_WRAPPER_SHA" ]]; then
@@ -224,6 +328,9 @@ fi
 
 docker buildx build --load --platform linux/amd64 -t "$PULSAR_IMAGE" "$REPO_ROOT"
 docker buildx build --load --platform linux/amd64 -t "$WRAPPER_IMAGE" "$WRAPPER_SOURCE"
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  docker buildx build --load --platform linux/amd64 -t "$VERIFIER_IMAGE" "$VERIFIER_SOURCE"
+fi
 
 MINA_PUBLIC_KEY="$(
   docker run --rm --entrypoint /usr/local/bin/pulsar-devtools "$PULSAR_IMAGE" \
@@ -255,6 +362,9 @@ export E2E_USER_MINA_PRIV_KEY
 export E2E_MIN_GAS_PRICE=0pmina
 export PULSAR_DOCKER_PROJECT="$PROJECT"
 export PULSAR_DOCKER_STATE_ROOT="$DOCKER_STATE_ROOT"
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  export PULSAR_VERIFIER_IMAGE="$VERIFIER_IMAGE"
+fi
 
 if [[ "$MODE" == "external" ]]; then
   export ARCHIVE_WRAPPER_EXTERNAL_ADDRESS="external-wrapper:9095"
@@ -301,6 +411,9 @@ if [[ "$MODE" == "shared" ]]; then
 fi
 
 compose up --no-build -d --wait --wait-timeout 240 validator1 validator2 validator3
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  compose up --no-build -d --wait --wait-timeout 240 verifier1 verifier2 verifier3
+fi
 
 case "$MODE" in
   shared) wrapper_endpoints=(archive-wrapper:9095) ;;
@@ -434,6 +547,12 @@ esac
 for validator in validator1 validator2 validator3; do
   validator_health "$validator" >/dev/null
 done
+
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  run_verifier_e2e
+  echo "$MODE archive-wrapper deployment with verifier sidecars E2E passed"
+  exit 0
+fi
 
 # Verification is deliberately disabled in this chain-only test. Registering a
 # proof still exercises deterministic on-chain lifecycle state, while the NoOp

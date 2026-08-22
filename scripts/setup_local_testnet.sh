@@ -24,6 +24,7 @@ START_VALIDATORS="${START_VALIDATORS:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 SETUP_CONTEXT="${SETUP_CONTEXT:-host}"
 RESET_TESTNET="${RESET_TESTNET:-0}"
+ENABLE_VERIFIER_SIDECARS="${ENABLE_VERIFIER_SIDECARS:-0}"
 DEFAULT_VALIDATOR_NAME_PREFIX="validator"
 DEFAULT_NODE1_MINA_PRIV_KEY="ES17xFroE2/QOa9yCLXsQ9sJMeIUVwr2ZXcdWGjNLlM="
 DEFAULT_NODE2_MINA_PRIV_KEY="PKeRXivUb4gZ/nMKxUK5beEnVJwIrzN71mAf7JVKsng="
@@ -315,6 +316,8 @@ configure_node() {
   local mina_network_id="$9"
   local wrapper_grpc_address="${10}"
   local wrapper_grpc_transport_mode="${11}"
+  local verification_enabled="${12}"
+  local verification_grpc_address="${13}"
 
   sed -i.bak "s|laddr = \"tcp://127.0.0.1:26657\"|laddr = \"tcp://0.0.0.0:${rpc_port}\"|" "$home/config/config.toml"
   sed -i.bak "s|laddr = \"tcp://0.0.0.0:26656\"|laddr = \"tcp://0.0.0.0:${p2p_port}\"|" "$home/config/config.toml"
@@ -327,13 +330,20 @@ configure_node() {
   sed -i.bak "s|address = \"tcp://localhost:1317\"|address = \"tcp://${API_BIND_HOST}:${api_port}\"|" "$home/config/app.toml"
   sed -i.bak "s|address = \"localhost:9090\"|address = \"0.0.0.0:${grpc_port}\"|" "$home/config/app.toml"
 
-  python3 "$PYTHON_HELPER" update-app-config \
+  local -a update_app_args=(update-app-config \
     --app "$home/config/app.toml" \
     --min-gas-price "$MIN_GAS_PRICE" \
     --mina-priv-key "$mina_priv_key" \
     --mina-network-id "$mina_network_id" \
     --wrapper-grpc-address "$wrapper_grpc_address" \
-    --wrapper-grpc-transport-mode "$wrapper_grpc_transport_mode"
+    --wrapper-grpc-transport-mode "$wrapper_grpc_transport_mode")
+  if [[ "$verification_enabled" == "1" ]]; then
+    update_app_args+=(
+      --verification-enabled
+      --verification-grpc-address "$verification_grpc_address"
+    )
+  fi
+  python3 "$PYTHON_HELPER" "${update_app_args[@]}"
 }
 
 grant_wrapper_genesis_access() {
@@ -383,10 +393,13 @@ node_app_config_matches_expected() {
   actual_wrapper_grpc_transport_mode="$(read_app_wrapper_config "$app_config" "wrapper_grpc_transport_mode" 2>/dev/null)" || return 1
   [[ "$actual_wrapper_grpc_transport_mode" == "${NODE_WRAPPER_GRPC_TRANSPORT_MODES[index]}" ]] || return 1
 
-  # Local testnets run without verifier sidecars. Check the explicit opt-out so
-  # homes generated before the validator-first default changed are rebuilt.
-  grep -A8 '^\[verification\]$' "$app_config" | grep -q '^enabled = false$' || return 1
-  grep -A8 '^\[verification\]$' "$app_config" | grep -q '^grpc_address = ""$' || return 1
+  if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+    grep -A8 '^\[verification\]$' "$app_config" | grep -q '^enabled = true$' || return 1
+    grep -A8 '^\[verification\]$' "$app_config" | grep -q '^grpc_address = "127.0.0.1:50051"$' || return 1
+  else
+    grep -A8 '^\[verification\]$' "$app_config" | grep -q '^enabled = false$' || return 1
+    grep -A8 '^\[verification\]$' "$app_config" | grep -q '^grpc_address = ""$' || return 1
+  fi
 
   return 0
 }
@@ -484,7 +497,7 @@ fi
 declare -a NODE_HOMES NODE_MONIKERS NODE_KEY_NAMES NODE_MINA_PRIV_KEYS NODE_MINA_PUB_KEYS
 declare -a NODE_MINA_NETWORK_IDS NODE_P2P_HOSTS
 declare -a NODE_P2P_PORTS NODE_RPC_PORTS NODE_GRPC_PORTS NODE_API_PORTS NODE_PPROF_PORTS
-declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS
+declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS NODE_VERIFIER_PEER_IDS
 declare -a NODE_WRAPPER_GRPC_ADDRESSES NODE_WRAPPER_GRPC_TRANSPORT_MODES
 
 DEFAULT_MINA_NETWORK_ID="$(resolve_default_mina_network_id)"
@@ -499,6 +512,10 @@ validate_non_empty "contract address" "$BRIDGE_CONTRACT_ADDRESS"
 validate_positive_int "start block height" "$BRIDGE_START_BLOCK_HEIGHT"
 validate_positive_int "max block range" "$BRIDGE_MAX_BLOCK_RANGE"
 validate_positive_int "actions reduced root snapshot window size" "$BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE"
+if [[ "$ENABLE_VERIFIER_SIDECARS" != "0" && "$ENABLE_VERIFIER_SIDECARS" != "1" ]]; then
+  echo "ENABLE_VERIFIER_SIDECARS must be 0 or 1" >&2
+  exit 1
+fi
 
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_HOMES[i]="$(get_node_setting "$i" "HOME" "$HOME/.pulsar-node${i}")"
@@ -676,6 +693,10 @@ done
 
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   NODE_COSMOS_PUB_KEYS[i]="$(read_consensus_pub_key "${NODE_HOMES[i]}/config/priv_validator_key.json")"
+  if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+    NODE_VERIFIER_PEER_IDS[i]="$(python3 "$PYTHON_HELPER" derive-libp2p-peer-id \
+      --priv-validator-key "${NODE_HOMES[i]}/config/priv_validator_key.json")"
+  fi
 done
 
 echo "==> Patching keyregistry validator key pairs..."
@@ -719,8 +740,28 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
     "${NODE_MINA_PRIV_KEYS[i]}" \
     "${NODE_MINA_NETWORK_IDS[i]}" \
     "${NODE_WRAPPER_GRPC_ADDRESSES[i]}" \
-    "${NODE_WRAPPER_GRPC_TRANSPORT_MODES[i]}"
+    "${NODE_WRAPPER_GRPC_TRANSPORT_MODES[i]}" \
+    "$ENABLE_VERIFIER_SIDECARS" \
+    "127.0.0.1:50051"
 done
+
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  echo "==> Rendering verifier sidecar configs..."
+  for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
+    verifier_args=(render-verifier-config \
+      --output "${NODE_HOMES[i]}/config/pulsar-verifier.toml" \
+      --chain-id "$CHAIN_ID" \
+      --validator-key-path "/var/lib/pulsar/config/priv_validator_key.json")
+    if (( i > 1 )); then
+      verifier_args+=(
+        --bootnode "/dns4/validator1/udp/39000/quic-v1/p2p/${NODE_VERIFIER_PEER_IDS[1]}"
+        --bootnode "/dns4/validator1/tcp/39000/p2p/${NODE_VERIFIER_PEER_IDS[1]}"
+      )
+    fi
+    python3 "$PYTHON_HELPER" "${verifier_args[@]}"
+    chmod 600 "${NODE_HOMES[i]}/config/pulsar-verifier.toml"
+  done
+fi
 
 echo ""
 echo "Setup complete."
