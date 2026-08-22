@@ -5,9 +5,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 WRAPPER_SOURCE="${ARCHIVE_WRAPPER_SOURCE:-$(cd -- "$REPO_ROOT/../archive-wrapper" && pwd)}"
-VERIFIER_SOURCE="${PULSAR_VERIFIER_SOURCE:-$(cd -- "$REPO_ROOT/../../rust-workspace/pulsar-verifier" && pwd)}"
 EXPECTED_WRAPPER_SHA="cd42a203ac6b43d24d9fbd57c323ecd52ea52bd5"
 ENABLE_VERIFIER_SIDECARS="${ENABLE_VERIFIER_SIDECARS:-0}"
+VERIFIER_SOURCE="${PULSAR_VERIFIER_SOURCE:-}"
 MODE="${1:-shared}"
 PROJECT="pulsar-wrapper-e2e-${MODE//[^a-zA-Z0-9]/-}-$$"
 TMP_DIR="$(mktemp -d)"
@@ -19,7 +19,7 @@ GENERATED_DIR="$GENERATED_ROOT/wrapper-configs"
 SEED_FILE="$TMP_DIR/seed.sql"
 PULSAR_IMAGE="pulsar-chain:e2e-$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)"
 WRAPPER_IMAGE="archive-wrapper:e2e-${EXPECTED_WRAPPER_SHA:0:12}"
-VERIFIER_IMAGE="pulsar-verifier:e2e-$(git -C "$VERIFIER_SOURCE" rev-parse --short=12 HEAD)"
+VERIFIER_IMAGE=""
 E2E_USER_MINA_PRIV_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
 POSTGRES_URI="postgres://archive:e2e-secret@postgres:5432/archive?sslmode=disable"
 VALIDATOR_COUNT=3
@@ -318,6 +318,17 @@ require_cmd timeout
 if [[ "$ENABLE_VERIFIER_SIDECARS" != "0" && "$ENABLE_VERIFIER_SIDECARS" != "1" ]]; then
   echo "ENABLE_VERIFIER_SIDECARS must be 0 or 1" >&2
   exit 1
+fi
+
+# Preserve the existing chain-only test unless verifier sidecars are explicitly enabled.
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  VERIFIER_SOURCE="${VERIFIER_SOURCE:-$REPO_ROOT/../../rust-workspace/pulsar-verifier}"
+  if [[ ! -d "$VERIFIER_SOURCE" ]]; then
+    echo "verifier source directory not found: $VERIFIER_SOURCE" >&2
+    exit 1
+  fi
+  VERIFIER_SOURCE="$(cd -- "$VERIFIER_SOURCE" && pwd)"
+  VERIFIER_IMAGE="pulsar-verifier:e2e-$(git -C "$VERIFIER_SOURCE" rev-parse --short=12 HEAD)"
 fi
 docker compose version >/dev/null
 
