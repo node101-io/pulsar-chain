@@ -86,6 +86,10 @@ func (k Keeper) HasSmartAccount(ctx context.Context, identity []byte) (bool, err
 		return false, types.ErrNilIdentity
 	}
 
+	if len(identity) != types.IdentitySize {
+		return false, types.ErrIdentityInvalidLength
+	}
+
 	return k.smartAccounts.Has(ctx, identity)
 }
 
@@ -97,6 +101,10 @@ func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity []b
 
 	if len(identity) == 0 {
 		return types.ErrNilIdentity
+	}
+
+	if len(identity) != types.IdentitySize {
+		return types.ErrIdentityInvalidLength
 	}
 
 	if key.PublicKey == nil {
