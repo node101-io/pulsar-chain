@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/node101-io/pulsar-chain/x/smartaccounts/types"
@@ -10,7 +11,7 @@ import (
 
 func TestGenesis(t *testing.T) {
 	genesisState := types.GenesisState{
-		Params: types.DefaultParams(),
+		Params: types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize)),
 	}
 
 	f := initFixture(t)

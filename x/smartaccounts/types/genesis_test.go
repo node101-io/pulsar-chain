@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/node101-io/pulsar-chain/x/smartaccounts/types"
@@ -14,14 +15,21 @@ func TestGenesisState_Validate(t *testing.T) {
 		valid    bool
 	}{
 		{
-			desc:     "default is valid",
+			desc:     "default requires verification key hash",
 			genState: types.DefaultGenesis(),
-			valid:    true,
+			valid:    false,
 		},
 		{
-			desc:     "valid genesis state",
+			desc: "valid genesis state",
+			genState: &types.GenesisState{Params: types.NewParams(
+				bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize),
+			)},
+			valid: true,
+		},
+		{
+			desc:     "missing verification key hash",
 			genState: &types.GenesisState{},
-			valid:    true,
+			valid:    false,
 		},
 	}
 	for _, tc := range tests {

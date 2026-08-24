@@ -10,4 +10,6 @@ option go_package = "github.com/node101-io/pulsar-chain/x/smartaccounts/types";
 message Params {
   option (amino.name) = "pulsarchain/x/smartaccounts/Params";
   option (gogoproto.equal) = true;
+
+  bytes verification_key_hash = 1;
 }

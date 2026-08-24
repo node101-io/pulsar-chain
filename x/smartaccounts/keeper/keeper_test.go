@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -44,7 +45,8 @@ func initFixture(t *testing.T) *fixture {
 	)
 
 	// Initialize params
-	if err := k.Params.Set(ctx, types.DefaultParams()); err != nil {
+	params := types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize))
+	if err := k.Params.Set(ctx, params); err != nil {
 		t.Fatalf("failed to set params: %v", err)
 	}
 

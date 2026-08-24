@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ func TestMsgUpdateParams(t *testing.T) {
 	f := initFixture(t)
 	ms := keeper.NewMsgServerImpl(f.keeper)
 
-	params := types.DefaultParams()
+	params := types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize))
 	require.NoError(t, f.keeper.Params.Set(f.ctx, params))
 
 	authorityStr, err := f.addressCodec.BytesToString(f.keeper.GetAuthority())
@@ -36,12 +37,13 @@ func TestMsgUpdateParams(t *testing.T) {
 			expErrMsg: "invalid authority",
 		},
 		{
-			name: "send enabled param",
+			name: "invalid verification key hash",
 			input: &types.MsgUpdateParams{
 				Authority: authorityStr,
 				Params:    types.Params{},
 			},
-			expErr: false,
+			expErr:    true,
+			expErrMsg: "verification key hash must be 32 bytes",
 		},
 		{
 			name: "all good",
