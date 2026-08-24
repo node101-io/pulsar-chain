@@ -33,6 +33,7 @@ class RenderDockerTestnetTest(unittest.TestCase):
             "mode": mode,
             "mina_network_id": "testnet",
             "wrapper_image": "archive-wrapper:test",
+            "verifier_image": None,
             "external_address": "external-wrapper:9095",
             "external_transport_mode": "trusted-network",
             "external_network": None,
@@ -166,6 +167,31 @@ class RenderDockerTestnetTest(unittest.TestCase):
                 ]
                 self.assertEqual(count, len(validators))
                 self.assertEqual(count, len(wrappers))
+
+    def test_verifier_sidecars_share_each_validator_network_namespace(self):
+        compose = renderer.render_compose(
+            self.args("shared", verifier_image="pulsar-verifier:test")
+        )
+
+        self.assertEqual("1", compose["services"]["setup"]["environment"]["ENABLE_VERIFIER_SIDECARS"])
+        for index in range(1, 4):
+            verifier = compose["services"][f"verifier{index}"]
+            self.assertEqual(f"service:validator{index}", verifier["network_mode"])
+            self.assertIn(
+                f"validator{index}_data:/var/lib/pulsar:ro",
+                verifier["volumes"],
+            )
+            self.assertEqual(
+                {"condition": "service_healthy"},
+                verifier["depends_on"][f"validator{index}"],
+            )
+        self.assertEqual(
+            {"condition": "service_healthy"},
+            compose["services"]["verifier2"]["depends_on"]["verifier1"],
+        )
+        self.assertFalse(
+            any(port["target"] == 50052 for port in compose["services"]["validator1"]["ports"])
+        )
 
     def test_render_is_deterministic_and_writes_expected_configs(self):
         args = self.args("per-validator")

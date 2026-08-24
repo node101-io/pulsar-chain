@@ -149,6 +149,9 @@ render_compose_file() {
   if [[ "${ARCHIVE_WRAPPER_ADD_HOST_GATEWAY:-0}" == "1" ]]; then
     args+=(--add-host-gateway)
   fi
+  if [[ -n "${PULSAR_VERIFIER_IMAGE:-}" ]]; then
+    args+=(--verifier-image "$PULSAR_VERIFIER_IMAGE")
+  fi
 
   python3 "$RENDERER" "${args[@]}"
 
@@ -198,8 +201,12 @@ run_compose() {
 }
 
 declare -a VALIDATOR_SERVICES=()
+declare -a VERIFIER_SERVICES=()
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   VALIDATOR_SERVICES+=("validator${i}")
+  if [[ -n "${PULSAR_VERIFIER_IMAGE:-}" ]]; then
+    VERIFIER_SERVICES+=("verifier${i}")
+  fi
 done
 
 cleanup_partial_environment() {
@@ -218,7 +225,8 @@ case "$COMMAND" in
       exit 1
     fi
     if ! run_compose up --no-build -d --wait \
-      --wait-timeout "$VALIDATOR_STARTUP_TIMEOUT" "${VALIDATOR_SERVICES[@]}"; then
+      --wait-timeout "$VALIDATOR_STARTUP_TIMEOUT" \
+      "${VALIDATOR_SERVICES[@]}" "${VERIFIER_SERVICES[@]}"; then
       cleanup_partial_environment
       exit 1
     fi
