@@ -17,12 +17,26 @@ import (
 	"github.com/node101-io/pulsar-chain/x/smartaccounts/keeper"
 	module "github.com/node101-io/pulsar-chain/x/smartaccounts/module"
 	"github.com/node101-io/pulsar-chain/x/smartaccounts/types"
+	verificationtypes "github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
+type mockVerificationKeeper struct {
+	result verificationtypes.FinalProofResult
+	err    error
+}
+
+func (m mockVerificationKeeper) FinalProofResultByProofHash(
+	context.Context,
+	[]byte,
+) (verificationtypes.FinalProofResult, error) {
+	return m.result, m.err
+}
+
 type fixture struct {
-	ctx          context.Context
-	keeper       keeper.Keeper
-	addressCodec address.Codec
+	ctx                context.Context
+	keeper             keeper.Keeper
+	addressCodec       address.Codec
+	verificationKeeper *mockVerificationKeeper
 }
 
 func initFixture(t *testing.T) *fixture {
@@ -36,12 +50,14 @@ func initFixture(t *testing.T) *fixture {
 	ctx := testutil.DefaultContextWithDB(t, storeKey, storetypes.NewTransientStoreKey("transient_test")).Ctx
 
 	authority := authtypes.NewModuleAddress(types.GovModuleName)
+	verificationKeeper := &mockVerificationKeeper{}
 
 	k := keeper.NewKeeper(
 		storeService,
 		encCfg.Codec,
 		addressCodec,
 		authority,
+		verificationKeeper,
 	)
 
 	// Initialize params
@@ -51,8 +67,9 @@ func initFixture(t *testing.T) *fixture {
 	}
 
 	return &fixture{
-		ctx:          ctx,
-		keeper:       k,
-		addressCodec: addressCodec,
+		ctx:                ctx,
+		keeper:             k,
+		addressCodec:       addressCodec,
+		verificationKeeper: verificationKeeper,
 	}
 }

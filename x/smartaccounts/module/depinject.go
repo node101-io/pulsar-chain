@@ -11,6 +11,7 @@ import (
 
 	"github.com/node101-io/pulsar-chain/x/smartaccounts/keeper"
 	"github.com/node101-io/pulsar-chain/x/smartaccounts/types"
+	verificationkeeper "github.com/node101-io/pulsar-chain/x/verification/keeper"
 )
 
 var _ depinject.OnePerModuleType = AppModule{}
@@ -33,8 +34,9 @@ type ModuleInputs struct {
 	Cdc          codec.Codec
 	AddressCodec address.Codec
 
-	AuthKeeper types.AuthKeeper
-	BankKeeper types.BankKeeper
+	AuthKeeper         types.AuthKeeper
+	BankKeeper         types.BankKeeper
+	VerificationKeeper verificationkeeper.Keeper
 }
 
 type ModuleOutputs struct {
@@ -55,6 +57,7 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		in.Cdc,
 		in.AddressCodec,
 		authority,
+		in.VerificationKeeper,
 	)
 	m := NewAppModule(in.Cdc, k, in.AuthKeeper, in.BankKeeper)
 

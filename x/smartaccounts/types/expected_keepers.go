@@ -5,6 +5,8 @@ import (
 
 	"cosmossdk.io/core/address"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	verificationtypes "github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
 // AuthKeeper defines the expected interface for the Auth module.
@@ -24,4 +26,8 @@ type BankKeeper interface {
 type ParamSubspace interface {
 	Get(context.Context, []byte, interface{})
 	Set(context.Context, []byte, interface{})
+}
+
+type VerificationKeeper interface {
+	FinalProofResultByProofHash(ctx context.Context, proofHash []byte) (verificationtypes.FinalProofResult, error)
 }

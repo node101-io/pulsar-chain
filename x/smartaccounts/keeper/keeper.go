@@ -23,6 +23,8 @@ type Keeper struct {
 
 	SmartAccounts collections.Map[int64, types.SmartAccount]
 
+	verificationKeeper types.VerificationKeeper
+
 	Schema collections.Schema
 	Params collections.Item[types.Params]
 }
@@ -32,7 +34,7 @@ func NewKeeper(
 	cdc codec.Codec,
 	addressCodec address.Codec,
 	authority []byte,
-
+	verificationKeeper types.VerificationKeeper,
 ) Keeper {
 	if _, err := addressCodec.BytesToString(authority); err != nil {
 		panic(fmt.Sprintf("invalid authority address %s: %s", authority, err))
@@ -54,6 +56,8 @@ func NewKeeper(
 			SmartAccountsMapName,
 			collections.Int64Key,
 			codec.CollValue[types.SmartAccount](cdc)),
+
+		verificationKeeper: verificationKeeper,
 	}
 
 	schema, err := sb.Build()
