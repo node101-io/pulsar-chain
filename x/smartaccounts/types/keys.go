@@ -17,3 +17,5 @@ const (
 
 // ParamsKey is the prefix to retrieve all Params
 var ParamsKey = collections.NewPrefix("p_smartaccounts")
+
+var SmartAccountsKey = collections.NewPrefix("smart_accounts_key")

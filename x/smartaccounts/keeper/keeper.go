@@ -11,6 +11,8 @@ import (
 	"github.com/node101-io/pulsar-chain/x/smartaccounts/types"
 )
 
+const SmartAccountsMapName = "smart_accounts_map"
+
 type Keeper struct {
 	storeService corestore.KVStoreService
 	cdc          codec.Codec
@@ -18,6 +20,8 @@ type Keeper struct {
 	// Address capable of executing a MsgUpdateParams message.
 	// Typically, this should be the x/gov module account.
 	authority []byte
+
+	SmartAccounts collections.Map[int64, types.SmartAccount]
 
 	Schema collections.Schema
 	Params collections.Item[types.Params]
@@ -43,6 +47,13 @@ func NewKeeper(
 		authority:    authority,
 
 		Params: collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
+
+		SmartAccounts: collections.NewMap(
+			sb,
+			types.ParamsKey,
+			SmartAccountsMapName,
+			collections.Int64Key,
+			codec.CollValue[types.SmartAccount](cdc)),
 	}
 
 	schema, err := sb.Build()
