@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -110,4 +112,32 @@ func NewKeeper(
 // GetAuthority returns a copy of the governance authority address.
 func (k Keeper) GetAuthority() []byte {
 	return append([]byte(nil), k.authority...)
+}
+
+func (k Keeper) FinalProofResultByProofHash(
+	ctx context.Context,
+	proofHash []byte,
+) (types.FinalProofResult, error) {
+	if len(proofHash) != types.ProofHashSize {
+		return types.FinalProofResult{}, types.ErrInvalidProofHash
+	}
+
+	iterator, err := k.FinalProofResults.Iterate(ctx, nil)
+	if err != nil {
+		return types.FinalProofResult{}, err
+	}
+	defer iterator.Close()
+
+	for ; iterator.Valid(); iterator.Next() {
+		result, err := iterator.Value()
+		if err != nil {
+			return types.FinalProofResult{}, err
+		}
+
+		if bytes.Equal(result.ProofHash, proofHash) {
+			return result, nil
+		}
+	}
+
+	return types.FinalProofResult{}, types.ErrProofNotFound
 }
