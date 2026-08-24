@@ -21,7 +21,7 @@ type Keeper struct {
 	// Typically, this should be the x/gov module account.
 	authority []byte
 
-	smartAccounts collections.Map[int64, types.SmartAccount]
+	smartAccounts collections.Map[[]byte, types.SmartAccount] // account_id --> session keys
 
 	verificationKeeper types.VerificationKeeper
 
@@ -54,7 +54,7 @@ func NewKeeper(
 			sb,
 			types.SmartAccountsKey,
 			SmartAccountsMapName,
-			collections.Int64Key,
+			collections.BytesKey,
 			codec.CollValue[types.SmartAccount](cdc)),
 
 		verificationKeeper: verificationKeeper,
