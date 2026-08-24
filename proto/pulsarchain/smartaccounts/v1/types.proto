@@ -14,3 +14,9 @@ message SessionKey {
   bytes public_key = 1;
   uint64 expires_at_height = 2;
 }
+
+// PublicKeyInputs defines the PublicKeyInputs message.
+message PublicKeyInputs {
+  bytes session_public_key = 1;
+  uint64 expires_at_height = 2;
+}

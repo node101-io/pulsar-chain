@@ -27,6 +27,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					RpcMethod: "UpdateParams",
 					Skip:      true, // skipped because authority gated
 				},
+				{
+					RpcMethod:      "AddPublicKey",
+					Use:            "add-public-key [verification-key-hash]",
+					Short:          "Send a add-public-key tx",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "verification_key_hash", Varargs: true}},
+				},
 			},
 		},
 	}
