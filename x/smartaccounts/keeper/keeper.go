@@ -50,7 +50,7 @@ func NewKeeper(
 
 		SmartAccounts: collections.NewMap(
 			sb,
-			types.ParamsKey,
+			types.SmartAccountsKey,
 			SmartAccountsMapName,
 			collections.Int64Key,
 			codec.CollValue[types.SmartAccount](cdc)),
