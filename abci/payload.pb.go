@@ -5,12 +5,11 @@ package abci
 
 import (
 	fmt "fmt"
+	proto "github.com/cosmos/gogoproto/proto"
+	types "github.com/node101-io/pulsar-chain/x/verification/types"
 	io "io"
 	math "math"
 	math_bits "math/bits"
-
-	proto "github.com/cosmos/gogoproto/proto"
-	types "github.com/node101-io/pulsar-chain/x/verification/types"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
