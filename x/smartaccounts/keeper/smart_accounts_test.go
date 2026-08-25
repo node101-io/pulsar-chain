@@ -57,12 +57,43 @@ func TestAppendSessionKeyPrunesExpiredKeys(t *testing.T) {
 	}
 	require.NoError(t, f.keeper.AppendSessionKeyToSmartAccount(f.ctx, identity, accountAddress, activeKey))
 
-	// The first key can be appended again because the previous copy was pruned.
-	require.NoError(t, f.keeper.AppendSessionKeyToSmartAccount(f.ctx, identity, accountAddress, expiringKey))
-
 	genesis, err := f.keeper.ExportGenesis(f.ctx)
 	require.NoError(t, err)
+	require.Len(t, genesis.SmartAccounts, 1)
 	require.Equal(t, accountAddress, genesis.SmartAccounts[0].Account.AccountAddress)
+	require.Equal(t, []types.SessionKey{activeKey}, genesis.SmartAccounts[0].Account.SessionKeys)
+}
+
+func TestIsSessionKeyAuthorized(t *testing.T) {
+	f := initFixture(t)
+	identity := bytes.Repeat([]byte{0x01}, types.IdentitySize)
+	unknownIdentity := bytes.Repeat([]byte{0x02}, types.IdentitySize)
+	accountAddress := f.keeper.GetAuthority()
+	publicKey := bytes.Repeat([]byte{0x03}, types.SessionPublicKeySize)
+	key := types.SessionKey{
+		PublicKey:       publicKey,
+		ExpiresAtHeight: 3,
+	}
+
+	f.ctx = sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(1)
+	require.NoError(t, f.keeper.AppendSessionKeyToSmartAccount(f.ctx, identity, accountAddress, key))
+
+	authorized, err := f.keeper.IsSessionKeyAuthorized(f.ctx, identity, accountAddress, publicKey)
+	require.NoError(t, err)
+	require.True(t, authorized)
+
+	authorized, err = f.keeper.IsSessionKeyAuthorized(f.ctx, unknownIdentity, accountAddress, publicKey)
+	require.NoError(t, err)
+	require.False(t, authorized)
+
+	otherAddress := bytes.Repeat([]byte{0x09}, 20)
+	_, err = f.keeper.IsSessionKeyAuthorized(f.ctx, identity, otherAddress, publicKey)
+	require.ErrorIs(t, err, types.ErrAccountAddressMismatch)
+
+	f.ctx = sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(3)
+	authorized, err = f.keeper.IsSessionKeyAuthorized(f.ctx, identity, accountAddress, publicKey)
+	require.NoError(t, err)
+	require.False(t, authorized)
 }
 
 func TestAppendSessionKeyRejectsDifferentAccountAddress(t *testing.T) {

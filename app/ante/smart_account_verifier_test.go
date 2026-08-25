@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"cosmossdk.io/log"
 	txsigning "cosmossdk.io/x/tx/signing"
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -15,12 +16,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	gogoproto "github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/require"
 
 	antetypes "github.com/node101-io/pulsar-chain/app/ante/types"
+	keyregistrykeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
 	smartaccountstypes "github.com/node101-io/pulsar-chain/x/smartaccounts/types"
 )
 
@@ -31,6 +34,30 @@ type recordingSmartAccountKeeper struct {
 	identity       []byte
 	accountAddress []byte
 	publicKey      []byte
+}
+
+type smartAccountVerifierBankKeeper struct{}
+
+func (smartAccountVerifierBankKeeper) IsSendEnabledCoins(context.Context, ...sdk.Coin) error {
+	return nil
+}
+
+func (smartAccountVerifierBankKeeper) SendCoins(
+	context.Context,
+	sdk.AccAddress,
+	sdk.AccAddress,
+	sdk.Coins,
+) error {
+	return nil
+}
+
+func (smartAccountVerifierBankKeeper) SendCoinsFromAccountToModule(
+	context.Context,
+	sdk.AccAddress,
+	string,
+	sdk.Coins,
+) error {
+	return nil
 }
 
 func (k *recordingSmartAccountKeeper) IsSessionKeyAuthorized(
@@ -194,6 +221,68 @@ func TestSmartAccountVerifierAcceptsValidSignature(t *testing.T) {
 	require.Equal(t, sessionPrivateKey.PubKey().Bytes(), keeper.publicKey)
 }
 
+func TestAnteHandlerAcceptsSmartAccountTransaction(t *testing.T) {
+	t.Parallel()
+
+	_, account := newVerifierAccount(t, 9, 12)
+	sessionPrivateKey := ed25519.GenPrivKey()
+	identity := bytes.Repeat([]byte{9}, smartaccountstypes.IdentitySize)
+	smartAccountKeeper := &recordingSmartAccountKeeper{authorized: true}
+	encoding := newVerifierEncodingConfig(t)
+	ctx := newTestSDKContext(t).WithIsSigverifyTx(true)
+
+	unsignedTx := buildSmartAccountVerifierTestTx(
+		t,
+		encoding.TxConfig,
+		account.GetAddress(),
+		sessionPrivateKey.PubKey(),
+		identity,
+		account.GetSequence(),
+		nil,
+	)
+	signBytes := buildVerifierSignBytes(
+		t,
+		ctx,
+		encoding.TxConfig,
+		unsignedTx,
+		account,
+		account.GetSequence(),
+		signingtypes.SignMode_SIGN_MODE_DIRECT,
+	)
+	signature, err := sessionPrivateKey.Sign(signBytes)
+	require.NoError(t, err)
+
+	signedTx := buildSmartAccountVerifierTestTx(
+		t,
+		encoding.TxConfig,
+		account.GetAddress(),
+		sessionPrivateKey.PubKey(),
+		identity,
+		account.GetSequence(),
+		signature,
+	)
+	anteHandler, err := NewAnteHandler(HandlerOptions{
+		AccountKeeper: verifierAccountKeeper{
+			account:       account,
+			moduleAddress: sdk.AccAddress([]byte("fee-collector-address")),
+		},
+		BankKeeper:         smartAccountVerifierBankKeeper{},
+		SignModeHandler:    encoding.TxConfig.SignModeHandler(),
+		SigGasConsumer:     authante.DefaultSigVerificationGasConsumer,
+		KeyregistryKeeper:  &keyregistrykeeper.Keeper{},
+		SmartAccountKeeper: smartAccountKeeper,
+		MinaNetworkID:      DefaultMinaNetworkID,
+		Logger:             log.NewNopLogger(),
+	})
+	require.NoError(t, err)
+
+	_, err = anteHandler(ctx, signedTx, false)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, smartAccountKeeper.calls)
+	require.Equal(t, uint64(13), account.GetSequence())
+}
+
 func TestSmartAccountVerifierRejectsUnauthorizedSessionKey(t *testing.T) {
 	t.Parallel()
 
@@ -304,9 +393,8 @@ func TestSmartAccountVerifierSkipsCryptoVerificationDuringSimulation(t *testing.
 	t.Parallel()
 
 	_, account := newVerifierAccount(t, 1, 4)
-	sessionPrivateKey := ed25519.GenPrivKey()
 	identity := bytes.Repeat([]byte{6}, smartaccountstypes.IdentitySize)
-	keeper := &recordingSmartAccountKeeper{authorized: true}
+	keeper := &recordingSmartAccountKeeper{}
 	verifier := NewSmartAccountVerifier(
 		keeper,
 		verifierAccountKeeper{account: account},
@@ -316,13 +404,14 @@ func TestSmartAccountVerifierSkipsCryptoVerificationDuringSimulation(t *testing.
 		t,
 		account.GetAddress(),
 		identity,
-		sessionPrivateKey.PubKey(),
+		secp256k1.GenPrivKey().PubKey(),
 		account.GetSequence(),
 	)
 
 	err := verifier.VerifySignatures(newTestSDKContext(t).WithIsSigverifyTx(true), tx, true)
 
 	require.NoError(t, err)
+	require.Zero(t, keeper.calls)
 }
 
 func TestSmartAccountVerifierRejectsInvalidEnvelope(t *testing.T) {

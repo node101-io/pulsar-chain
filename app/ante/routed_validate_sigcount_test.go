@@ -241,3 +241,94 @@ func TestRoutedValidateSigCountDecoratorRejectsSignatureCountAboveLimit(t *testi
 	require.ErrorIs(t, err, sdkerrors.ErrTooManySignatures)
 	require.ErrorContains(t, err, "signatures: 2, limit: 1")
 }
+
+func TestRoutedValidateSigCountDecoratorAllowsSingleSmartAccountSignature(t *testing.T) {
+	t.Parallel()
+
+	ctx := setTxAuthMode(newTestSDKContext(t), TxAuthModeSmartAccount)
+	nextCalled := false
+
+	_, err := NewRoutedValidateSigCountDecorator(
+		validateSigCountAccountKeeper{},
+		&recordingDecorator{},
+	).AnteHandle(
+		ctx,
+		stubSigVerifiableTx{
+			sigs: []signingtypes.SignatureV2{
+				{Data: &signingtypes.SingleSignatureData{}},
+			},
+		},
+		false,
+		func(nextCtx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+			nextCalled = true
+			return nextCtx, nil
+		},
+	)
+
+	require.NoError(t, err)
+	require.True(t, nextCalled)
+}
+
+func TestRoutedValidateSigCountDecoratorRejectsInvalidSmartAccountSignatureCount(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		signatures []signingtypes.SignatureV2
+	}{
+		{name: "missing signature"},
+		{
+			name: "multiple signatures",
+			signatures: []signingtypes.SignatureV2{
+				{Data: &signingtypes.SingleSignatureData{}},
+				{Data: &signingtypes.SingleSignatureData{}},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := setTxAuthMode(newTestSDKContext(t), TxAuthModeSmartAccount)
+
+			_, err := NewRoutedValidateSigCountDecorator(
+				validateSigCountAccountKeeper{},
+				&recordingDecorator{},
+			).AnteHandle(
+				ctx,
+				stubSigVerifiableTx{sigs: test.signatures},
+				false,
+				func(nextCtx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+					t.Fatal("next handler should not be called for an invalid signature count")
+					return nextCtx, nil
+				},
+			)
+
+			require.ErrorIs(t, err, sdkerrors.ErrUnauthorized)
+		})
+	}
+}
+
+func TestRoutedValidateSigCountDecoratorRejectsSmartAccountMultisig(t *testing.T) {
+	t.Parallel()
+
+	ctx := setTxAuthMode(newTestSDKContext(t), TxAuthModeSmartAccount)
+
+	_, err := NewRoutedValidateSigCountDecorator(
+		validateSigCountAccountKeeper{},
+		&recordingDecorator{},
+	).AnteHandle(
+		ctx,
+		stubSigVerifiableTx{
+			sigs: []signingtypes.SignatureV2{
+				{Data: &signingtypes.MultiSignatureData{}},
+			},
+		},
+		false,
+		func(nextCtx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+			t.Fatal("next handler should not be called for smart-account multisig")
+			return nextCtx, nil
+		},
+	)
+
+	require.ErrorIs(t, err, sdkerrors.ErrInvalidType)
+}

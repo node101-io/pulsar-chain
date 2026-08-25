@@ -84,14 +84,6 @@ func (v SmartAccountVerifier) VerifySignatures(
 
 	signature := signatures[0]
 
-	sessionPublicKey, ok := signature.PubKey.(*ed25519.PubKey)
-	if !ok {
-		return errorsmod.Wrap(
-			sdkerrors.ErrInvalidPubKey,
-			"smart-account transactions require an Ed25519 session public key",
-		)
-	}
-
 	signatureData, ok := signature.Data.(*signing.SingleSignatureData)
 	if !ok {
 		return errorsmod.Wrap(
@@ -114,23 +106,6 @@ func (v SmartAccountVerifier) VerifySignatures(
 	}
 
 	accountAddress := signers[0]
-
-	authorized, err := v.smartAccountsKeeper.IsSessionKeyAuthorized(
-		ctx,
-		identity,
-		accountAddress,
-		sessionPublicKey.Bytes(),
-	)
-	if err != nil {
-		return err
-	}
-	if !authorized {
-		return errorsmod.Wrap(
-			sdkerrors.ErrUnauthorized,
-			"session public key is not authorized for smart account",
-		)
-	}
-
 	account, err := authante.GetSignerAcc(
 		ctx,
 		v.accountKeeper,
@@ -149,7 +124,35 @@ func (v SmartAccountVerifier) VerifySignatures(
 		)
 	}
 
-	if simulate || ctx.IsReCheckTx() || !ctx.IsSigverifyTx() {
+	if simulate {
+		return nil
+	}
+
+	sessionPublicKey, ok := signature.PubKey.(*ed25519.PubKey)
+	if !ok {
+		return errorsmod.Wrap(
+			sdkerrors.ErrInvalidPubKey,
+			"smart-account transactions require an Ed25519 session public key",
+		)
+	}
+
+	authorized, err := v.smartAccountsKeeper.IsSessionKeyAuthorized(
+		ctx,
+		identity,
+		accountAddress,
+		sessionPublicKey.Bytes(),
+	)
+	if err != nil {
+		return err
+	}
+	if !authorized {
+		return errorsmod.Wrap(
+			sdkerrors.ErrUnauthorized,
+			"session public key is not authorized for smart account",
+		)
+	}
+
+	if ctx.IsReCheckTx() || !ctx.IsSigverifyTx() {
 		return nil
 	}
 

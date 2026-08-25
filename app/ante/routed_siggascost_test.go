@@ -226,3 +226,60 @@ func TestRoutedSigGasConsumeDecoratorStopsGasAccountingAtFirstInvalidSignature(t
 	// The second signature is invalid, so only the first one should have consumed verification gas.
 	require.Equal(t, uint64(params.SigVerifyCostSecp256k1), ctx.GasMeter().GasConsumed()-before)
 }
+
+func TestRoutedSigGasConsumeDecoratorConsumesEd25519GasForSmartAccount(t *testing.T) {
+	t.Parallel()
+
+	ctx := setTxAuthMode(newGasMeteredContext(t), TxAuthModeSmartAccount)
+	params := authtypes.DefaultParams()
+	params.SigVerifyCostED25519 = 43
+	before := ctx.GasMeter().GasConsumed()
+	nextCalled := false
+
+	_, err := NewRoutedSigGasConsumeDecorator(
+		validateSigCountAccountKeeper{params: params},
+		&recordingDecorator{},
+	).AnteHandle(
+		ctx,
+		stubSigVerifiableTx{
+			sigs: []signingtypes.SignatureV2{
+				{Data: &signingtypes.SingleSignatureData{}},
+			},
+		},
+		false,
+		func(nextCtx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+			nextCalled = true
+			return nextCtx, nil
+		},
+	)
+
+	require.NoError(t, err)
+	require.True(t, nextCalled)
+	require.Equal(t, uint64(params.SigVerifyCostED25519), ctx.GasMeter().GasConsumed()-before)
+}
+
+func TestRoutedSigGasConsumeDecoratorRejectsSmartAccountMultisig(t *testing.T) {
+	t.Parallel()
+
+	ctx := setTxAuthMode(newGasMeteredContext(t), TxAuthModeSmartAccount)
+
+	_, err := NewRoutedSigGasConsumeDecorator(
+		validateSigCountAccountKeeper{},
+		&recordingDecorator{},
+	).AnteHandle(
+		ctx,
+		stubSigVerifiableTx{
+			sigs: []signingtypes.SignatureV2{
+				{Data: &signingtypes.MultiSignatureData{}},
+			},
+		},
+		false,
+		func(nextCtx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+			t.Fatal("next handler should not be called for smart-account multisig")
+			return nextCtx, nil
+		},
+	)
+
+	require.ErrorIs(t, err, sdkerrors.ErrInvalidType)
+	require.Zero(t, ctx.GasMeter().GasConsumed())
+}
