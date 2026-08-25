@@ -211,9 +211,8 @@ func TestAddPublicKeyRejectsExpiredSessionKey(t *testing.T) {
 	msg := validAddPublicKeyMessage(t, f)
 
 	sdkCtx := sdk.UnwrapSDKContext(f.ctx).WithBlockHeight(int64(msg.PublicKeyInputs.ExpiresAtHeight))
-	f.ctx = sdk.WrapSDKContext(sdkCtx)
 
-	_, err := keeper.NewMsgServerImpl(f.keeper).AddPublicKey(f.ctx, msg)
+	_, err := keeper.NewMsgServerImpl(f.keeper).AddPublicKey(sdkCtx, msg)
 	require.ErrorIs(t, err, types.ErrInvalidExpirationHeight)
 }
 
