@@ -25,4 +25,6 @@ message TxAuthModeExtension {
   option (gogoproto.goproto_getters) = false;
 
   TxAuthMode tx_auth_mode = 1;
+
+  bytes smart_account_identity = 2;
 }

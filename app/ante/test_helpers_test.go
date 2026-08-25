@@ -35,7 +35,7 @@ func (d *recordingDecorator) AnteHandle(
 	return next(ctx, tx, simulate)
 }
 
-// recordingVerifier tracks whether the Mina verification branch was invoked.
+// recordingVerifier tracks whether a custom signature-verification branch was invoked.
 type recordingVerifier struct {
 	calls int
 	err   error

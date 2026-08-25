@@ -64,9 +64,21 @@ func (stubBankKeeper) SendCoinsFromAccountToModule(context.Context, sdk.AccAddre
 	return nil
 }
 
+type stubSmartAccountKeeper struct{}
+
+func (stubSmartAccountKeeper) IsSessionKeyAuthorized(
+	context.Context,
+	[]byte,
+	[]byte,
+	[]byte,
+) (bool, error) {
+	return false, nil
+}
+
 var (
-	_ authante.AccountKeeper = stubAccountKeeper{}
-	_ authtypes.BankKeeper   = stubBankKeeper{}
+	_ authante.AccountKeeper     = stubAccountKeeper{}
+	_ authtypes.BankKeeper       = stubBankKeeper{}
+	_ appante.SmartAccountKeeper = stubSmartAccountKeeper{}
 )
 
 var stubKeyregistryKeeper = &keyregistrykeeper.Keeper{}
@@ -77,12 +89,13 @@ func TestNewAnteHandler(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:     stubAccountKeeper{},
-		BankKeeper:        stubBankKeeper{},
-		SignModeHandler:   &txsigning.HandlerMap{},
-		KeyregistryKeeper: stubKeyregistryKeeper,
-		MinaNetworkID:     appante.DefaultMinaNetworkID,
-		Logger:            log.NewNopLogger(),
+		AccountKeeper:      stubAccountKeeper{},
+		BankKeeper:         stubBankKeeper{},
+		SignModeHandler:    &txsigning.HandlerMap{},
+		KeyregistryKeeper:  stubKeyregistryKeeper,
+		SmartAccountKeeper: stubSmartAccountKeeper{},
+		MinaNetworkID:      appante.DefaultMinaNetworkID,
+		Logger:             log.NewNopLogger(),
 	})
 
 	require.NoError(t, err)
@@ -95,11 +108,12 @@ func TestNewAnteHandlerRequiresAccountKeeper(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		BankKeeper:        stubBankKeeper{},
-		SignModeHandler:   &txsigning.HandlerMap{},
-		KeyregistryKeeper: stubKeyregistryKeeper,
-		MinaNetworkID:     appante.DefaultMinaNetworkID,
-		Logger:            log.NewNopLogger(),
+		BankKeeper:         stubBankKeeper{},
+		SignModeHandler:    &txsigning.HandlerMap{},
+		KeyregistryKeeper:  stubKeyregistryKeeper,
+		SmartAccountKeeper: stubSmartAccountKeeper{},
+		MinaNetworkID:      appante.DefaultMinaNetworkID,
+		Logger:             log.NewNopLogger(),
 	})
 
 	require.ErrorContains(t, err, "account keeper is required for ante builder")
@@ -112,11 +126,12 @@ func TestNewAnteHandlerRequiresBankKeeper(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:     stubAccountKeeper{},
-		SignModeHandler:   &txsigning.HandlerMap{},
-		KeyregistryKeeper: stubKeyregistryKeeper,
-		MinaNetworkID:     appante.DefaultMinaNetworkID,
-		Logger:            log.NewNopLogger(),
+		AccountKeeper:      stubAccountKeeper{},
+		SignModeHandler:    &txsigning.HandlerMap{},
+		KeyregistryKeeper:  stubKeyregistryKeeper,
+		SmartAccountKeeper: stubSmartAccountKeeper{},
+		MinaNetworkID:      appante.DefaultMinaNetworkID,
+		Logger:             log.NewNopLogger(),
 	})
 
 	require.ErrorContains(t, err, "bank keeper is required for ante builder")
@@ -129,11 +144,12 @@ func TestNewAnteHandlerRequiresSignModeHandler(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:     stubAccountKeeper{},
-		BankKeeper:        stubBankKeeper{},
-		KeyregistryKeeper: stubKeyregistryKeeper,
-		MinaNetworkID:     appante.DefaultMinaNetworkID,
-		Logger:            log.NewNopLogger(),
+		AccountKeeper:      stubAccountKeeper{},
+		BankKeeper:         stubBankKeeper{},
+		KeyregistryKeeper:  stubKeyregistryKeeper,
+		SmartAccountKeeper: stubSmartAccountKeeper{},
+		MinaNetworkID:      appante.DefaultMinaNetworkID,
+		Logger:             log.NewNopLogger(),
 	})
 
 	require.ErrorContains(t, err, "sign mode handler is required for ante builder")
@@ -146,11 +162,12 @@ func TestNewAnteHandlerRequiresKeyregistryKeeper(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:   stubAccountKeeper{},
-		BankKeeper:      stubBankKeeper{},
-		SignModeHandler: &txsigning.HandlerMap{},
-		MinaNetworkID:   appante.DefaultMinaNetworkID,
-		Logger:          log.NewNopLogger(),
+		AccountKeeper:      stubAccountKeeper{},
+		BankKeeper:         stubBankKeeper{},
+		SignModeHandler:    &txsigning.HandlerMap{},
+		SmartAccountKeeper: stubSmartAccountKeeper{},
+		MinaNetworkID:      appante.DefaultMinaNetworkID,
+		Logger:             log.NewNopLogger(),
 	})
 
 	require.ErrorContains(t, err, "keyregistry keeper is required for ante builder")
@@ -163,11 +180,12 @@ func TestNewAnteHandlerRequiresMinaNetworkID(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:     stubAccountKeeper{},
-		BankKeeper:        stubBankKeeper{},
-		SignModeHandler:   &txsigning.HandlerMap{},
-		KeyregistryKeeper: stubKeyregistryKeeper,
-		Logger:            log.NewNopLogger(),
+		AccountKeeper:      stubAccountKeeper{},
+		BankKeeper:         stubBankKeeper{},
+		SignModeHandler:    &txsigning.HandlerMap{},
+		KeyregistryKeeper:  stubKeyregistryKeeper,
+		SmartAccountKeeper: stubSmartAccountKeeper{},
+		Logger:             log.NewNopLogger(),
 	})
 
 	require.ErrorContains(t, err, "mina network ID is required for ante builder")
@@ -180,12 +198,13 @@ func TestNewAnteHandlerRejectsUnsupportedMinaNetworkID(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
-		AccountKeeper:     stubAccountKeeper{},
-		BankKeeper:        stubBankKeeper{},
-		SignModeHandler:   &txsigning.HandlerMap{},
-		KeyregistryKeeper: stubKeyregistryKeeper,
-		MinaNetworkID:     "unsupported",
-		Logger:            log.NewNopLogger(),
+		AccountKeeper:      stubAccountKeeper{},
+		BankKeeper:         stubBankKeeper{},
+		SignModeHandler:    &txsigning.HandlerMap{},
+		KeyregistryKeeper:  stubKeyregistryKeeper,
+		SmartAccountKeeper: stubSmartAccountKeeper{},
+		MinaNetworkID:      "unsupported",
+		Logger:             log.NewNopLogger(),
 	})
 
 	require.ErrorIs(t, err, sdkerrors.ErrLogic)
@@ -199,13 +218,30 @@ func TestNewAnteHandlerRequiresLogger(t *testing.T) {
 	t.Parallel()
 
 	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
+		AccountKeeper:      stubAccountKeeper{},
+		BankKeeper:         stubBankKeeper{},
+		SignModeHandler:    &txsigning.HandlerMap{},
+		KeyregistryKeeper:  stubKeyregistryKeeper,
+		SmartAccountKeeper: stubSmartAccountKeeper{},
+		MinaNetworkID:      appante.DefaultMinaNetworkID,
+	})
+
+	require.ErrorContains(t, err, "logger is required for ante builder")
+	require.Nil(t, anteHandler)
+}
+
+func TestNewAnteHandlerRequiresSmartAccountKeeper(t *testing.T) {
+	t.Parallel()
+
+	anteHandler, err := appante.NewAnteHandler(appante.HandlerOptions{
 		AccountKeeper:     stubAccountKeeper{},
 		BankKeeper:        stubBankKeeper{},
 		SignModeHandler:   &txsigning.HandlerMap{},
 		KeyregistryKeeper: stubKeyregistryKeeper,
 		MinaNetworkID:     appante.DefaultMinaNetworkID,
+		Logger:            log.NewNopLogger(),
 	})
 
-	require.ErrorContains(t, err, "logger is required for ante builder")
+	require.ErrorContains(t, err, "smart account keeper is required for ante builder")
 	require.Nil(t, anteHandler)
 }

@@ -19,6 +19,7 @@ import (
 type HandlerOptions struct {
 	AccountKeeper          authante.AccountKeeper
 	BankKeeper             authtypes.BankKeeper
+	SmartAccountKeeper     SmartAccountKeeper
 	ExtensionOptionChecker authante.ExtensionOptionChecker
 	FeegrantKeeper         authante.FeegrantKeeper
 	SignModeHandler        *txsigning.HandlerMap
@@ -46,6 +47,10 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 
 	if options.KeyregistryKeeper == nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrLogic, "keyregistry keeper is required for ante builder")
+	}
+
+	if options.SmartAccountKeeper == nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrLogic, "smart account keeper is required for ante builder")
 	}
 
 	if options.MinaNetworkID == "" {
@@ -77,6 +82,12 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 		options.Logger,
 	)
 
+	smartAccountVerifier := NewSmartAccountVerifier(
+		options.SmartAccountKeeper,
+		options.AccountKeeper,
+		options.SignModeHandler,
+	)
+
 	anteDecorators := []sdk.AnteDecorator{
 		authante.NewSetUpContextDecorator(),
 		authante.NewExtensionOptionsDecorator(NewTxAuthExtensionOptionChecker(options.ExtensionOptionChecker)),
@@ -89,7 +100,7 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 		NewRoutedSetPubKeyDecorator(cosmosSetPubKey),
 		NewRoutedValidateSigCountDecorator(options.AccountKeeper, cosmosValidateSigCount),
 		NewRoutedSigGasConsumeDecorator(options.AccountKeeper, cosmosSigGasConsume),
-		NewRoutedSigVerificationDecorator(cosmosSigVerify, minaVerifier),
+		NewRoutedSigVerificationDecorator(cosmosSigVerify, minaVerifier, smartAccountVerifier),
 		NewStakingDecorator(options.KeyregistryKeeper),
 		authante.NewIncrementSequenceDecorator(options.AccountKeeper),
 	}
