@@ -24,6 +24,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// SmartAccount binds a Cosmos account address to its authorized session keys.
 type SmartAccount struct {
 	AccountAddress []byte       `protobuf:"bytes,1,opt,name=account_address,json=accountAddress,proto3" json:"account_address,omitempty"`
 	SessionKeys    []SessionKey `protobuf:"bytes,2,rep,name=session_keys,json=sessionKeys,proto3" json:"session_keys"`
@@ -76,6 +77,7 @@ func (m *SmartAccount) GetSessionKeys() []SessionKey {
 	return nil
 }
 
+// SessionKey defines an Ed25519 public key and its exclusive expiration height.
 type SessionKey struct {
 	PublicKey       []byte `protobuf:"bytes,1,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
 	ExpiresAtHeight uint64 `protobuf:"varint,2,opt,name=expires_at_height,json=expiresAtHeight,proto3" json:"expires_at_height,omitempty"`

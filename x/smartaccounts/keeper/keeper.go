@@ -14,6 +14,7 @@ import (
 	"github.com/node101-io/pulsar-chain/x/smartaccounts/types"
 )
 
+// SmartAccountsMapName is the collections schema name for smart-account state.
 const SmartAccountsMapName = "smart_accounts_map"
 
 type Keeper struct {
@@ -77,6 +78,7 @@ func (k Keeper) GetAuthority() []byte {
 	return k.authority
 }
 
+// HasSmartAccount reports whether smart-account state exists for identity.
 func (k Keeper) HasSmartAccount(ctx context.Context, identity []byte) (bool, error) {
 
 	if identity == nil {
@@ -140,6 +142,7 @@ func (k Keeper) IsSessionKeyAuthorized(ctx context.Context, identity, accountAdd
 	return false, nil
 }
 
+// AppendSessionKeyToSmartAccount adds an active session key to the smart account identified by identity.
 func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity, accountAddress []byte, key types.SessionKey) error {
 
 	if identity == nil {

@@ -28,6 +28,7 @@ type ParamSubspace interface {
 	Set(context.Context, []byte, interface{})
 }
 
+// VerificationKeeper defines the proof-result lookup required by smartaccounts.
 type VerificationKeeper interface {
 	FinalProofResultByProofHash(ctx context.Context, proofHash []byte) (verificationtypes.FinalProofResult, error)
 }
