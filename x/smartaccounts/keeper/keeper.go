@@ -94,6 +94,52 @@ func (k Keeper) HasSmartAccount(ctx context.Context, identity []byte) (bool, err
 	return k.smartAccounts.Has(ctx, identity)
 }
 
+// IsSessionKeyAuthorized reports whether publicKey is currently authorized
+// for identity and accountAddr.
+func (k Keeper) IsSessionKeyAuthorized(ctx context.Context, identity, accountAddr, publicKey []byte) (bool, error) {
+	if len(publicKey) == 0 {
+		return false, types.ErrNilPublicKey
+	}
+
+	if len(publicKey) != types.SessionPublicKeySize {
+		return false, types.ErrPublicKeyInvalidLength
+	}
+
+	if len(accountAddr) == 0 {
+		return false, types.ErrNilAccountAddress
+	}
+
+	if err := sdk.VerifyAddressFormat(accountAddr); err != nil {
+		return false, errorsmod.Wrap(types.ErrInvalidAccountAddress, err.Error())
+	}
+
+	exists, err := k.HasSmartAccount(ctx, identity)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, nil
+	}
+
+	account, err := k.smartAccounts.Get(ctx, identity)
+	if err != nil {
+		return false, err
+	}
+
+	if !bytes.Equal(accountAddr, account.AccountAddress) {
+		return false, types.ErrAccountAddressMismatch
+	}
+
+	currentHeight := uint64(sdk.UnwrapSDKContext(ctx).BlockHeight())
+	for _, key := range account.SessionKeys {
+		if bytes.Equal(key.PublicKey, publicKey) && currentHeight < key.ExpiresAtHeight {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity, accountAddress []byte, key types.SessionKey) error {
 
 	if identity == nil {
