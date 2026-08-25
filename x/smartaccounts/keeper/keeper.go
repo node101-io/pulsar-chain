@@ -8,6 +8,7 @@ import (
 	"cosmossdk.io/collections"
 	"cosmossdk.io/core/address"
 	corestore "cosmossdk.io/core/store"
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/node101-io/pulsar-chain/x/smartaccounts/types"
@@ -23,7 +24,7 @@ type Keeper struct {
 	// Typically, this should be the x/gov module account.
 	authority []byte
 
-	smartAccounts collections.Map[[]byte, types.SmartAccount] // account_id --> session keys
+	smartAccounts collections.Map[[]byte, types.SmartAccount] // identity -> smart account
 
 	verificationKeeper types.VerificationKeeper
 
@@ -93,7 +94,7 @@ func (k Keeper) HasSmartAccount(ctx context.Context, identity []byte) (bool, err
 	return k.smartAccounts.Has(ctx, identity)
 }
 
-func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity []byte, key types.SessionKey) error {
+func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity, accountAddress []byte, key types.SessionKey) error {
 
 	if identity == nil {
 		return types.ErrNilIdentity
@@ -119,6 +120,14 @@ func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity []b
 		return types.ErrInvalidExpirationHeight
 	}
 
+	if len(accountAddress) == 0 {
+		return types.ErrNilAccountAddress
+	}
+
+	if err := sdk.VerifyAddressFormat(accountAddress); err != nil {
+		return errorsmod.Wrap(types.ErrInvalidAccountAddress, err.Error())
+	}
+
 	exists, err := k.HasSmartAccount(ctx, identity)
 	if err != nil {
 		return err
@@ -126,6 +135,7 @@ func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity []b
 
 	if !exists {
 		err := k.smartAccounts.Set(ctx, identity, types.SmartAccount{
+			AccountAddress: accountAddress,
 			SessionKeys: []types.SessionKey{
 				key,
 			},
@@ -140,6 +150,9 @@ func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity []b
 	if err != nil {
 		return err
 	}
+	if !bytes.Equal(acc.AccountAddress, accountAddress) {
+		return types.ErrAccountAddressMismatch
+	}
 
 	for _, existingKey := range acc.SessionKeys {
 		if bytes.Equal(existingKey.PublicKey, key.PublicKey) &&
@@ -150,9 +163,7 @@ func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity []b
 
 	acc.SessionKeys = append(acc.SessionKeys, key)
 
-	if err := k.smartAccounts.Set(ctx, identity, types.SmartAccount{
-		SessionKeys: acc.SessionKeys,
-	}); err != nil {
+	if err := k.smartAccounts.Set(ctx, identity, acc); err != nil {
 		return err
 	}
 
@@ -178,9 +189,8 @@ func (k Keeper) pruneSessionKey(ctx context.Context, identity []byte) error {
 		validSessionKeys = append(validSessionKeys, key)
 	}
 
-	if err := k.smartAccounts.Set(ctx, identity, types.SmartAccount{
-		SessionKeys: validSessionKeys,
-	}); err != nil {
+	smartAcc.SessionKeys = validSessionKeys
+	if err := k.smartAccounts.Set(ctx, identity, smartAcc); err != nil {
 		return err
 	}
 

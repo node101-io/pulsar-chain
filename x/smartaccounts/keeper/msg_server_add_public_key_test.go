@@ -25,8 +25,31 @@ func TestAddPublicKey(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, exists)
 
+	accountAddress, err := f.addressCodec.StringToBytes(msg.Creator)
+	require.NoError(t, err)
+	genesis, err := f.keeper.ExportGenesis(f.ctx)
+	require.NoError(t, err)
+	require.Len(t, genesis.SmartAccounts, 1)
+	require.Equal(t, accountAddress, genesis.SmartAccounts[0].Account.AccountAddress)
+
 	_, err = server.AddPublicKey(f.ctx, msg)
 	require.ErrorIs(t, err, types.ErrSessionKeyAlreadyExists)
+}
+
+func TestAddPublicKeyRejectsDifferentCreatorForExistingAccount(t *testing.T) {
+	f := initFixture(t)
+	msg := validAddPublicKeyMessage(t, f)
+	server := keeper.NewMsgServerImpl(f.keeper)
+
+	_, err := server.AddPublicKey(f.ctx, msg)
+	require.NoError(t, err)
+
+	otherCreator, err := f.addressCodec.BytesToString(bytes.Repeat([]byte{0x09}, 20))
+	require.NoError(t, err)
+	msg.Creator = otherCreator
+
+	_, err = server.AddPublicKey(f.ctx, msg)
+	require.ErrorIs(t, err, types.ErrAccountAddressMismatch)
 }
 
 func TestAddPublicKeyRejectsInvalidProofData(t *testing.T) {

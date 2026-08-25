@@ -7,7 +7,8 @@ import "gogoproto/gogo.proto";
 option go_package = "github.com/node101-io/pulsar-chain/x/smartaccounts/types";
 
 message SmartAccount {
-  repeated SessionKey session_keys = 1 [(gogoproto.nullable) = false];
+  bytes account_address = 1;
+  repeated SessionKey session_keys = 2 [(gogoproto.nullable) = false];
 }
 
 message SessionKey {

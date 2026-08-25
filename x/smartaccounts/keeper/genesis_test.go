@@ -16,12 +16,14 @@ func TestGenesis(t *testing.T) {
 		SmartAccounts: []types.SmartAccountEntry{
 			{
 				Identity: identity,
-				Account: types.SmartAccount{SessionKeys: []types.SessionKey{
-					{
-						PublicKey:       bytes.Repeat([]byte{0x03}, types.SessionPublicKeySize),
-						ExpiresAtHeight: 100,
-					},
-				}},
+				Account: types.SmartAccount{
+					AccountAddress: bytes.Repeat([]byte{0x04}, 20),
+					SessionKeys: []types.SessionKey{
+						{
+							PublicKey:       bytes.Repeat([]byte{0x03}, types.SessionPublicKeySize),
+							ExpiresAtHeight: 100,
+						},
+					}},
 			},
 		},
 	}

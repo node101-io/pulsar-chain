@@ -26,12 +26,14 @@ func TestGenesisState_Validate(t *testing.T) {
 				SmartAccounts: []types.SmartAccountEntry{
 					{
 						Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize),
-						Account: types.SmartAccount{SessionKeys: []types.SessionKey{
-							{
-								PublicKey:       bytes.Repeat([]byte{0x03}, types.SessionPublicKeySize),
-								ExpiresAtHeight: 100,
-							},
-						}},
+						Account: types.SmartAccount{
+							AccountAddress: bytes.Repeat([]byte{0x04}, 20),
+							SessionKeys: []types.SessionKey{
+								{
+									PublicKey:       bytes.Repeat([]byte{0x03}, types.SessionPublicKeySize),
+									ExpiresAtHeight: 100,
+								},
+							}},
 					},
 				},
 			},
@@ -57,8 +59,14 @@ func TestGenesisState_Validate(t *testing.T) {
 			genState: &types.GenesisState{
 				Params: types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize)),
 				SmartAccounts: []types.SmartAccountEntry{
-					{Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize)},
-					{Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize)},
+					{
+						Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize),
+						Account:  types.SmartAccount{AccountAddress: bytes.Repeat([]byte{0x04}, 20)},
+					},
+					{
+						Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize),
+						Account:  types.SmartAccount{AccountAddress: bytes.Repeat([]byte{0x05}, 20)},
+					},
 				},
 			},
 			valid: false,
@@ -70,10 +78,22 @@ func TestGenesisState_Validate(t *testing.T) {
 				SmartAccounts: []types.SmartAccountEntry{
 					{
 						Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize),
-						Account: types.SmartAccount{SessionKeys: []types.SessionKey{
-							{PublicKey: []byte{0x03}, ExpiresAtHeight: 100},
-						}},
+						Account: types.SmartAccount{
+							AccountAddress: bytes.Repeat([]byte{0x04}, 20),
+							SessionKeys: []types.SessionKey{
+								{PublicKey: []byte{0x03}, ExpiresAtHeight: 100},
+							}},
 					},
+				},
+			},
+			valid: false,
+		},
+		{
+			desc: "missing account address",
+			genState: &types.GenesisState{
+				Params: types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize)),
+				SmartAccounts: []types.SmartAccountEntry{
+					{Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize)},
 				},
 			},
 			valid: false,

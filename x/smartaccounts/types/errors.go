@@ -21,4 +21,7 @@ var (
 	ErrProofNotValid           = errors.Register(ModuleName, 1110, "proof is not valid")
 	ErrVerificationKeyMismatch = errors.Register(ModuleName, 1111, "verification key hash mismatch")
 	ErrInvalidPublicInputsHash = errors.Register(ModuleName, 1112, "invalid public inputs hash")
+	ErrNilAccountAddress       = errors.Register(ModuleName, 1113, "nil account address")
+	ErrInvalidAccountAddress   = errors.Register(ModuleName, 1114, "invalid account address")
+	ErrAccountAddressMismatch  = errors.Register(ModuleName, 1115, "account address mismatch")
 )

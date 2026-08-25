@@ -1,6 +1,10 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
 
 // DefaultGenesis returns the default genesis state
 func DefaultGenesis() *GenesisState {
@@ -33,6 +37,10 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("duplicate smart account identity at index %d", i)
 		}
 		identities[identity] = struct{}{}
+
+		if err := sdk.VerifyAddressFormat(entry.Account.AccountAddress); err != nil {
+			return fmt.Errorf("smart account %d has invalid account address: %w", i, err)
+		}
 
 		sessionKeys := make(map[string]map[uint64]struct{}, len(entry.Account.SessionKeys))
 		for j, key := range entry.Account.SessionKeys {

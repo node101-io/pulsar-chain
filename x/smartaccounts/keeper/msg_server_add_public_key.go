@@ -11,8 +11,10 @@ import (
 )
 
 func (k msgServer) AddPublicKey(ctx context.Context, msg *types.MsgAddPublicKey) (*types.MsgAddPublicKeyResponse, error) {
-	if _, err := k.addressCodec.StringToBytes(msg.Creator); err != nil {
-		return nil, errorsmod.Wrap(err, "invalid authority address")
+
+	accountAddr, err := k.addressCodec.StringToBytes(msg.Creator)
+	if err != nil {
+		return nil, errorsmod.Wrap(err, "invalid creator address")
 	}
 
 	if msg.ProofHash == nil {
@@ -82,7 +84,7 @@ func (k msgServer) AddPublicKey(ctx context.Context, msg *types.MsgAddPublicKey)
 		return nil, types.ErrInvalidPublicInputsHash
 	}
 
-	if err := k.AppendSessionKeyToSmartAccount(ctx, msg.PublicKeyInputs.Identity, types.SessionKey{
+	if err := k.AppendSessionKeyToSmartAccount(ctx, msg.PublicKeyInputs.Identity, accountAddr, types.SessionKey{
 		PublicKey:       msg.PublicKeyInputs.SessionPublicKey,
 		ExpiresAtHeight: msg.PublicKeyInputs.ExpiresAtHeight,
 	}); err != nil {
