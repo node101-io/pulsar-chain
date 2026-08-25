@@ -166,6 +166,11 @@ func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity, ac
 		return types.ErrInvalidExpirationHeight
 	}
 
+	currentHeight := uint64(sdk.UnwrapSDKContext(ctx).BlockHeight())
+	if key.ExpiresAtHeight <= currentHeight {
+		return types.ErrInvalidExpirationHeight
+	}
+
 	if len(accountAddress) == 0 {
 		return types.ErrNilAccountAddress
 	}
