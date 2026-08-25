@@ -130,6 +130,10 @@ read_bridge_genesis_param() {
   python3 "$PYTHON_HELPER" read-bridge-genesis-param --config "$1" --key "$2"
 }
 
+read_smartaccounts_verification_key_hash() {
+  python3 "$PYTHON_HELPER" read-smartaccounts-verification-key-hash --config "$1"
+}
+
 generate_default_mina_priv_key() {
   python3 "$PYTHON_HELPER" generate-default-mina-priv-key --index "$1"
 }
@@ -202,6 +206,25 @@ resolve_default_bridge_param() {
   fi
 
   printf '%s\n' "$fallback"
+}
+
+resolve_smartaccounts_verification_key_hash() {
+  if [[ -n "${SMART_ACCOUNTS_VERIFICATION_KEY_HASH:-}" ]]; then
+    printf '%s\n' "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH"
+    return
+  fi
+
+  if [[ -f "$CHAIN_CONFIG_PATH" ]]; then
+    local config_value
+    config_value="$(read_smartaccounts_verification_key_hash "$CHAIN_CONFIG_PATH")"
+    if [[ -n "$config_value" ]]; then
+      printf '%s\n' "$config_value"
+      return
+    fi
+  fi
+
+  echo "smartaccounts verification key hash is required; set SMART_ACCOUNTS_VERIFICATION_KEY_HASH or genesis.app_state.smartaccounts.params.verification_key_hash in $CHAIN_CONFIG_PATH" >&2
+  return 1
 }
 
 validate_mina_network_id() {
@@ -506,6 +529,7 @@ BRIDGE_CONTRACT_ADDRESS="$(resolve_default_bridge_param "CONTRACT_ADDRESS" "cont
 BRIDGE_START_BLOCK_HEIGHT="$(resolve_default_bridge_param "START_BLOCK_HEIGHT" "start_block_height" "1")"
 BRIDGE_MAX_BLOCK_RANGE="$(resolve_default_bridge_param "MAX_BLOCK_RANGE" "max_block_range" "1000")"
 BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE="$(resolve_default_bridge_param "ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE" "actions_reduced_root_snapshot_window_size" "4")"
+SMART_ACCOUNTS_VERIFICATION_KEY_HASH="$(resolve_smartaccounts_verification_key_hash)"
 
 validate_positive_int "confirmation depth" "$BRIDGE_CONFIRMATION_DEPTH"
 validate_non_empty "contract address" "$BRIDGE_CONTRACT_ADDRESS"
@@ -630,6 +654,19 @@ python3 "$PYTHON_HELPER" patch-bridge-genesis \
   --start-block-height "$BRIDGE_START_BLOCK_HEIGHT" \
   --max-block-range "$BRIDGE_MAX_BLOCK_RANGE" \
   --actions-reduced-root-snapshot-window-size "$BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE"
+
+echo "==> Setting smartaccounts genesis params..."
+python3 "$PYTHON_HELPER" patch-smartaccounts-genesis \
+  --genesis "$PRIMARY_GENESIS_FILE" \
+  --verification-key-hash "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH"
+
+LOCAL_SMART_ACCOUNT_FIXTURE="$PRIMARY_HOME/config/local-smart-account-fixture.json"
+"$DEVTOOLS_BINARY_PATH" smart-account-fixture \
+  --verification-key-hash "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH" \
+  >"$LOCAL_SMART_ACCOUNT_FIXTURE"
+python3 "$PYTHON_HELPER" patch-local-smartaccount-proof-fixture \
+  --genesis "$PRIMARY_GENESIS_FILE" \
+  --fixture "$LOCAL_SMART_ACCOUNT_FIXTURE"
 
 echo "==> Creating validator keys..."
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do

@@ -69,6 +69,9 @@ Optional environment variables:
   BRIDGE_CONFIRMATION_DEPTH  local bridge confirmation depth (default: 3)
   BRIDGE_START_BLOCK_HEIGHT  local bridge start height (default: 1)
   BRIDGE_MAX_BLOCK_RANGE     local bridge query range (default: 1000)
+  SMART_ACCOUNTS_VERIFICATION_KEY_HASH
+                             32-byte smartaccounts verification-key hash in hex
+                             or base64 (default: value from config.yml)
 
 Default Mina Lightnet image:
   o1labs/mina-local-network@sha256:33e349241f5f3e8d336e5de9b35de2d4339fd8713b309e2b1b5fc375c2605b58

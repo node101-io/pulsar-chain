@@ -200,12 +200,11 @@ run_compose() {
   docker compose --project-name "$PROJECT_NAME" -f "$COMPOSE_FILE" "$@"
 }
 
-declare -a VALIDATOR_SERVICES=()
-declare -a VERIFIER_SERVICES=()
+declare -a START_SERVICES=()
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
-  VALIDATOR_SERVICES+=("validator${i}")
+  START_SERVICES+=("validator${i}")
   if [[ -n "${PULSAR_VERIFIER_IMAGE:-}" ]]; then
-    VERIFIER_SERVICES+=("verifier${i}")
+    START_SERVICES+=("verifier${i}")
   fi
 done
 
@@ -226,7 +225,7 @@ case "$COMMAND" in
     fi
     if ! run_compose up --no-build -d --wait \
       --wait-timeout "$VALIDATOR_STARTUP_TIMEOUT" \
-      "${VALIDATOR_SERVICES[@]}" "${VERIFIER_SERVICES[@]}"; then
+      "${START_SERVICES[@]}"; then
       cleanup_partial_environment
       exit 1
     fi
