@@ -28,10 +28,15 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Skip:      true, // skipped because authority gated
 				},
 				{
-					RpcMethod:      "AddPublicKey",
-					Use:            "add-public-key [verification-key-hash]",
-					Short:          "Send a add-public-key tx",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "verification_key_hash", Varargs: true}},
+					RpcMethod: "AddPublicKey",
+					Use:       "add-public-key [proof-hash] [session-public-key] [expires-at-height] [identity]",
+					Short:     "Add a session public key to a smart account",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
+						{ProtoField: "proof_hash"},
+						{ProtoField: "public_key_inputs.session_public_key"},
+						{ProtoField: "public_key_inputs.expires_at_height"},
+						{ProtoField: "public_key_inputs.identity"},
+					},
 				},
 			},
 		},

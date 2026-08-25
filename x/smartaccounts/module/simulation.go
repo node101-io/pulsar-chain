@@ -1,6 +1,8 @@
 package smartaccounts
 
 import (
+	"bytes"
+
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 
@@ -14,7 +16,7 @@ func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
 		accs[i] = acc.Address.String()
 	}
 	smartaccountsGenesis := types.GenesisState{
-		Params: types.DefaultParams(),
+		Params: types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize)),
 	}
 	simState.GenState[types.ModuleName] = simState.Cdc.MustMarshalJSON(&smartaccountsGenesis)
 }

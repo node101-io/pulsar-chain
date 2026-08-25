@@ -21,15 +21,62 @@ func TestGenesisState_Validate(t *testing.T) {
 		},
 		{
 			desc: "valid genesis state",
-			genState: &types.GenesisState{Params: types.NewParams(
-				bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize),
-			)},
+			genState: &types.GenesisState{
+				Params: types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize)),
+				SmartAccounts: []types.SmartAccountEntry{
+					{
+						Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize),
+						Account: types.SmartAccount{SessionKeys: []types.SessionKey{
+							{
+								PublicKey:       bytes.Repeat([]byte{0x03}, types.SessionPublicKeySize),
+								ExpiresAtHeight: 100,
+							},
+						}},
+					},
+				},
+			},
 			valid: true,
 		},
 		{
 			desc:     "missing verification key hash",
 			genState: &types.GenesisState{},
 			valid:    false,
+		},
+		{
+			desc: "invalid smart account identity",
+			genState: &types.GenesisState{
+				Params: types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize)),
+				SmartAccounts: []types.SmartAccountEntry{
+					{Identity: []byte{0x01}},
+				},
+			},
+			valid: false,
+		},
+		{
+			desc: "duplicate smart account identity",
+			genState: &types.GenesisState{
+				Params: types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize)),
+				SmartAccounts: []types.SmartAccountEntry{
+					{Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize)},
+					{Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize)},
+				},
+			},
+			valid: false,
+		},
+		{
+			desc: "invalid session key",
+			genState: &types.GenesisState{
+				Params: types.NewParams(bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize)),
+				SmartAccounts: []types.SmartAccountEntry{
+					{
+						Identity: bytes.Repeat([]byte{0x02}, types.IdentitySize),
+						Account: types.SmartAccount{SessionKeys: []types.SessionKey{
+							{PublicKey: []byte{0x03}, ExpiresAtHeight: 100},
+						}},
+					},
+				},
+			},
+			valid: false,
 		},
 	}
 	for _, tc := range tests {

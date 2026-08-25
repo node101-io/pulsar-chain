@@ -4,6 +4,7 @@ package pulsarchain.smartaccounts.v1;
 import "amino/amino.proto";
 import "gogoproto/gogo.proto";
 import "pulsarchain/smartaccounts/v1/params.proto";
+import "pulsarchain/smartaccounts/v1/types.proto";
 
 option go_package = "github.com/node101-io/pulsar-chain/x/smartaccounts/types";
 
@@ -14,4 +15,11 @@ message GenesisState {
     (gogoproto.nullable) = false,
     (amino.dont_omitempty) = true
   ];
+  repeated SmartAccountEntry smart_accounts = 2 [(gogoproto.nullable) = false];
+}
+
+// SmartAccountEntry associates an identity with its smart-account state.
+message SmartAccountEntry {
+  bytes identity = 1;
+  SmartAccount account = 2 [(gogoproto.nullable) = false];
 }
