@@ -271,10 +271,14 @@ def read_config_path_value(config_path: str, path: list[str]) -> Optional[str]:
     return read_scalar_in_block(lines, start_index, end_index, parent_indent, path[-1])
 
 
-def read_bridge_genesis_param(config_path: str, key_name: str) -> int:
+def read_genesis_param(
+    config_path: str,
+    module_name: str,
+    key_name: str,
+) -> int:
     value = read_config_path_value(
         config_path,
-        ["genesis", "app_state", "bridge", "params", key_name],
+        ["genesis", "app_state", module_name, "params", key_name],
     )
     if value is None:
         print("")
@@ -282,23 +286,6 @@ def read_bridge_genesis_param(config_path: str, key_name: str) -> int:
 
     print(value)
     return 0
-
-
-def read_smartaccounts_verification_key_hash(config_path: str) -> int:
-    value = read_config_path_value(
-        config_path,
-        [
-            "genesis",
-            "app_state",
-            "smartaccounts",
-            "params",
-            "verification_key_hash",
-        ],
-    )
-    print(value or "")
-    return 0
-
-
 def read_mina_network_id(config_path: str) -> int:
     content = read_text(config_path)
     print(
@@ -781,10 +768,7 @@ def patch_bridge_genesis(
     return 0
 
 
-def patch_smartaccounts_genesis(
-    genesis_path: str,
-    verification_key_hash: str,
-) -> int:
+def decode_smartaccounts_verification_key_hash(verification_key_hash: str) -> bytes:
     encoded_hash = verification_key_hash.strip()
     hex_hash = encoded_hash[2:] if encoded_hash.startswith("0x") else encoded_hash
 
@@ -804,6 +788,17 @@ def patch_smartaccounts_genesis(
             f"got {len(hash_bytes)}"
         )
 
+    return hash_bytes
+
+
+def patch_smartaccounts_genesis(
+    genesis_path: str,
+    verification_key_hash: str,
+) -> int:
+    hash_bytes = decode_smartaccounts_verification_key_hash(
+        verification_key_hash
+    )
+
     genesis = read_json(genesis_path)
     smartaccounts = genesis.setdefault("app_state", {}).setdefault(
         "smartaccounts", {}
@@ -819,22 +814,43 @@ def patch_smartaccounts_genesis(
 
 def patch_local_smartaccount_proof_fixture(
     genesis_path: str,
-    fixture_path: str,
+    verification_key_hash: str,
 ) -> int:
-    fixture = read_json(fixture_path)
-    required_fields = (
-        "proof_hash_base64",
-        "public_inputs_hash_base64",
-        "verification_key_hash_base64",
-        "verification_id_base64",
+    identity = bytes.fromhex(
+        "a0e18e9725f34a4d055830f724af1f42bc57942ad0a38875b4b991851d999dcb"
     )
-    for field in required_fields:
-        try:
-            value = base64.b64decode(fixture[field], validate=True)
-        except (KeyError, ValueError) as exc:
-            raise SystemExit(f"invalid local smart-account fixture field: {field}") from exc
-        if len(value) != 32:
-            raise SystemExit(f"local smart-account fixture field {field} must be 32 bytes")
+    session_public_key = bytes.fromhex(
+        "6e1f9218c4a7fbce1262a5d586d7511d1b2ec5201d96ab621753c239ebab045b"
+    )
+    proof_hash = bytes.fromhex(
+        "09b26eb3d86c4fd415838c2d9bd8bebc01cbb0fe78e270a4ea643e81075ac210"
+    )
+    verification_key_hash_bytes = decode_smartaccounts_verification_key_hash(
+        verification_key_hash
+    )
+    expires_at_height = 1_000_000
+    public_inputs = (
+        session_public_key
+        + expires_at_height.to_bytes(32, byteorder="big")
+        + identity
+    )
+    public_inputs_hash = hashlib.sha256(public_inputs).digest()
+    verification_id = hashlib.sha256(
+        b"pulsar/verification/v1\x00"
+        + (1).to_bytes(4, byteorder="big")
+        + proof_hash
+        + public_inputs_hash
+        + verification_key_hash_bytes
+    ).digest()
+
+    proof_hash_base64 = base64.b64encode(proof_hash).decode("ascii")
+    public_inputs_hash_base64 = base64.b64encode(public_inputs_hash).decode(
+        "ascii"
+    )
+    verification_key_hash_base64 = base64.b64encode(
+        verification_key_hash_bytes
+    ).decode("ascii")
+    verification_id_base64 = base64.b64encode(verification_id).decode("ascii")
 
     proof_key = {"submission_height": "1", "index_in_block": 0}
     genesis = read_json(genesis_path)
@@ -843,7 +859,7 @@ def patch_local_smartaccount_proof_fixture(
     )
     verification["seen_verification_ids"] = [
         {
-            "verification_id": fixture["verification_id_base64"],
+            "verification_id": verification_id_base64,
             "proof_key": proof_key,
         }
     ]
@@ -851,7 +867,7 @@ def patch_local_smartaccount_proof_fixture(
         {
             "proof_key": proof_key,
             "result": {
-                "proof_hash": fixture["proof_hash_base64"],
+                "proof_hash": proof_hash_base64,
                 "proof_type": "PROOF_TYPE_MINA_PICKLES",
                 "status": "PROOF_STATUS_VALID",
                 "valid_voting_power": "1",
@@ -860,11 +876,9 @@ def patch_local_smartaccount_proof_fixture(
                 "voting_power_threshold": "1",
                 "submission_height": "1",
                 "finalized_height": "6",
-                "public_inputs_hash": fixture["public_inputs_hash_base64"],
-                "verification_key_hash": fixture[
-                    "verification_key_hash_base64"
-                ],
-                "verification_id": fixture["verification_id_base64"],
+                "public_inputs_hash": public_inputs_hash_base64,
+                "verification_key_hash": verification_key_hash_base64,
+                "verification_id": verification_id_base64,
             },
         }
     ]
@@ -1022,14 +1036,10 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("wrapper_grpc_address", "wrapper_grpc_transport_mode"),
     )
 
-    read_bridge_param_cmd = subparsers.add_parser("read-bridge-genesis-param")
-    read_bridge_param_cmd.add_argument("--config", required=True)
-    read_bridge_param_cmd.add_argument("--key", required=True)
-
-    read_smartaccounts_hash = subparsers.add_parser(
-        "read-smartaccounts-verification-key-hash"
-    )
-    read_smartaccounts_hash.add_argument("--config", required=True)
+    read_genesis_param_cmd = subparsers.add_parser("read-genesis-param")
+    read_genesis_param_cmd.add_argument("--config", required=True)
+    read_genesis_param_cmd.add_argument("--module", required=True)
+    read_genesis_param_cmd.add_argument("--key", required=True)
 
     read_gas_price = subparsers.add_parser("read-min-gas-price")
     read_gas_price.add_argument("--app", required=True)
@@ -1095,7 +1105,9 @@ def build_parser() -> argparse.ArgumentParser:
         "patch-local-smartaccount-proof-fixture"
     )
     patch_local_smartaccount.add_argument("--genesis", required=True)
-    patch_local_smartaccount.add_argument("--fixture", required=True)
+    patch_local_smartaccount.add_argument(
+        "--verification-key-hash", required=True
+    )
 
     verify_registry = subparsers.add_parser("verify-validator-key-pairs")
     verify_registry.add_argument("--genesis", required=True)
@@ -1136,10 +1148,8 @@ def main() -> int:
         )
     if args.command == "read-app-wrapper-config":
         return read_app_toml_string(args.app, "bridge", args.key)
-    if args.command == "read-bridge-genesis-param":
-        return read_bridge_genesis_param(args.config, args.key)
-    if args.command == "read-smartaccounts-verification-key-hash":
-        return read_smartaccounts_verification_key_hash(args.config)
+    if args.command == "read-genesis-param":
+        return read_genesis_param(args.config, args.module, args.key)
     if args.command == "read-mina-network-id":
         return read_mina_network_id(args.config)
     if args.command == "read-min-gas-price":
@@ -1194,7 +1204,7 @@ def main() -> int:
     if args.command == "patch-local-smartaccount-proof-fixture":
         return patch_local_smartaccount_proof_fixture(
             args.genesis,
-            args.fixture,
+            args.verification_key_hash,
         )
     if args.command == "verify-validator-key-pairs":
         return verify_validator_key_pairs(args.genesis, args.cosmos_key)

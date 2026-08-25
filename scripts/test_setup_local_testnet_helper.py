@@ -460,25 +460,39 @@ class E2EFixtureTest(unittest.TestCase):
         )
         self.assertEqual([], smartaccounts["smart_accounts"])
 
-    def test_reads_smartaccounts_verification_key_hash_from_config(self):
-        expected = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+    def test_reads_module_params_through_the_same_generic_path(self):
         config = self.write_temp(
             "config.yml",
             """genesis:
   app_state:
+    bridge:
+      params:
+        confirmation_depth: "32"
     smartaccounts:
       params:
         verification_key_hash: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
 """,
         )
 
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            self.assertEqual(
-                0,
-                helper.read_smartaccounts_verification_key_hash(str(config)),
-            )
-        self.assertEqual(expected, output.getvalue().strip())
+        cases = (
+            ("bridge", "confirmation_depth", "32"),
+            (
+                "smartaccounts",
+                "verification_key_hash",
+                "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+            ),
+        )
+        for module_name, key_name, expected in cases:
+            with self.subTest(module=module_name, key=key_name):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        0,
+                        helper.read_genesis_param(
+                            str(config), module_name, key_name
+                        ),
+                    )
+                self.assertEqual(expected, output.getvalue().strip())
 
     def test_patch_smartaccounts_genesis_rejects_invalid_hash(self):
         genesis = self.write_temp("genesis.json", json.dumps({"app_state": {}}))
@@ -493,23 +507,12 @@ class E2EFixtureTest(unittest.TestCase):
             "genesis.json",
             json.dumps({"app_state": {"verification": {"params": {}}}}),
         )
-        encoded = base64.b64encode(bytes(range(32))).decode("ascii")
-        fixture = self.write_temp(
-            "fixture.json",
-            json.dumps(
-                {
-                    "proof_hash_base64": encoded,
-                    "public_inputs_hash_base64": encoded,
-                    "verification_key_hash_base64": encoded,
-                    "verification_id_base64": encoded,
-                }
-            ),
-        )
+        verification_key_hash = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
 
         self.assertEqual(
             0,
             helper.patch_local_smartaccount_proof_fixture(
-                str(genesis), str(fixture)
+                str(genesis), verification_key_hash
             ),
         )
 
@@ -518,12 +521,15 @@ class E2EFixtureTest(unittest.TestCase):
         ]["verification"]
         self.assertEqual({}, verification["params"])
         self.assertEqual(
-            encoded,
+            "hrZ/3dUCYGrO3ofkc69c4NAVvF/3/olEoj5pN0fhJhY=",
             verification["seen_verification_ids"][0]["verification_id"],
         )
         result = verification["final_proof_results"][0]["result"]
         self.assertEqual("PROOF_STATUS_VALID", result["status"])
-        self.assertEqual(encoded, result["public_inputs_hash"])
+        self.assertEqual(
+            "R/Za9xWb5udbVYiQ2rs8REB4+qhK5lfKhuhmK2fDgaA=",
+            result["public_inputs_hash"],
+        )
 
     def test_render_e2e_seed_replaces_exactly_one_placeholder(self):
         template = self.write_temp(
