@@ -24,7 +24,7 @@ func (d RoutedSetPubKeyDecorator) AnteHandle(
 		return ctx, err
 	}
 
-	if mode == TxAuthModeMina {
+	if mode == TxAuthModeMina || mode == TxAuthModeSmartAccount {
 		return next(ctx, tx, simulate)
 	}
 
