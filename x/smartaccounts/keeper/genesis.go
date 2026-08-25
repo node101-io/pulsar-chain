@@ -41,11 +41,11 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 
 		acc, err := iter.Value()
 		if err != nil {
-			iter.Next()
+			continue
 		}
 		identity, err := iter.Key()
 		if err != nil {
-			iter.Next()
+			continue
 		}
 
 		genesis.SmartAccounts = append(genesis.SmartAccounts, types.SmartAccountEntry{
