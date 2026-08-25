@@ -108,7 +108,8 @@ func ResolveTxAuthMode(tx sdk.Tx) (TxAuthMode, error) {
 	}
 
 	switch found.TxAuthMode {
-	case antetypes.TX_AUTH_MODE_COSMOS:
+	case antetypes.TX_AUTH_MODE_UNSPECIFIED,
+		antetypes.TX_AUTH_MODE_COSMOS:
 		return TxAuthModeCosmos, nil
 	case antetypes.TX_AUTH_MODE_MINA:
 		return TxAuthModeMina, nil

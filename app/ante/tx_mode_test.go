@@ -50,6 +50,19 @@ func TestResolveTxAuthModeDefaultsToCosmos(t *testing.T) {
 	require.Equal(t, TxAuthModeCosmos, mode)
 }
 
+func TestResolveTxAuthModeTreatsUnspecifiedAsCosmos(t *testing.T) {
+	t.Parallel()
+
+	mode, err := ResolveTxAuthMode(stubExtensionTx{
+		extensionOptions: []*codectypes.Any{
+			mustTxAuthModeExtensionAny(t, antetypes.TX_AUTH_MODE_UNSPECIFIED),
+		},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, TxAuthModeCosmos, mode)
+}
+
 func TestResolveTxAuthModeReadsSmartAccountExtension(t *testing.T) {
 	t.Parallel()
 
