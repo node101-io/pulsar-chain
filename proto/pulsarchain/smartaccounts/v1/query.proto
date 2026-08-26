@@ -39,10 +39,14 @@ message QueryParamsResponse {
 // QueryGetSessionKeysByIdentityRequest defines the QueryGetSessionKeysByIdentityRequest message.
 message QueryGetSessionKeysByIdentityRequest {
   bytes identity = 1;
+  // pagination applies to the selected smart account's session keys.
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
 }
 
 // QueryGetSessionKeysByIdentityResponse defines the QueryGetSessionKeysByIdentityResponse message.
 message QueryGetSessionKeysByIdentityResponse {
   bytes account_address = 1;
   repeated SessionKey session_keys = 2;
+  // pagination describes this page of session keys.
+  cosmos.base.query.v1beta1.PageResponse pagination = 3;
 }
