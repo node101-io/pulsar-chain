@@ -53,6 +53,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
 		}
+	case "send-smart-account-tx":
+		if err := runSendSmartAccountTx(args[1:], stdout); err != nil {
+			fmt.Fprintf(stderr, "error: %v\n", err)
+			return 1
+		}
 	case "mina-registration-material":
 		if err := runMinaRegistrationMaterial(args[1:], stdout); err != nil {
 			fmt.Fprintf(stderr, "error: %v\n", err)
@@ -60,6 +65,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	case "send-mina-auth-mode-tx":
 		if err := runSendMinaAuthModeTx(args[1:], stdout); err != nil {
+			fmt.Fprintf(stderr, "error: %v\n", err)
+			return 1
+		}
+	case "derive-ed25519-pub":
+		if err := runDeriveEd25519Pub(args[1:], stdout); err != nil {
 			fmt.Fprintf(stderr, "error: %v\n", err)
 			return 1
 		}
@@ -81,8 +91,10 @@ func printUsage(out io.Writer) {
 	fmt.Fprintln(out, "  derive-mina-pub <mina-private-key-base64>")
 	fmt.Fprintln(out, "  verify-vote-extensions [--grpc-addr addr] [--network-id id] [--timeout duration]")
 	fmt.Fprintln(out, "  query-archive-wrapper --address addr --transport-mode mode --latest height --target height")
+	fmt.Fprintln(out, "  send-smart-account-tx --from addr --to addr --identity value --session-key-file path [flags]")
 	fmt.Fprintln(out, "  mina-registration-material --chain-id id --cosmos-public-key value --mina-private-key value")
 	fmt.Fprintln(out, "  send-mina-auth-mode-tx --from addr --to addr --mina-private-key value [flags]")
+	fmt.Fprintln(out, "  derive-ed25519-pub <private-seed-or-key>")
 }
 
 func runQueryArchiveWrapper(args []string, stdout io.Writer) error {

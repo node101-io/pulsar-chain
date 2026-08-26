@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	stdlibed25519 "crypto/ed25519"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -44,6 +45,35 @@ const (
 type minaRegistrationMaterial struct {
 	MinaPublicKey string `json:"mina_public_key"`
 	MinaSignature string `json:"mina_signature"`
+}
+
+func runDeriveEd25519Pub(args []string, stdout io.Writer) error {
+	if len(args) != 1 {
+		return errors.New("usage: devtools derive-ed25519-pub <private-seed-or-key>")
+	}
+	privateKeyBytes, err := decodeHexOrBase64(args[0])
+	if err != nil {
+		return fmt.Errorf("decode Ed25519 private key: %w", err)
+	}
+
+	var privateKey stdlibed25519.PrivateKey
+	switch len(privateKeyBytes) {
+	case stdlibed25519.SeedSize:
+		privateKey = stdlibed25519.NewKeyFromSeed(privateKeyBytes)
+	case stdlibed25519.PrivateKeySize:
+		privateKey = stdlibed25519.PrivateKey(privateKeyBytes)
+	default:
+		return fmt.Errorf(
+			"invalid Ed25519 private key length: got %d bytes, want %d-byte seed or %d-byte private key",
+			len(privateKeyBytes),
+			stdlibed25519.SeedSize,
+			stdlibed25519.PrivateKeySize,
+		)
+	}
+
+	publicKey := privateKey.Public().(stdlibed25519.PublicKey)
+	_, err = fmt.Fprintln(stdout, hex.EncodeToString(publicKey))
+	return err
 }
 
 func runMinaRegistrationMaterial(args []string, stdout io.Writer) error {

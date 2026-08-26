@@ -515,12 +515,16 @@ if [[ -z "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH" ]]; then
   echo "smartaccounts verification key hash is required; set SMART_ACCOUNTS_VERIFICATION_KEY_HASH or genesis.app_state.smartaccounts.params.verification_key_hash in $CHAIN_CONFIG_PATH" >&2
   exit 1
 fi
+SMART_ACCOUNT_AUTH_MODE_IDENTITY_HEX="${SMART_ACCOUNT_AUTH_MODE_IDENTITY_HEX:-a54bcb4b2f5749e85d7a4038e291882da23adfa36d2f8ad374d1847dc6eeb4ec}"
+SMART_ACCOUNT_AUTH_MODE_SESSION_PRIVATE_KEY="${SMART_ACCOUNT_AUTH_MODE_SESSION_PRIVATE_KEY:-517a96fb99ad7a1af9f2064c7f87738a5059c527b18c5ed6898f7b583862684c}"
+SMART_ACCOUNT_AUTH_MODE_EXPIRES_AT_HEIGHT="${SMART_ACCOUNT_AUTH_MODE_EXPIRES_AT_HEIGHT:-1000000}"
 
 validate_positive_int "confirmation depth" "$BRIDGE_CONFIRMATION_DEPTH"
 validate_non_empty "contract address" "$BRIDGE_CONTRACT_ADDRESS"
 validate_positive_int "start block height" "$BRIDGE_START_BLOCK_HEIGHT"
 validate_positive_int "max block range" "$BRIDGE_MAX_BLOCK_RANGE"
 validate_positive_int "actions reduced root snapshot window size" "$BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE"
+validate_positive_int "smart-account auth-mode expiration height" "$SMART_ACCOUNT_AUTH_MODE_EXPIRES_AT_HEIGHT"
 if [[ "$ENABLE_VERIFIER_SIDECARS" != "0" && "$ENABLE_VERIFIER_SIDECARS" != "1" ]]; then
   echo "ENABLE_VERIFIER_SIDECARS must be 0 or 1" >&2
   exit 1
@@ -640,16 +644,33 @@ python3 "$PYTHON_HELPER" patch-bridge-genesis \
   --max-block-range "$BRIDGE_MAX_BLOCK_RANGE" \
   --actions-reduced-root-snapshot-window-size "$BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE"
 
-echo "==> Setting smartaccounts genesis params..."
-python3 "$PYTHON_HELPER" patch-smartaccounts-genesis \
-  --genesis "$PRIMARY_GENESIS_FILE" \
-  --verification-key-hash "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH"
-
 echo "==> Creating validator keys..."
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   "$BINARY_PATH" keys add "${NODE_KEY_NAMES[i]}" --home "${NODE_HOMES[i]}" --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
   NODE_ADDRS[i]="$("$BINARY_PATH" keys show "${NODE_KEY_NAMES[i]}" --address --home "${NODE_HOMES[i]}" --keyring-backend "$KEYRING_BACKEND")"
 done
+
+SMART_ACCOUNT_AUTH_MODE_ACCOUNT_ADDRESS_HEX="$(
+  "$BINARY_PATH" debug addr "${NODE_ADDRS[PRIMARY_NODE_INDEX]}" \
+    | sed -n 's/^Address (hex): //p' \
+    | tr '[:upper:]' '[:lower:]'
+)"
+if [[ ! "$SMART_ACCOUNT_AUTH_MODE_ACCOUNT_ADDRESS_HEX" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "failed to derive smart-account auth-mode owner address bytes" >&2
+  exit 1
+fi
+SMART_ACCOUNT_AUTH_MODE_SESSION_PUBLIC_KEY="$(
+  "$DEVTOOLS_BINARY_PATH" derive-ed25519-pub "$SMART_ACCOUNT_AUTH_MODE_SESSION_PRIVATE_KEY"
+)"
+
+echo "==> Setting smartaccounts genesis params and auth-mode fixture..."
+python3 "$PYTHON_HELPER" patch-smartaccounts-genesis \
+  --genesis "$PRIMARY_GENESIS_FILE" \
+  --verification-key-hash "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH" \
+  --identity "$SMART_ACCOUNT_AUTH_MODE_IDENTITY_HEX" \
+  --account-address "$SMART_ACCOUNT_AUTH_MODE_ACCOUNT_ADDRESS_HEX" \
+  --session-public-key "$SMART_ACCOUNT_AUTH_MODE_SESSION_PUBLIC_KEY" \
+  --expires-at-height "$SMART_ACCOUNT_AUTH_MODE_EXPIRES_AT_HEIGHT"
 
 E2E_USER_MINA_PUB_KEY=""
 E2E_USER_COSMOS_PUB_KEY=""

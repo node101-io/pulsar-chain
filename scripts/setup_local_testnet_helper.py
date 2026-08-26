@@ -794,6 +794,10 @@ def decode_smartaccounts_verification_key_hash(verification_key_hash: str) -> by
 def patch_smartaccounts_genesis(
     genesis_path: str,
     verification_key_hash: str,
+    identity: Optional[str] = None,
+    account_address: Optional[str] = None,
+    session_public_key: Optional[str] = None,
+    expires_at_height: Optional[str] = None,
 ) -> int:
     hash_bytes = decode_smartaccounts_verification_key_hash(
         verification_key_hash
@@ -806,7 +810,75 @@ def patch_smartaccounts_genesis(
     smartaccounts["params"] = {
         "verification_key_hash": base64.b64encode(hash_bytes).decode("ascii")
     }
-    smartaccounts.setdefault("smart_accounts", [])
+    fixture_values = (
+        identity,
+        account_address,
+        session_public_key,
+        expires_at_height,
+    )
+    if any(value is not None for value in fixture_values):
+        if not all(value is not None for value in fixture_values):
+            raise SystemExit(
+                "smartaccounts auth-mode fixture fields must be supplied together"
+            )
+
+        def decode_fixture_value(value: str, expected_size: int, name: str) -> bytes:
+            encoded = value.strip()
+            hex_value = encoded[2:] if encoded.startswith("0x") else encoded
+            if re.fullmatch(r"[0-9a-fA-F]+", hex_value) and len(hex_value) % 2 == 0:
+                decoded = bytes.fromhex(hex_value)
+            else:
+                try:
+                    decoded = base64.b64decode(encoded, validate=True)
+                except ValueError as exc:
+                    raise SystemExit(f"{name} must be valid hex or base64") from exc
+            if len(decoded) != expected_size:
+                raise SystemExit(
+                    f"{name} must be {expected_size} bytes: got {len(decoded)}"
+                )
+            return decoded
+
+        identity_bytes = decode_fixture_value(identity, 32, "identity")
+        account_address_bytes = decode_fixture_value(
+            account_address, 20, "account address"
+        )
+        session_public_key_bytes = decode_fixture_value(
+            session_public_key, 32, "session public key"
+        )
+        try:
+            expiration = int(expires_at_height)
+        except ValueError as exc:
+            raise SystemExit("expires at height must be an integer") from exc
+        if expiration <= 0 or expiration > 2**64 - 1:
+            raise SystemExit("expires at height must be a non-zero uint64")
+
+        encoded_identity = base64.b64encode(identity_bytes).decode("ascii")
+        existing_accounts = smartaccounts.setdefault("smart_accounts", [])
+        smartaccounts["smart_accounts"] = [
+            entry
+            for entry in existing_accounts
+            if entry.get("identity") != encoded_identity
+        ]
+        smartaccounts["smart_accounts"].append(
+            {
+                "identity": encoded_identity,
+                "account": {
+                    "account_address": base64.b64encode(
+                        account_address_bytes
+                    ).decode("ascii"),
+                    "session_keys": [
+                        {
+                            "public_key": base64.b64encode(
+                                session_public_key_bytes
+                            ).decode("ascii"),
+                            "expires_at_height": str(expiration),
+                        }
+                    ],
+                },
+            }
+        )
+    else:
+        smartaccounts.setdefault("smart_accounts", [])
 
     write_json(genesis_path, genesis)
     return 0
@@ -1025,6 +1097,10 @@ def build_parser() -> argparse.ArgumentParser:
     patch_smartaccounts = subparsers.add_parser("patch-smartaccounts-genesis")
     patch_smartaccounts.add_argument("--genesis", required=True)
     patch_smartaccounts.add_argument("--verification-key-hash", required=True)
+    patch_smartaccounts.add_argument("--identity")
+    patch_smartaccounts.add_argument("--account-address")
+    patch_smartaccounts.add_argument("--session-public-key")
+    patch_smartaccounts.add_argument("--expires-at-height")
 
     verify_registry = subparsers.add_parser("verify-validator-key-pairs")
     verify_registry.add_argument("--genesis", required=True)
@@ -1117,6 +1193,10 @@ def main() -> int:
         return patch_smartaccounts_genesis(
             args.genesis,
             args.verification_key_hash,
+            args.identity,
+            args.account_address,
+            args.session_public_key,
+            args.expires_at_height,
         )
     if args.command == "verify-validator-key-pairs":
         return verify_validator_key_pairs(args.genesis, args.cosmos_key)
