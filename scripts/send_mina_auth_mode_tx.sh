@@ -89,11 +89,23 @@ else
   }
 fi
 
-go run -tags=purego ./scripts/devtools send-mina-auth-mode-tx \
-  --grpc-addr "$GRPC_ADDR" \
-  --chain-id "$CHAIN_ID" \
-  --from "$FROM_ADDRESS" \
-  --to "$RECIPIENT_ADDRESS" \
-  --mina-private-key "$MINA_PRIVATE_KEY" \
-  --amount "$AMOUNT" \
-  --fees "$FEES"
+for attempt in $(seq 1 10); do
+  if TX_OUTPUT="$(go run -tags=purego ./scripts/devtools send-mina-auth-mode-tx \
+    --grpc-addr "$GRPC_ADDR" \
+    --chain-id "$CHAIN_ID" \
+    --from "$FROM_ADDRESS" \
+    --to "$RECIPIENT_ADDRESS" \
+    --mina-private-key "$MINA_PRIVATE_KEY" \
+    --amount "$AMOUNT" \
+    --fees "$FEES" 2>&1)"; then
+    printf '%s\n' "$TX_OUTPUT"
+    exit 0
+  fi
+
+  if [[ "$TX_OUTPUT" != *"account sequence mismatch"* || "$attempt" == "10" ]]; then
+    printf '%s\n' "$TX_OUTPUT" >&2
+    exit 1
+  fi
+
+  sleep 1
+done

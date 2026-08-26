@@ -460,50 +460,6 @@ class E2EFixtureTest(unittest.TestCase):
         )
         self.assertEqual([], smartaccounts["smart_accounts"])
 
-    def test_patch_smartaccounts_genesis_adds_auth_mode_fixture(self):
-        genesis = self.write_temp("genesis.json", json.dumps({"app_state": {}}))
-        verification_key_hash = bytes(range(32))
-        identity = bytes(range(32, 64))
-        account_address = bytes(range(20))
-        session_public_key = bytes(range(64, 96))
-
-        self.assertEqual(
-            0,
-            helper.patch_smartaccounts_genesis(
-                str(genesis),
-                verification_key_hash.hex(),
-                identity.hex(),
-                account_address.hex(),
-                session_public_key.hex(),
-                "1000000",
-            ),
-        )
-
-        smartaccounts = json.loads(genesis.read_text(encoding="utf-8"))[
-            "app_state"
-        ]["smartaccounts"]
-        self.assertEqual(
-            [
-                {
-                    "identity": base64.b64encode(identity).decode("ascii"),
-                    "account": {
-                        "account_address": base64.b64encode(
-                            account_address
-                        ).decode("ascii"),
-                        "session_keys": [
-                            {
-                                "public_key": base64.b64encode(
-                                    session_public_key
-                                ).decode("ascii"),
-                                "expires_at_height": "1000000",
-                            }
-                        ],
-                    },
-                }
-            ],
-            smartaccounts["smart_accounts"],
-        )
-
     def test_reads_module_params_through_the_same_generic_path(self):
         config = self.write_temp(
             "config.yml",

@@ -24,6 +24,11 @@ LIGHTNET_OWNERSHIP_VALUE="mina-lightnet"
 WRAPPER_SOURCE="${ARCHIVE_WRAPPER_SOURCE:-$REPO_ROOT/../archive-wrapper}"
 WRAPPER_SHA="${ARCHIVE_WRAPPER_SHA:-cd42a203ac6b43d24d9fbd57c323ecd52ea52bd5}"
 WRAPPER_IMAGE="${ARCHIVE_WRAPPER_IMAGE:-archive-wrapper:lightnet}"
+VERIFIER_SOURCE="${PULSAR_VERIFIER_SOURCE:-}"
+VERIFIER_SHA="${PULSAR_VERIFIER_SHA:-e7582ba2aea2fa12b765221003a366868f39b3e8}"
+VERIFIER_IMAGE="${PULSAR_VERIFIER_IMAGE:-pulsar-verifier:lightnet}"
+VERIFIER_CACHE_ROOT="${PULSAR_VERIFIER_CACHE_ROOT:-$REPO_ROOT/.cache/pulsar-verifier}"
+VERIFIER_REPOSITORY="https://github.com/node101-io/pulsar-verifier.git"
 PULSAR_IMAGE=""
 BRIDGE_CONFIRMATION_DEPTH="${BRIDGE_CONFIRMATION_DEPTH:-3}"
 BRIDGE_START_BLOCK_HEIGHT="${BRIDGE_START_BLOCK_HEIGHT:-1}"
@@ -44,6 +49,7 @@ Recreates the local development stack with:
   - an existing running Mina Lightnet, or a new Dockerized Lightnet
   - the blocks_inserted LISTEN/NOTIFY trigger
   - one shared archive-wrapper in Docker
+  - one pulsar-verifier sidecar per validator
   - the requested number of Pulsar validators in Docker
 
 Destructive behavior:
@@ -61,6 +67,12 @@ Optional environment variables:
   ARCHIVE_WRAPPER_SOURCE     checkout path (default: ../archive-wrapper)
   ARCHIVE_WRAPPER_SHA        commit to build (default pinned in the script)
   ARCHIVE_WRAPPER_IMAGE      built image name (default: archive-wrapper:lightnet)
+  PULSAR_VERIFIER_SOURCE     existing checkout override (default: automatic
+                             pinned download under .cache/pulsar-verifier)
+  PULSAR_VERIFIER_SHA        commit to build (default pinned in the script)
+  PULSAR_VERIFIER_IMAGE      built image name (default: pulsar-verifier:lightnet)
+  PULSAR_VERIFIER_CACHE_ROOT automatic source cache (default:
+                             .cache/pulsar-verifier)
   PULSAR_DOCKER_PROJECT      Compose project (default: pulsar-testnet-N)
   PULSAR_DOCKER_STATE_ROOT   generated state root (default: .docker)
   PULSAR_DOCKER_IMAGE        Pulsar image name (default derived from N)
@@ -72,12 +84,6 @@ Optional environment variables:
   SMART_ACCOUNTS_VERIFICATION_KEY_HASH
                              32-byte smartaccounts verification-key hash in hex
                              or base64 (default: value from config.yml)
-  SMART_ACCOUNT_NOIR_FIXTURE_DIR
-                             real smart-account Noir fixture directory; when
-                             set, verification_key_hash is derived from its vk
-  PULSAR_VERIFIER_IMAGE      production verifier image; required with the
-                             smart-account Noir fixture
-
 Default Mina Lightnet image:
   o1labs/mina-local-network@sha256:33e349241f5f3e8d336e5de9b35de2d4339fd8713b309e2b1b5fc375c2605b58
 
@@ -330,27 +336,6 @@ require_cmd docker
 require_cmd git
 require_cmd python3
 
-if [[ -n "${SMART_ACCOUNT_NOIR_FIXTURE_DIR:-}" ]]; then
-  if [[ ! -f "$SMART_ACCOUNT_NOIR_FIXTURE_DIR/vk" ]]; then
-    echo "smart-account Noir verification key not found: $SMART_ACCOUNT_NOIR_FIXTURE_DIR/vk" >&2
-    exit 1
-  fi
-  if [[ -z "${PULSAR_VERIFIER_IMAGE:-}" ]]; then
-    echo "PULSAR_VERIFIER_IMAGE is required with SMART_ACCOUNT_NOIR_FIXTURE_DIR" >&2
-    exit 1
-  fi
-
-  fixture_verification_key_hash="$(python3 -c 'import hashlib,pathlib,sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())' "$SMART_ACCOUNT_NOIR_FIXTURE_DIR/vk")"
-  fixture_verification_key_hash_base64="$(python3 -c 'import base64,sys; print(base64.b64encode(bytes.fromhex(sys.argv[1])).decode())' "$fixture_verification_key_hash")"
-  if [[ -n "${SMART_ACCOUNTS_VERIFICATION_KEY_HASH:-}" &&
-    "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH" != "$fixture_verification_key_hash" &&
-    "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH" != "$fixture_verification_key_hash_base64" ]]; then
-    echo "SMART_ACCOUNTS_VERIFICATION_KEY_HASH does not match SHA-256($SMART_ACCOUNT_NOIR_FIXTURE_DIR/vk)" >&2
-    exit 1
-  fi
-  export SMART_ACCOUNTS_VERIFICATION_KEY_HASH="$fixture_verification_key_hash"
-fi
-
 docker compose version >/dev/null
 docker buildx version >/dev/null
 
@@ -372,9 +357,31 @@ fi
 WRAPPER_SOURCE="$(cd -- "$WRAPPER_SOURCE" && pwd)"
 git -C "$WRAPPER_SOURCE" cat-file -e "${WRAPPER_SHA}^{commit}"
 
+if [[ -z "$VERIFIER_SOURCE" ]]; then
+  VERIFIER_CACHE_ROOT="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$VERIFIER_CACHE_ROOT")"
+  VERIFIER_SOURCE="$VERIFIER_CACHE_ROOT/$VERIFIER_SHA"
+  if [[ ! -d "$VERIFIER_SOURCE/.git" ]]; then
+    if [[ -e "$VERIFIER_SOURCE" && ! -d "$VERIFIER_SOURCE" ]]; then
+      echo "refusing invalid pulsar-verifier cache path: $VERIFIER_SOURCE" >&2
+      exit 1
+    fi
+    mkdir -p "$VERIFIER_SOURCE"
+    git -C "$VERIFIER_SOURCE" init --quiet
+  fi
+  if ! git -C "$VERIFIER_SOURCE" cat-file -e "${VERIFIER_SHA}^{commit}" 2>/dev/null; then
+    echo "==> Downloading pinned pulsar-verifier source"
+    git -C "$VERIFIER_SOURCE" fetch --depth 1 "$VERIFIER_REPOSITORY" "$VERIFIER_SHA"
+  fi
+elif [[ ! -d "$VERIFIER_SOURCE/.git" ]]; then
+  echo "pulsar-verifier checkout not found at: $VERIFIER_SOURCE" >&2
+  exit 1
+fi
+VERIFIER_SOURCE="$(cd -- "$VERIFIER_SOURCE" && pwd)"
+git -C "$VERIFIER_SOURCE" cat-file -e "${VERIFIER_SHA}^{commit}"
+
 detect_running_lightnet
 
-echo "==> 1/5 Removing previous Pulsar and archive-wrapper state"
+echo "==> 1/6 Removing previous Pulsar, archive-wrapper, and verifier state"
 if (( REUSE_LIGHTNET == 1 )); then
   echo "    preserving running owned Lightnet container: $LIGHTNET_CONTAINER"
 else
@@ -384,9 +391,9 @@ cleanup_selected_project
 cleanup_owned_stale_lightnet
 
 if (( REUSE_LIGHTNET == 1 )); then
-  echo "==> 2/5 Reusing running Mina Lightnet with archive PostgreSQL"
+  echo "==> 2/6 Reusing running Mina Lightnet with archive PostgreSQL"
 else
-  echo "==> 2/5 Starting Mina Lightnet with archive PostgreSQL"
+  echo "==> 2/6 Starting Mina Lightnet with archive PostgreSQL"
   docker run -d \
     --name "$LIGHTNET_CONTAINER" \
     --label "${LIGHTNET_OWNERSHIP_LABEL}=${LIGHTNET_OWNERSHIP_VALUE}" \
@@ -405,7 +412,7 @@ fi
 
 wait_for_lightnet_archive
 
-echo "==> 3/5 Installing the blocks_inserted LISTEN/NOTIFY trigger"
+echo "==> 3/6 Installing the blocks_inserted LISTEN/NOTIFY trigger"
 install_notification_trigger
 
 trigger_exists="$(docker exec "$LIGHTNET_CONTAINER" \
@@ -416,13 +423,21 @@ if [[ "$trigger_exists" != "t" ]]; then
   exit 1
 fi
 
-echo "==> 4/5 Building the shared archive-wrapper image"
+echo "==> 4/6 Building the shared archive-wrapper image"
 git -C "$WRAPPER_SOURCE" archive "$WRAPPER_SHA" |
   docker buildx build \
     --load \
     --platform "$DOCKER_PLATFORM" \
     --build-arg COMMIT_SHA="$WRAPPER_SHA" \
     -t "$WRAPPER_IMAGE" \
+    -
+
+echo "==> 5/6 Building the pulsar-verifier image"
+git -C "$VERIFIER_SOURCE" archive "$VERIFIER_SHA" |
+  docker buildx build \
+    --load \
+    --platform linux/amd64 \
+    -t "$VERIFIER_IMAGE" \
     -
 
 PG_USER="$(docker exec "$LIGHTNET_CONTAINER" printenv POSTGRES_USER)"
@@ -443,6 +458,7 @@ export ARCHIVE_WRAPPER_MODE="shared"
 export ARCHIVE_WRAPPER_IMAGE="$WRAPPER_IMAGE"
 export ARCHIVE_WRAPPER_ADD_HOST_GATEWAY=1
 export PULSAR_DOCKER_IMAGE="$PULSAR_IMAGE"
+export PULSAR_VERIFIER_IMAGE="$VERIFIER_IMAGE"
 export PULSAR_DOCKER_PROJECT="$PROJECT_NAME"
 export PULSAR_DOCKER_STATE_ROOT="$STATE_ROOT"
 export PULSAR_BIND_HOST="127.0.0.1"
@@ -452,7 +468,7 @@ export BRIDGE_START_BLOCK_HEIGHT
 export BRIDGE_MAX_BLOCK_RANGE
 export VALIDATOR_STARTUP_TIMEOUT
 
-echo "==> 5/5 Starting Pulsar with $VALIDATOR_COUNT validators"
+echo "==> 6/6 Starting Pulsar with $VALIDATOR_COUNT validators and verifier sidecars"
 "$SCRIPT_DIR/docker_testnet.sh" up "$VALIDATOR_COUNT"
 
 for ((index = 1; index <= VALIDATOR_COUNT; index++)); do

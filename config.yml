@@ -67,7 +67,7 @@ genesis:
         actions_reduced_root_snapshot_window_size: "4"
     smartaccounts:
       params:
-        verification_key_hash: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+        verification_key_hash: "H+tIy6mnSrzGY5zHnUncjoHtn055HDcb32paoEspbus="
   consensus:
     params:
       abci:

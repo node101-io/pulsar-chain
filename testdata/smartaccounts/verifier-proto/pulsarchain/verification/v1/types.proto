@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package pulsarchain.verification.v1;
+
+// ProofType mirrors the chain-owned verifier-family wire enum.
+enum ProofType {
+  PROOF_TYPE_UNSPECIFIED = 0;
+  PROOF_TYPE_MINA_PICKLES = 1;
+  PROOF_TYPE_NOIR_BARRETENBERG = 2;
+}

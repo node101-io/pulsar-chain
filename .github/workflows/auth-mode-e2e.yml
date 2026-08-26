@@ -1,0 +1,73 @@
+name: Auth mode transactions
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  auth-mode-e2e:
+    name: UNSPECIFIED, Cosmos, Mina, and smart-account transactions
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: pulsar-chain
+    steps:
+      - name: Check out Pulsar
+        uses: actions/checkout@v4
+        with:
+          path: pulsar-chain
+
+      - name: Check out archive-wrapper contract
+        uses: actions/checkout@v4
+        with:
+          repository: node101-io/archive-wrapper
+          ref: cd42a203ac6b43d24d9fbd57c323ecd52ea52bd5
+          path: archive-wrapper
+
+      - name: Check out pulsar-verifier contract
+        uses: actions/checkout@v4
+        with:
+          repository: node101-io/pulsar-verifier
+          ref: e7582ba2aea2fa12b765221003a366868f39b3e8
+          path: pulsar-verifier
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: pulsar-chain/go.mod
+          cache: true
+          cache-dependency-path: pulsar-chain/go.sum
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Run auth-mode transaction E2E
+        env:
+          ARCHIVE_WRAPPER_SOURCE: ${{ github.workspace }}/archive-wrapper
+          AUTH_MODE_E2E_ONLY: "1"
+          ENABLE_VERIFIER_SIDECARS: "1"
+          E2E_ARTIFACT_DIR: ${{ github.workspace }}/pulsar-chain/e2e-artifacts
+          PULSAR_VERIFIER_SOURCE: ${{ github.workspace }}/pulsar-verifier
+        run: |
+          set -o pipefail
+          ./scripts/test_archive_wrapper_deployment.sh shared 2>&1 \
+            | sed -E \
+                -e 's#postgres://[^ @]+@#postgres://[REDACTED]@#g' \
+                -e 's/e2e-secret/[REDACTED]/g' \
+            | tee auth-mode-e2e.log
+
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-mode-e2e-failure
+          if-no-files-found: ignore
+          path: |
+            pulsar-chain/auth-mode-e2e.log
+            pulsar-chain/e2e-artifacts/

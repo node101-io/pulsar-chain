@@ -138,6 +138,17 @@ with Path(os.environ["FAKE_GIT_LOG"]).open("a", encoding="utf-8") as log:
     log.write(json.dumps(args) + "\n")
 
 if "cat-file" in args:
+    source = Path(args[args.index("-C") + 1])
+    if not (source / ".git" / "fetched").exists() and "feedface" in args[-1]:
+        raise SystemExit(1)
+    raise SystemExit(0)
+if "init" in args:
+    source = Path(args[args.index("-C") + 1])
+    (source / ".git").mkdir(parents=True, exist_ok=True)
+    raise SystemExit(0)
+if "fetch" in args:
+    source = Path(args[args.index("-C") + 1])
+    (source / ".git" / "fetched").write_text("ok", encoding="utf-8")
     raise SystemExit(0)
 if "archive" in args:
     sys.stdout.buffer.write(b"fake archive")
@@ -156,6 +167,7 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
         self.home = self.root / "home"
         self.state_root = self.root / "state"
         self.wrapper_source = self.root / "archive-wrapper"
+        self.verifier_cache_root = self.root / "verifier-cache"
         self.fake_bin = self.root / "bin"
         self.docker_log = self.root / "docker.log"
         self.git_log = self.root / "git.log"
@@ -186,6 +198,10 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
             "PULSAR_DOCKER_IMAGE",
             "PULSAR_DOCKER_PROJECT",
             "PULSAR_DOCKER_STATE_ROOT",
+            "PULSAR_VERIFIER_IMAGE",
+            "PULSAR_VERIFIER_CACHE_ROOT",
+            "PULSAR_VERIFIER_SHA",
+            "PULSAR_VERIFIER_SOURCE",
             "VALIDATOR_STARTUP_TIMEOUT",
         ):
             self.env.pop(key, None)
@@ -203,6 +219,8 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
                 "PATH": f"{self.fake_bin}{os.pathsep}{self.env['PATH']}",
                 "PULSAR_DOCKER_PROJECT": self.project,
                 "PULSAR_DOCKER_STATE_ROOT": str(self.state_root),
+                "PULSAR_VERIFIER_CACHE_ROOT": str(self.verifier_cache_root),
+                "PULSAR_VERIFIER_SHA": "feedface",
                 "VALIDATOR_STARTUP_TIMEOUT": "1",
             }
         )

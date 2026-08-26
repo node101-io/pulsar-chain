@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package pulsar.verifier.v1;
+
+import "pulsar/verifier/v1/proof.proto";
+
+// SubmissionService mirrors the production sidecar submission wire contract.
+service SubmissionService {
+  rpc SubmitProof(SubmitProofRequest) returns (SubmitProofResponse);
+}
+
+message SubmitProofRequest {
+  Proof proof = 1;
+  bytes tx_raw = 2;
+}
+
+message SubmitProofResponse {
+  bytes verification_id = 1;
+  bytes transaction_hash = 2;
+}
