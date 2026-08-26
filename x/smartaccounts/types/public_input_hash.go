@@ -8,7 +8,7 @@ import (
 const publicInputFieldSize = 32
 
 // ComputePublicInputsHash encodes and hashes the smart-account public inputs.
-func ComputePublicInputsHash(inputs *PublicKeyInputs) ([]byte, error) {
+func ComputePublicInputsHash(inputs *PublicKeyInputs, accountAddress []byte) ([]byte, error) {
 	if inputs == nil {
 		return nil, ErrNilPublicKeyInputs
 	}
@@ -27,8 +27,14 @@ func ComputePublicInputsHash(inputs *PublicKeyInputs) ([]byte, error) {
 	if len(inputs.Identity) != IdentitySize {
 		return nil, ErrIdentityInvalidLength
 	}
+	if len(accountAddress) == 0 {
+		return nil, ErrNilAccountAddress
+	}
+	if len(accountAddress) != AccountAddressSize {
+		return nil, ErrInvalidAccountAddress
+	}
 
-	rawPublicInputs := make([]byte, 0, SessionPublicKeySize+publicInputFieldSize+IdentitySize)
+	rawPublicInputs := make([]byte, 0, 4*publicInputFieldSize)
 	rawPublicInputs = append(rawPublicInputs, inputs.SessionPublicKey...)
 
 	var expiresAtHeight [publicInputFieldSize]byte
@@ -38,6 +44,10 @@ func ComputePublicInputsHash(inputs *PublicKeyInputs) ([]byte, error) {
 	)
 	rawPublicInputs = append(rawPublicInputs, expiresAtHeight[:]...)
 	rawPublicInputs = append(rawPublicInputs, inputs.Identity...)
+
+	var accountAddressField [publicInputFieldSize]byte
+	copy(accountAddressField[publicInputFieldSize-len(accountAddress):], accountAddress)
+	rawPublicInputs = append(rawPublicInputs, accountAddressField[:]...)
 
 	hash := sha256.Sum256(rawPublicInputs)
 	return hash[:], nil

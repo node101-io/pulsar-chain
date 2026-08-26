@@ -13,14 +13,16 @@ import (
 
 func TestComputePublicInputsHash(t *testing.T) {
 	inputs := validPublicKeyInputs()
+	accountAddress := bytes.Repeat([]byte{0x33}, types.AccountAddressSize)
 
-	rawPublicInputs := make([]byte, 96)
+	rawPublicInputs := make([]byte, 128)
 	copy(rawPublicInputs[:32], inputs.SessionPublicKey)
 	binary.BigEndian.PutUint64(rawPublicInputs[56:64], inputs.ExpiresAtHeight)
-	copy(rawPublicInputs[64:], inputs.Identity)
+	copy(rawPublicInputs[64:96], inputs.Identity)
+	copy(rawPublicInputs[128-types.AccountAddressSize:], accountAddress)
 	expected := sha256.Sum256(rawPublicInputs)
 
-	actual, err := types.ComputePublicInputsHash(inputs)
+	actual, err := types.ComputePublicInputsHash(inputs, accountAddress)
 	require.NoError(t, err)
 	require.Equal(t, expected[:], actual)
 }
@@ -28,15 +30,18 @@ func TestComputePublicInputsHash(t *testing.T) {
 func TestComputePublicInputsHashValidation(t *testing.T) {
 
 	validPublicKeyInputs := validPublicKeyInputs()
+	validAccountAddress := bytes.Repeat([]byte{0x33}, types.AccountAddressSize)
 
 	tests := []struct {
-		name   string
-		inputs *types.PublicKeyInputs
-		want   error
+		name           string
+		inputs         *types.PublicKeyInputs
+		accountAddress []byte
+		want           error
 	}{
 		{
-			name: "nil inputs",
-			want: types.ErrNilPublicKeyInputs,
+			name:           "nil inputs",
+			accountAddress: validAccountAddress,
+			want:           types.ErrNilPublicKeyInputs,
 		},
 		{
 			name: "nil public key",
@@ -44,7 +49,8 @@ func TestComputePublicInputsHashValidation(t *testing.T) {
 				ExpiresAtHeight: validPublicKeyInputs.ExpiresAtHeight,
 				Identity:        validPublicKeyInputs.Identity,
 			},
-			want: types.ErrNilPublicKey,
+			accountAddress: validAccountAddress,
+			want:           types.ErrNilPublicKey,
 		},
 		{
 			name: "invalid public key length",
@@ -53,7 +59,8 @@ func TestComputePublicInputsHashValidation(t *testing.T) {
 				ExpiresAtHeight:  validPublicKeyInputs.ExpiresAtHeight,
 				Identity:         validPublicKeyInputs.Identity,
 			},
-			want: types.ErrPublicKeyInvalidLength,
+			accountAddress: validAccountAddress,
+			want:           types.ErrPublicKeyInvalidLength,
 		},
 		{
 			name: "zero expiration height",
@@ -62,7 +69,8 @@ func TestComputePublicInputsHashValidation(t *testing.T) {
 				ExpiresAtHeight:  0,
 				Identity:         validPublicKeyInputs.Identity,
 			},
-			want: types.ErrInvalidExpirationHeight,
+			accountAddress: validAccountAddress,
+			want:           types.ErrInvalidExpirationHeight,
 		},
 		{
 			name: "nil identity",
@@ -70,7 +78,8 @@ func TestComputePublicInputsHashValidation(t *testing.T) {
 				SessionPublicKey: validPublicKeyInputs.SessionPublicKey,
 				ExpiresAtHeight:  validPublicKeyInputs.ExpiresAtHeight,
 			},
-			want: types.ErrNilIdentity,
+			accountAddress: validAccountAddress,
+			want:           types.ErrNilIdentity,
 		},
 		{
 			name: "invalid identity length",
@@ -79,13 +88,26 @@ func TestComputePublicInputsHashValidation(t *testing.T) {
 				ExpiresAtHeight:  validPublicKeyInputs.ExpiresAtHeight,
 				Identity:         validPublicKeyInputs.Identity[:types.IdentitySize-1],
 			},
-			want: types.ErrIdentityInvalidLength,
+			accountAddress: validAccountAddress,
+			want:           types.ErrIdentityInvalidLength,
+		},
+		{
+			name:           "nil account address",
+			inputs:         validPublicKeyInputs,
+			accountAddress: nil,
+			want:           types.ErrNilAccountAddress,
+		},
+		{
+			name:           "invalid account address length",
+			inputs:         validPublicKeyInputs,
+			accountAddress: validAccountAddress[:types.AccountAddressSize-1],
+			want:           types.ErrInvalidAccountAddress,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := types.ComputePublicInputsHash(test.inputs)
+			_, err := types.ComputePublicInputsHash(test.inputs, test.accountAddress)
 			require.ErrorIs(t, err, test.want)
 		})
 	}

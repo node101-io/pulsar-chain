@@ -74,7 +74,7 @@ func (k msgServer) AddPublicKey(ctx context.Context, msg *types.MsgAddPublicKey)
 		return nil, types.ErrVerificationKeyMismatch
 	}
 
-	publicKeyInputsHash, err := types.ComputePublicInputsHash(msg.PublicKeyInputs)
+	publicKeyInputsHash, err := types.ComputePublicInputsHash(msg.PublicKeyInputs, accountAddr)
 	if err != nil {
 		return nil, err
 	}

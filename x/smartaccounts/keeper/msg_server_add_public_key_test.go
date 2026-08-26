@@ -36,20 +36,29 @@ func TestAddPublicKey(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrSessionKeyAlreadyExists)
 }
 
-func TestAddPublicKeyRejectsDifferentCreatorForExistingAccount(t *testing.T) {
+func TestAddPublicKeyRejectsCreatorNotBoundByProof(t *testing.T) {
 	f := initFixture(t)
 	msg := validAddPublicKeyMessage(t, f)
 	server := keeper.NewMsgServerImpl(f.keeper)
-
-	_, err := server.AddPublicKey(f.ctx, msg)
-	require.NoError(t, err)
 
 	otherCreator, err := f.addressCodec.BytesToString(bytes.Repeat([]byte{0x09}, 20))
 	require.NoError(t, err)
 	msg.Creator = otherCreator
 
 	_, err = server.AddPublicKey(f.ctx, msg)
-	require.ErrorIs(t, err, types.ErrAccountAddressMismatch)
+	require.ErrorIs(t, err, types.ErrInvalidPublicInputsHash)
+
+	originalCreator, err := f.addressCodec.BytesToString(f.keeper.GetAuthority())
+	require.NoError(t, err)
+	msg.Creator = originalCreator
+
+	_, err = server.AddPublicKey(f.ctx, msg)
+	require.NoError(t, err)
+
+	genesis, err := f.keeper.ExportGenesis(f.ctx)
+	require.NoError(t, err)
+	require.Len(t, genesis.SmartAccounts, 1)
+	require.Equal(t, f.keeper.GetAuthority(), genesis.SmartAccounts[0].Account.AccountAddress)
 }
 
 func TestAddPublicKeyRejectsInvalidProofData(t *testing.T) {
@@ -221,6 +230,8 @@ func validAddPublicKeyMessage(t *testing.T, f *fixture) *types.MsgAddPublicKey {
 
 	creator, err := f.addressCodec.BytesToString(f.keeper.GetAuthority())
 	require.NoError(t, err)
+	accountAddress, err := f.addressCodec.StringToBytes(creator)
+	require.NoError(t, err)
 
 	currentHeight := sdk.UnwrapSDKContext(f.ctx).BlockHeight()
 	inputs := &types.PublicKeyInputs{
@@ -228,7 +239,7 @@ func validAddPublicKeyMessage(t *testing.T, f *fixture) *types.MsgAddPublicKey {
 		ExpiresAtHeight:  uint64(currentHeight) + 10,
 		Identity:         bytes.Repeat([]byte{0x03}, types.IdentitySize),
 	}
-	publicInputsHash, err := types.ComputePublicInputsHash(inputs)
+	publicInputsHash, err := types.ComputePublicInputsHash(inputs, accountAddress)
 	require.NoError(t, err)
 
 	proofHash := bytes.Repeat([]byte{0x04}, verificationtypes.ProofHashSize)
