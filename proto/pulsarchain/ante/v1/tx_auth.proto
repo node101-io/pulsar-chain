@@ -16,7 +16,7 @@ enum TxAuthMode {
   TX_AUTH_MODE_COSMOS = 1;
   // TX_AUTH_MODE_MINA selects verification with the signer's registered Mina key.
   TX_AUTH_MODE_MINA = 2;
-  // TX_AUTH_MODE_SMART_ACCOUNT selects verification with the registered Session key. 
+  // TX_AUTH_MODE_SMART_ACCOUNT selects verification with the registered Session key.
   TX_AUTH_MODE_SMART_ACCOUNT = 3;
 }
 
