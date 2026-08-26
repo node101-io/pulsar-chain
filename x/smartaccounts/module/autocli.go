@@ -18,10 +18,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:     "Shows the parameters of the module",
 				},
 				{
-					RpcMethod:      "GetSessionKeysByIdentity",
-					Use:            "get-session-keys-by-identity ",
-					Short:          "Query GetSessionKeysByIdentity",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{},
+					RpcMethod: "GetSessionKeysByIdentity",
+					Use:       "get-session-keys-by-identity [identity]",
+					Short:     "Query GetSessionKeysByIdentity",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
+						{ProtoField: "identity"},
+					},
 				},
 			},
 		},
