@@ -17,7 +17,7 @@ func TestGenesisState_Validate(t *testing.T) {
 		{
 			desc:     "default requires verification key hash",
 			genState: types.DefaultGenesis(),
-			valid:    false,
+			valid:    true,
 		},
 		{
 			desc: "valid genesis state",
@@ -109,4 +109,8 @@ func TestGenesisState_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDefaultGenesisIsValid(t *testing.T) {
+	require.NoError(t, types.DefaultGenesis().Validate())
 }

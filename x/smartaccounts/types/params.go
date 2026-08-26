@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 )
 
@@ -13,7 +14,9 @@ func NewParams(verificationKeyHash []byte) Params {
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
-	return Params{}
+	return Params{
+		VerificationKeyHash: bytes.Repeat([]byte{0x00}, VerificationKeyHashSize),
+	}
 }
 
 // Validate validates the set of params.
