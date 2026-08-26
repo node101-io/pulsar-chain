@@ -17,12 +17,12 @@ func (k msgServer) AddPublicKey(ctx context.Context, msg *types.MsgAddPublicKey)
 		return nil, errorsmod.Wrap(err, "invalid creator address")
 	}
 
-	if msg.ProofHash == nil {
-		return nil, types.ErrNilProofHash
+	if msg.VerificationId == nil {
+		return nil, types.ErrNilVerificationID
 	}
 
-	if len(msg.ProofHash) != verificationtypes.ProofHashSize {
-		return nil, types.ErrProofHashInvalidLength
+	if len(msg.VerificationId) != verificationtypes.VerificationIDSize {
+		return nil, types.ErrVerificationIDInvalidLength
 	}
 
 	if msg.PublicKeyInputs == nil {
@@ -52,9 +52,9 @@ func (k msgServer) AddPublicKey(ctx context.Context, msg *types.MsgAddPublicKey)
 		return nil, types.ErrInvalidExpirationHeight
 	}
 
-	result, err := k.verificationKeeper.FinalProofResultByProofHash(
+	result, err := k.verificationKeeper.FinalProofResultByVerificationID(
 		ctx,
-		msg.ProofHash,
+		msg.VerificationId,
 	)
 	if err != nil {
 		return nil, err

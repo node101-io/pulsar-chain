@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"cosmossdk.io/collections"
@@ -114,30 +115,40 @@ func (k Keeper) GetAuthority() []byte {
 	return append([]byte(nil), k.authority...)
 }
 
-func (k Keeper) FinalProofResultByProofHash(
+// FinalProofResultByVerificationID resolves a finalized proof through its permanent verification ID.
+func (k Keeper) FinalProofResultByVerificationID(
 	ctx context.Context,
-	proofHash []byte,
+	verificationID []byte,
 ) (types.FinalProofResult, error) {
-	if len(proofHash) != types.ProofHashSize {
-		return types.FinalProofResult{}, types.ErrInvalidProofHash
+	if len(verificationID) != types.VerificationIDSize {
+		return types.FinalProofResult{}, types.ErrInvalidVerificationID
 	}
 
-	iterator, err := k.FinalProofResults.Iterate(ctx, nil)
+	proofKey, err := k.SeenVerificationIDs.Get(ctx, verificationID)
 	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return types.FinalProofResult{}, types.ErrProofNotFound
+		}
 		return types.FinalProofResult{}, err
 	}
-	defer iterator.Close()
 
-	for ; iterator.Valid(); iterator.Next() {
-		result, err := iterator.Value()
-		if err != nil {
-			return types.FinalProofResult{}, err
+	result, err := k.FinalProofResults.Get(
+		ctx,
+		types.NewProofStoreKey(
+			proofKey.SubmissionHeight,
+			proofKey.IndexInBlock,
+		),
+	)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return types.FinalProofResult{}, types.ErrProofNotFound
 		}
-
-		if bytes.Equal(result.ProofHash, proofHash) {
-			return result, nil
-		}
+		return types.FinalProofResult{}, err
 	}
 
-	return types.FinalProofResult{}, types.ErrProofNotFound
+	if !bytes.Equal(result.VerificationId, verificationID) {
+		return types.FinalProofResult{}, types.ErrProofStateCorrupted
+	}
+
+	return result, nil
 }

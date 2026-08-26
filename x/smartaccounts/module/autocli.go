@@ -29,10 +29,10 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				},
 				{
 					RpcMethod: "AddPublicKey",
-					Use:       "add-public-key [proof-hash] [session-public-key] [expires-at-height] [identity]",
+					Use:       "add-public-key [verification-id] [session-public-key] [expires-at-height] [identity]",
 					Short:     "Add a session public key to a smart account",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
-						{ProtoField: "proof_hash"},
+						{ProtoField: "verification_id"},
 						{ProtoField: "public_key_inputs.session_public_key"},
 						{ProtoField: "public_key_inputs.expires_at_height"},
 						{ProtoField: "public_key_inputs.identity"},

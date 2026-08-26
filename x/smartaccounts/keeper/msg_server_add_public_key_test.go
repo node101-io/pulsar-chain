@@ -20,6 +20,7 @@ func TestAddPublicKey(t *testing.T) {
 	response, err := server.AddPublicKey(f.ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, response)
+	require.Equal(t, msg.VerificationId, f.verificationKeeper.requestedVerificationID)
 
 	exists, err := f.keeper.HasSmartAccount(f.ctx, msg.PublicKeyInputs.Identity)
 	require.NoError(t, err)
@@ -123,37 +124,37 @@ func TestAddPublicKeyRejectsInvalidInputs(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		proofHash       []byte
+		verificationID  []byte
 		publicKeyInputs *types.PublicKeyInputs
 		want            error
 	}{
 		{
-			name: "nil proof hash",
+			name: "nil verification ID",
 			publicKeyInputs: &types.PublicKeyInputs{
 				SessionPublicKey: validMsg.PublicKeyInputs.SessionPublicKey,
 				ExpiresAtHeight:  validMsg.PublicKeyInputs.ExpiresAtHeight,
 				Identity:         validMsg.PublicKeyInputs.Identity,
 			},
-			want: types.ErrNilProofHash,
+			want: types.ErrNilVerificationID,
 		},
 		{
-			name:      "invalid proof hash length",
-			proofHash: validMsg.ProofHash[:verificationtypes.ProofHashSize-1],
+			name:           "invalid verification ID length",
+			verificationID: validMsg.VerificationId[:verificationtypes.VerificationIDSize-1],
 			publicKeyInputs: &types.PublicKeyInputs{
 				SessionPublicKey: validMsg.PublicKeyInputs.SessionPublicKey,
 				ExpiresAtHeight:  validMsg.PublicKeyInputs.ExpiresAtHeight,
 				Identity:         validMsg.PublicKeyInputs.Identity,
 			},
-			want: types.ErrProofHashInvalidLength,
+			want: types.ErrVerificationIDInvalidLength,
 		},
 		{
-			name:      "nil public key inputs",
-			proofHash: validMsg.ProofHash,
-			want:      types.ErrNilPublicKeyInputs,
+			name:           "nil public key inputs",
+			verificationID: validMsg.VerificationId,
+			want:           types.ErrNilPublicKeyInputs,
 		},
 		{
-			name:      "nil identity",
-			proofHash: validMsg.ProofHash,
+			name:           "nil identity",
+			verificationID: validMsg.VerificationId,
 			publicKeyInputs: &types.PublicKeyInputs{
 				SessionPublicKey: validMsg.PublicKeyInputs.SessionPublicKey,
 				ExpiresAtHeight:  validMsg.PublicKeyInputs.ExpiresAtHeight,
@@ -161,8 +162,8 @@ func TestAddPublicKeyRejectsInvalidInputs(t *testing.T) {
 			want: types.ErrNilIdentity,
 		},
 		{
-			name:      "invalid identity length",
-			proofHash: validMsg.ProofHash,
+			name:           "invalid identity length",
+			verificationID: validMsg.VerificationId,
 			publicKeyInputs: &types.PublicKeyInputs{
 				SessionPublicKey: validMsg.PublicKeyInputs.SessionPublicKey,
 				ExpiresAtHeight:  validMsg.PublicKeyInputs.ExpiresAtHeight,
@@ -171,8 +172,8 @@ func TestAddPublicKeyRejectsInvalidInputs(t *testing.T) {
 			want: types.ErrIdentityInvalidLength,
 		},
 		{
-			name:      "nil public key",
-			proofHash: validMsg.ProofHash,
+			name:           "nil public key",
+			verificationID: validMsg.VerificationId,
 			publicKeyInputs: &types.PublicKeyInputs{
 				ExpiresAtHeight: validMsg.PublicKeyInputs.ExpiresAtHeight,
 				Identity:        validMsg.PublicKeyInputs.Identity,
@@ -180,8 +181,8 @@ func TestAddPublicKeyRejectsInvalidInputs(t *testing.T) {
 			want: types.ErrNilPublicKey,
 		},
 		{
-			name:      "invalid public key length",
-			proofHash: validMsg.ProofHash,
+			name:           "invalid public key length",
+			verificationID: validMsg.VerificationId,
 			publicKeyInputs: &types.PublicKeyInputs{
 				SessionPublicKey: validMsg.PublicKeyInputs.SessionPublicKey[:types.SessionPublicKeySize-1],
 				ExpiresAtHeight:  validMsg.PublicKeyInputs.ExpiresAtHeight,
@@ -190,8 +191,8 @@ func TestAddPublicKeyRejectsInvalidInputs(t *testing.T) {
 			want: types.ErrPublicKeyInvalidLength,
 		},
 		{
-			name:      "zero expiration height",
-			proofHash: validMsg.ProofHash,
+			name:           "zero expiration height",
+			verificationID: validMsg.VerificationId,
 			publicKeyInputs: &types.PublicKeyInputs{
 				SessionPublicKey: validMsg.PublicKeyInputs.SessionPublicKey,
 				ExpiresAtHeight:  0,
@@ -205,7 +206,7 @@ func TestAddPublicKeyRejectsInvalidInputs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			msg := &types.MsgAddPublicKey{
 				Creator:         validMsg.Creator,
-				ProofHash:       test.proofHash,
+				VerificationId:  test.verificationID,
 				PublicKeyInputs: test.publicKeyInputs,
 			}
 
@@ -243,16 +244,26 @@ func validAddPublicKeyMessage(t *testing.T, f *fixture) *types.MsgAddPublicKey {
 	require.NoError(t, err)
 
 	proofHash := bytes.Repeat([]byte{0x04}, verificationtypes.ProofHashSize)
+	verificationKeyHash := bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize)
+	verificationID, err := verificationtypes.ComputeVerificationID(
+		verificationtypes.ProofType_PROOF_TYPE_NOIR_BARRETENBERG,
+		proofHash,
+		publicInputsHash,
+		verificationKeyHash,
+	)
+	require.NoError(t, err)
 	f.verificationKeeper.result = verificationtypes.FinalProofResult{
 		ProofHash:           bytes.Clone(proofHash),
+		ProofType:           verificationtypes.ProofType_PROOF_TYPE_NOIR_BARRETENBERG,
 		Status:              verificationtypes.ProofStatus_PROOF_STATUS_VALID,
 		PublicInputsHash:    publicInputsHash,
-		VerificationKeyHash: bytes.Repeat([]byte{0x01}, types.VerificationKeyHashSize),
+		VerificationKeyHash: verificationKeyHash,
+		VerificationId:      bytes.Clone(verificationID[:]),
 	}
 
 	return &types.MsgAddPublicKey{
 		Creator:         creator,
-		ProofHash:       proofHash,
+		VerificationId:  verificationID[:],
 		PublicKeyInputs: inputs,
 	}
 }

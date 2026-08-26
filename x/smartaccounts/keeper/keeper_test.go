@@ -21,14 +21,16 @@ import (
 )
 
 type mockVerificationKeeper struct {
-	result verificationtypes.FinalProofResult
-	err    error
+	result                  verificationtypes.FinalProofResult
+	err                     error
+	requestedVerificationID []byte
 }
 
-func (m mockVerificationKeeper) FinalProofResultByProofHash(
-	context.Context,
-	[]byte,
+func (m *mockVerificationKeeper) FinalProofResultByVerificationID(
+	_ context.Context,
+	verificationID []byte,
 ) (verificationtypes.FinalProofResult, error) {
+	m.requestedVerificationID = bytes.Clone(verificationID)
 	return m.result, m.err
 }
 
