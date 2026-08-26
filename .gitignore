@@ -10,5 +10,6 @@ release/
 *.ign
 .docker/
 .cache/smartaccounts/
+.cache/pulsar-verifier/
 __pycache__/
 *.py[cod]
