@@ -8,8 +8,10 @@ PROJECT_NAME="${PULSAR_DOCKER_PROJECT:-pulsar-testnet-3}"
 CONTAINER="${PULSAR_VALIDATOR_CONTAINER:-${PROJECT_NAME}-validator1-1}"
 VALIDATOR_HOME="${PULSAR_VALIDATOR_HOME:-/testnet/.pulsar-node1}"
 CHAIN_ID="${CHAIN_ID:-mytestnet}"
-FROM_KEY="${AUTH_MODE_FROM_KEY:-validator1}"
+FROM_KEY="${AUTH_MODE_FROM_KEY:-mina-auth-mode-sender}"
+FUNDING_KEY="${AUTH_MODE_FUNDING_KEY:-validator1}"
 RECIPIENT_KEY="${AUTH_MODE_RECIPIENT_KEY:-auth-mode-recipient}"
+FUNDING_AMOUNT="${AUTH_MODE_FUNDING_AMOUNT:-1000000pmina}"
 AMOUNT="${AUTH_MODE_SEND_AMOUNT:-1pmina}"
 FEES="${AUTH_MODE_FEES:-100pmina}"
 NODE="${PULSAR_NODE:-tcp://127.0.0.1:26657}"
@@ -19,6 +21,12 @@ WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pulsar-mina-auth.XXXXXX")"
 trap 'rm -rf -- "$WORK_DIR"' EXIT
 
 docker inspect "$CONTAINER" >/dev/null
+
+if ! docker exec "$CONTAINER" pulsard keys show "$FROM_KEY" \
+  --home "$VALIDATOR_HOME" --keyring-backend test >/dev/null 2>&1; then
+  docker exec "$CONTAINER" pulsard keys add "$FROM_KEY" \
+    --home "$VALIDATOR_HOME" --keyring-backend test >/dev/null 2>&1
+fi
 
 if ! docker exec "$CONTAINER" pulsard keys show "$RECIPIENT_KEY" \
   --home "$VALIDATOR_HOME" --keyring-backend test >/dev/null 2>&1; then
@@ -30,6 +38,36 @@ FROM_ADDRESS="$(docker exec "$CONTAINER" pulsard keys show "$FROM_KEY" \
   --address --home "$VALIDATOR_HOME" --keyring-backend test)"
 RECIPIENT_ADDRESS="$(docker exec "$CONTAINER" pulsard keys show "$RECIPIENT_KEY" \
   --address --home "$VALIDATOR_HOME" --keyring-backend test)"
+
+docker exec "$CONTAINER" pulsard tx bank send \
+  "$FUNDING_KEY" "$FROM_ADDRESS" "$FUNDING_AMOUNT" \
+  --home "$VALIDATOR_HOME" \
+  --keyring-backend test \
+  --chain-id "$CHAIN_ID" \
+  --node "$NODE" \
+  --gas 200000 \
+  --fees "$FEES" \
+  --yes \
+  --output json >"$WORK_DIR/funding-broadcast.json"
+
+FUNDING_TX_HASH="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["txhash"])' "$WORK_DIR/funding-broadcast.json")"
+for _ in $(seq 1 60); do
+  if docker exec "$CONTAINER" pulsard query tx "$FUNDING_TX_HASH" --node "$NODE" --output json \
+    >"$WORK_DIR/funding-result.json" 2>/dev/null; then
+    FUNDING_CODE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["code"])' "$WORK_DIR/funding-result.json")"
+    if [[ "$FUNDING_CODE" != "0" ]]; then
+      cat "$WORK_DIR/funding-result.json" >&2
+      exit 1
+    fi
+    break
+  fi
+  sleep 1
+done
+[[ -f "$WORK_DIR/funding-result.json" ]] || {
+  echo "error: Mina auth-mode sender funding transaction was not included: $FUNDING_TX_HASH" >&2
+  exit 1
+}
+
 COSMOS_PUBLIC_KEY_BASE64="$(docker exec "$CONTAINER" pulsard keys show "$FROM_KEY" \
   --pubkey --home "$VALIDATOR_HOME" --keyring-backend test \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["key"])')"
