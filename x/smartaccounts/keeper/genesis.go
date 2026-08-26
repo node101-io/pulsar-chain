@@ -37,6 +37,8 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	}
 	defer iter.Close()
 
+	// ExportGenesis is not responsible for handling entry-level errors.
+	// Therefore, errors encountered in this loop are skipped.
 	for ; iter.Valid(); iter.Next() {
 
 		acc, err := iter.Value()
