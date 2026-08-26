@@ -645,10 +645,6 @@ python3 "$PYTHON_HELPER" patch-smartaccounts-genesis \
   --genesis "$PRIMARY_GENESIS_FILE" \
   --verification-key-hash "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH"
 
-python3 "$PYTHON_HELPER" patch-local-smartaccount-proof-fixture \
-  --genesis "$PRIMARY_GENESIS_FILE" \
-  --verification-key-hash "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH"
-
 echo "==> Creating validator keys..."
 for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   "$BINARY_PATH" keys add "${NODE_KEY_NAMES[i]}" --home "${NODE_HOMES[i]}" --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1

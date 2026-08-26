@@ -72,6 +72,11 @@ Optional environment variables:
   SMART_ACCOUNTS_VERIFICATION_KEY_HASH
                              32-byte smartaccounts verification-key hash in hex
                              or base64 (default: value from config.yml)
+  SMART_ACCOUNT_NOIR_FIXTURE_DIR
+                             real smart-account Noir fixture directory; when
+                             set, verification_key_hash is derived from its vk
+  PULSAR_VERIFIER_IMAGE      production verifier image; required with the
+                             smart-account Noir fixture
 
 Default Mina Lightnet image:
   o1labs/mina-local-network@sha256:33e349241f5f3e8d336e5de9b35de2d4339fd8713b309e2b1b5fc375c2605b58
@@ -324,6 +329,27 @@ require_cmd curl
 require_cmd docker
 require_cmd git
 require_cmd python3
+
+if [[ -n "${SMART_ACCOUNT_NOIR_FIXTURE_DIR:-}" ]]; then
+  if [[ ! -f "$SMART_ACCOUNT_NOIR_FIXTURE_DIR/vk" ]]; then
+    echo "smart-account Noir verification key not found: $SMART_ACCOUNT_NOIR_FIXTURE_DIR/vk" >&2
+    exit 1
+  fi
+  if [[ -z "${PULSAR_VERIFIER_IMAGE:-}" ]]; then
+    echo "PULSAR_VERIFIER_IMAGE is required with SMART_ACCOUNT_NOIR_FIXTURE_DIR" >&2
+    exit 1
+  fi
+
+  fixture_verification_key_hash="$(python3 -c 'import hashlib,pathlib,sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())' "$SMART_ACCOUNT_NOIR_FIXTURE_DIR/vk")"
+  fixture_verification_key_hash_base64="$(python3 -c 'import base64,sys; print(base64.b64encode(bytes.fromhex(sys.argv[1])).decode())' "$fixture_verification_key_hash")"
+  if [[ -n "${SMART_ACCOUNTS_VERIFICATION_KEY_HASH:-}" &&
+    "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH" != "$fixture_verification_key_hash" &&
+    "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH" != "$fixture_verification_key_hash_base64" ]]; then
+    echo "SMART_ACCOUNTS_VERIFICATION_KEY_HASH does not match SHA-256($SMART_ACCOUNT_NOIR_FIXTURE_DIR/vk)" >&2
+    exit 1
+  fi
+  export SMART_ACCOUNTS_VERIFICATION_KEY_HASH="$fixture_verification_key_hash"
+fi
 
 docker compose version >/dev/null
 docker buildx version >/dev/null

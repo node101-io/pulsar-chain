@@ -812,81 +812,6 @@ def patch_smartaccounts_genesis(
     return 0
 
 
-def patch_local_smartaccount_proof_fixture(
-    genesis_path: str,
-    verification_key_hash: str,
-) -> int:
-    identity = bytes.fromhex(
-        "a0e18e9725f34a4d055830f724af1f42bc57942ad0a38875b4b991851d999dcb"
-    )
-    session_public_key = bytes.fromhex(
-        "6e1f9218c4a7fbce1262a5d586d7511d1b2ec5201d96ab621753c239ebab045b"
-    )
-    proof_hash = bytes.fromhex(
-        "09b26eb3d86c4fd415838c2d9bd8bebc01cbb0fe78e270a4ea643e81075ac210"
-    )
-    verification_key_hash_bytes = decode_smartaccounts_verification_key_hash(
-        verification_key_hash
-    )
-    expires_at_height = 1_000_000
-    public_inputs = (
-        session_public_key
-        + expires_at_height.to_bytes(32, byteorder="big")
-        + identity
-    )
-    public_inputs_hash = hashlib.sha256(public_inputs).digest()
-    verification_id = hashlib.sha256(
-        b"pulsar/verification/v1\x00"
-        + (1).to_bytes(4, byteorder="big")
-        + proof_hash
-        + public_inputs_hash
-        + verification_key_hash_bytes
-    ).digest()
-
-    proof_hash_base64 = base64.b64encode(proof_hash).decode("ascii")
-    public_inputs_hash_base64 = base64.b64encode(public_inputs_hash).decode(
-        "ascii"
-    )
-    verification_key_hash_base64 = base64.b64encode(
-        verification_key_hash_bytes
-    ).decode("ascii")
-    verification_id_base64 = base64.b64encode(verification_id).decode("ascii")
-
-    proof_key = {"submission_height": "1", "index_in_block": 0}
-    genesis = read_json(genesis_path)
-    verification = genesis.setdefault("app_state", {}).setdefault(
-        "verification", {}
-    )
-    verification["seen_verification_ids"] = [
-        {
-            "verification_id": verification_id_base64,
-            "proof_key": proof_key,
-        }
-    ]
-    verification["final_proof_results"] = [
-        {
-            "proof_key": proof_key,
-            "result": {
-                "proof_hash": proof_hash_base64,
-                "proof_type": "PROOF_TYPE_MINA_PICKLES",
-                "status": "PROOF_STATUS_VALID",
-                "valid_voting_power": "1",
-                "invalid_voting_power": "0",
-                "total_voting_power": "1",
-                "voting_power_threshold": "1",
-                "submission_height": "1",
-                "finalized_height": "6",
-                "public_inputs_hash": public_inputs_hash_base64,
-                "verification_key_hash": verification_key_hash_base64,
-                "verification_id": verification_id_base64,
-            },
-        }
-    ]
-
-    write_json(genesis_path, genesis)
-    return 0
-
-
 def upsert_toml_key(
     app_toml: str,
     table_name: str,
@@ -1101,14 +1026,6 @@ def build_parser() -> argparse.ArgumentParser:
     patch_smartaccounts.add_argument("--genesis", required=True)
     patch_smartaccounts.add_argument("--verification-key-hash", required=True)
 
-    patch_local_smartaccount = subparsers.add_parser(
-        "patch-local-smartaccount-proof-fixture"
-    )
-    patch_local_smartaccount.add_argument("--genesis", required=True)
-    patch_local_smartaccount.add_argument(
-        "--verification-key-hash", required=True
-    )
-
     verify_registry = subparsers.add_parser("verify-validator-key-pairs")
     verify_registry.add_argument("--genesis", required=True)
     verify_registry.add_argument("--cosmos-key", action="append", required=True)
@@ -1198,11 +1115,6 @@ def main() -> int:
         )
     if args.command == "patch-smartaccounts-genesis":
         return patch_smartaccounts_genesis(
-            args.genesis,
-            args.verification_key_hash,
-        )
-    if args.command == "patch-local-smartaccount-proof-fixture":
-        return patch_local_smartaccount_proof_fixture(
             args.genesis,
             args.verification_key_hash,
         )

@@ -502,35 +502,6 @@ class E2EFixtureTest(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     helper.patch_smartaccounts_genesis(str(genesis), value)
 
-    def test_patch_local_smartaccount_proof_fixture(self):
-        genesis = self.write_temp(
-            "genesis.json",
-            json.dumps({"app_state": {"verification": {"params": {}}}}),
-        )
-        verification_key_hash = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
-
-        self.assertEqual(
-            0,
-            helper.patch_local_smartaccount_proof_fixture(
-                str(genesis), verification_key_hash
-            ),
-        )
-
-        verification = json.loads(genesis.read_text(encoding="utf-8"))[
-            "app_state"
-        ]["verification"]
-        self.assertEqual({}, verification["params"])
-        self.assertEqual(
-            "hrZ/3dUCYGrO3ofkc69c4NAVvF/3/olEoj5pN0fhJhY=",
-            verification["seen_verification_ids"][0]["verification_id"],
-        )
-        result = verification["final_proof_results"][0]["result"]
-        self.assertEqual("PROOF_STATUS_VALID", result["status"])
-        self.assertEqual(
-            "R/Za9xWb5udbVYiQ2rs8REB4+qhK5lfKhuhmK2fDgaA=",
-            result["public_inputs_hash"],
-        )
-
     def test_render_e2e_seed_replaces_exactly_one_placeholder(self):
         template = self.write_temp(
             "seed.sql.tmpl", "fee_payer = '__E2E_MINA_PUBLIC_KEY__';\n"
