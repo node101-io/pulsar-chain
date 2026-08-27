@@ -191,6 +191,7 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
             "BRIDGE_MAX_BLOCK_RANGE",
             "BRIDGE_START_BLOCK_HEIGHT",
             "DOCKER_PLATFORM",
+            "ENABLE_VERIFIER_SIDECARS",
             "LIGHTNET_CONTAINER",
             "LIGHTNET_IMAGE",
             "LIGHTNET_POSTGRES_PORT",
@@ -277,6 +278,7 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
             "LIGHTNET_IMAGE",
             "LIGHTNET_READY_HEIGHT",
             "PULSAR_DOCKER_STATE_ROOT",
+            "ENABLE_VERIFIER_SIDECARS",
             "PULSAR_DOCKER_IMAGE",
             "BRIDGE_CONFIRMATION_DEPTH",
             "docs/local-lightnet-deployment.md",
@@ -285,6 +287,89 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
                 self.assertIn(expected, result.stdout)
         self.assertEqual([], self.read_calls(self.docker_log))
         self.assertEqual([], self.read_calls(self.git_log))
+
+    def test_defaults_to_chain_only_without_verifier_work(self):
+        self.set_lightnet_state("running-owned")
+
+        result = self.run_deploy()
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("Verifier sidecars disabled", result.stdout)
+        self.assertFalse(self.verifier_cache_root.exists())
+        self.assertFalse(
+            any("feedface" in " ".join(call) for call in self.read_calls(self.git_log))
+        )
+        self.assertFalse(
+            any(
+                "pulsar-verifier" in " ".join(call)
+                for call in self.read_calls(self.docker_log)
+            )
+        )
+
+        compose = json.loads(
+            (self.state_root / self.project / "compose.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            "0", compose["services"]["setup"]["environment"]["ENABLE_VERIFIER_SIDECARS"]
+        )
+        self.assertNotIn("verifier1", compose["services"])
+        self.assertNotIn("verifier2", compose["services"])
+
+    def test_explicit_zero_ignores_an_inherited_verifier_image(self):
+        self.set_lightnet_state("running-owned")
+
+        result = self.run_deploy(
+            ENABLE_VERIFIER_SIDECARS="0",
+            PULSAR_VERIFIER_IMAGE="inherited-verifier:test",
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertFalse(
+            any(
+                "inherited-verifier:test" in " ".join(call)
+                for call in self.read_calls(self.docker_log)
+            )
+        )
+        compose = json.loads(
+            (self.state_root / self.project / "compose.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            "0", compose["services"]["setup"]["environment"]["ENABLE_VERIFIER_SIDECARS"]
+        )
+        self.assertNotIn("verifier1", compose["services"])
+        self.assertNotIn("verifier2", compose["services"])
+
+    def test_explicit_opt_in_builds_and_starts_verifier_sidecars(self):
+        self.set_lightnet_state("running-owned")
+
+        result = self.run_deploy(ENABLE_VERIFIER_SIDECARS="1")
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("Building the pulsar-verifier image", result.stdout)
+        self.assertTrue(
+            (self.verifier_cache_root / "feedface" / ".git" / "fetched").exists()
+        )
+        self.assertTrue(
+            any(
+                "pulsar-verifier:lightnet" in " ".join(call)
+                for call in self.read_calls(self.docker_log)
+            )
+        )
+
+        compose = json.loads(
+            (self.state_root / self.project / "compose.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            "1", compose["services"]["setup"]["environment"]["ENABLE_VERIFIER_SIDECARS"]
+        )
+        self.assertIn("verifier1", compose["services"])
+        self.assertIn("verifier2", compose["services"])
 
     def test_cleans_only_selected_project_and_reuses_owned_running_lightnet(self):
         _, selected_sentinel = self.create_owned_project(self.project)
@@ -393,6 +478,7 @@ class DeployLocalLightnetScriptTest(unittest.TestCase):
             ("BRIDGE_CONFIRMATION_DEPTH", "0", "positive integer"),
             ("BRIDGE_START_BLOCK_HEIGHT", "0", "positive integer"),
             ("BRIDGE_MAX_BLOCK_RANGE", "0", "positive integer"),
+            ("ENABLE_VERIFIER_SIDECARS", "yes", "must be 0 or 1"),
             ("DOCKER_PLATFORM", "linux/s390x", "Docker platform"),
         )
 

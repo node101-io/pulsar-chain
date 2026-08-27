@@ -29,6 +29,7 @@ VERIFIER_SHA="${PULSAR_VERIFIER_SHA:-e7582ba2aea2fa12b765221003a366868f39b3e8}"
 VERIFIER_IMAGE="${PULSAR_VERIFIER_IMAGE:-pulsar-verifier:lightnet}"
 VERIFIER_CACHE_ROOT="${PULSAR_VERIFIER_CACHE_ROOT:-$REPO_ROOT/.cache/pulsar-verifier}"
 VERIFIER_REPOSITORY="https://github.com/node101-io/pulsar-verifier.git"
+ENABLE_VERIFIER_SIDECARS="${ENABLE_VERIFIER_SIDECARS:-0}"
 PULSAR_IMAGE=""
 BRIDGE_CONFIRMATION_DEPTH="${BRIDGE_CONFIRMATION_DEPTH:-3}"
 BRIDGE_START_BLOCK_HEIGHT="${BRIDGE_START_BLOCK_HEIGHT:-1}"
@@ -49,7 +50,7 @@ Recreates the local development stack with:
   - an existing running Mina Lightnet, or a new Dockerized Lightnet
   - the blocks_inserted LISTEN/NOTIFY trigger
   - one shared archive-wrapper in Docker
-  - one pulsar-verifier sidecar per validator
+  - optionally, one pulsar-verifier sidecar per validator
   - the requested number of Pulsar validators in Docker
 
 Destructive behavior:
@@ -73,6 +74,8 @@ Optional environment variables:
   PULSAR_VERIFIER_IMAGE      built image name (default: pulsar-verifier:lightnet)
   PULSAR_VERIFIER_CACHE_ROOT automatic source cache (default:
                              .cache/pulsar-verifier)
+  ENABLE_VERIFIER_SIDECARS   set to 1 to build and start verifier sidecars
+                             (default: 0, chain-only deployment)
   PULSAR_DOCKER_PROJECT      Compose project (default: pulsar-testnet-N)
   PULSAR_DOCKER_STATE_ROOT   generated state root (default: .docker)
   PULSAR_DOCKER_IMAGE        Pulsar image name (default derived from N)
@@ -321,6 +324,10 @@ validate_positive_int "validator startup timeout" "$VALIDATOR_STARTUP_TIMEOUT"
 validate_positive_int "bridge confirmation depth" "$BRIDGE_CONFIRMATION_DEPTH"
 validate_positive_int "bridge start block height" "$BRIDGE_START_BLOCK_HEIGHT"
 validate_positive_int "bridge max block range" "$BRIDGE_MAX_BLOCK_RANGE"
+if [[ "$ENABLE_VERIFIER_SIDECARS" != "0" && "$ENABLE_VERIFIER_SIDECARS" != "1" ]]; then
+  echo "ENABLE_VERIFIER_SIDECARS must be 0 or 1" >&2
+  exit 1
+fi
 
 case "$DOCKER_PLATFORM" in
   linux/arm64 | linux/amd64) ;;
@@ -357,31 +364,33 @@ fi
 WRAPPER_SOURCE="$(cd -- "$WRAPPER_SOURCE" && pwd)"
 git -C "$WRAPPER_SOURCE" cat-file -e "${WRAPPER_SHA}^{commit}"
 
-if [[ -z "$VERIFIER_SOURCE" ]]; then
-  VERIFIER_CACHE_ROOT="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$VERIFIER_CACHE_ROOT")"
-  VERIFIER_SOURCE="$VERIFIER_CACHE_ROOT/$VERIFIER_SHA"
-  if [[ ! -d "$VERIFIER_SOURCE/.git" ]]; then
-    if [[ -e "$VERIFIER_SOURCE" && ! -d "$VERIFIER_SOURCE" ]]; then
-      echo "refusing invalid pulsar-verifier cache path: $VERIFIER_SOURCE" >&2
-      exit 1
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  if [[ -z "$VERIFIER_SOURCE" ]]; then
+    VERIFIER_CACHE_ROOT="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$VERIFIER_CACHE_ROOT")"
+    VERIFIER_SOURCE="$VERIFIER_CACHE_ROOT/$VERIFIER_SHA"
+    if [[ ! -d "$VERIFIER_SOURCE/.git" ]]; then
+      if [[ -e "$VERIFIER_SOURCE" && ! -d "$VERIFIER_SOURCE" ]]; then
+        echo "refusing invalid pulsar-verifier cache path: $VERIFIER_SOURCE" >&2
+        exit 1
+      fi
+      mkdir -p "$VERIFIER_SOURCE"
+      git -C "$VERIFIER_SOURCE" init --quiet
     fi
-    mkdir -p "$VERIFIER_SOURCE"
-    git -C "$VERIFIER_SOURCE" init --quiet
+    if ! git -C "$VERIFIER_SOURCE" cat-file -e "${VERIFIER_SHA}^{commit}" 2>/dev/null; then
+      echo "==> Downloading pinned pulsar-verifier source"
+      git -C "$VERIFIER_SOURCE" fetch --depth 1 "$VERIFIER_REPOSITORY" "$VERIFIER_SHA"
+    fi
+  elif [[ ! -d "$VERIFIER_SOURCE/.git" ]]; then
+    echo "pulsar-verifier checkout not found at: $VERIFIER_SOURCE" >&2
+    exit 1
   fi
-  if ! git -C "$VERIFIER_SOURCE" cat-file -e "${VERIFIER_SHA}^{commit}" 2>/dev/null; then
-    echo "==> Downloading pinned pulsar-verifier source"
-    git -C "$VERIFIER_SOURCE" fetch --depth 1 "$VERIFIER_REPOSITORY" "$VERIFIER_SHA"
-  fi
-elif [[ ! -d "$VERIFIER_SOURCE/.git" ]]; then
-  echo "pulsar-verifier checkout not found at: $VERIFIER_SOURCE" >&2
-  exit 1
+  VERIFIER_SOURCE="$(cd -- "$VERIFIER_SOURCE" && pwd)"
+  git -C "$VERIFIER_SOURCE" cat-file -e "${VERIFIER_SHA}^{commit}"
 fi
-VERIFIER_SOURCE="$(cd -- "$VERIFIER_SOURCE" && pwd)"
-git -C "$VERIFIER_SOURCE" cat-file -e "${VERIFIER_SHA}^{commit}"
 
 detect_running_lightnet
 
-echo "==> 1/6 Removing previous Pulsar, archive-wrapper, and verifier state"
+echo "==> 1/6 Removing previous Pulsar and archive-wrapper state"
 if (( REUSE_LIGHTNET == 1 )); then
   echo "    preserving running owned Lightnet container: $LIGHTNET_CONTAINER"
 else
@@ -432,13 +441,19 @@ git -C "$WRAPPER_SOURCE" archive "$WRAPPER_SHA" |
     -t "$WRAPPER_IMAGE" \
     -
 
-echo "==> 5/6 Building the pulsar-verifier image"
-git -C "$VERIFIER_SOURCE" archive "$VERIFIER_SHA" |
-  docker buildx build \
-    --load \
-    --platform linux/amd64 \
-    -t "$VERIFIER_IMAGE" \
-    -
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  echo "==> 5/6 Building the pulsar-verifier image"
+  # TODO: Build the verifier for DOCKER_PLATFORM when a pinned
+  # Barretenberg arm64 artifact is available; it currently requires amd64.
+  git -C "$VERIFIER_SOURCE" archive "$VERIFIER_SHA" |
+    docker buildx build \
+      --load \
+      --platform linux/amd64 \
+      -t "$VERIFIER_IMAGE" \
+      -
+else
+  echo "==> 5/6 Verifier sidecars disabled"
+fi
 
 PG_USER="$(docker exec "$LIGHTNET_CONTAINER" printenv POSTGRES_USER)"
 PG_PASSWORD="$(docker exec "$LIGHTNET_CONTAINER" printenv POSTGRES_PASSWORD)"
@@ -458,7 +473,11 @@ export ARCHIVE_WRAPPER_MODE="shared"
 export ARCHIVE_WRAPPER_IMAGE="$WRAPPER_IMAGE"
 export ARCHIVE_WRAPPER_ADD_HOST_GATEWAY=1
 export PULSAR_DOCKER_IMAGE="$PULSAR_IMAGE"
-export PULSAR_VERIFIER_IMAGE="$VERIFIER_IMAGE"
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  export PULSAR_VERIFIER_IMAGE="$VERIFIER_IMAGE"
+else
+  unset PULSAR_VERIFIER_IMAGE
+fi
 export PULSAR_DOCKER_PROJECT="$PROJECT_NAME"
 export PULSAR_DOCKER_STATE_ROOT="$STATE_ROOT"
 export PULSAR_BIND_HOST="127.0.0.1"
@@ -468,7 +487,11 @@ export BRIDGE_START_BLOCK_HEIGHT
 export BRIDGE_MAX_BLOCK_RANGE
 export VALIDATOR_STARTUP_TIMEOUT
 
-echo "==> 6/6 Starting Pulsar with $VALIDATOR_COUNT validators and verifier sidecars"
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  echo "==> 6/6 Starting Pulsar with $VALIDATOR_COUNT validators and verifier sidecars"
+else
+  echo "==> 6/6 Starting Pulsar with $VALIDATOR_COUNT validators"
+fi
 "$SCRIPT_DIR/docker_testnet.sh" up "$VALIDATOR_COUNT"
 
 for ((index = 1; index <= VALIDATOR_COUNT; index++)); do
