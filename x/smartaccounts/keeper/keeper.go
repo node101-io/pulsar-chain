@@ -215,6 +215,8 @@ func (k Keeper) AppendSessionKeyToSmartAccount(ctx context.Context, identity, ac
 		}
 	}
 
+	// TODO: Evaluate and enforce a per-account session-key limit to keep
+	// state growth and authorization cost bounded.
 	acc.SessionKeys = append(acc.SessionKeys, key)
 
 	if err := k.smartAccounts.Set(ctx, identity, acc); err != nil {
