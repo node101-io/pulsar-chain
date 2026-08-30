@@ -175,6 +175,7 @@ def render_compose(args: argparse.Namespace) -> dict:
             "MAX_BLOCK_RANGE": "${BRIDGE_MAX_BLOCK_RANGE:-}",
             "E2E_USER_MINA_PRIV_KEY": "${E2E_USER_MINA_PRIV_KEY:-}",
             "MIN_GAS_PRICE": "${E2E_MIN_GAS_PRICE:-}",
+            "SMART_ACCOUNTS_VERIFICATION_KEY_HASH": "${SMART_ACCOUNTS_VERIFICATION_KEY_HASH:-}",
             "ENABLE_VERIFIER_SIDECARS": "1" if args.verifier_image else "0",
         }
     )

@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package pulsarchain.smartaccounts.v1;
+
+import "amino/amino.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "pulsarchain/smartaccounts/v1/params.proto";
+import "pulsarchain/smartaccounts/v1/types.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/smartaccounts/types";
+
+// Query defines the gRPC querier service.
+service Query {
+  // Parameters queries the parameters of the module.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/smartaccounts/v1/params";
+  }
+
+  // GetSessionKeysByIdentity Queries a list of GetSessionKeysByIdentity items.
+  rpc GetSessionKeysByIdentity(QueryGetSessionKeysByIdentityRequest) returns (QueryGetSessionKeysByIdentityResponse) {
+    option (google.api.http).get = "/node101-io/pulsar-chain/smartaccounts/v1/get_session_keys_by_identity";
+  }
+}
+
+// QueryParamsRequest is request type for the Query/Params RPC method.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is response type for the Query/Params RPC method.
+message QueryParamsResponse {
+  // params holds all the parameters of this module.
+  Params params = 1 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
+}
+
+// QueryGetSessionKeysByIdentityRequest defines the QueryGetSessionKeysByIdentityRequest message.
+message QueryGetSessionKeysByIdentityRequest {
+  bytes identity = 1;
+  // pagination applies to the selected smart account's session keys.
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+
+// QueryGetSessionKeysByIdentityResponse defines the QueryGetSessionKeysByIdentityResponse message.
+message QueryGetSessionKeysByIdentityResponse {
+  bytes account_address = 1;
+  repeated SessionKey session_keys = 2;
+  // pagination describes this page of session keys.
+  cosmos.base.query.v1beta1.PageResponse pagination = 3;
+}

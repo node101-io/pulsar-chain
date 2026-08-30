@@ -54,6 +54,12 @@ class RenderDockerTestnetTest(unittest.TestCase):
             "${POSTGRES_URI:-}",
             compose["services"]["archive-wrapper"]["environment"]["POSTGRES_URI"],
         )
+        self.assertEqual(
+            "${SMART_ACCOUNTS_VERIFICATION_KEY_HASH:-}",
+            compose["services"]["setup"]["environment"][
+                "SMART_ACCOUNTS_VERIFICATION_KEY_HASH"
+            ],
+        )
 
         for index in range(1, 4):
             self.assertEqual(

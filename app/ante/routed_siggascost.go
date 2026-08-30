@@ -39,7 +39,7 @@ func (d RoutedSigGasConsumeDecorator) AnteHandle(
 		return ctx, err
 	}
 
-	if mode != TxAuthModeMina {
+	if mode == TxAuthModeCosmos {
 		return d.cosmosDecorator.AnteHandle(ctx, tx, simulate, next)
 	}
 
@@ -52,6 +52,33 @@ func (d RoutedSigGasConsumeDecorator) AnteHandle(
 	sigs, err := sigTx.GetSignaturesV2()
 	if err != nil {
 		return ctx, err
+	}
+
+	if mode == TxAuthModeSmartAccount {
+		for _, sig := range sigs {
+			switch sig.Data.(type) {
+			case *signing.SingleSignatureData:
+				ctx.GasMeter().ConsumeGas(
+					params.SigVerifyCostED25519,
+					"ante verify: smart account",
+				)
+
+			case *signing.MultiSignatureData:
+				return ctx, errorsmod.Wrap(
+					sdkerrors.ErrInvalidType,
+					"smart-account transactions do not support multisig signatures",
+				)
+
+			default:
+				return ctx, errorsmod.Wrapf(
+					sdkerrors.ErrInvalidType,
+					"unexpected signature data type %T",
+					sig.Data,
+				)
+			}
+		}
+
+		return next(ctx, tx, simulate)
 	}
 
 	for _, sig := range sigs {

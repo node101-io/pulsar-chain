@@ -1,0 +1,6 @@
+[package]
+name = "smart_account_e2e"
+type = "bin"
+authors = [""]
+
+[dependencies]

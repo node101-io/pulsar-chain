@@ -1,0 +1,26 @@
+syntax = "proto3";
+package pulsarchain.smartaccounts.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/smartaccounts/types";
+
+// SmartAccount binds a Cosmos account address to its authorized session keys.
+message SmartAccount {
+  bytes account_address = 1;
+  repeated SessionKey session_keys = 2 [(gogoproto.nullable) = false];
+}
+
+// SessionKey defines an Ed25519 public key and its exclusive expiration height.
+message SessionKey {
+  bytes public_key = 1;
+  uint64 expires_at_height = 2;
+}
+
+// PublicKeyInputs defines the PublicKeyInputs message.
+message PublicKeyInputs {
+  bytes session_public_key = 1;
+  uint64 expires_at_height = 2;
+  bytes identity = 3;
+}

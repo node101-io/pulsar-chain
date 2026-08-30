@@ -16,6 +16,8 @@ enum TxAuthMode {
   TX_AUTH_MODE_COSMOS = 1;
   // TX_AUTH_MODE_MINA selects verification with the signer's registered Mina key.
   TX_AUTH_MODE_MINA = 2;
+  // TX_AUTH_MODE_SMART_ACCOUNT selects verification with the registered Session key.
+  TX_AUTH_MODE_SMART_ACCOUNT = 3;
 }
 
 // TxAuthModeExtension marks the authentication mode of a transaction.
@@ -23,4 +25,6 @@ message TxAuthModeExtension {
   option (gogoproto.goproto_getters) = false;
 
   TxAuthMode tx_auth_mode = 1;
+
+  bytes smart_account_identity = 2;
 }

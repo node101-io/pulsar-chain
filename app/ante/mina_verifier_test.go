@@ -78,8 +78,9 @@ func TestResolveAuroFieldSignatureNetworkID(t *testing.T) {
 }
 
 type verifierAccountKeeper struct {
-	account sdk.AccountI
-	params  authtypes.Params
+	account       sdk.AccountI
+	params        authtypes.Params
+	moduleAddress sdk.AccAddress
 }
 
 func (k verifierAccountKeeper) GetParams(context.Context) authtypes.Params {
@@ -96,7 +97,7 @@ func (k verifierAccountKeeper) GetAccount(context.Context, sdk.AccAddress) sdk.A
 
 func (k verifierAccountKeeper) SetAccount(context.Context, sdk.AccountI) {}
 
-func (k verifierAccountKeeper) GetModuleAddress(string) sdk.AccAddress { return nil }
+func (k verifierAccountKeeper) GetModuleAddress(string) sdk.AccAddress { return k.moduleAddress }
 
 func (k verifierAccountKeeper) AddressCodec() address.Codec { return nil }
 

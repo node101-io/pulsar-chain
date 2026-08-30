@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import base64
+import contextlib
+import io
 import json
 import subprocess
 import sys
@@ -436,6 +439,68 @@ class E2EFixtureTest(unittest.TestCase):
             },
             bridge["bridge_state"],
         )
+
+    def test_patch_smartaccounts_genesis_sets_verification_key_hash(self):
+        genesis = self.write_temp("genesis.json", json.dumps({"app_state": {}}))
+        verification_key_hash = bytes(range(32))
+
+        self.assertEqual(
+            0,
+            helper.patch_smartaccounts_genesis(
+                str(genesis),
+                base64.b64encode(verification_key_hash).decode("ascii"),
+            ),
+        )
+
+        payload = json.loads(genesis.read_text(encoding="utf-8"))
+        smartaccounts = payload["app_state"]["smartaccounts"]
+        self.assertEqual(
+            base64.b64encode(verification_key_hash).decode("ascii"),
+            smartaccounts["params"]["verification_key_hash"],
+        )
+        self.assertEqual([], smartaccounts["smart_accounts"])
+
+    def test_reads_module_params_through_the_same_generic_path(self):
+        config = self.write_temp(
+            "config.yml",
+            """genesis:
+  app_state:
+    bridge:
+      params:
+        confirmation_depth: "32"
+    smartaccounts:
+      params:
+        verification_key_hash: "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+""",
+        )
+
+        cases = (
+            ("bridge", "confirmation_depth", "32"),
+            (
+                "smartaccounts",
+                "verification_key_hash",
+                "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+            ),
+        )
+        for module_name, key_name, expected in cases:
+            with self.subTest(module=module_name, key=key_name):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        0,
+                        helper.read_genesis_param(
+                            str(config), module_name, key_name
+                        ),
+                    )
+                self.assertEqual(expected, output.getvalue().strip())
+
+    def test_patch_smartaccounts_genesis_rejects_invalid_hash(self):
+        genesis = self.write_temp("genesis.json", json.dumps({"app_state": {}}))
+
+        for value in ("not-hex", "01" * 31, "01" * 33):
+            with self.subTest(value=value):
+                with self.assertRaises(SystemExit):
+                    helper.patch_smartaccounts_genesis(str(genesis), value)
 
     def test_render_e2e_seed_replaces_exactly_one_placeholder(self):
         template = self.write_temp(

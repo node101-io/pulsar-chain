@@ -39,7 +39,7 @@ func (d RoutedValidateSigCountDecorator) AnteHandle(
 		return ctx, err
 	}
 
-	if mode != TxAuthModeMina {
+	if mode == TxAuthModeCosmos {
 		return d.cosmosDecorator.AnteHandle(ctx, tx, simulate, next)
 	}
 
@@ -52,6 +52,34 @@ func (d RoutedValidateSigCountDecorator) AnteHandle(
 	sigs, err := sigTx.GetSignaturesV2()
 	if err != nil {
 		return ctx, err
+	}
+
+	if mode == TxAuthModeSmartAccount {
+		if len(sigs) != 1 {
+			return ctx, errorsmod.Wrapf(
+				sdkerrors.ErrUnauthorized,
+				"smart-account transactions require exactly one signature: got %d",
+				len(sigs),
+			)
+		}
+
+		switch sigs[0].Data.(type) {
+		case *signing.SingleSignatureData:
+			return next(ctx, tx, simulate)
+
+		case *signing.MultiSignatureData:
+			return ctx, errorsmod.Wrap(
+				sdkerrors.ErrInvalidType,
+				"smart-account transactions do not support multisig signatures",
+			)
+
+		default:
+			return ctx, errorsmod.Wrapf(
+				sdkerrors.ErrInvalidType,
+				"unexpected signature data type %T",
+				sigs[0].Data,
+			)
+		}
 	}
 
 	sigCount := 0

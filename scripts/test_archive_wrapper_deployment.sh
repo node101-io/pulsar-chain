@@ -7,6 +7,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 WRAPPER_SOURCE="${ARCHIVE_WRAPPER_SOURCE:-$(cd -- "$REPO_ROOT/../archive-wrapper" && pwd)}"
 EXPECTED_WRAPPER_SHA="cd42a203ac6b43d24d9fbd57c323ecd52ea52bd5"
 ENABLE_VERIFIER_SIDECARS="${ENABLE_VERIFIER_SIDECARS:-0}"
+AUTH_MODE_E2E_ONLY="${AUTH_MODE_E2E_ONLY:-0}"
 VERIFIER_SOURCE="${PULSAR_VERIFIER_SOURCE:-}"
 MODE="${1:-shared}"
 PROJECT="pulsar-wrapper-e2e-${MODE//[^a-zA-Z0-9]/-}-$$"
@@ -310,14 +311,22 @@ esac
 
 require_cmd docker
 require_cmd git
-require_cmd grpcurl
-require_cmd node
-require_cmd npm
 require_cmd python3
 require_cmd timeout
 if [[ "$ENABLE_VERIFIER_SIDECARS" != "0" && "$ENABLE_VERIFIER_SIDECARS" != "1" ]]; then
   echo "ENABLE_VERIFIER_SIDECARS must be 0 or 1" >&2
   exit 1
+fi
+if [[ "$AUTH_MODE_E2E_ONLY" != "0" && "$AUTH_MODE_E2E_ONLY" != "1" ]]; then
+  echo "AUTH_MODE_E2E_ONLY must be 0 or 1" >&2
+  exit 1
+fi
+if [[ "$AUTH_MODE_E2E_ONLY" == "1" ]]; then
+  require_cmd go
+else
+  require_cmd grpcurl
+  require_cmd node
+  require_cmd npm
 fi
 
 # Preserve the existing chain-only test unless verifier sidecars are explicitly enabled.
@@ -424,6 +433,32 @@ fi
 compose up --no-build -d --wait --wait-timeout 240 validator1 validator2 validator3
 if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
   compose up --no-build -d --wait --wait-timeout 240 verifier1 verifier2 verifier3
+fi
+
+if [[ "$AUTH_MODE_E2E_ONLY" == "1" ]]; then
+  validator1_container="$(compose ps -q validator1)"
+  auth_mode_env=(
+    "PULSAR_DOCKER_PROJECT=$PROJECT"
+    "PULSAR_VALIDATOR_CONTAINER=$validator1_container"
+    "PULSAR_GRPC_ADDR=127.0.0.1:${HOST_GRPC_PORTS[1]}"
+  )
+
+  echo "==> Sending a TX_AUTH_MODE_COSMOS transaction"
+  env "${auth_mode_env[@]}" "$SCRIPT_DIR/send_cosmos_auth_mode_tx.sh"
+
+  echo "==> Sending a TX_AUTH_MODE_UNSPECIFIED transaction"
+  env "${auth_mode_env[@]}" "$SCRIPT_DIR/send_unspecified_auth_mode_tx.sh"
+
+  echo "==> Registering a Mina key and sending a TX_AUTH_MODE_MINA transaction"
+  env "${auth_mode_env[@]}" "$SCRIPT_DIR/send_mina_auth_mode_tx.sh"
+
+  if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+    echo "==> Generating, registering, and using a TX_AUTH_MODE_SMART_ACCOUNT transaction"
+    env "${auth_mode_env[@]}" "$SCRIPT_DIR/send_smart_account_tx.sh"
+  fi
+
+  echo "Auth-mode transaction E2E passed"
+  exit 0
 fi
 
 case "$MODE" in

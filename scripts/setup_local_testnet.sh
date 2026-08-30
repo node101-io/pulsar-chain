@@ -126,8 +126,11 @@ read_app_wrapper_config() {
   python3 "$PYTHON_HELPER" read-app-wrapper-config --app "$1" --key "$2"
 }
 
-read_bridge_genesis_param() {
-  python3 "$PYTHON_HELPER" read-bridge-genesis-param --config "$1" --key "$2"
+read_genesis_param() {
+  python3 "$PYTHON_HELPER" read-genesis-param \
+    --config "$1" \
+    --module "$2" \
+    --key "$3"
 }
 
 generate_default_mina_priv_key() {
@@ -182,10 +185,11 @@ resolve_default_mina_network_id() {
   printf '%s\n' "devnet"
 }
 
-resolve_default_bridge_param() {
+resolve_default_genesis_param() {
   local env_var_name="$1"
-  local config_key="$2"
-  local fallback="$3"
+  local module_name="$2"
+  local config_key="$3"
+  local fallback="$4"
 
   if [[ -n "${!env_var_name:-}" ]]; then
     printf '%s\n' "${!env_var_name}"
@@ -194,7 +198,7 @@ resolve_default_bridge_param() {
 
   if [[ -f "$CHAIN_CONFIG_PATH" ]]; then
     local config_value
-    config_value="$(read_bridge_genesis_param "$CHAIN_CONFIG_PATH" "$config_key")"
+    config_value="$(read_genesis_param "$CHAIN_CONFIG_PATH" "$module_name" "$config_key")"
     if [[ -n "$config_value" ]]; then
       printf '%s\n' "$config_value"
       return
@@ -501,12 +505,16 @@ declare -a NODE_GENESIS_FILES NODE_ADDRS NODE_COSMOS_PUB_KEYS NODE_IDS NODE_VERI
 declare -a NODE_WRAPPER_GRPC_ADDRESSES NODE_WRAPPER_GRPC_TRANSPORT_MODES
 
 DEFAULT_MINA_NETWORK_ID="$(resolve_default_mina_network_id)"
-BRIDGE_CONFIRMATION_DEPTH="$(resolve_default_bridge_param "CONFIRMATION_DEPTH" "confirmation_depth" "32")"
-BRIDGE_CONTRACT_ADDRESS="$(resolve_default_bridge_param "CONTRACT_ADDRESS" "contract_address" "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf")"
-BRIDGE_START_BLOCK_HEIGHT="$(resolve_default_bridge_param "START_BLOCK_HEIGHT" "start_block_height" "1")"
-BRIDGE_MAX_BLOCK_RANGE="$(resolve_default_bridge_param "MAX_BLOCK_RANGE" "max_block_range" "1000")"
-BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE="$(resolve_default_bridge_param "ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE" "actions_reduced_root_snapshot_window_size" "4")"
-
+BRIDGE_CONFIRMATION_DEPTH="$(resolve_default_genesis_param "CONFIRMATION_DEPTH" "bridge" "confirmation_depth" "32")"
+BRIDGE_CONTRACT_ADDRESS="$(resolve_default_genesis_param "CONTRACT_ADDRESS" "bridge" "contract_address" "B62qjRDirGFRf5dvNcGzMs5oWzQ2VyNcygnoKM2MkxB9PFUp7Utdraf")"
+BRIDGE_START_BLOCK_HEIGHT="$(resolve_default_genesis_param "START_BLOCK_HEIGHT" "bridge" "start_block_height" "1")"
+BRIDGE_MAX_BLOCK_RANGE="$(resolve_default_genesis_param "MAX_BLOCK_RANGE" "bridge" "max_block_range" "1000")"
+BRIDGE_ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE="$(resolve_default_genesis_param "ACTIONS_REDUCED_ROOT_SNAPSHOT_WINDOW_SIZE" "bridge" "actions_reduced_root_snapshot_window_size" "4")"
+SMART_ACCOUNTS_VERIFICATION_KEY_HASH="$(resolve_default_genesis_param "SMART_ACCOUNTS_VERIFICATION_KEY_HASH" "smartaccounts" "verification_key_hash" "")"
+if [[ -z "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH" ]]; then
+  echo "smartaccounts verification key hash is required; set SMART_ACCOUNTS_VERIFICATION_KEY_HASH or genesis.app_state.smartaccounts.params.verification_key_hash in $CHAIN_CONFIG_PATH" >&2
+  exit 1
+fi
 validate_positive_int "confirmation depth" "$BRIDGE_CONFIRMATION_DEPTH"
 validate_non_empty "contract address" "$BRIDGE_CONTRACT_ADDRESS"
 validate_positive_int "start block height" "$BRIDGE_START_BLOCK_HEIGHT"
@@ -636,6 +644,11 @@ for ((i = 1; i <= VALIDATOR_COUNT; i++)); do
   "$BINARY_PATH" keys add "${NODE_KEY_NAMES[i]}" --home "${NODE_HOMES[i]}" --keyring-backend "$KEYRING_BACKEND" >/dev/null 2>&1
   NODE_ADDRS[i]="$("$BINARY_PATH" keys show "${NODE_KEY_NAMES[i]}" --address --home "${NODE_HOMES[i]}" --keyring-backend "$KEYRING_BACKEND")"
 done
+
+echo "==> Setting smartaccounts genesis params..."
+python3 "$PYTHON_HELPER" patch-smartaccounts-genesis \
+  --genesis "$PRIMARY_GENESIS_FILE" \
+  --verification-key-hash "$SMART_ACCOUNTS_VERIFICATION_KEY_HASH"
 
 E2E_USER_MINA_PUB_KEY=""
 E2E_USER_COSMOS_PUB_KEY=""

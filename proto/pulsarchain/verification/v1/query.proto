@@ -60,7 +60,10 @@ message QueryParamsRequest {}
 
 // QueryParamsResponse contains verification parameters.
 message QueryParamsResponse {
-  Params params = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+  Params params = 1 [
+    (gogoproto.nullable) = false,
+    (amino.dont_omitempty) = true
+  ];
 }
 
 // QueryProofRequest identifies a proof by key.

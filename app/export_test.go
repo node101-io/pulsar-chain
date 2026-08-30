@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/base64"
 	"net"
 	"testing"
@@ -22,6 +23,7 @@ import (
 	minafield "github.com/node101-io/mina-signer-go/field"
 	merkle "github.com/node101-io/mina-signer-go/merklelist"
 	bridgetypes "github.com/node101-io/pulsar-chain/x/bridge/types"
+	smartaccountstypes "github.com/node101-io/pulsar-chain/x/smartaccounts/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -198,6 +200,14 @@ func TestZeroHeightExportNormalizesBridgeRootSnapshots(t *testing.T) {
 		},
 	)
 	genesisState[bridgetypes.ModuleName] = oldApp.AppCodec().MustMarshalJSON(bridgeGenesis)
+
+	smartaccountsGenesis := &smartaccountstypes.GenesisState{
+		Params: smartaccountstypes.Params{
+			VerificationKeyHash: bytes.Repeat([]byte{0x01}, smartaccountstypes.VerificationKeyHashSize),
+		},
+	}
+
+	genesisState[smartaccountstypes.ModuleName] = oldApp.AppCodec().MustMarshalJSON(smartaccountsGenesis)
 
 	appState, err := cmtjson.Marshal(genesisState)
 	require.NoError(t, err)

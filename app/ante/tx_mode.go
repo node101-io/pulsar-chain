@@ -22,6 +22,7 @@ type TxAuthMode uint8
 const (
 	TxAuthModeCosmos TxAuthMode = iota
 	TxAuthModeMina
+	TxAuthModeSmartAccount
 )
 
 // RegisterInterfaces registers ante extension interfaces.
@@ -107,10 +108,13 @@ func ResolveTxAuthMode(tx sdk.Tx) (TxAuthMode, error) {
 	}
 
 	switch found.TxAuthMode {
-	case antetypes.TX_AUTH_MODE_COSMOS:
+	case antetypes.TX_AUTH_MODE_UNSPECIFIED,
+		antetypes.TX_AUTH_MODE_COSMOS:
 		return TxAuthModeCosmos, nil
 	case antetypes.TX_AUTH_MODE_MINA:
 		return TxAuthModeMina, nil
+	case antetypes.TX_AUTH_MODE_SMART_ACCOUNT:
+		return TxAuthModeSmartAccount, nil
 	default:
 		return TxAuthModeCosmos, errorsmod.Wrapf(
 			sdkerrors.ErrInvalidRequest,

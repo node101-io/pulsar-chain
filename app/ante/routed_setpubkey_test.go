@@ -31,6 +31,36 @@ func TestRoutedSetPubKeyDecoratorRoutesToCosmosDecorator(t *testing.T) {
 	require.True(t, nextCalled)
 }
 
+func TestRoutedSetPubKeyDecoratorSkipsForSmartAccount(t *testing.T) {
+	t.Parallel()
+
+	ctx := setTxAuthMode(
+		newTestSDKContext(t),
+		TxAuthModeSmartAccount,
+	)
+
+	delegate := &recordingDecorator{}
+	nextCalled := false
+
+	_, err := NewRoutedSetPubKeyDecorator(delegate).AnteHandle(
+		ctx,
+		nil,
+		false,
+		func(
+			nextCtx sdk.Context,
+			tx sdk.Tx,
+			simulate bool,
+		) (sdk.Context, error) {
+			nextCalled = true
+			return nextCtx, nil
+		},
+	)
+
+	require.NoError(t, err)
+	require.Zero(t, delegate.calls)
+	require.True(t, nextCalled)
+}
+
 // Mina-auth txs intentionally skip Cosmos pubkey population.
 // The decorator should fall through directly to the next handler.
 func TestRoutedSetPubKeyDecoratorSkipsForMina(t *testing.T) {

@@ -1,0 +1,15 @@
+syntax = "proto3";
+package pulsarchain.smartaccounts.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/node101-io/pulsar-chain/x/smartaccounts/types";
+
+// Params defines the parameters for the module.
+message Params {
+  option (amino.name) = "pulsarchain/x/smartaccounts/Params";
+  option (gogoproto.equal) = true;
+
+  bytes verification_key_hash = 1;
+}

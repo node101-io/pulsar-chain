@@ -2,6 +2,8 @@
 
 FROM golang:1.26.5-alpine3.24@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS builder
 
+RUN apk upgrade --no-cache libcrypto3 libssl3
+
 WORKDIR /src
 
 COPY go.mod go.sum ./
@@ -17,7 +19,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS runtime
 
-RUN apk add --no-cache bash ca-certificates curl python3
+RUN apk upgrade --no-cache libcrypto3 libssl3 \
+  && apk add --no-cache bash ca-certificates curl python3
 
 WORKDIR /opt/pulsar
 

@@ -271,10 +271,14 @@ def read_config_path_value(config_path: str, path: list[str]) -> Optional[str]:
     return read_scalar_in_block(lines, start_index, end_index, parent_indent, path[-1])
 
 
-def read_bridge_genesis_param(config_path: str, key_name: str) -> int:
+def read_genesis_param(
+    config_path: str,
+    module_name: str,
+    key_name: str,
+) -> int:
     value = read_config_path_value(
         config_path,
-        ["genesis", "app_state", "bridge", "params", key_name],
+        ["genesis", "app_state", module_name, "params", key_name],
     )
     if value is None:
         print("")
@@ -282,8 +286,6 @@ def read_bridge_genesis_param(config_path: str, key_name: str) -> int:
 
     print(value)
     return 0
-
-
 def read_mina_network_id(config_path: str) -> int:
     content = read_text(config_path)
     print(
@@ -766,6 +768,50 @@ def patch_bridge_genesis(
     return 0
 
 
+def decode_smartaccounts_verification_key_hash(verification_key_hash: str) -> bytes:
+    encoded_hash = verification_key_hash.strip()
+    hex_hash = encoded_hash[2:] if encoded_hash.startswith("0x") else encoded_hash
+
+    if re.fullmatch(r"[0-9a-fA-F]{64}", hex_hash):
+        hash_bytes = bytes.fromhex(hex_hash)
+    else:
+        try:
+            hash_bytes = base64.b64decode(encoded_hash, validate=True)
+        except ValueError as exc:
+            raise SystemExit(
+                "smartaccounts verification key hash must be valid hex or base64"
+            ) from exc
+
+    if len(hash_bytes) != 32:
+        raise SystemExit(
+            "smartaccounts verification key hash must be 32 bytes: "
+            f"got {len(hash_bytes)}"
+        )
+
+    return hash_bytes
+
+
+def patch_smartaccounts_genesis(
+    genesis_path: str,
+    verification_key_hash: str,
+) -> int:
+    hash_bytes = decode_smartaccounts_verification_key_hash(
+        verification_key_hash
+    )
+
+    genesis = read_json(genesis_path)
+    smartaccounts = genesis.setdefault("app_state", {}).setdefault(
+        "smartaccounts", {}
+    )
+    smartaccounts["params"] = {
+        "verification_key_hash": base64.b64encode(hash_bytes).decode("ascii")
+    }
+    smartaccounts.setdefault("smart_accounts", [])
+
+    write_json(genesis_path, genesis)
+    return 0
+
+
 def upsert_toml_key(
     app_toml: str,
     table_name: str,
@@ -915,9 +961,10 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("wrapper_grpc_address", "wrapper_grpc_transport_mode"),
     )
 
-    read_bridge_param_cmd = subparsers.add_parser("read-bridge-genesis-param")
-    read_bridge_param_cmd.add_argument("--config", required=True)
-    read_bridge_param_cmd.add_argument("--key", required=True)
+    read_genesis_param_cmd = subparsers.add_parser("read-genesis-param")
+    read_genesis_param_cmd.add_argument("--config", required=True)
+    read_genesis_param_cmd.add_argument("--module", required=True)
+    read_genesis_param_cmd.add_argument("--key", required=True)
 
     read_gas_price = subparsers.add_parser("read-min-gas-price")
     read_gas_price.add_argument("--app", required=True)
@@ -975,6 +1022,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--actions-reduced-root-snapshot-window-size", required=True
     )
 
+    patch_smartaccounts = subparsers.add_parser("patch-smartaccounts-genesis")
+    patch_smartaccounts.add_argument("--genesis", required=True)
+    patch_smartaccounts.add_argument("--verification-key-hash", required=True)
+
     verify_registry = subparsers.add_parser("verify-validator-key-pairs")
     verify_registry.add_argument("--genesis", required=True)
     verify_registry.add_argument("--cosmos-key", action="append", required=True)
@@ -1014,8 +1065,8 @@ def main() -> int:
         )
     if args.command == "read-app-wrapper-config":
         return read_app_toml_string(args.app, "bridge", args.key)
-    if args.command == "read-bridge-genesis-param":
-        return read_bridge_genesis_param(args.config, args.key)
+    if args.command == "read-genesis-param":
+        return read_genesis_param(args.config, args.module, args.key)
     if args.command == "read-mina-network-id":
         return read_mina_network_id(args.config)
     if args.command == "read-min-gas-price":
@@ -1061,6 +1112,11 @@ def main() -> int:
             args.start_block_height,
             args.max_block_range,
             args.actions_reduced_root_snapshot_window_size,
+        )
+    if args.command == "patch-smartaccounts-genesis":
+        return patch_smartaccounts_genesis(
+            args.genesis,
+            args.verification_key_hash,
         )
     if args.command == "verify-validator-key-pairs":
         return verify_validator_key_pairs(args.genesis, args.cosmos_key)

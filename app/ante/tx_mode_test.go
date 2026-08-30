@@ -50,6 +50,35 @@ func TestResolveTxAuthModeDefaultsToCosmos(t *testing.T) {
 	require.Equal(t, TxAuthModeCosmos, mode)
 }
 
+func TestResolveTxAuthModeTreatsUnspecifiedAsCosmos(t *testing.T) {
+	t.Parallel()
+
+	mode, err := ResolveTxAuthMode(stubExtensionTx{
+		extensionOptions: []*codectypes.Any{
+			mustTxAuthModeExtensionAny(t, antetypes.TX_AUTH_MODE_UNSPECIFIED),
+		},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, TxAuthModeCosmos, mode)
+}
+
+func TestResolveTxAuthModeReadsSmartAccountExtension(t *testing.T) {
+	t.Parallel()
+
+	mode, err := ResolveTxAuthMode(stubExtensionTx{
+		extensionOptions: []*codectypes.Any{
+			mustTxAuthModeExtensionAny(
+				t,
+				antetypes.TX_AUTH_MODE_SMART_ACCOUNT,
+			),
+		},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, TxAuthModeSmartAccount, mode)
+}
+
 // A Mina extension must flip resolution into Mina mode.
 // This is the primary positive branch for custom auth-mode routing.
 func TestResolveTxAuthModeReadsMinaExtension(t *testing.T) {
