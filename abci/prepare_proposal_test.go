@@ -1,6 +1,7 @@
 package abci
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"testing"
@@ -100,6 +101,27 @@ func TestPrepareProposalPrependsPayloadAndKeepsAllUserTxsWithinMaxBytes(t *testi
 	require.Equal(t, req.Txs, response.Txs[1:])
 }
 
+func TestPrepareProposalKeepsAllUserTxsWhenMaxTxBytesIsUnlimited(t *testing.T) {
+	validator := newTestBondedValidator(t, 10)
+	handler := newQuorumTestHandler(t, []stakingtypes.Validator{validator}, nil, nil)
+	ctx := prepareProposalTestContext(10)
+	req := &cometabci.RequestPrepareProposal{
+		Height:     10,
+		MaxTxBytes: -1,
+		Txs:        [][]byte{[]byte("tx-1"), []byte("tx-2")},
+		LocalLastCommit: cometabci.ExtendedCommitInfo{
+			Votes: []cometabci.ExtendedVoteInfo{prepareProposalVote(t, validator, []byte("vote-extension"), tmproto.BlockIDFlagCommit)},
+		},
+	}
+
+	response, err := handler.PrepareProposalHandler()(ctx, req)
+
+	require.NoError(t, err)
+	require.Len(t, response.Txs, 3)
+	require.True(t, hasVoteExtMarker(response.Txs[0]))
+	require.Equal(t, req.Txs, response.Txs[1:])
+}
+
 func TestPrepareProposalTrimsUserTxsToMaxTxBytes(t *testing.T) {
 	validator := newTestBondedValidator(t, 10)
 	handler := newQuorumTestHandler(t, []stakingtypes.Validator{validator}, nil, nil)
@@ -141,6 +163,39 @@ func TestPrepareProposalReturnsOnlyPayloadWhenFirstUserTxDoesNotFit(t *testing.T
 	require.True(t, hasVoteExtMarker(response.Txs[0]))
 }
 
+func TestFitVerificationEntriesUsesExactWireSizeAndCanonicalOutput(t *testing.T) {
+	payload := Payload{
+		VoteExtensionHeight: 9,
+		VoteExtensions: []*PayloadVoteExtension{{
+			ConsensusPublicKey: []byte{1}, VoteExtension: []byte{2},
+		}},
+		VerificationEntries: []*PayloadVerificationEntry{
+			{ValidatorAddress: []byte{3}, CompositeVoteExtension: bytes.Repeat([]byte{3}, 20)},
+			{ValidatorAddress: []byte{1}, CompositeVoteExtension: bytes.Repeat([]byte{1}, 20)},
+			{ValidatorAddress: []byte{2}, CompositeVoteExtension: bytes.Repeat([]byte{2}, 20)},
+		},
+	}
+	unlimited, err := fitVerificationEntries(payload, 10, -1)
+	require.NoError(t, err)
+	require.Len(t, unlimited.VerificationEntries, 3)
+	require.Equal(t, []byte{1}, unlimited.VerificationEntries[0].ValidatorAddress)
+	require.Equal(t, []byte{2}, unlimited.VerificationEntries[1].ValidatorAddress)
+	require.Equal(t, []byte{3}, unlimited.VerificationEntries[2].ValidatorAddress)
+
+	base := payload
+	base.VerificationEntries = nil
+	firstRotated := payload.VerificationEntries[1]
+	entrySize := firstRotated.Size()
+	maxBytes := int64(len(voteExtMarkerBytes) + base.Size() + 1 + protobufVarintSize(uint64(entrySize)) + entrySize)
+	limited, err := fitVerificationEntries(payload, 10, maxBytes)
+	require.NoError(t, err)
+	require.Len(t, limited.VerificationEntries, 1)
+	require.Equal(t, firstRotated.ValidatorAddress, limited.VerificationEntries[0].ValidatorAddress)
+	encoded, err := limited.Marshal()
+	require.NoError(t, err)
+	require.Equal(t, maxBytes, int64(len(voteExtMarkerBytes)+len(encoded)))
+}
+
 func prepareProposalTestContext(blockHeight int64) sdk.Context {
 	return sdk.Context{}.
 		WithBlockHeight(blockHeight).
@@ -154,6 +209,13 @@ func prepareProposalVote(t *testing.T, validator stakingtypes.Validator, voteExt
 
 	consAddr, err := validator.GetConsAddr()
 	require.NoError(t, err)
+	if len(voteExtension) != 0 {
+		voteExtension, err = encodeCompositeVoteExtension(&CompositeVoteExtension{
+			ProtocolVersion:     CompositeVoteExtensionVersion,
+			TransitionSignature: voteExtension,
+		})
+		require.NoError(t, err)
+	}
 
 	return cometabci.ExtendedVoteInfo{
 		Validator: cometabci.Validator{
@@ -167,7 +229,7 @@ func prepareProposalVote(t *testing.T, validator stakingtypes.Validator, voteExt
 func prepareProposalPayloadTx(t *testing.T, handler *ABCIHandler, ctx sdk.Context, height int64, votes []cometabci.ExtendedVoteInfo) []byte {
 	t.Helper()
 
-	payload, err := handler.constructPayload(ctx, height, votes)
+	payload, err := handler.constructPayload(ctx, height, 0, votes)
 	require.NoError(t, err)
 
 	payloadBytes, err := payload.Marshal()

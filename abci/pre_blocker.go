@@ -5,6 +5,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// PreBlocker persists mandatory Mina votes and applies authenticated verification
+// actions before normal transaction execution. Both write sets share one cache
+// so a failure cannot leave the bridge-facing vote state and verification state
+// describing different versions of the same committed block.
 func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 	return func(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 
@@ -50,16 +54,28 @@ func (h *ABCIHandler) PreBlocker() sdk.PreBlocker {
 		if !hasAtLeastTwoThirdsPower(verifiedVotes.signedPower, verifiedVotes.totalPower) {
 			return nil, ErrNotEnoughStakePower
 		}
+		// Mina vote persistence and verification actions are committed atomically.
+		// Proof-height power is materialized separately by verification EndBlock
+		// from staking's immutable HistoricalInfo for the same height.
+		cacheCtx, write := ctx.CacheContext()
+		actions, err := h.validateVerificationEntries(cacheCtx, proposalHeight, pl, req.DecidedLastCommit)
+		if err != nil {
+			return nil, err
+		}
 
-		if err := h.votePersistenceKeeper.Clear(ctx); err != nil {
+		if err := h.votePersistenceKeeper.Clear(cacheCtx); err != nil {
 			return nil, err
 		}
 
 		for _, vote := range verifiedVotes.votes {
-			if err := h.votePersistenceKeeper.SetVote(ctx, signedStateHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
+			if err := h.votePersistenceKeeper.SetVote(cacheCtx, signedStateHeight, vote.minaPublicKey, vote.voteExtension); err != nil {
 				return nil, err
 			}
 		}
+		if err := h.applyVerificationActions(cacheCtx, actions); err != nil {
+			return nil, err
+		}
+		write()
 
 		return &sdk.ResponsePreBlock{}, nil
 	}

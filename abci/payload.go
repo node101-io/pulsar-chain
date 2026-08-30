@@ -3,20 +3,28 @@ package abci
 import (
 	"bytes"
 	"fmt"
+	"sort"
 
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// extractPayload decodes the reserved vote-extension payload from the first proposal tx.
-// The found return value is false only when the reserved payload is absent; malformed
-// marker payloads return found=true with an error so callers can distinguish absence
-// from invalid protocol data.
+// extractPayload decodes the reserved vote-extension payload from the first
+// proposal transaction. The fixed first position makes the consensus-internal
+// data unambiguous and prevents a user transaction from being interpreted as a
+// second payload. found is false only when the marker is absent; a present but
+// malformed marker is reported separately so ProcessProposal rejects it rather
+// than silently treating invalid protocol data as optional.
 func extractPayload(txs [][]byte) (Payload, bool, error) {
 
 	if len(txs) == 0 {
 		return Payload{}, false, nil
+	}
+	for _, tx := range txs[1:] {
+		if bytes.HasPrefix(tx, voteExtMarkerBytes) {
+			return Payload{}, true, ErrInvalidPayload
+		}
 	}
 
 	if !bytes.HasPrefix(txs[0], voteExtMarkerBytes) {
@@ -46,39 +54,39 @@ func validatePayloadHeight(pl Payload, expectedHeight int64) error {
 }
 
 // constructPayload derives the internal proposal payload from CometBFT's
-// LocalLastCommit.Votes. CometBFT builds that list with one slot per validator
-// index; duplicate handling for proposer-supplied payload bytes belongs in the
-// payload validation path, not in this construction path.
-func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
+// LocalLastCommit.Votes. The mandatory section preserves the Mina transition
+// signatures used by the existing bridge flow. The optional section retains a
+// validator's complete signed envelope only when it contains a verification
+// action that is valid against the proposer's current state. CometBFT builds the
+// input with one slot per validator index; duplicate handling for proposer-made
+// payload bytes therefore belongs in ProcessProposal, not this local path.
+func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, round int32, voteExtensions []cometabci.ExtendedVoteInfo) (Payload, error) {
 
 	var voteExtsForGivenBlock []*PayloadVoteExtension
+	var verificationEntries []*PayloadVerificationEntry
 
-	currentValidatorSetMap := make(map[string]bool)
 	// A proposal at height P carries the vote extensions produced by consensus
 	// for height P-1. The payload height records that consensus production height,
 	// not the proposal height and not the signed state height inside the body.
 	voteExtensionHeight := proposalHeight - 1
 
 	// The validator set used for payload eligibility must match the set that
-	// produced the vote extensions at voteExtensionHeight.
+	// produced the vote extensions at voteExtensionHeight. Looking at the latest
+	// set would make key rotation or membership changes reinterpret historical
+	// votes differently on different nodes.
 	currentValidatorSet, err := h.getValidatorSet(ctx, voteExtensionHeight)
 	if err != nil {
 		return Payload{}, err
 	}
-
-	for _, currentValidator := range currentValidatorSet {
-
-		consAddr, err := currentValidator.GetConsAddr()
-		if err != nil {
-			continue
-		}
-
-		currentValidatorSetMap[string(consAddr)] = true
+	currentValidatorSetMap, err := validatorSetByConsensusAddress(currentValidatorSet)
+	if err != nil {
+		return Payload{}, err
 	}
 
 	for _, vote := range voteExtensions {
 
-		if !currentValidatorSetMap[string(vote.Validator.Address)] {
+		validator, eligible := currentValidatorSetMap[string(vote.Validator.Address)]
+		if !eligible {
 			continue
 		}
 
@@ -90,14 +98,48 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, vo
 			continue
 		}
 
-		cosmosValidatorPubKey, err := h.getConsPubKeyByConsAddr(ctx, vote.Validator.Address)
+		composite, err := decodeCompositeVoteExtension(vote.VoteExtension)
+		if err != nil {
+			continue
+		}
+		consensusPublicKey, err := validator.ConsPubKey()
 		if err != nil {
 			return Payload{}, err
 		}
+		cosmosValidatorPubKey := consensusPublicKey.Bytes()
 
+		// The compact mandatory list carries only the Mina transition signature so
+		// it remains available even if verification is disabled or malformed. The
+		// complete CometBFT-signed envelope is retained separately only when it has
+		// a usable verification action; that outer signature later authenticates
+		// the commitment or revelation as this validator's action.
 		voteExtsForGivenBlock = append(voteExtsForGivenBlock, &PayloadVoteExtension{
 			ConsensusPublicKey: cosmosValidatorPubKey,
-			VoteExtension:      vote.VoteExtension,
+			VoteExtension:      composite.TransitionSignature,
+		})
+
+		verificationPayload := composite.VerificationPayload
+		if verificationPayload == nil {
+			continue
+		}
+		if err := validateVerificationPayloadStructure(verificationPayload, uint64(proposalHeight)); err != nil {
+			continue
+		}
+		operator, err := sdk.ValAddressFromBech32(validator.GetOperator())
+		if err != nil {
+			continue
+		}
+		if err := h.verificationKeeper.ValidateVerificationPayload(
+			ctx, operator, uint64(proposalHeight), verificationPayload.Commitment, verificationPayload.Revelations,
+		); err != nil {
+			continue
+		}
+		verificationEntries = append(verificationEntries, &PayloadVerificationEntry{
+			ValidatorAddress:       append([]byte(nil), vote.Validator.Address...),
+			SourceHeight:           voteExtensionHeight,
+			Round:                  round,
+			CompositeVoteExtension: append([]byte(nil), vote.VoteExtension...),
+			ExtensionSignature:     append([]byte(nil), vote.ExtensionSignature...),
 		})
 	}
 
@@ -105,5 +147,16 @@ func (h *ABCIHandler) constructPayload(ctx sdk.Context, proposalHeight int64, vo
 		return Payload{}, ErrNoVoteExtensionsForPayload
 	}
 
-	return Payload{VoteExtensionHeight: voteExtensionHeight, VoteExtensions: voteExtsForGivenBlock}, nil
+	// Canonical validator-address ordering makes proposal payload bytes
+	// deterministic regardless of LocalLastCommit iteration order. It also lets
+	// validators reject duplicates and ambiguous order with a single linear pass.
+	sort.Slice(verificationEntries, func(i, j int) bool {
+		return bytes.Compare(verificationEntries[i].ValidatorAddress, verificationEntries[j].ValidatorAddress) < 0
+	})
+
+	return Payload{
+		VoteExtensionHeight: voteExtensionHeight,
+		VoteExtensions:      voteExtsForGivenBlock,
+		VerificationEntries: verificationEntries,
+	}, nil
 }

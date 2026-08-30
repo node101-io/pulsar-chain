@@ -175,6 +175,7 @@ def render_compose(args: argparse.Namespace) -> dict:
             "MAX_BLOCK_RANGE": "${BRIDGE_MAX_BLOCK_RANGE:-}",
             "E2E_USER_MINA_PRIV_KEY": "${E2E_USER_MINA_PRIV_KEY:-}",
             "MIN_GAS_PRICE": "${E2E_MIN_GAS_PRICE:-}",
+            "ENABLE_VERIFIER_SIDECARS": "1" if args.verifier_image else "0",
         }
     )
     volumes = {
@@ -272,6 +273,39 @@ def render_compose(args: argparse.Namespace) -> dict:
             validator["networks"] = ["archive-wrapper-external"]
         services[f"validator{index}"] = validator
 
+    if args.verifier_image:
+        for index in range(1, args.validator_count + 1):
+            depends_on = {
+                f"validator{index}": {"condition": "service_healthy"},
+            }
+            if index > 1:
+                depends_on["verifier1"] = {"condition": "service_healthy"}
+            services[f"verifier{index}"] = {
+                "image": args.verifier_image,
+                "command": [
+                    "run",
+                    "--config",
+                    "/var/lib/pulsar/config/pulsar-verifier.toml",
+                ],
+                "network_mode": f"service:validator{index}",
+                "depends_on": depends_on,
+                "read_only": True,
+                "restart": "unless-stopped",
+                "stop_grace_period": "20s",
+                "volumes": [f"validator{index}_data:/var/lib/pulsar:ro"],
+                "tmpfs": [
+                    "/run/pulsar-verifier:mode=0700",
+                    "/var/lib/pulsar-verifier:mode=0700",
+                ],
+                "healthcheck": {
+                    "test": ["CMD-SHELL", "nc -z 127.0.0.1 50051"],
+                    "interval": "2s",
+                    "timeout": "2s",
+                    "retries": 30,
+                    "start_period": "5s",
+                },
+            }
+
     compose = {"services": services, "volumes": volumes}
     if args.mode == "external" and args.external_network:
         compose["networks"] = {
@@ -311,6 +345,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mode", required=True, choices=WRAPPER_MODES)
     parser.add_argument("--mina-network-id", required=True)
     parser.add_argument("--wrapper-image")
+    parser.add_argument("--verifier-image")
     parser.add_argument("--external-address")
     parser.add_argument("--external-transport-mode")
     parser.add_argument("--external-network")

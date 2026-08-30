@@ -336,6 +336,112 @@ def read_consensus_pub_key(priv_validator_key_path: str) -> int:
     return 0
 
 
+def base58_encode(value: bytes) -> str:
+    alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    number = int.from_bytes(value, "big")
+    encoded = ""
+    while number:
+        number, remainder = divmod(number, 58)
+        encoded = alphabet[remainder] + encoded
+    leading_zeroes = len(value) - len(value.lstrip(b"\0"))
+    return ("1" * leading_zeroes) + (encoded or "1")
+
+
+def derive_libp2p_peer_id(priv_validator_key_path: str) -> int:
+    validator_key = read_json(priv_validator_key_path)
+    public_key = validator_key.get("pub_key", {})
+    if public_key.get("type") not in (
+        "tendermint/PubKeyEd25519",
+        "cometbft/PubKeyEd25519",
+    ):
+        raise SystemExit("validator public key must be Ed25519")
+    try:
+        raw = base64.b64decode(public_key.get("value", ""), validate=True)
+    except ValueError as exc:
+        raise SystemExit(f"validator public key is not valid base64: {exc}") from exc
+    if len(raw) != 32:
+        raise SystemExit(f"validator public key must decode to 32 bytes, got {len(raw)}")
+
+    # libp2p inlines short Ed25519 protobuf keys in an identity multihash.
+    protobuf_public_key = b"\x08\x01\x12\x20" + raw
+    peer_id = b"\x00" + bytes([len(protobuf_public_key)]) + protobuf_public_key
+    print(base58_encode(peer_id))
+    return 0
+
+
+def render_verifier_config(
+    output_path: str,
+    chain_id: str,
+    validator_key_path: str,
+    bootnodes: list[str],
+) -> int:
+    if not chain_id or not validator_key_path.startswith("/"):
+        raise SystemExit("chain ID and an absolute validator key path are required")
+    quoted_bootnodes = ",\n  ".join(json.dumps(address) for address in bootnodes)
+    bootnode_block = f"[\n  {quoted_bootnodes},\n]" if bootnodes else "[]"
+    content = f'''[runtime]
+control_socket = "/run/pulsar-verifier/control.sock"
+shutdown_timeout_secs = 15
+
+[proof_store]
+max_capacity_bytes = 536870912
+max_proof_bytes = 8388608
+terminal_retention_secs = 900
+event_buffer = 256
+
+[verification]
+max_concurrent_jobs = 2
+job_timeout_secs = 30
+max_retries = 2
+retry_backoff_millis = 250
+
+[verification.noir]
+enabled = true
+binary_path = "/usr/local/bin/bb"
+home_directory = "/var/lib/pulsar-verifier"
+threads_per_job = 1
+
+[rpc]
+enabled = true
+listen_address = "127.0.0.1:50051"
+
+[submission]
+enabled = true
+listen_address = "127.0.0.1:50052"
+max_transaction_bytes = 1048576
+max_concurrent_requests = 16
+
+[chain]
+chain_id = {json.dumps(chain_id)}
+comet_rpc_url = "http://127.0.0.1:26657"
+request_timeout_secs = 5
+
+[listener]
+enabled = true
+reconnect_initial_backoff_millis = 250
+reconnect_max_backoff_secs = 30
+
+[p2p]
+enabled = true
+listen_addresses = [
+  "/ip4/0.0.0.0/udp/39000/quic-v1",
+  "/ip4/0.0.0.0/tcp/39000",
+]
+bootnodes = {bootnode_block}
+validator_key_path = {json.dumps(validator_key_path)}
+max_availability_message_bytes = 65536
+proof_request_timeout_secs = 10
+max_concurrent_retrievals = 16
+retrieval_timeout_secs = 30
+retrieval_initial_backoff_millis = 250
+retrieval_max_backoff_secs = 2
+command_buffer = 64
+event_buffer = 256
+'''
+    write_text(output_path, content)
+    return 0
+
+
 def read_account_pub_key() -> int:
     payload = json.load(sys.stdin)
     key = payload.get("key")
@@ -720,6 +826,8 @@ def update_app_config(
     mina_network_id: str,
     wrapper_grpc_address: str,
     wrapper_grpc_transport_mode: str,
+    verification_enabled: bool,
+    verification_grpc_address: str,
 ) -> int:
     app_toml = read_text(app_path)
     app_toml = app_toml.replace(
@@ -754,6 +862,26 @@ def update_app_config(
         "bridge",
         "wrapper_grpc_transport_mode",
         wrapper_grpc_transport_mode,
+    )
+
+    app_toml = upsert_toml_key(
+        app_toml,
+        "verification",
+        "enabled",
+        str(verification_enabled).lower(),
+        quote_value=False,
+    )
+    app_toml = upsert_toml_key(
+        app_toml,
+        "verification",
+        "grpc_address",
+        verification_grpc_address if verification_enabled else "",
+    )
+    app_toml = upsert_toml_key(
+        app_toml, "verification", "grpc_transport_mode", "loopback"
+    )
+    app_toml = upsert_toml_key(
+        app_toml, "verification", "request_timeout", "100ms"
     )
 
     write_text(app_path, app_toml)
@@ -814,6 +942,15 @@ def build_parser() -> argparse.ArgumentParser:
     read_chain_id = subparsers.add_parser("read-genesis-chain-id")
     read_chain_id.add_argument("--genesis", required=True)
 
+    derive_peer_id = subparsers.add_parser("derive-libp2p-peer-id")
+    derive_peer_id.add_argument("--priv-validator-key", required=True)
+
+    render_verifier = subparsers.add_parser("render-verifier-config")
+    render_verifier.add_argument("--output", required=True)
+    render_verifier.add_argument("--chain-id", required=True)
+    render_verifier.add_argument("--validator-key-path", required=True)
+    render_verifier.add_argument("--bootnode", action="append", default=[])
+
     generate_mina_key = subparsers.add_parser("generate-default-mina-priv-key")
     generate_mina_key.add_argument("--index", required=True)
 
@@ -857,6 +994,10 @@ def build_parser() -> argparse.ArgumentParser:
     update_app.add_argument("--mina-network-id", required=True)
     update_app.add_argument("--wrapper-grpc-address", required=True)
     update_app.add_argument("--wrapper-grpc-transport-mode", required=True)
+    update_app.add_argument("--verification-enabled", action="store_true")
+    update_app.add_argument(
+        "--verification-grpc-address", default="127.0.0.1:50051"
+    )
 
     return parser
 
@@ -891,6 +1032,15 @@ def main() -> int:
         return read_vote_extension_height(args.genesis)
     if args.command == "read-genesis-chain-id":
         return read_genesis_chain_id(args.genesis)
+    if args.command == "derive-libp2p-peer-id":
+        return derive_libp2p_peer_id(args.priv_validator_key)
+    if args.command == "render-verifier-config":
+        return render_verifier_config(
+            args.output,
+            args.chain_id,
+            args.validator_key_path,
+            args.bootnode,
+        )
     if args.command == "generate-default-mina-priv-key":
         return generate_default_mina_priv_key(args.index)
     if args.command == "validate-mina-priv-key":
@@ -927,6 +1077,8 @@ def main() -> int:
             args.mina_network_id,
             args.wrapper_grpc_address,
             args.wrapper_grpc_transport_mode,
+            args.verification_enabled,
+            args.verification_grpc_address,
         )
 
     parser.print_help(sys.stderr)

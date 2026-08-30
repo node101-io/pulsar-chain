@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package pulsarchain.abci;
 
+import "pulsarchain/verification/v1/vote_extension.proto";
+
 option go_package = "github.com/node101-io/pulsar-chain/abci;abci";
 
 // Payload is encoded as the first proposal transaction after the ABCI
@@ -13,6 +15,9 @@ message Payload {
   // carried by this payload. For a proposal at height N, this value is N-1.
   int64 vote_extension_height = 1;
   repeated PayloadVoteExtension vote_extensions = 2;
+  // verification_entries are optional validator-authenticated actions. Their
+  // omission never invalidates the mandatory transition-signature quorum.
+  repeated PayloadVerificationEntry verification_entries = 3;
 }
 
 // PayloadVoteExtension carries one CometBFT last-commit vote extension and its
@@ -21,4 +26,23 @@ message Payload {
 message PayloadVoteExtension {
   bytes consensus_public_key = 1;
   bytes vote_extension = 2;
+}
+
+// CompositeVoteExtension is the single vote-extension envelope emitted by a
+// Pulsar validator. transition_signature remains mandatory after activation;
+// verification_payload is optional when the local sidecar has no completed work.
+message CompositeVoteExtension {
+  uint32 protocol_version = 1;
+  bytes transition_signature = 2;
+  pulsarchain.verification.v1.VerificationVoteExtensionPayload verification_payload = 3;
+}
+
+// PayloadVerificationEntry retains the CometBFT authentication material needed
+// to validate an optional verification payload during proposal processing.
+message PayloadVerificationEntry {
+  bytes validator_address = 1;
+  int64 source_height = 2;
+  int32 round = 3;
+  bytes composite_vote_extension = 4;
+  bytes extension_signature = 5;
 }

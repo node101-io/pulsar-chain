@@ -228,6 +228,8 @@ network_id = "old"
                 "testnet",
                 "archive-wrapper:9095",
                 "trusted-network",
+                False,
+                "127.0.0.1:50051",
             ),
         )
 
@@ -236,6 +238,14 @@ network_id = "old"
         self.assertEqual(1, content.count("wrapper_grpc_transport_mode ="))
         self.assertIn('wrapper_grpc_address = "archive-wrapper:9095"', content)
         self.assertIn('wrapper_grpc_transport_mode = "trusted-network"', content)
+
+        # Local testnets deliberately run the chain-only no-op verification mode,
+        # even though newly generated production configs enable the sidecar.
+        self.assertIn("[verification]", content)
+        self.assertIn("enabled = false", content)
+        self.assertIn('grpc_address = ""', content)
+        self.assertIn('grpc_transport_mode = "loopback"', content)
+        self.assertIn('request_timeout = "100ms"', content)
 
     def test_update_app_config_enables_api_with_unsafe_cors(self):
         app_config = self.write_temp(
@@ -263,6 +273,8 @@ address = "tcp://localhost:1317"
                 "testnet",
                 "archive-wrapper:9095",
                 "loopback",
+                False,
+                "127.0.0.1:50051",
             ),
         )
 
@@ -291,7 +303,64 @@ address = "tcp://localhost:1317"
                         "testnet",
                         address,
                         mode,
+                        False,
+                        "127.0.0.1:50051",
                     )
+
+    def test_update_app_config_enables_loopback_verifier(self):
+        app_config = self.write_temp(
+            'minimum-gas-prices = ""\n[bridge]\n[vote_extension]\n[mina]\n'
+        )
+
+        helper.update_app_config(
+            str(app_config),
+            "0pmina",
+            "mina-private",
+            "testnet",
+            "archive-wrapper:9095",
+            "trusted-network",
+            True,
+            "127.0.0.1:51051",
+        )
+
+        content = app_config.read_text(encoding="utf-8")
+        self.assertIn("enabled = true", content)
+        self.assertIn('grpc_address = "127.0.0.1:51051"', content)
+        self.assertIn('grpc_transport_mode = "loopback"', content)
+
+    def test_render_verifier_config_contains_noir_and_static_bootnode(self):
+        config = self.write_temp("")
+        config = config.with_name("pulsar-verifier.toml")
+        bootnode = "/dns4/validator1/tcp/39000/p2p/peer-id"
+
+        helper.render_verifier_config(
+            str(config),
+            "mytestnet",
+            "/var/lib/pulsar/config/priv_validator_key.json",
+            [bootnode],
+        )
+
+        content = config.read_text(encoding="utf-8")
+        self.assertIn("[verification.noir]\nenabled = true", content)
+        self.assertIn('listen_address = "127.0.0.1:50051"', content)
+        self.assertIn(bootnode, content)
+
+    def test_derives_the_same_peer_id_as_rust_libp2p(self):
+        validator_key = self.write_temp(
+            json.dumps(
+                {
+                    "pub_key": {
+                        "type": "tendermint/PubKeyEd25519",
+                        "value": "e+2doWf5MM2KUy1z+cwvxtSsHGY5Ta04diV+jKFdXKQ=",
+                    }
+                }
+            )
+        )
+
+        self.assertEqual(
+            "12D3KooWJA8TsqMhvpLFq3TMFnuqosJAL33SySuo7DB5JNQt12UK",
+            self.capture_stdout(helper.derive_libp2p_peer_id, str(validator_key)),
+        )
 
 
 class E2EFixtureTest(unittest.TestCase):

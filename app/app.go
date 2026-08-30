@@ -58,6 +58,8 @@ import (
 	"github.com/node101-io/pulsar-chain/docs"
 	bridge "github.com/node101-io/pulsar-chain/x/bridge/keeper"
 	keyregistrymodulekeeper "github.com/node101-io/pulsar-chain/x/keyregistry/keeper"
+	verificationmodulekeeper "github.com/node101-io/pulsar-chain/x/verification/keeper"
+	verificationsidecar "github.com/node101-io/pulsar-chain/x/verification/sidecar"
 	votepersistencemodulekeeper "github.com/node101-io/pulsar-chain/x/votepersistence/keeper"
 	"google.golang.org/grpc/health"
 	grpcHealthV1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -118,9 +120,13 @@ type App struct {
 	KeyregistryKeeper     keyregistrymodulekeeper.Keeper
 	VotepersistenceKeeper votepersistencemodulekeeper.Keeper
 	BridgeKeeper          bridge.Keeper
+	VerificationKeeper    verificationmodulekeeper.Keeper
 
 	ABCIHandler                *abcihandler.ABCIHandler
 	BridgeArchiveWrapperClient *bridge.ArchiveWrapperClient
+	// VerificationSidecarClient is non-nil only when the app created the gRPC
+	// client itself; retaining it here gives App.Close lifecycle ownership.
+	VerificationSidecarClient *verificationsidecar.Client
 }
 
 // RegisterGRPCServerWithSkipCheckHeader registers application and standard health services.
@@ -210,6 +216,7 @@ func New(
 		&app.KeyregistryKeeper,
 		&app.VotepersistenceKeeper,
 		&app.BridgeKeeper,
+		&app.VerificationKeeper,
 		&app.BridgeArchiveWrapperClient,
 	); err != nil {
 		panic(err)
@@ -229,6 +236,36 @@ func New(
 		panic(fmt.Sprintf("failed to parse vote extension secondary key: %v", err))
 	}
 
+	// Verification is structurally present in every ABCI handler. Validators use
+	// the production builder by default, while explicit opt-outs and full nodes
+	// receive a concrete no-op builder. Runtime sidecar outages remain non-fatal:
+	// the gRPC connection is lazy and a missing result is omitted, never converted
+	// into an invalid proof vote or allowed to suppress the mandatory Mina payload.
+	selectedVerificationProvider, verificationClient, verificationActive, verificationConfigErr := verificationProvider(appOpts)
+	if verificationConfigErr != nil {
+		panic(fmt.Sprintf("invalid verification sidecar configuration: %v", verificationConfigErr))
+	}
+	verificationTimeout, verificationConfigErr := verificationTimeout(appOpts, verificationActive)
+	if verificationConfigErr != nil {
+		_ = verificationClient.Close()
+		panic(fmt.Sprintf("invalid verification sidecar configuration: %v", verificationConfigErr))
+	}
+	verificationBuilder, verificationBuilderErr := newVerificationBuilder(
+		appOpts,
+		app.VerificationKeeper,
+		selectedVerificationProvider,
+		verificationActive,
+		verificationTimeout,
+	)
+	if verificationBuilderErr != nil {
+		// Enabled validators cannot safely continue with an unusable journal: they
+		// could sign a commitment and later lose the salts required to reveal it.
+		// This local initialization error is fail-fast; a sidecar that becomes
+		// unavailable after startup remains a non-blocking runtime condition.
+		_ = verificationClient.Close()
+		panic(fmt.Sprintf("failed to initialize verification runtime: %v", verificationBuilderErr))
+	}
+
 	app.ABCIHandler, err = abcihandler.NewABCIHandler(
 		secondaryKey,
 		app.StakingKeeper,
@@ -236,10 +273,14 @@ func New(
 		app.VotepersistenceKeeper,
 		minaNetworkID,
 		app.BridgeKeeper,
+		app.VerificationKeeper,
+		verificationBuilder,
 	)
 	if err != nil {
+		_ = verificationClient.Close()
 		panic(fmt.Sprintf("failed to initialize ABCI handler: %v", err))
 	}
+	app.VerificationSidecarClient = verificationClient
 
 	appante.RegisterInterfaces(app.interfaceRegistry)
 
@@ -274,7 +315,24 @@ func New(
 	app.SetVerifyVoteExtensionHandler(app.ABCIHandler.VerifyVoteExtensionHandler())
 	app.SetPrepareProposal(app.ABCIHandler.PrepareProposalHandler())
 	app.SetProcessProposal(app.ABCIHandler.ProcessProposalHandler())
-	app.SetPreBlocker(app.ABCIHandler.PreBlocker())
+	// Compose the SDK runtime and custom vote-extension work in one cache. This
+	// makes Mina persistence, verification actions, module pre-block changes, and
+	// the validator snapshot one atomic state transition: any failure rolls back
+	// all of them instead of committing a partially interpreted proposal.
+	runtimePreBlocker := app.App.PreBlocker
+	verificationPreBlocker := app.ABCIHandler.PreBlocker()
+	app.SetPreBlocker(func(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+		cacheCtx, write := ctx.CacheContext()
+		response, err := runtimePreBlocker(cacheCtx, req)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := verificationPreBlocker(cacheCtx, req); err != nil {
+			return nil, err
+		}
+		write()
+		return response, nil
+	})
 	abcihandler.RegisterQueryServer(app.GRPCQueryRouter(), app.ABCIHandler)
 
 	// register legacy modules
@@ -315,6 +373,11 @@ func (app *App) Close() error {
 
 	if app.BridgeArchiveWrapperClient != nil {
 		if err := app.BridgeArchiveWrapperClient.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if app.VerificationSidecarClient != nil {
+		if err := app.VerificationSidecarClient.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}

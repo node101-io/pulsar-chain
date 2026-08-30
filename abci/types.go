@@ -51,6 +51,8 @@ var (
 	ErrMissingKeyregistryKeeper     error = errors.New("missing keyregistry keeper")
 	ErrMissingVotePersistenceKeeper error = errors.New("missing vote persistence keeper")
 	ErrMissingBridgeKeeper          error = errors.New("missing bridge keeper")
+	ErrMissingVerificationKeeper    error = errors.New("missing verification keeper")
+	ErrMissingVerificationBuilder   error = errors.New("missing verification payload builder")
 
 	// Vote-extension signing and verification errors.
 	ErrVoteExtBodyHashFailed           error = errors.New("failed to hash vote extension body")
@@ -59,6 +61,9 @@ var (
 	ErrInvalidVoteExtMinaPublicKey     error = errors.New("invalid vote extension mina public key")
 	ErrInvalidVoteExtSignatureEncoding error = errors.New("invalid vote extension signature encoding")
 	ErrInvalidVoteExtSignature         error = errors.New("invalid vote extension signature")
+	ErrInvalidCompositeVoteExtension   error = errors.New("invalid composite vote extension")
+	ErrInvalidVerificationPayload      error = errors.New("invalid verification vote-extension payload")
+	ErrInvalidVerificationSignature    error = errors.New("invalid verification vote-extension signature")
 
 	// Validator-set root construction errors.
 	ErrValidatorMinaKeyNotFound   error = errors.New("validator mina key not found")

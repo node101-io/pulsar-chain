@@ -19,8 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "stable"
-          check-latest: true
+          go-version-file: go.mod
           cache: true
 
       - name: Set up Python
@@ -72,8 +71,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "stable"
-          check-latest: true
+          go-version-file: pulsar-chain/go.mod
           cache: true
           cache-dependency-path: pulsar-chain/go.sum
 

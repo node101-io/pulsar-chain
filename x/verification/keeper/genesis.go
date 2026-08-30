@@ -1,0 +1,138 @@
+package keeper
+
+import (
+	"context"
+
+	"github.com/node101-io/pulsar-chain/x/verification/types"
+)
+
+// InitGenesis validates the full cross-store model before loading it into the
+// module collections. This prevents a fresh chain or exported restart from
+// beginning with state that normal handlers could never create.
+func (k Keeper) InitGenesis(ctx context.Context, state types.GenesisState) error {
+	if err := state.Validate(); err != nil {
+		return err
+	}
+
+	if err := k.Params.Set(ctx, state.Params); err != nil {
+		return err
+	}
+	for _, entry := range state.ProofCounts {
+		if err := k.ProofCountByHeight.Set(ctx, entry.Height, entry.Count); err != nil {
+			return err
+		}
+	}
+	for _, entry := range state.PendingProofs {
+		if err := k.PendingProofs.Set(ctx, types.NewProofStoreKey(entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock), entry.Proof); err != nil {
+			return err
+		}
+	}
+	for _, entry := range state.SeenVerificationIds {
+		if err := k.SeenVerificationIDs.Set(ctx, append([]byte(nil), entry.VerificationId...), entry.ProofKey); err != nil {
+			return err
+		}
+	}
+	for _, entry := range state.ValidatorPowers {
+		if err := k.ValidatorPowers.Set(ctx, types.NewValidatorPowerStoreKey(entry.Height, entry.Validator), entry.VotingPower); err != nil {
+			return err
+		}
+	}
+	for _, entry := range state.TotalVotingPowers {
+		if err := k.TotalVotingPowerByHeight.Set(ctx, entry.Height, entry.TotalVotingPower); err != nil {
+			return err
+		}
+	}
+	// Rebuild the reverse commitment index from the canonical primary records.
+	for _, entry := range state.Commitments {
+		if err := k.Commitments.Set(ctx, types.NewCommitmentStoreKey(entry.Validator, entry.Height), append([]byte(nil), entry.Commitment...)); err != nil {
+			return err
+		}
+		if err := k.CommitmentsByHeight.Set(ctx, types.NewCommitmentHeightStoreKey(entry.Height, entry.Validator)); err != nil {
+			return err
+		}
+	}
+	for _, entry := range state.VerificationVotes {
+		if err := k.VerificationVotes.Set(ctx, types.NewVerificationVoteStoreKey(entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock, entry.Validator), uint32(entry.State)); err != nil {
+			return err
+		}
+	}
+	for _, entry := range state.ProofTallies {
+		if err := k.ProofTallies.Set(ctx, types.NewProofStoreKey(entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock), entry.Tally); err != nil {
+			return err
+		}
+	}
+	for _, entry := range state.FinalProofResults {
+		if err := k.FinalProofResults.Set(ctx, types.NewProofStoreKey(entry.ProofKey.SubmissionHeight, entry.ProofKey.IndexInBlock), entry.Result); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ExportGenesis emits every consensus collection. Validator-local salts and
+// sidecar state are intentionally absent because they are not chain state and
+// may differ across validators without changing the application hash.
+func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) {
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	state := &types.GenesisState{Params: params}
+	if err := k.ProofCountByHeight.Walk(ctx, nil, func(height uint64, count uint32) (bool, error) {
+		state.ProofCounts = append(state.ProofCounts, types.GenesisProofCount{Height: height, Count: count})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := k.PendingProofs.Walk(ctx, nil, func(key types.ProofStoreKey, proof types.ProofRecord) (bool, error) {
+		state.PendingProofs = append(state.PendingProofs, types.GenesisPendingProof{ProofKey: types.ProofKey{SubmissionHeight: key.K1(), IndexInBlock: key.K2()}, Proof: proof})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := k.SeenVerificationIDs.Walk(ctx, nil, func(id []byte, key types.ProofKey) (bool, error) {
+		state.SeenVerificationIds = append(state.SeenVerificationIds, types.GenesisSeenVerificationId{VerificationId: append([]byte(nil), id...), ProofKey: key})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := k.ValidatorPowers.Walk(ctx, nil, func(key types.ValidatorPowerStoreKey, power int64) (bool, error) {
+		state.ValidatorPowers = append(state.ValidatorPowers, types.GenesisValidatorPower{Height: key.K1(), Validator: append([]byte(nil), key.K2()...), VotingPower: power})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := k.TotalVotingPowerByHeight.Walk(ctx, nil, func(height uint64, totalPower int64) (bool, error) {
+		state.TotalVotingPowers = append(state.TotalVotingPowers, types.GenesisTotalVotingPower{Height: height, TotalVotingPower: totalPower})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := k.Commitments.Walk(ctx, nil, func(key types.CommitmentStoreKey, commitment []byte) (bool, error) {
+		state.Commitments = append(state.Commitments, types.GenesisCommitment{Validator: append([]byte(nil), key.K1()...), Height: key.K2(), Commitment: append([]byte(nil), commitment...)})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := k.VerificationVotes.Walk(ctx, nil, func(key types.VerificationVoteStoreKey, vote uint32) (bool, error) {
+		state.VerificationVotes = append(state.VerificationVotes, types.GenesisVerificationVote{ProofKey: types.ProofKey{SubmissionHeight: key.K1(), IndexInBlock: key.K2()}, Validator: append([]byte(nil), key.K3()...), State: types.VoteState(vote)})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := k.ProofTallies.Walk(ctx, nil, func(key types.ProofStoreKey, tally types.ProofTally) (bool, error) {
+		state.ProofTallies = append(state.ProofTallies, types.GenesisProofTally{ProofKey: types.ProofKey{SubmissionHeight: key.K1(), IndexInBlock: key.K2()}, Tally: tally})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := k.FinalProofResults.Walk(ctx, nil, func(key types.ProofStoreKey, result types.FinalProofResult) (bool, error) {
+		state.FinalProofResults = append(state.FinalProofResults, types.GenesisFinalProofResult{ProofKey: types.ProofKey{SubmissionHeight: key.K1(), IndexInBlock: key.K2()}, Result: result})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return state, nil
+}

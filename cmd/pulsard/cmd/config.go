@@ -3,6 +3,8 @@ package cmd
 import (
 	cmtcfg "github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+
+	"github.com/node101-io/pulsar-chain/x/verification/sidecar"
 )
 
 // initCometBFTConfig helps to override default CometBFT Config values.
@@ -27,7 +29,8 @@ func initAppConfig() (string, interface{}) {
 	// The following code snippet is just for reference.
 	type CustomAppConfig struct {
 		serverconfig.Config `mapstructure:",squash"`
-		Bridge              bridgeConfig `mapstructure:"bridge"`
+		Bridge              bridgeConfig       `mapstructure:"bridge"`
+		Verification        verificationConfig `mapstructure:"verification"`
 	}
 
 	// Optionally allow the chain developer to overwrite the SDK's default
@@ -55,9 +58,15 @@ func initAppConfig() (string, interface{}) {
 	customAppConfig := CustomAppConfig{
 		Config: *srvCfg,
 		Bridge: bridgeConfig{},
+		Verification: verificationConfig{
+			Enabled:           true,
+			GRPCAddress:       sidecar.DefaultGRPCAddress,
+			GRPCTransportMode: string(sidecar.TransportModeLoopback),
+			RequestTimeout:    "100ms",
+		},
 	}
 
-	customAppTemplate := serverconfig.DefaultConfigTemplate + bridgeConfigTemplate
+	customAppTemplate := serverconfig.DefaultConfigTemplate + bridgeConfigTemplate + verificationConfigTemplate
 	// Edit the default template file
 	//
 	// customAppTemplate := serverconfig.DefaultConfigTemplate + `
@@ -76,6 +85,18 @@ type bridgeConfig struct {
 	WrapperGRPCTransportMode string `mapstructure:"wrapper_grpc_transport_mode"`
 }
 
+// verificationConfig controls validator-local payload production and its
+// ExtendVote time budget. It is not consensus state: every node still executes
+// the verification module, while an explicit opt-out merely replaces its local
+// producer with a no-op builder. Future participation enforcement must use
+// consensus evidence rather than trusting this local switch.
+type verificationConfig struct {
+	Enabled           bool   `mapstructure:"enabled"`
+	GRPCAddress       string `mapstructure:"grpc_address"`
+	GRPCTransportMode string `mapstructure:"grpc_transport_mode"`
+	RequestTimeout    string `mapstructure:"request_timeout"`
+}
+
 const bridgeConfigTemplate = `
 
 ###############################################################################
@@ -85,4 +106,30 @@ const bridgeConfigTemplate = `
 [bridge]
 wrapper_grpc_address = "{{ .Bridge.WrapperGRPCAddress }}"
 wrapper_grpc_transport_mode = "{{ .Bridge.WrapperGRPCTransportMode }}"
+`
+
+const verificationConfigTemplate = `
+
+###############################################################################
+###                         Verification Configuration                      ###
+###############################################################################
+
+[verification]
+# Validators are expected to run the verification sidecar. Disabling it only
+# stops this node from producing local verification actions; the replicated
+# module still validates other validators' actions and consensus remains live.
+# This local opt-out is not an exemption from future participation slashing.
+enabled = {{ .Verification.Enabled }}
+# The endpoint is required only when local verification production is enabled.
+grpc_address = "{{ .Verification.GRPCAddress }}"
+# trusted-network is plaintext and requires an operator-controlled private network.
+# loopback accepts only literal local addresses; trusted-network additionally
+# permits private IPs and service DNS names. Use network policy to preserve that
+# trust boundary because this phase does not add TLS or application authentication.
+grpc_transport_mode = "{{ .Verification.GRPCTransportMode }}"
+# ExtendVote is a consensus hot path. A timeout records a missed verification
+# opportunity by omitting local work instead of delaying the block or suppressing
+# the mandatory Mina signature. Unfinished proofs may still complete for the next
+# overlapping commitment opportunity.
+request_timeout = "{{ .Verification.RequestTimeout }}"
 `

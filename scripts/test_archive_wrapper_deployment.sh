@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 WRAPPER_SOURCE="${ARCHIVE_WRAPPER_SOURCE:-$(cd -- "$REPO_ROOT/../archive-wrapper" && pwd)}"
 EXPECTED_WRAPPER_SHA="cd42a203ac6b43d24d9fbd57c323ecd52ea52bd5"
+ENABLE_VERIFIER_SIDECARS="${ENABLE_VERIFIER_SIDECARS:-0}"
+VERIFIER_SOURCE="${PULSAR_VERIFIER_SOURCE:-}"
 MODE="${1:-shared}"
 PROJECT="pulsar-wrapper-e2e-${MODE//[^a-zA-Z0-9]/-}-$$"
 TMP_DIR="$(mktemp -d)"
@@ -17,6 +19,7 @@ GENERATED_DIR="$GENERATED_ROOT/wrapper-configs"
 SEED_FILE="$TMP_DIR/seed.sql"
 PULSAR_IMAGE="pulsar-chain:e2e-$(git -C "$REPO_ROOT" rev-parse --short=12 HEAD)"
 WRAPPER_IMAGE="archive-wrapper:e2e-${EXPECTED_WRAPPER_SHA:0:12}"
+VERIFIER_IMAGE=""
 E2E_USER_MINA_PRIV_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
 POSTGRES_URI="postgres://archive:e2e-secret@postgres:5432/archive?sslmode=disable"
 VALIDATOR_COUNT=3
@@ -74,7 +77,7 @@ capture_failure_artifacts() {
   fi
 
   for artifact in "$TMP_DIR"/wrapper-query-*.json "$TMP_DIR"/tx-result.json \
-    "$TMP_DIR"/root-*.json "$TMP_DIR"/block-*.json; do
+    "$TMP_DIR"/verification-*.json "$TMP_DIR"/root-*.json "$TMP_DIR"/block-*.json; do
     [[ -f "$artifact" ]] && cp "$artifact" "$ARTIFACT_DIR/${MODE}-$(basename "$artifact")"
   done
 }
@@ -123,6 +126,21 @@ wait_for_tx() {
   return 1
 }
 
+wait_for_height() {
+	local target_height="$1"
+	local latest_height
+	for _ in $(seq 1 60); do
+		latest_height="$(curl -fsS "http://127.0.0.1:${HOST_RPC_PORTS[1]}/status" 2>/dev/null \
+			| python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value --input - --path result.sync_info.latest_block_height || true)"
+		if [[ "$latest_height" =~ ^[0-9]+$ ]] && (( latest_height >= target_height )); then
+			return 0
+		fi
+		sleep 1
+	done
+	echo "chain did not reach height $target_height" >&2
+	return 1
+}
+
 validator_health() {
   compose exec -T "$1" /opt/pulsar/scripts/docker_entrypoint.sh healthcheck-validator
 }
@@ -137,6 +155,103 @@ wait_for_container_health() {
   done
   echo "container did not become healthy: $container" >&2
   return 1
+}
+
+run_verifier_e2e() {
+  local fixture="$VERIFIER_SOURCE/tests/fixtures/noir/bb-5.2.0"
+  local proof_hash public_inputs_hash verification_key_hash tx_raw_b64 verifier_container
+
+  for index in 1 2 3; do
+    compose exec -T "validator${index}" grep -A8 '^\[verification\]$' \
+      "/testnet/.pulsar-node${index}/config/app.toml" | grep -q '^enabled = true$'
+  done
+
+  proof_hash="$(sha256sum "$fixture/proof" | cut -d' ' -f1)"
+  public_inputs_hash="$(sha256sum "$fixture/public_inputs" | cut -d' ' -f1)"
+  verification_key_hash="$(sha256sum "$fixture/vk" | cut -d' ' -f1)"
+  tx_raw_b64="$(compose exec -T validator1 bash -ceu '
+    work="$(mktemp -d)"
+    trap '\''rm -rf "$work"'\'' EXIT
+    pulsard tx verification submit-proof "$1" noir-barretenberg "$2" "$3" \
+      --from validator1 \
+      --home /testnet/.pulsar-node1 \
+      --keyring-backend test \
+      --chain-id mytestnet \
+      --fees 0pmina \
+      --generate-only \
+      --output json >"$work/unsigned.json"
+    pulsard tx sign "$work/unsigned.json" \
+      --from validator1 \
+      --home /testnet/.pulsar-node1 \
+      --keyring-backend test \
+      --chain-id mytestnet \
+      --output-document "$work/signed.json"
+    pulsard tx encode "$work/signed.json"
+  ' -- "$proof_hash" "$public_inputs_hash" "$verification_key_hash")"
+
+  python3 - "$fixture" "$tx_raw_b64" >"$TMP_DIR/submission-request.json" <<'PY'
+import base64
+import json
+import pathlib
+import sys
+
+fixture = pathlib.Path(sys.argv[1])
+payload = {
+    "proof": {
+        "proofType": "PROOF_TYPE_NOIR_BARRETENBERG",
+        "proof": base64.b64encode((fixture / "proof").read_bytes()).decode(),
+        "publicInputs": base64.b64encode((fixture / "public_inputs").read_bytes()).decode(),
+        "verificationKey": base64.b64encode((fixture / "vk").read_bytes()).decode(),
+    },
+    "txRaw": sys.argv[2].strip(),
+}
+json.dump(payload, sys.stdout)
+PY
+
+  verifier_container="$(compose ps -q verifier1)"
+  docker run --rm -i \
+    --network "container:${verifier_container}" \
+    --entrypoint /usr/local/bin/grpcurl \
+    --mount "type=bind,src=$(command -v grpcurl),dst=/usr/local/bin/grpcurl,readonly" \
+    --mount "type=bind,src=$VERIFIER_SOURCE/crates/pulsar-verifier-proto/proto,dst=/proto,readonly" \
+    "$VERIFIER_IMAGE" -plaintext \
+    -import-path /proto \
+    -proto pulsar/verifier/v1/submission_service.proto \
+    -d @ 127.0.0.1:50052 \
+    pulsar.verifier.v1.SubmissionService/SubmitProof \
+    <"$TMP_DIR/submission-request.json" >"$TMP_DIR/submission-response.json"
+
+  VERIFICATION_TX_HASH="$(python3 - "$TMP_DIR/submission-response.json" <<'PY'
+import base64
+import json
+import sys
+
+print(base64.b64decode(json.load(open(sys.argv[1]))["transactionHash"]).hex().upper())
+PY
+)"
+  wait_for_tx "$VERIFICATION_TX_HASH" "$TMP_DIR/verification-tx-result.json"
+  VERIFICATION_PROOF_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-tx-result.json" --path height)"
+  VERIFICATION_FINAL_HEIGHT="$((VERIFICATION_PROOF_HEIGHT + 5))"
+  wait_for_height "$VERIFICATION_FINAL_HEIGHT"
+
+  compose exec -T validator1 pulsard query verification final-proof-result \
+    "$VERIFICATION_PROOF_HEIGHT" 0 \
+    --node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-final.json"
+  VERIFICATION_STATUS="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-final.json" --path final_result.status)"
+  VALID_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-final.json" --path final_result.valid_voting_power --default 0)"
+  TOTAL_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-final.json" --path final_result.total_voting_power)"
+  POWER_THRESHOLD="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+    --input "$TMP_DIR/verification-final.json" --path final_result.voting_power_threshold)"
+
+  [[ "$VERIFICATION_STATUS" == "PROOF_STATUS_VALID" ]]
+  [[ "$VALID_POWER" == "$TOTAL_POWER" ]]
+  (( POWER_THRESHOLD == TOTAL_POWER * 2 / 3 + 1 ))
+
+  echo "${MODE} verifier E2E evidence: proof_height=${VERIFICATION_PROOF_HEIGHT} final_height=${VERIFICATION_FINAL_HEIGHT} status=${VERIFICATION_STATUS} valid_power=${VALID_POWER} total_power=${TOTAL_POWER} threshold=${POWER_THRESHOLD} ingress=verifier1 retrieval=verifier2,verifier3"
 }
 
 verify_grpc_bind_failure() {
@@ -200,6 +315,21 @@ require_cmd node
 require_cmd npm
 require_cmd python3
 require_cmd timeout
+if [[ "$ENABLE_VERIFIER_SIDECARS" != "0" && "$ENABLE_VERIFIER_SIDECARS" != "1" ]]; then
+  echo "ENABLE_VERIFIER_SIDECARS must be 0 or 1" >&2
+  exit 1
+fi
+
+# Preserve the existing chain-only test unless verifier sidecars are explicitly enabled.
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  VERIFIER_SOURCE="${VERIFIER_SOURCE:-$REPO_ROOT/../../rust-workspace/pulsar-verifier}"
+  if [[ ! -d "$VERIFIER_SOURCE" ]]; then
+    echo "verifier source directory not found: $VERIFIER_SOURCE" >&2
+    exit 1
+  fi
+  VERIFIER_SOURCE="$(cd -- "$VERIFIER_SOURCE" && pwd)"
+  VERIFIER_IMAGE="pulsar-verifier:e2e-$(git -C "$VERIFIER_SOURCE" rev-parse --short=12 HEAD)"
+fi
 docker compose version >/dev/null
 
 if [[ "$(git -C "$WRAPPER_SOURCE" rev-parse HEAD)" != "$EXPECTED_WRAPPER_SHA" ]]; then
@@ -209,6 +339,9 @@ fi
 
 docker buildx build --load --platform linux/amd64 -t "$PULSAR_IMAGE" "$REPO_ROOT"
 docker buildx build --load --platform linux/amd64 -t "$WRAPPER_IMAGE" "$WRAPPER_SOURCE"
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  docker buildx build --load --platform linux/amd64 -t "$VERIFIER_IMAGE" "$VERIFIER_SOURCE"
+fi
 
 MINA_PUBLIC_KEY="$(
   docker run --rm --entrypoint /usr/local/bin/pulsar-devtools "$PULSAR_IMAGE" \
@@ -240,6 +373,9 @@ export E2E_USER_MINA_PRIV_KEY
 export E2E_MIN_GAS_PRICE=0pmina
 export PULSAR_DOCKER_PROJECT="$PROJECT"
 export PULSAR_DOCKER_STATE_ROOT="$DOCKER_STATE_ROOT"
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  export PULSAR_VERIFIER_IMAGE="$VERIFIER_IMAGE"
+fi
 
 if [[ "$MODE" == "external" ]]; then
   export ARCHIVE_WRAPPER_EXTERNAL_ADDRESS="external-wrapper:9095"
@@ -286,6 +422,9 @@ if [[ "$MODE" == "shared" ]]; then
 fi
 
 compose up --no-build -d --wait --wait-timeout 240 validator1 validator2 validator3
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  compose up --no-build -d --wait --wait-timeout 240 verifier1 verifier2 verifier3
+fi
 
 case "$MODE" in
   shared) wrapper_endpoints=(archive-wrapper:9095) ;;
@@ -419,5 +558,125 @@ esac
 for validator in validator1 validator2 validator3; do
   validator_health "$validator" >/dev/null
 done
+
+if [[ "$ENABLE_VERIFIER_SIDECARS" == "1" ]]; then
+  run_verifier_e2e
+  echo "$MODE archive-wrapper deployment with verifier sidecars E2E passed"
+  exit 0
+fi
+
+# Verification is deliberately disabled in this chain-only test. Registering a
+# proof still exercises deterministic on-chain lifecycle state, while the NoOp
+# provider produces no commitment or vote. The proof must therefore finalize as
+# INCONCLUSIVE at H+5 without affecting block production or app-hash agreement.
+for index in 1 2 3; do
+	compose exec -T "validator${index}" grep -A8 '^\[verification\]$' \
+		"/testnet/.pulsar-node${index}/config/app.toml" | grep -q '^enabled = false$'
+done
+VERIFICATION_PROOF_HASH="abababababababababababababababababababababababababababababababab"
+VERIFICATION_PUBLIC_INPUTS_HASH="cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+VERIFICATION_KEY_HASH="efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef"
+VERIFICATION_ID="ba0732b384544a5cfbec6e18a4ac4623bcb46647f24440bb627dd9f8c529fb24"
+compose exec -T validator1 pulsard tx verification submit-proof \
+	"$VERIFICATION_PROOF_HASH" mina-pickles "$VERIFICATION_PUBLIC_INPUTS_HASH" "$VERIFICATION_KEY_HASH" \
+	--from validator1 \
+	--home /testnet/.pulsar-node1 \
+	--keyring-backend test \
+	--chain-id mytestnet \
+	--node tcp://127.0.0.1:26657 \
+	--gas auto \
+	--gas-adjustment 1.5 \
+	--fees 0pmina \
+	--yes \
+	--output json >"$TMP_DIR/verification-tx-broadcast.json"
+VERIFICATION_TX_HASH="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-tx-broadcast.json" --path txhash)"
+wait_for_tx "$VERIFICATION_TX_HASH" "$TMP_DIR/verification-tx-result.json"
+VERIFICATION_TX_CODE="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-tx-result.json" --path code)"
+if [[ "$VERIFICATION_TX_CODE" != "0" ]]; then
+	echo "verification proof transaction failed with code $VERIFICATION_TX_CODE" >&2
+	exit 1
+fi
+VERIFICATION_PROOF_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-tx-result.json" --path height)"
+compose exec -T validator1 pulsard query verification proof "$VERIFICATION_PROOF_HEIGHT" 0 \
+	--height "$VERIFICATION_PROOF_HEIGHT" \
+	--node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-pending.json"
+PENDING_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path proof_key.submission_height)"
+PENDING_TYPE="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.proof_type)"
+PENDING_ID="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.verification_id)"
+PENDING_PROOF_HASH="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.proof_hash)"
+PENDING_PUBLIC_INPUTS_HASH="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.public_inputs_hash)"
+PENDING_KEY_HASH="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending.json" --path State.value.pending.verification_key_hash)"
+[[ "$PENDING_HEIGHT" == "$VERIFICATION_PROOF_HEIGHT" ]]
+[[ "$PENDING_TYPE" == "PROOF_TYPE_MINA_PICKLES" ]]
+[[ "$PENDING_ID" == "ugcys4RUSlz77G4YpKxGI7y0ZkfyREC7Yn3Z+MUp+yQ=" ]]
+[[ "$PENDING_PROOF_HASH" == "q6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6s=" ]]
+[[ "$PENDING_PUBLIC_INPUTS_HASH" == "zc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc0=" ]]
+[[ "$PENDING_KEY_HASH" == "7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+8=" ]]
+compose exec -T validator1 pulsard query verification proof-by-verification-id "$VERIFICATION_ID" \
+	--height "$VERIFICATION_PROOF_HEIGHT" \
+	--node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-pending-by-id.json"
+PENDING_BY_ID_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-pending-by-id.json" --path proof_key.submission_height)"
+[[ "$PENDING_BY_ID_HEIGHT" == "$VERIFICATION_PROOF_HEIGHT" ]]
+
+VERIFICATION_FINAL_HEIGHT="$((VERIFICATION_PROOF_HEIGHT + 5))"
+wait_for_height "$VERIFICATION_FINAL_HEIGHT"
+compose exec -T validator1 pulsard query verification final-proof-result "$VERIFICATION_PROOF_HEIGHT" 0 \
+	--node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-final.json"
+VERIFICATION_STATUS="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.status)"
+VALID_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.valid_voting_power --default 0)"
+INVALID_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.invalid_voting_power --default 0)"
+TOTAL_POWER="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.total_voting_power)"
+POWER_THRESHOLD="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.voting_power_threshold)"
+STORED_FINAL_HEIGHT="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final.json" --path final_result.finalized_height)"
+[[ "$VERIFICATION_STATUS" == "PROOF_STATUS_INCONCLUSIVE" ]]
+[[ "$VALID_POWER" == "0" && "$INVALID_POWER" == "0" ]]
+[[ "$STORED_FINAL_HEIGHT" == "$VERIFICATION_FINAL_HEIGHT" ]]
+(( TOTAL_POWER > 0 ))
+(( POWER_THRESHOLD == TOTAL_POWER * 2 / 3 + 1 ))
+compose exec -T validator1 pulsard query verification proof-by-verification-id "$VERIFICATION_ID" \
+	--node tcp://127.0.0.1:26657 --output json >"$TMP_DIR/verification-final-by-id.json"
+FINAL_BY_ID_STATUS="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value \
+	--input "$TMP_DIR/verification-final-by-id.json" --path State.value.final_result.status)"
+[[ "$FINAL_BY_ID_STATUS" == "PROOF_STATUS_INCONCLUSIVE" ]]
+
+for index in 1 2 3; do
+	curl -fsS "http://127.0.0.1:${HOST_RPC_PORTS[index]}/block?height=$VERIFICATION_FINAL_HEIGHT" \
+		>"$TMP_DIR/block-verification-${index}.json"
+done
+VERIFICATION_APP_HASH_1="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value --input "$TMP_DIR/block-verification-1.json" --path result.block.header.app_hash)"
+VERIFICATION_APP_HASH_2="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value --input "$TMP_DIR/block-verification-2.json" --path result.block.header.app_hash)"
+VERIFICATION_APP_HASH_3="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" json-value --input "$TMP_DIR/block-verification-3.json" --path result.block.header.app_hash)"
+[[ "$VERIFICATION_APP_HASH_1" == "$VERIFICATION_APP_HASH_2" && "$VERIFICATION_APP_HASH_1" == "$VERIFICATION_APP_HASH_3" ]]
+
+declare -a latest_heights
+for index in 1 2 3; do
+  status_file="$TMP_DIR/status-${index}.json"
+  curl -fsS "http://127.0.0.1:${HOST_RPC_PORTS[index]}/status" >"$status_file"
+  latest_heights[index]="$(python3 "$SCRIPT_DIR/e2e/archive_wrapper_e2e.py" \
+    json-value --input "$status_file" --path result.sync_info.latest_block_height)"
+  # Verification is disabled in this chain-only deployment, so the NoOp provider
+  # returns no terminal proof results. Consensus and mandatory Mina extensions
+  # must continue normally, and no private commitment journal should be created.
+  compose exec -T "validator${index}" test ! -e \
+    "/testnet/.pulsar-node${index}/data/verification_commitment_state.json"
+done
+
+echo "${MODE} E2E evidence: tx_height=${TX_HEIGHT} app_hash=${APP_HASH_1} latest_heights=${latest_heights[1]},${latest_heights[2]},${latest_heights[3]} validators=healthy verification_sidecar=noop verification_proof_height=${VERIFICATION_PROOF_HEIGHT} verification_status=${VERIFICATION_STATUS} verification_total_power=${TOTAL_POWER} verification_threshold=${POWER_THRESHOLD} verification_app_hash=${VERIFICATION_APP_HASH_1} verification_local_state=absent"
 
 echo "$MODE archive-wrapper deployment E2E passed"
